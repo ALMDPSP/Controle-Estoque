@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Controle de Estoque · Entrada e Saída</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
 <style>
   :root{
     --bg: #12181f;
@@ -84,7 +85,7 @@
   }
   .field{display:flex; flex-direction:column; gap:6px;}
   .field label{font-size:12px; color:var(--muted);}
-  .field input{
+  .field input, .field select{
     background:var(--panel-2);
     border:1px solid var(--line);
     border-radius:6px;
@@ -94,7 +95,7 @@
     outline:none;
     transition:border-color .15s;
   }
-  .field input:focus{border-color:var(--accent);}
+  .field input:focus, .field select:focus{border-color:var(--accent);}
   .field.wide{grid-column: span 2;}
 
   .form-actions{
@@ -266,11 +267,68 @@
         <input id="vd_loja" name="vd_loja" placeholder="Vendedor / loja que vai receber">
       </div>
 
+      <div class="field">
+        <label for="local">Local</label>
+        <select id="local" name="local">
+          <option value=""></option>
+          <option value="CD">CD</option>
+          <option value="Engemon">Engemon</option>
+          <option value="Loja">Loja</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="armazenagem">Armazenagem</label>
+        <select id="armazenagem" name="armazenagem">
+          <option value=""></option>
+          <option value="Container">Container</option>
+          <option value="Gaiola">Gaiola</option>
+          <option value="CD">CD</option>
+          <option value="Caixa">Caixa</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="status">Status</label>
+        <select id="status" name="status">
+          <option value=""></option>
+          <option value="Reservado">Reservado</option>
+          <option value="Separado">Separado</option>
+          <option value="Enviado">Enviado</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="tipo_estoque">Tipo de Estoque</label>
+        <select id="tipo_estoque" name="tipo_estoque">
+          <option value=""></option>
+          <option value="Expansão">Expansão</option>
+          <option value="Sustentação">Sustentação</option>
+          <option value="Reforma/Projetos">Reforma/Projetos</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="nro_imobilizado">Nº imobilizado</label>
+        <input id="nro_imobilizado" name="nro_imobilizado" placeholder="Nº imobilizado">
+      </div>
+      <div class="field">
+        <label for="nro_serie">Nº série</label>
+        <input id="nro_serie" name="nro_serie" placeholder="Nº de série">
+      </div>
+      <div class="field">
+        <label for="nro_patrimonio">Nº patrimônio</label>
+        <input id="nro_patrimonio" name="nro_patrimonio" placeholder="Nº patrimônio">
+      </div>
+
       <div class="form-actions">
         <button type="submit" class="btn-primary">Salvar item</button>
         <button type="reset" class="btn-ghost">Limpar</button>
       </div>
     </form>
+  </section>
+
+  <section class="panel">
+    <h2>Estoque por tipo</h2>
+    <div style="max-width:520px; margin:0 auto;">
+      <canvas id="grafico-tipo-estoque" height="220"></canvas>
+    </div>
   </section>
 
   <section class="panel">
@@ -291,7 +349,14 @@
             <th>NF saída</th>
             <th>Data saída</th>
             <th>VD / loja</th>
+            <th>Local</th>
+            <th>Armazenagem</th>
             <th>Status</th>
+            <th>Tipo de estoque</th>
+            <th>Nº imob.</th>
+            <th>Nº série</th>
+            <th>Nº patrim.</th>
+            <th>Situação</th>
             <th></th>
           </tr>
         </thead>
@@ -305,12 +370,7 @@
 </main>
 
 <footer>
-  <p style="margin: 0 0 6px 0;">
-    Arquivo de dados: <code id="footer-path">estoque.xlsx</code> — abra esse arquivo a qualquer momento no Excel para conferir ou fazer backup.
-  </p>
-  <p style="margin: 0;">
-    Todos os direitos reservados. Developer by Alexandre Martins.
-  </p>
+  Arquivo de dados: <code id="footer-path">estoque.xlsx</code> — abra esse arquivo a qualquer momento no Excel para conferir ou fazer backup.
 </footer>
 
 <dialog id="edit-dialog">
@@ -386,6 +446,13 @@ function renderizar(){
       <td>${escapeHtml(it.nf_saida || '')}</td>
       <td>${escapeHtml(it.data_saida || '')}</td>
       <td>${escapeHtml(it.vd_loja || '')}</td>
+      <td>${escapeHtml(it.local || '')}</td>
+      <td>${escapeHtml(it.armazenagem || '')}</td>
+      <td>${escapeHtml(it.status || '')}</td>
+      <td>${escapeHtml(it.tipo_estoque || '')}</td>
+      <td>${escapeHtml(it.nro_imobilizado || '')}</td>
+      <td>${escapeHtml(it.nro_serie || '')}</td>
+      <td>${escapeHtml(it.nro_patrimonio || '')}</td>
       <td>${saiu ? '<span class="badge saida">Saiu</span>' : '<span class="badge entrada">Em estoque</span>'}</td>
       <td>
         <div class="row-actions">
@@ -398,6 +465,7 @@ function renderizar(){
   });
 
   atualizarStats();
+  atualizarGrafico();
 }
 
 function atualizarStats(){
@@ -406,6 +474,49 @@ function atualizarStats(){
   document.getElementById('stat-total').textContent = total;
   document.getElementById('stat-estoque').textContent = total - saiu;
   document.getElementById('stat-saiu').textContent = saiu;
+}
+
+let graficoTipoEstoque = null;
+function atualizarGrafico(){
+  const contagem = {};
+  itensCache.forEach(it => {
+    const tipo = (it.tipo_estoque || '').trim() || 'Não informado';
+    const qtde = Number(it.qtde) || 1;
+    contagem[tipo] = (contagem[tipo] || 0) + qtde;
+  });
+
+  const labels = Object.keys(contagem);
+  const valores = Object.values(contagem);
+  const cores = ['#3ea6ff', '#ffb648', '#4cd792', '#ff6b6b', '#a78bfa', '#8b96a8'];
+
+  const ctx = document.getElementById('grafico-tipo-estoque');
+  if(graficoTipoEstoque){
+    graficoTipoEstoque.data.labels = labels;
+    graficoTipoEstoque.data.datasets[0].data = valores;
+    graficoTipoEstoque.update();
+    return;
+  }
+  graficoTipoEstoque = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: labels,
+      datasets: [{
+        data: valores,
+        backgroundColor: cores,
+        borderColor: '#1a2029',
+        borderWidth: 2,
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: { color: '#e7ebf1', font: { size: 12 } }
+        }
+      }
+    }
+  });
 }
 
 function escapeHtml(str){
@@ -427,6 +538,13 @@ document.getElementById('item-form').addEventListener('submit', async (e) => {
     nf_saida: form.nf_saida.value,
     data_saida: form.data_saida.value,
     vd_loja: form.vd_loja.value,
+    local: form.local.value,
+    armazenagem: form.armazenagem.value,
+    status: form.status.value,
+    tipo_estoque: form.tipo_estoque.value,
+    nro_imobilizado: form.nro_imobilizado.value,
+    nro_serie: form.nro_serie.value,
+    nro_patrimonio: form.nro_patrimonio.value,
   };
   const res = await fetch('/api/itens', {
     method: 'POST',
