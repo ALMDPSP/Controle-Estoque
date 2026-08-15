@@ -139,6 +139,13 @@ def api_criar():
         "nf_saida": (dados.get("nf_saida") or "").strip(),
         "data_saida": (dados.get("data_saida") or "").strip(),
         "vd_loja": (dados.get("vd_loja") or "").strip(),
+        "local": (dados.get("local") or "").strip(),
+        "armazenagem": (dados.get("armazenagem") or "").strip(),
+        "status": (dados.get("status") or "").strip(),
+        "nro_imobilizado": (dados.get("nro_imobilizado") or "").strip(),
+        "nro_serie": (dados.get("nro_serie") or "").strip(),
+        "nro_patrimonio": (dados.get("nro_patrimonio") or "").strip(),
+        "tipo_estoque": (dados.get("tipo_estoque") or "").strip(),
     }
     novo_id = db.criar_item(novo)
     novo["id"] = novo_id
@@ -173,15 +180,19 @@ def exportar_excel():
     ws.title = "Estoque"
     colunas = ["ID", "Codigo do item", "Descricao", "Qtde", "Localizacao",
                "NF de entrada", "Data de entrada", "NF de saida",
-               "Data de saida", "VD da loja (destino)"]
+               "Data de saida", "VD da loja (destino)", "Local",
+               "Armazenagem", "Status", "Nro Imobilizado", "Nro Serie",
+               "Nro Patrimonio", "Tipo de Estoque"]
     ws.append(colunas)
     for it in itens:
         ws.append([
             it["id"], it["codigo"], it["descricao"], it["qtde"], it["localizacao"],
             it["nf_entrada"], it["data_entrada"], it["nf_saida"],
-            it["data_saida"], it["vd_loja"],
+            it["data_saida"], it["vd_loja"], it.get("local"),
+            it.get("armazenagem"), it.get("status"), it.get("nro_imobilizado"),
+            it.get("nro_serie"), it.get("nro_patrimonio"), it.get("tipo_estoque"),
         ])
-    larguras = [8, 18, 32, 8, 18, 18, 16, 18, 16, 22]
+    larguras = [8, 18, 32, 8, 18, 18, 16, 18, 16, 22, 12, 14, 12, 16, 16, 16, 18]
     for i, largura in enumerate(larguras, start=1):
         ws.column_dimensions[chr(64 + i)].width = largura
 
