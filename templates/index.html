@@ -1,4 +1,3 @@
-Index · HTML
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -187,9 +186,21 @@ Index · HTML
   dialog .dlg-actions{display:flex; justify-content:flex-end; gap:10px; margin-top:6px;}
  
   footer{
-    text-align:center; color:var(--muted); font-size:12px; padding:0 0 30px;
+    text-align:center; color:var(--muted); font-size:12px; padding:0 0 12px;
   }
   footer code{font-family:var(--mono); color:var(--accent-2);}
+  footer .credito{
+    margin-top:18px;
+    padding-top:16px;
+    border-top:1px solid var(--line);
+    font-size:11px;
+    letter-spacing:.04em;
+    color:var(--muted);
+  }
+  footer .credito strong{
+    color:var(--accent);
+    font-weight:600;
+  }
  
   @media (max-width: 900px){
     form#item-form{grid-template-columns: repeat(2, 1fr);}
@@ -372,6 +383,7 @@ Index · HTML
  
 <footer>
   Arquivo de dados: <code id="footer-path">estoque.xlsx</code> — abra esse arquivo a qualquer momento no Excel para conferir ou fazer backup.
+  <div class="credito">© 2026 · Todos os direitos reservados · Developed by <strong>Alexandre Martins</strong></div>
 </footer>
  
 <dialog id="edit-dialog">
