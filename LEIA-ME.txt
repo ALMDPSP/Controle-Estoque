@@ -18,48 +18,6 @@ Agora o programa tem:
     .xlsx com tudo o que está cadastrado
   - Pronto para subir no GitHub e publicar no Render
 
-
-PARTE 1 — RODAR NO SEU COMPUTADOR (opcional, para testar antes)
-------------------------------------------------------------------
-1. Instale o Python 3: https://www.python.org/downloads/
-2. No terminal, dentro da pasta do projeto:
-
-       pip install -r requirements.txt
-       python app.py
-
-3. Abra http://localhost:5000
-   Usuário: admin   Senha: admin123
-   (Depois de entrar, vá em "Gerenciar usuários" e crie os usuários
-   reais da equipe — e pode criar um admin novo e excluir o "admin"
-   padrão, se quiser.)
-
-Localmente ele usa um arquivo estoque.db (SQLite) — não precisa
-configurar banco nenhum para testar.
-
-
-PARTE 2 — COLOCAR NO GITHUB
-------------------------------------------------------------------
-1. Crie uma conta em https://github.com (se ainda não tiver).
-2. Crie um repositório novo (botão "New repository"), pode deixar
-   privado. Não escolha "Add a README" nem ".gitignore" (nós já
-   temos um).
-3. No terminal, dentro da pasta do projeto:
-
-       git init
-       git add .
-       git commit -m "Primeira versão do controle de estoque"
-       git branch -M main
-       git remote add origin https://github.com/SEU-USUARIO/SEU-REPOSITORIO.git
-       git push -u origin main
-
-
-COMO O ACESSO É CONTROLADO
-------------------------------------------------------------------
-Cada pessoa tem usuário e senha próprios (criados na tela "Gerenciar
-usuários", que só administradores veem). Sem login, ninguém consegue
-ver ou mexer nos dados — o sistema redireciona para a tela de entrada.
-
-
 ESTRUTURA DOS ARQUIVOS
 ------------------------------------------------------------------
 app.py                -> o programa principal (rotas, login, API)
