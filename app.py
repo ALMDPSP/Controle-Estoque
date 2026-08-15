@@ -1,25 +1,3 @@
-"""
-Controle de Estoque - Entrada e Saída de Equipamentos
-------------------------------------------------------
-Programa em Python (Flask) com interface web (HTTP).
-
-- Localmente: guarda os dados num banco SQLite (estoque.db), sem
-  precisar configurar nada.
-- No Render (produção): usa o PostgreSQL do próprio Render, através
-  da variável de ambiente DATABASE_URL.
-
-Tem login por usuário/senha e um botão para exportar os dados para
-Excel (.xlsx) a qualquer momento.
-
-Como rodar localmente:
-    pip install -r requirements.txt
-    python app.py
-
-Depois abra no navegador:
-    http://localhost:5000
-    usuário: admin  senha: admin123  (troque depois de entrar)
-"""
-
 import io
 import os
 from datetime import datetime
