@@ -1,13 +1,3 @@
-"""
-db.py — Camada de acesso a dados.
-
-Funciona com SQLite localmente (arquivo estoque.db, sem precisar
-configurar nada) e com PostgreSQL em produção no Render, bastando
-que a variável de ambiente DATABASE_URL esteja definida (o Render
-já cria essa variável automaticamente quando você conecta um banco
-Postgres ao serviço web).
-"""
-
 import os
 from datetime import datetime
 
@@ -107,6 +97,27 @@ def init_db():
 
     conn.commit()
 
+    # Migração: adiciona as colunas novas em bancos que já existiam antes
+    # (sem apagar nenhum dado já cadastrado).
+    novas_colunas = [
+        ("local", "TEXT"),
+        ("armazenagem", "TEXT"),
+        ("status", "TEXT"),
+        ("nro_imobilizado", "TEXT"),
+        ("nro_serie", "TEXT"),
+        ("nro_patrimonio", "TEXT"),
+        ("tipo_estoque", "TEXT"),
+    ]
+    for coluna, tipo in novas_colunas:
+        try:
+            if IS_PG:
+                cur.execute(f"ALTER TABLE itens ADD COLUMN IF NOT EXISTS {coluna} {tipo}")
+            else:
+                cur.execute(f"ALTER TABLE itens ADD COLUMN {coluna} {tipo}")
+            conn.commit()
+        except Exception:
+            conn.rollback()  # coluna já existe (comum no SQLite, que não tem "IF NOT EXISTS")
+
     # Cria o primeiro usuário administrador automaticamente, se ainda
     # não existir nenhum usuário cadastrado.
     cur.execute("SELECT COUNT(*) FROM usuarios")
@@ -146,7 +157,9 @@ def criar_item(dados):
     conn = get_conn()
     cur = get_cursor(conn)
     campos = ["codigo", "descricao", "qtde", "localizacao", "nf_entrada",
-              "data_entrada", "nf_saida", "data_saida", "vd_loja"]
+              "data_entrada", "nf_saida", "data_saida", "vd_loja",
+              "local", "armazenagem", "status", "nro_imobilizado",
+              "nro_serie", "nro_patrimonio", "tipo_estoque"]
     valores = [dados.get(c, "") for c in campos]
 
     if IS_PG:
@@ -170,7 +183,9 @@ def criar_item(dados):
 
 def atualizar_item(item_id, novos_dados):
     campos_permitidos = ["codigo", "descricao", "qtde", "localizacao", "nf_entrada",
-                          "data_entrada", "nf_saida", "data_saida", "vd_loja"]
+                          "data_entrada", "nf_saida", "data_saida", "vd_loja",
+                          "local", "armazenagem", "status", "nro_imobilizado",
+                          "nro_serie", "nro_patrimonio", "tipo_estoque"]
     sets = [c for c in campos_permitidos if c in novos_dados]
     if not sets:
         return False
