@@ -111,7 +111,7 @@ def init_db():
     # não existir nenhum usuário cadastrado.
     cur.execute("SELECT COUNT(*) FROM usuarios")
     row = cur.fetchone()
-    total = row[0] if not IS_PG else row["count"]
+    total = row[0]
     if total == 0:
         admin_user = os.environ.get("ADMIN_USER", "admin")
         admin_pass = os.environ.get("ADMIN_PASS", "admin123")
