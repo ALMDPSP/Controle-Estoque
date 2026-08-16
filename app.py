@@ -124,6 +124,7 @@ def api_criar():
         "nro_serie": (dados.get("nro_serie") or "").strip(),
         "nro_patrimonio": (dados.get("nro_patrimonio") or "").strip(),
         "tipo_estoque": (dados.get("tipo_estoque") or "").strip(),
+        "criado_por": session.get("username"),
     }
     novo_id = db.criar_item(novo)
     novo["id"] = novo_id
@@ -134,6 +135,8 @@ def api_criar():
 @login_required
 def api_atualizar(item_id):
     dados = request.get_json(force=True)
+    dados["atualizado_por"] = session.get("username")
+    dados["atualizado_em"] = datetime.now().strftime("%Y-%m-%d %H:%M")
     ok = db.atualizar_item(item_id, dados)
     if not ok:
         return jsonify({"erro": "Item não encontrado."}), 404
@@ -160,7 +163,8 @@ def exportar_excel():
                "NF de entrada", "Data de entrada", "NF de saida",
                "Data de saida", "VD da loja (destino)", "Local",
                "Armazenagem", "Status", "Nro Imobilizado", "Nro Serie",
-               "Nro Patrimonio", "Tipo de Estoque"]
+               "Nro Patrimonio", "Tipo de Estoque", "Criado por",
+               "Ultima alteracao por", "Ultima alteracao em"]
     ws.append(colunas)
     for it in itens:
         ws.append([
@@ -169,8 +173,9 @@ def exportar_excel():
             it["data_saida"], it["vd_loja"], it.get("local"),
             it.get("armazenagem"), it.get("status"), it.get("nro_imobilizado"),
             it.get("nro_serie"), it.get("nro_patrimonio"), it.get("tipo_estoque"),
+            it.get("criado_por"), it.get("atualizado_por"), it.get("atualizado_em"),
         ])
-    larguras = [8, 18, 32, 8, 18, 18, 16, 18, 16, 22, 12, 14, 12, 16, 16, 16, 18]
+    larguras = [8, 18, 32, 8, 18, 18, 16, 18, 16, 22, 12, 14, 12, 16, 16, 16, 18, 14, 16, 16]
     for i, largura in enumerate(larguras, start=1):
         ws.column_dimensions[chr(64 + i)].width = largura
 
