@@ -386,27 +386,6 @@
   <div class="credito">© 2026 · Todos os direitos reservados · Developed by <strong>Alexandre Martins</strong></div>
 </footer>
  
-<dialog id="qtde-dialog">
-  <div class="dlg-body">
-    <h3>Retirar do estoque</h3>
-    <input type="hidden" id="qtde-id">
-    <p style="margin:0 0 14px; font-size:13px; color:var(--muted);">
-      Quantidade atual: <strong id="qtde-atual" style="color:var(--text);">0</strong>
-    </p>
-    <div class="field">
-      <label for="qtde-retirar">Quantidade a retirar</label>
-      <input id="qtde-retirar" type="number" min="1" step="1" placeholder="Ex: 2">
-    </div>
-    <p style="margin:0; font-size:13px; color:var(--muted);">
-      Ficará: <strong id="qtde-resultado" style="color:var(--accent);">0</strong>
-    </p>
-    <div class="dlg-actions">
-      <button type="button" class="btn-ghost" id="qtde-cancel">Cancelar</button>
-      <button type="button" class="btn-primary" id="qtde-save">Confirmar retirada</button>
-    </div>
-  </div>
-</dialog>
- 
 <dialog id="edit-dialog">
   <div class="dlg-body">
     <h3>Registrar saída do item</h3>
@@ -490,7 +469,6 @@ function renderizar(){
       <td>${saiu ? '<span class="badge saida">Saiu</span>' : '<span class="badge entrada">Em estoque</span>'}</td>
       <td>
         <div class="row-actions">
-          <button class="btn-ghost" onclick="abrirQtde(${it.id}, ${JSON.stringify(String(it.qtde ?? '0'))})">Retirar do estoque</button>
           ${saiu ? '' : `<button class="btn-ghost" onclick="abrirSaida(${it.id})">Registrar saída</button>`}
           <button class="btn-ghost" onclick="excluirItem(${it.id})">Excluir</button>
         </div>
@@ -629,48 +607,6 @@ document.getElementById('edit-save').addEventListener('click', async () => {
     carregarItens();
   } else {
     alert('Erro ao registrar saída.');
-  }
-});
- 
-const qtdeDialog = document.getElementById('qtde-dialog');
-let qtdeAtualSelecionada = 0;
-function abrirQtde(id, qtdeAtual){
-  qtdeAtualSelecionada = Number(qtdeAtual) || 0;
-  document.getElementById('qtde-id').value = id;
-  document.getElementById('qtde-atual').textContent = qtdeAtualSelecionada;
-  document.getElementById('qtde-retirar').value = '';
-  document.getElementById('qtde-resultado').textContent = qtdeAtualSelecionada;
-  qtdeDialog.showModal();
-  document.getElementById('qtde-retirar').focus();
-}
-document.getElementById('qtde-retirar').addEventListener('input', (e) => {
-  const retirar = Number(e.target.value) || 0;
-  const resultado = Math.max(0, qtdeAtualSelecionada - retirar);
-  document.getElementById('qtde-resultado').textContent = resultado;
-});
-document.getElementById('qtde-cancel').addEventListener('click', () => qtdeDialog.close());
-document.getElementById('qtde-save').addEventListener('click', async () => {
-  const id = document.getElementById('qtde-id').value;
-  const retirar = Number(document.getElementById('qtde-retirar').value);
-  if(!retirar || retirar <= 0){
-    alert('Digite quantos itens estão saindo (um número maior que zero).');
-    return;
-  }
-  if(retirar > qtdeAtualSelecionada){
-    alert(`Você não pode retirar mais do que a quantidade atual (${qtdeAtualSelecionada}).`);
-    return;
-  }
-  const novaQtde = qtdeAtualSelecionada - retirar;
-  const res = await fetch(`/api/itens/${id}`, {
-    method: 'PUT',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({qtde: String(novaQtde)})
-  });
-  if(res.ok){
-    qtdeDialog.close();
-    carregarItens();
-  } else {
-    alert('Erro ao atualizar quantidade.');
   }
 });
  
