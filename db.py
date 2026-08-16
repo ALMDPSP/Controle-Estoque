@@ -1,3 +1,13 @@
+"""
+db.py — Camada de acesso a dados.
+
+Funciona com SQLite localmente (arquivo estoque.db, sem precisar
+configurar nada) e com PostgreSQL em produção no Render, bastando
+que a variável de ambiente DATABASE_URL esteja definida (o Render
+já cria essa variável automaticamente quando você conecta um banco
+Postgres ao serviço web).
+"""
+
 import os
 from datetime import datetime
 
@@ -70,6 +80,17 @@ def init_db():
                 criado_em TEXT
             )
         """)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS movimentacoes (
+                id SERIAL PRIMARY KEY,
+                item_id INTEGER NOT NULL,
+                tipo TEXT NOT NULL,
+                quantidade TEXT,
+                usuario TEXT,
+                data_hora TEXT,
+                observacao TEXT
+            )
+        """)
     else:
         cur.execute("""
             CREATE TABLE IF NOT EXISTS itens (
@@ -92,6 +113,17 @@ def init_db():
                 password_hash TEXT NOT NULL,
                 role TEXT NOT NULL DEFAULT 'user',
                 criado_em TEXT
+            )
+        """)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS movimentacoes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                item_id INTEGER NOT NULL,
+                tipo TEXT NOT NULL,
+                quantidade TEXT,
+                usuario TEXT,
+                data_hora TEXT,
+                observacao TEXT
             )
         """)
 
@@ -215,6 +247,64 @@ def excluir_item(item_id):
     cur.close()
     conn.close()
     return afetadas > 0
+
+
+def buscar_item_por_id(item_id):
+    conn = get_conn()
+    cur = get_cursor(conn)
+    cur.execute(q("SELECT * FROM itens WHERE id = ?"), (item_id,))
+    row = cur.fetchone()
+    item = dict(row) if row else None
+    cur.close()
+    conn.close()
+    return item
+
+
+def recriar_item(dados):
+    """Recria um item (usado para 'desfazer' uma exclusão), preservando o ID original."""
+    conn = get_conn()
+    cur = get_cursor(conn)
+    campos = ["id", "codigo", "descricao", "qtde", "localizacao", "nf_entrada",
+              "data_entrada", "nf_saida", "data_saida", "vd_loja",
+              "local", "armazenagem", "status", "nro_imobilizado",
+              "nro_serie", "nro_patrimonio", "tipo_estoque", "criado_por",
+              "atualizado_por", "atualizado_em"]
+    valores = [dados.get(c) for c in campos]
+    cur.execute(
+        q(f"INSERT INTO itens ({', '.join(campos)}) VALUES ({', '.join(['?'] * len(campos))})"),
+        valores,
+    )
+    conn.commit()
+    cur.close()
+    conn.close()
+
+
+# ---------------------------------------------------------------------
+# Movimentações (histórico)
+# ---------------------------------------------------------------------
+
+def registrar_movimentacao(item_id, tipo, quantidade=None, usuario=None, observacao=None):
+    conn = get_conn()
+    cur = get_cursor(conn)
+    cur.execute(
+        q("INSERT INTO movimentacoes (item_id, tipo, quantidade, usuario, data_hora, observacao) "
+          "VALUES (?, ?, ?, ?, ?, ?)"),
+        (item_id, tipo, quantidade, usuario, datetime.now().strftime("%Y-%m-%d %H:%M"), observacao),
+    )
+    conn.commit()
+    cur.close()
+    conn.close()
+
+
+def listar_movimentacoes(item_id):
+    conn = get_conn()
+    cur = get_cursor(conn)
+    cur.execute(q("SELECT * FROM movimentacoes WHERE item_id = ? ORDER BY id DESC"), (item_id,))
+    linhas = cur.fetchall()
+    movs = [dict(r) for r in linhas]
+    cur.close()
+    conn.close()
+    return movs
 
 
 # ---------------------------------------------------------------------

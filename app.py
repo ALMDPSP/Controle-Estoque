@@ -1,3 +1,25 @@
+"""
+Controle de Estoque - Entrada e Saída de Equipamentos
+------------------------------------------------------
+Programa em Python (Flask) com interface web (HTTP).
+
+- Localmente: guarda os dados num banco SQLite (estoque.db), sem
+  precisar configurar nada.
+- No Render (produção): usa o PostgreSQL do próprio Render, através
+  da variável de ambiente DATABASE_URL.
+
+Tem login por usuário/senha e um botão para exportar os dados para
+Excel (.xlsx) a qualquer momento.
+
+Como rodar localmente:
+    pip install -r requirements.txt
+    python app.py
+
+Depois abra no navegador:
+    http://localhost:5000
+    usuário: admin  senha: admin123  (troque depois de entrar)
+"""
+
 import io
 import os
 from datetime import datetime
@@ -128,6 +150,7 @@ def api_criar():
     }
     novo_id = db.criar_item(novo)
     novo["id"] = novo_id
+    db.registrar_movimentacao(novo_id, "entrada", novo["qtde"], session.get("username"), "Cadastro do item")
     return jsonify(novo), 201
 
 
@@ -135,21 +158,73 @@ def api_criar():
 @login_required
 def api_atualizar(item_id):
     dados = request.get_json(force=True)
+    item_antes = db.buscar_item_por_id(item_id)
+    if not item_antes:
+        return jsonify({"erro": "Item não encontrado."}), 404
+
     dados["atualizado_por"] = session.get("username")
     dados["atualizado_em"] = datetime.now().strftime("%Y-%m-%d %H:%M")
     ok = db.atualizar_item(item_id, dados)
     if not ok:
         return jsonify({"erro": "Item não encontrado."}), 404
+
+    # Registra a movimentação no histórico, se a quantidade mudou.
+    if "qtde" in dados:
+        try:
+            qtde_antes = float(item_antes.get("qtde") or 0)
+            qtde_depois = float(dados["qtde"] or 0)
+        except ValueError:
+            qtde_antes = qtde_depois = None
+        if qtde_antes is not None and qtde_depois < qtde_antes:
+            diferenca = qtde_antes - qtde_depois
+            if dados.get("nf_saida"):
+                obs = f"Saída registrada (NF {dados.get('nf_saida')}, destino: {dados.get('vd_loja') or '-'})"
+                tipo_mov = "saida"
+            else:
+                obs = "Retirada de estoque"
+                tipo_mov = "retirada"
+            db.registrar_movimentacao(item_id, tipo_mov, str(diferenca), session.get("username"), obs)
+        elif qtde_antes is not None and qtde_depois > qtde_antes:
+            db.registrar_movimentacao(item_id, "ajuste", str(qtde_depois - qtde_antes),
+                                       session.get("username"), "Quantidade aumentada manualmente")
+        else:
+            db.registrar_movimentacao(item_id, "edicao", None, session.get("username"), "Dados do item editados")
+    else:
+        db.registrar_movimentacao(item_id, "edicao", None, session.get("username"), "Dados do item editados")
+
     return jsonify({"ok": True})
 
 
 @app.route("/api/itens/<int:item_id>", methods=["DELETE"])
 @login_required
 def api_excluir(item_id):
-    ok = db.excluir_item(item_id)
-    if not ok:
+    item = db.buscar_item_por_id(item_id)
+    if not item:
         return jsonify({"erro": "Item não encontrado."}), 404
+    db.registrar_movimentacao(item_id, "exclusao", item.get("qtde"), session.get("username"),
+                               f"Item {item.get('codigo')} excluído")
+    db.excluir_item(item_id)
+    return jsonify({"ok": True, "item": item})
+
+
+@app.route("/api/itens/restaurar", methods=["POST"])
+@login_required
+def api_restaurar():
+    dados = request.get_json(force=True)
+    if not dados or not dados.get("id"):
+        return jsonify({"erro": "Dados inválidos para restaurar."}), 400
+    if db.buscar_item_por_id(dados["id"]):
+        return jsonify({"erro": "Este item já existe (não foi excluído ou já foi restaurado)."}), 400
+    db.recriar_item(dados)
+    db.registrar_movimentacao(dados["id"], "restauracao", dados.get("qtde"), session.get("username"),
+                               "Exclusão desfeita")
     return jsonify({"ok": True})
+
+
+@app.route("/api/itens/<int:item_id>/movimentacoes")
+@login_required
+def api_movimentacoes(item_id):
+    return jsonify(db.listar_movimentacoes(item_id))
 
 
 @app.route("/export")
