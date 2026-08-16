@@ -60,9 +60,9 @@
   .stats div{text-align:right;}
   .stats .num{font-size:20px; font-weight:600; color:var(--accent);}
   .stats .lbl{font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.08em;}
- 
+
   main{padding:26px 32px 60px; max-width:1400px; margin:0 auto;}
- 
+
   .panel{
     background:var(--panel);
     border:1px solid var(--line);
@@ -97,7 +97,7 @@
   }
   .field input:focus, .field select:focus{border-color:var(--accent);}
   .field.wide{grid-column: span 2;}
- 
+
   .form-actions{
     grid-column: 1 / -1;
     display:flex;
@@ -119,7 +119,7 @@
   .btn-primary:hover{opacity:.9;}
   .btn-ghost{background:transparent; color:var(--muted); border:1px solid var(--line);}
   .btn-ghost:hover{color:var(--text); border-color:var(--muted);}
- 
+
   .toolbar{
     display:flex; justify-content:space-between; align-items:center;
     margin-bottom:14px; gap:12px; flex-wrap:wrap;
@@ -135,7 +135,7 @@
     outline:none;
   }
   .toolbar input[type=search]:focus{border-color:var(--accent);}
- 
+
   table{width:100%; border-collapse:collapse; font-size:13px;}
   thead th{
     text-align:left;
@@ -170,7 +170,7 @@
   .empty{
     text-align:center; padding:40px 20px; color:var(--muted); font-size:13px;
   }
- 
+
   dialog{
     border:1px solid var(--line);
     border-radius:10px;
@@ -184,7 +184,7 @@
   dialog h3{margin:0 0 14px; font-size:15px;}
   dialog .field{margin-bottom:12px;}
   dialog .dlg-actions{display:flex; justify-content:flex-end; gap:10px; margin-top:6px;}
- 
+
   footer{
     text-align:center; color:var(--muted); font-size:12px; padding:0 0 12px;
   }
@@ -201,7 +201,7 @@
     color:var(--accent);
     font-weight:600;
   }
- 
+
   @media (max-width: 900px){
     form#item-form{grid-template-columns: repeat(2, 1fr);}
     .field.wide{grid-column: span 2;}
@@ -209,7 +209,7 @@
 </style>
 </head>
 <body>
- 
+
 <header>
   <div>
     <div class="brand">
@@ -235,9 +235,9 @@
 <div id="sync-bar" style="text-align:center; font-size:11px; color:var(--muted); padding:6px 0; font-family:var(--mono); background:var(--panel-2); border-bottom:1px solid var(--line);">
   <span id="sync-status">conectado — dados compartilhados em tempo real</span>
 </div>
- 
+
 <main>
- 
+
   <section class="panel">
     <h2>Registrar novo item (entrada)</h2>
     <form id="item-form">
@@ -257,7 +257,7 @@
         <label for="localizacao">Localização</label>
         <input id="localizacao" name="localizacao" placeholder="Depósito / prateleira">
       </div>
- 
+
       <div class="field">
         <label for="nf_entrada">NF de entrada</label>
         <input id="nf_entrada" name="nf_entrada" placeholder="Nº nota fiscal">
@@ -278,7 +278,7 @@
         <label for="vd_loja">VD / loja de destino</label>
         <input id="vd_loja" name="vd_loja" placeholder="Vendedor / loja que vai receber">
       </div>
- 
+
       <div class="field">
         <label for="local">Local</label>
         <select id="local" name="local">
@@ -328,21 +328,21 @@
         <label for="nro_patrimonio">Nº patrimônio</label>
         <input id="nro_patrimonio" name="nro_patrimonio" placeholder="Nº patrimônio">
       </div>
- 
+
       <div class="form-actions">
         <button type="submit" class="btn-primary">Salvar item</button>
         <button type="reset" class="btn-ghost">Limpar</button>
       </div>
     </form>
   </section>
- 
+
   <section class="panel">
     <h2>Estoque por tipo</h2>
     <div style="max-width:520px; margin:0 auto;">
       <canvas id="grafico-tipo-estoque" height="220"></canvas>
     </div>
   </section>
- 
+
   <section class="panel">
     <div class="toolbar">
       <h2 style="margin:0;">Itens cadastrados</h2>
@@ -368,6 +368,8 @@
             <th>Nº imob.</th>
             <th>Nº série</th>
             <th>Nº patrim.</th>
+            <th>Criado por</th>
+            <th>Últ. alteração</th>
             <th>Situação</th>
             <th></th>
           </tr>
@@ -378,14 +380,35 @@
       <div class="empty" id="empty-msg" style="display:none;">Nenhum item cadastrado ainda.</div>
     </div>
   </section>
- 
+
 </main>
- 
+
 <footer>
   Arquivo de dados: <code id="footer-path">estoque.xlsx</code> — abra esse arquivo a qualquer momento no Excel para conferir ou fazer backup.
   <div class="credito">© 2026 · Todos os direitos reservados · Developed by <strong>Alexandre Martins</strong></div>
 </footer>
- 
+
+<dialog id="qtde-dialog">
+  <div class="dlg-body">
+    <h3>Retirar do estoque</h3>
+    <input type="hidden" id="qtde-id">
+    <p style="margin:0 0 14px; font-size:13px; color:var(--muted);">
+      Quantidade atual: <strong id="qtde-atual" style="color:var(--text);">0</strong>
+    </p>
+    <div class="field">
+      <label for="qtde-retirar">Quantidade a retirar</label>
+      <input id="qtde-retirar" type="number" min="1" step="1" placeholder="Ex: 2">
+    </div>
+    <p style="margin:0; font-size:13px; color:var(--muted);">
+      Ficará: <strong id="qtde-resultado" style="color:var(--accent);">0</strong>
+    </p>
+    <div class="dlg-actions">
+      <button type="button" class="btn-ghost" id="qtde-cancel">Cancelar</button>
+      <button type="button" class="btn-primary" id="qtde-save">Confirmar retirada</button>
+    </div>
+  </div>
+</dialog>
+
 <dialog id="edit-dialog">
   <div class="dlg-body">
     <h3>Registrar saída do item</h3>
@@ -408,15 +431,15 @@
     </div>
   </div>
 </dialog>
- 
+
 <script>
 const tbody = document.getElementById('tbody');
 const emptyMsg = document.getElementById('empty-msg');
 const buscaInput = document.getElementById('busca');
 let itensCache = [];
- 
+
 const syncStatus = document.getElementById('sync-status');
- 
+
 async function carregarItens(silencioso){
   try{
     const res = await fetch('/api/itens');
@@ -431,21 +454,21 @@ async function carregarItens(silencioso){
     if(!silencioso) throw err;
   }
 }
- 
+
 // Atualiza a lista automaticamente a cada 4s, para todo mundo ver
 // as mudanças feitas por outras pessoas sem precisar recarregar a página.
 setInterval(() => carregarItens(true), 4000);
- 
+
 function renderizar(){
   const termo = buscaInput.value.trim().toLowerCase();
   const filtrados = itensCache.filter(it => {
     if(!termo) return true;
     return Object.values(it).join(' ').toLowerCase().includes(termo);
   });
- 
+
   tbody.innerHTML = '';
   emptyMsg.style.display = filtrados.length ? 'none' : 'block';
- 
+
   filtrados.slice().reverse().forEach(it => {
     const saiu = !!(it.nf_saida || it.data_saida);
     const tr = document.createElement('tr');
@@ -466,9 +489,12 @@ function renderizar(){
       <td>${escapeHtml(it.nro_imobilizado || '')}</td>
       <td>${escapeHtml(it.nro_serie || '')}</td>
       <td>${escapeHtml(it.nro_patrimonio || '')}</td>
+      <td>${escapeHtml(it.criado_por || '')}</td>
+      <td>${it.atualizado_por ? escapeHtml(it.atualizado_por) + '<br><span style="color:var(--muted); font-size:11px;">' + escapeHtml(it.atualizado_em || '') + '</span>' : ''}</td>
       <td>${saiu ? '<span class="badge saida">Saiu</span>' : '<span class="badge entrada">Em estoque</span>'}</td>
       <td>
         <div class="row-actions">
+          <button class="btn-ghost" onclick="abrirQtde(${it.id}, ${Number(it.qtde) || 0})">Retirar do estoque</button>
           ${saiu ? '' : `<button class="btn-ghost" onclick="abrirSaida(${it.id})">Registrar saída</button>`}
           <button class="btn-ghost" onclick="excluirItem(${it.id})">Excluir</button>
         </div>
@@ -476,11 +502,11 @@ function renderizar(){
     `;
     tbody.appendChild(tr);
   });
- 
+
   atualizarStats();
   atualizarGrafico();
 }
- 
+
 function atualizarStats(){
   const total = itensCache.length;
   const saiu = itensCache.filter(it => it.nf_saida || it.data_saida).length;
@@ -488,7 +514,7 @@ function atualizarStats(){
   document.getElementById('stat-estoque').textContent = total - saiu;
   document.getElementById('stat-saiu').textContent = saiu;
 }
- 
+
 let graficoTipoEstoque = null;
 function atualizarGrafico(){
   try{
@@ -499,11 +525,11 @@ function atualizarGrafico(){
       const qtde = Number(it.qtde) || 1;
       contagem[tipo] = (contagem[tipo] || 0) + qtde;
     });
- 
+
     const labels = Object.keys(contagem);
     const valores = Object.values(contagem);
     const cores = ['#3ea6ff', '#ffb648', '#4cd792', '#ff6b6b', '#a78bfa', '#8b96a8'];
- 
+
     const ctx = document.getElementById('grafico-tipo-estoque');
     if(!ctx) return;
     if(graficoTipoEstoque){
@@ -537,13 +563,13 @@ function atualizarGrafico(){
     console.error('Erro ao desenhar o gráfico:', err);
   }
 }
- 
+
 function escapeHtml(str){
   return String(str).replace(/[&<>"']/g, s => ({
     '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'
   }[s]));
 }
- 
+
 document.getElementById('item-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const form = e.target;
@@ -578,9 +604,9 @@ document.getElementById('item-form').addEventListener('submit', async (e) => {
     alert(erro.erro || 'Erro ao salvar item.');
   }
 });
- 
+
 buscaInput.addEventListener('input', renderizar);
- 
+
 const dialog = document.getElementById('edit-dialog');
 function abrirSaida(id){
   document.getElementById('edit-id').value = id;
@@ -609,7 +635,49 @@ document.getElementById('edit-save').addEventListener('click', async () => {
     alert('Erro ao registrar saída.');
   }
 });
- 
+
+const qtdeDialog = document.getElementById('qtde-dialog');
+let qtdeAtualSelecionada = 0;
+function abrirQtde(id, qtdeAtual){
+  qtdeAtualSelecionada = Number(qtdeAtual) || 0;
+  document.getElementById('qtde-id').value = id;
+  document.getElementById('qtde-atual').textContent = qtdeAtualSelecionada;
+  document.getElementById('qtde-retirar').value = '';
+  document.getElementById('qtde-resultado').textContent = qtdeAtualSelecionada;
+  qtdeDialog.showModal();
+  document.getElementById('qtde-retirar').focus();
+}
+document.getElementById('qtde-retirar').addEventListener('input', (e) => {
+  const retirar = Number(e.target.value) || 0;
+  const resultado = Math.max(0, qtdeAtualSelecionada - retirar);
+  document.getElementById('qtde-resultado').textContent = resultado;
+});
+document.getElementById('qtde-cancel').addEventListener('click', () => qtdeDialog.close());
+document.getElementById('qtde-save').addEventListener('click', async () => {
+  const id = document.getElementById('qtde-id').value;
+  const retirar = Number(document.getElementById('qtde-retirar').value);
+  if(!retirar || retirar <= 0){
+    alert('Digite quantos itens estão saindo (um número maior que zero).');
+    return;
+  }
+  if(retirar > qtdeAtualSelecionada){
+    alert(`Você não pode retirar mais do que a quantidade atual (${qtdeAtualSelecionada}).`);
+    return;
+  }
+  const novaQtde = qtdeAtualSelecionada - retirar;
+  const res = await fetch(`/api/itens/${id}`, {
+    method: 'PUT',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({qtde: String(novaQtde)})
+  });
+  if(res.ok){
+    qtdeDialog.close();
+    carregarItens();
+  } else {
+    alert('Erro ao atualizar quantidade.');
+  }
+});
+
 async function excluirItem(id){
   if(!confirm('Excluir este item da planilha?')) return;
   const res = await fetch(`/api/itens/${id}`, {method:'DELETE'});
@@ -619,10 +687,9 @@ async function excluirItem(id){
     alert('Erro ao excluir item.');
   }
 }
- 
+
 carregarItens();
 </script>
- 
+
 </body>
 </html>
- 
