@@ -56,7 +56,7 @@
     letter-spacing:.01em;
   }
   header p{margin:0; color:var(--muted); font-size:13px;}
-  .stats{display:flex; gap:22px; font-family:var(--mono);}
+  .stats{display:flex; gap:22px; font-family:var(--mono); flex-wrap:wrap; justify-content:flex-end;}
   .stats div{text-align:right;}
   .stats .num{font-size:20px; font-weight:600; color:var(--accent);}
   .stats .lbl{font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.08em;}
@@ -222,6 +222,9 @@
     <div><div class="num" id="stat-total">0</div><div class="lbl">Itens</div></div>
     <div><div class="num" id="stat-estoque">0</div><div class="lbl">Em estoque</div></div>
     <div><div class="num" id="stat-saiu">0</div><div class="lbl">Já saíram</div></div>
+    <div><div class="num" id="stat-expansao" style="color:var(--accent);">0</div><div class="lbl">Expansão</div></div>
+    <div><div class="num" id="stat-sustentacao" style="color:var(--accent-2);">0</div><div class="lbl">Sustentação</div></div>
+    <div><div class="num" id="stat-reforma" style="color:var(--ok);">0</div><div class="lbl">Reforma/Projetos</div></div>
   </div>
 </header>
 <nav style="padding:10px 32px; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:center; font-size:13px; flex-wrap:wrap; gap:10px;">
@@ -276,7 +279,7 @@
       </div>
       <div class="field">
         <label for="vd_loja">VD / loja de destino</label>
-        <input id="vd_loja" name="vd_loja" placeholder="VD / loja que vai receber">
+        <input id="vd_loja" name="vd_loja" placeholder="Vendedor / loja que vai receber">
       </div>
  
       <div class="field">
@@ -433,7 +436,7 @@
     </div>
     <div class="field">
       <label for="edit-vd_loja">VD / loja de destino</label>
-      <input id="edit-vd_loja" placeholder="VD / loja que vai receber">
+      <input id="edit-vd_loja" placeholder="Vendedor / loja que vai receber">
     </div>
     <div class="dlg-actions">
       <button type="button" class="btn-ghost" id="edit-cancel">Cancelar</button>
@@ -524,6 +527,14 @@ function atualizarStats(){
   document.getElementById('stat-total').textContent = total;
   document.getElementById('stat-estoque').textContent = total - saiu;
   document.getElementById('stat-saiu').textContent = saiu;
+ 
+  const somaPorTipo = (tipo) => itensCache
+    .filter(it => (it.tipo_estoque || '').trim() === tipo)
+    .reduce((soma, it) => soma + (Number(it.qtde) || 0), 0);
+ 
+  document.getElementById('stat-expansao').textContent = somaPorTipo('Expansão');
+  document.getElementById('stat-sustentacao').textContent = somaPorTipo('Sustentação');
+  document.getElementById('stat-reforma').textContent = somaPorTipo('Reforma/Projetos');
 }
  
 let graficoTipoEstoque = null;
