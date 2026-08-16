@@ -10,14 +10,6 @@ Um programa em Python (Flask) com página web, para cadastrar itens:
   - Localização             - Data de saída
   - VD da loja que vai receber o item
 
-Agora o programa tem:
-  - LOGIN por usuário e senha (cada pessoa com o seu)
-  - Banco de dados de verdade (não é mais um arquivo Excel solto —
-    isso é o que permite hospedar na internet sem perder dados)
-  - Botão "Exportar para Excel" a qualquer momento, que baixa um
-    .xlsx com tudo o que está cadastrado
-  - Pronto para subir no GitHub e publicar no Render
-
 ESTRUTURA DOS ARQUIVOS
 ------------------------------------------------------------------
 app.py                -> o programa principal (rotas, login, API)
