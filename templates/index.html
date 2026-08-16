@@ -165,6 +165,25 @@
   }
   .badge.entrada{background:rgba(76,215,146,.12); color:var(--ok); border:1px solid rgba(76,215,146,.3);}
   .badge.saida{background:rgba(255,107,107,.12); color:var(--danger); border:1px solid rgba(255,107,107,.3);}
+  .data-pill{
+    font-family:var(--mono); font-size:11.5px; padding:3px 8px; border-radius:5px;
+    display:inline-block; white-space:nowrap; font-weight:600;
+  }
+  .data-pill.entrada{background:rgba(76,215,146,.10); color:var(--ok);}
+  .data-pill.saida{background:rgba(255,107,107,.10); color:var(--danger);}
+  .status-pill{
+    font-size:11.5px; padding:3px 9px; border-radius:20px; font-weight:600;
+    display:inline-block; white-space:nowrap; letter-spacing:.02em;
+  }
+  .status-pill.reservado{background:rgba(255,182,72,.14); color:var(--accent-2); border:1px solid rgba(255,182,72,.35);}
+  .status-pill.separado{background:rgba(62,166,255,.14); color:var(--accent); border:1px solid rgba(62,166,255,.35);}
+  .status-pill.enviado{background:rgba(76,215,146,.14); color:var(--ok); border:1px solid rgba(76,215,146,.35);}
+  .nome-destaque{font-weight:700; color:var(--text);}
+  .alteracao-destaque{
+    background:var(--panel-2); border-radius:6px; padding:4px 8px; display:inline-block;
+  }
+  .alteracao-destaque .quem{font-weight:700; color:var(--accent);}
+  .alteracao-destaque .quando{display:block; color:var(--muted); font-size:10.5px; font-family:var(--mono); margin-top:1px;}
   .row-actions{display:flex; gap:6px;}
   .row-actions button{padding:6px 10px; font-size:12px;}
   .empty{
@@ -492,19 +511,19 @@ function renderizar(){
       <td>${escapeHtml(String(it.qtde ?? ''))}</td>
       <td>${escapeHtml(it.localizacao || '')}</td>
       <td>${escapeHtml(it.nf_entrada || '')}</td>
-      <td>${escapeHtml(it.data_entrada || '')}</td>
+      <td>${it.data_entrada ? `<span class="data-pill entrada">${escapeHtml(it.data_entrada)}</span>` : ''}</td>
       <td>${escapeHtml(it.nf_saida || '')}</td>
-      <td>${escapeHtml(it.data_saida || '')}</td>
+      <td>${it.data_saida ? `<span class="data-pill saida">${escapeHtml(it.data_saida)}</span>` : ''}</td>
       <td>${escapeHtml(it.vd_loja || '')}</td>
       <td>${escapeHtml(it.local || '')}</td>
       <td>${escapeHtml(it.armazenagem || '')}</td>
-      <td>${escapeHtml(it.status || '')}</td>
+      <td>${it.status ? `<span class="status-pill ${escapeHtml((it.status||'').toLowerCase())}">${escapeHtml(it.status)}</span>` : ''}</td>
       <td>${escapeHtml(it.tipo_estoque || '')}</td>
       <td>${escapeHtml(it.nro_imobilizado || '')}</td>
       <td>${escapeHtml(it.nro_serie || '')}</td>
       <td>${escapeHtml(it.nro_patrimonio || '')}</td>
-      <td>${escapeHtml(it.criado_por || '')}</td>
-      <td>${it.atualizado_por ? escapeHtml(it.atualizado_por) + '<br><span style="color:var(--muted); font-size:11px;">' + escapeHtml(it.atualizado_em || '') + '</span>' : ''}</td>
+      <td>${it.criado_por ? `<span class="nome-destaque">${escapeHtml(it.criado_por)}</span>` : ''}</td>
+      <td>${it.atualizado_por ? `<span class="alteracao-destaque"><span class="quem">${escapeHtml(it.atualizado_por)}</span><span class="quando">${escapeHtml(it.atualizado_em || '')}</span></span>` : ''}</td>
       <td>${saiu ? '<span class="badge saida">Saiu</span>' : '<span class="badge entrada">Em estoque</span>'}</td>
       <td>
         <div class="row-actions">
