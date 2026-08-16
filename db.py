@@ -107,6 +107,9 @@ def init_db():
         ("nro_serie", "TEXT"),
         ("nro_patrimonio", "TEXT"),
         ("tipo_estoque", "TEXT"),
+        ("criado_por", "TEXT"),
+        ("atualizado_por", "TEXT"),
+        ("atualizado_em", "TEXT"),
     ]
     for coluna, tipo in novas_colunas:
         try:
@@ -159,7 +162,7 @@ def criar_item(dados):
     campos = ["codigo", "descricao", "qtde", "localizacao", "nf_entrada",
               "data_entrada", "nf_saida", "data_saida", "vd_loja",
               "local", "armazenagem", "status", "nro_imobilizado",
-              "nro_serie", "nro_patrimonio", "tipo_estoque"]
+              "nro_serie", "nro_patrimonio", "tipo_estoque", "criado_por"]
     valores = [dados.get(c, "") for c in campos]
 
     if IS_PG:
@@ -185,7 +188,8 @@ def atualizar_item(item_id, novos_dados):
     campos_permitidos = ["codigo", "descricao", "qtde", "localizacao", "nf_entrada",
                           "data_entrada", "nf_saida", "data_saida", "vd_loja",
                           "local", "armazenagem", "status", "nro_imobilizado",
-                          "nro_serie", "nro_patrimonio", "tipo_estoque"]
+                          "nro_serie", "nro_patrimonio", "tipo_estoque",
+                          "atualizado_por", "atualizado_em"]
     sets = [c for c in campos_permitidos if c in novos_dados]
     if not sets:
         return False
