@@ -56,7 +56,7 @@
 </style>
 </head>
 <body>
-
+ 
 <header>
   <div>
     <span class="tag">Estoque</span>
@@ -68,7 +68,7 @@
     <a href="{{ url_for('logout') }}">Sair</a>
   </nav>
 </header>
-
+ 
 <main>
   <div class="panel">
     <h2>Novo usuário</h2>
@@ -92,27 +92,41 @@
       <button type="submit" class="btn-primary">Adicionar usuário</button>
     </form>
   </div>
-
+ 
   <div class="panel">
     <h2>Usuários cadastrados</h2>
     <table>
       <thead>
-        <tr><th>Usuário</th><th>Perfil</th><th>Criado em</th><th></th></tr>
+        <tr><th>Usuário</th><th>Perfil</th><th>Acesso</th><th>Criado em</th><th></th></tr>
       </thead>
       <tbody id="tbody">
         {% for u in usuarios %}
         <tr id="row-{{ u.id }}">
           <td>{{ u.username }}</td>
           <td><span class="badge {{ u.role }}">{{ 'Administrador' if u.role == 'admin' else 'Usuário' }}</span></td>
+          <td>
+            {% if u.precisa_trocar_senha == '1' %}
+            <span class="badge" style="background:rgba(255,182,72,.12); color:var(--accent-2); border:1px solid rgba(255,182,72,.3);">Aguardando 1º acesso</span>
+            {% else %}
+            <span class="badge" style="background:rgba(76,215,146,.12); color:var(--ok); border:1px solid rgba(76,215,146,.3);">Ativo</span>
+            {% endif %}
+          </td>
           <td>{{ u.criado_em[:10] if u.criado_em else '' }}</td>
-          <td><button class="btn-ghost" onclick="excluirUsuario({{ u.id }})">Excluir</button></td>
+          <td>
+            <div style="display:flex; gap:6px;">
+              {% if u.precisa_trocar_senha != '1' %}
+              <button class="btn-ghost" onclick="forcarTrocaSenha({{ u.id }}, '{{ u.username }}')">Forçar troca de senha</button>
+              {% endif %}
+              <button class="btn-ghost" onclick="excluirUsuario({{ u.id }})">Excluir</button>
+            </div>
+          </td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
 </main>
-
+ 
 <script>
 const msg = document.getElementById('msg');
 function mostrarMsg(texto, tipo){
@@ -120,7 +134,7 @@ function mostrarMsg(texto, tipo){
   msg.className = 'msg ' + tipo;
   msg.style.display = 'block';
 }
-
+ 
 document.getElementById('user-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const dados = {
@@ -141,7 +155,7 @@ document.getElementById('user-form').addEventListener('submit', async (e) => {
     mostrarMsg(corpo.erro || 'Erro ao criar usuário.', 'erro');
   }
 });
-
+ 
 async function excluirUsuario(id){
   if(!confirm('Excluir este usuário? Ele não vai mais conseguir entrar no sistema.')) return;
   const res = await fetch(`/api/usuarios/${id}`, {method:'DELETE'});
@@ -152,7 +166,19 @@ async function excluirUsuario(id){
     alert(corpo.erro || 'Erro ao excluir usuário.');
   }
 }
+ 
+async function forcarTrocaSenha(id, username){
+  if(!confirm(`Na próxima vez que ${username} entrar, vai ser obrigado a criar uma senha nova. Confirmar?`)) return;
+  const res = await fetch(`/api/usuarios/${id}/forcar-troca-senha`, {method:'POST'});
+  if(res.ok){
+    location.reload();
+  } else {
+    const corpo = await res.json();
+    alert(corpo.erro || 'Erro ao forçar troca de senha.');
+  }
+}
 </script>
-
+ 
 </body>
 </html>
+ 
