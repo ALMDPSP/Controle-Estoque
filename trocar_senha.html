@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Trocar senha · Controle de Estoque</title>
+<style>
+  :root{
+    --bg:#12181f; --panel:#1a2029; --panel-2:#212934; --line:#2b3444;
+    --text:#e7ebf1; --muted:#8b96a8; --accent:#3ea6ff; --accent-2:#ffb648; --danger:#ff6b6b;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    background:var(--bg); color:var(--text);
+    font-family:"Segoe UI", Inter, system-ui, -apple-system, sans-serif;
+  }
+  .card{
+    background:var(--panel); border:1px solid var(--line); border-radius:10px;
+    padding:32px 30px; width:min(380px, 90vw);
+  }
+  .tag{
+    font-family:"SFMono-Regular", Consolas, monospace; font-size:12px; letter-spacing:.12em;
+    color:var(--accent); text-transform:uppercase; margin-bottom:6px; display:block;
+  }
+  h1{font-size:19px; margin:0 0 8px; font-weight:600;}
+  .sub{color:var(--muted); font-size:13px; margin:0 0 22px; line-height:1.5;}
+  .field{display:flex; flex-direction:column; gap:6px; margin-bottom:14px;}
+  .field label{font-size:12px; color:var(--muted);}
+  .field input{
+    background:var(--panel-2); border:1px solid var(--line); border-radius:6px;
+    padding:10px 11px; color:var(--text); font-size:14px; outline:none;
+  }
+  .field input:focus{border-color:var(--accent);}
+  button{
+    width:100%; margin-top:8px; background:var(--accent); color:#08131f;
+    border:none; border-radius:6px; padding:11px; font-size:14px; font-weight:600;
+    cursor:pointer;
+  }
+  button:hover{opacity:.9;}
+  .erro{
+    background:rgba(255,107,107,.12); border:1px solid rgba(255,107,107,.3);
+    color:var(--danger); font-size:13px; padding:9px 11px; border-radius:6px; margin-bottom:14px;
+  }
+  .aviso{
+    background:rgba(255,182,72,.1); border:1px solid rgba(255,182,72,.3);
+    color:var(--accent-2); font-size:12.5px; padding:9px 11px; border-radius:6px; margin-bottom:18px;
+    line-height:1.5;
+  }
+  a.pular{
+    display:block; text-align:center; margin-top:14px; font-size:12.5px; color:var(--muted); text-decoration:none;
+  }
+  a.pular:hover{color:var(--text);}
+</style>
+</head>
+<body>
+  <div class="card">
+    <span class="tag">Estoque</span>
+    <h1>Defina uma nova senha</h1>
+    <p class="sub">Olá, {{ username }}.</p>
+    <div class="aviso">Este é o seu primeiro acesso. Por segurança, defina uma nova senha antes de continuar.</div>
+    {% if erro %}<div class="erro">{{ erro }}</div>{% endif %}
+    <form method="POST">
+      <div class="field">
+        <label for="nova_senha">Nova senha (mín. 6 caracteres)</label>
+        <input id="nova_senha" name="nova_senha" type="password" required minlength="6" autofocus>
+      </div>
+      <div class="field">
+        <label for="confirmar_senha">Confirmar nova senha</label>
+        <input id="confirmar_senha" name="confirmar_senha" type="password" required minlength="6">
+      </div>
+      <button type="submit">Salvar nova senha</button>
+    </form>
+  </div>
+</body>
+</html>
