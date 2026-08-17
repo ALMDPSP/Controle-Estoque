@@ -1,25 +1,3 @@
-"""
-Controle de Estoque - Entrada e Saída de Equipamentos
-------------------------------------------------------
-Programa em Python (Flask) com interface web (HTTP).
-
-- Localmente: guarda os dados num banco SQLite (estoque.db), sem
-  precisar configurar nada.
-- No Render (produção): usa o PostgreSQL do próprio Render, através
-  da variável de ambiente DATABASE_URL.
-
-Tem login por usuário/senha e um botão para exportar os dados para
-Excel (.xlsx) a qualquer momento.
-
-Como rodar localmente:
-    pip install -r requirements.txt
-    python app.py
-
-Depois abra no navegador:
-    http://localhost:5000
-    usuário: admin  senha: admin123  (troque depois de entrar)
-"""
-
 import io
 import os
 from datetime import datetime
@@ -47,6 +25,8 @@ def login_required(view):
     def wrapped(*args, **kwargs):
         if not session.get("user_id"):
             return redirect(url_for("login", proximo=request.path))
+        if session.get("precisa_trocar_senha") and request.endpoint not in ("trocar_senha", "logout"):
+            return redirect(url_for("trocar_senha"))
         return view(*args, **kwargs)
     return wrapped
 
@@ -56,6 +36,8 @@ def admin_required(view):
     def wrapped(*args, **kwargs):
         if not session.get("user_id"):
             return redirect(url_for("login", proximo=request.path))
+        if session.get("precisa_trocar_senha"):
+            return redirect(url_for("trocar_senha"))
         if session.get("role") != "admin":
             return jsonify({"erro": "Apenas administradores podem fazer isso."}), 403
         return view(*args, **kwargs)
@@ -77,8 +59,36 @@ def login():
     session["user_id"] = usuario["id"]
     session["username"] = usuario["username"]
     session["role"] = usuario["role"]
+    session["precisa_trocar_senha"] = usuario.get("precisa_trocar_senha") == "1"
+
+    if session["precisa_trocar_senha"]:
+        return redirect(url_for("trocar_senha"))
     proximo = request.args.get("proximo") or url_for("index")
     return redirect(proximo)
+
+
+@app.route("/trocar-senha", methods=["GET", "POST"])
+@login_required
+def trocar_senha():
+    if not session.get("precisa_trocar_senha"):
+        return redirect(url_for("index"))
+
+    if request.method == "GET":
+        return render_template("trocar_senha.html", username=session.get("username"), erro=None)
+
+    nova = request.form.get("nova_senha", "")
+    confirmar = request.form.get("confirmar_senha", "")
+
+    if len(nova) < 6:
+        return render_template("trocar_senha.html", username=session.get("username"),
+                                erro="A senha precisa ter pelo menos 6 caracteres.")
+    if nova != confirmar:
+        return render_template("trocar_senha.html", username=session.get("username"),
+                                erro="As senhas não conferem.")
+
+    db.trocar_senha(session["user_id"], nova)
+    session["precisa_trocar_senha"] = False
+    return redirect(url_for("index"))
 
 
 @app.route("/logout")
