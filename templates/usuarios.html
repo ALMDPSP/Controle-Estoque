@@ -56,7 +56,7 @@
 </style>
 </head>
 <body>
- 
+
 <header>
   <div>
     <span class="tag">Estoque</span>
@@ -68,7 +68,7 @@
     <a href="{{ url_for('logout') }}">Sair</a>
   </nav>
 </header>
- 
+
 <main>
   <div class="panel">
     <h2>Novo usuário</h2>
@@ -92,7 +92,7 @@
       <button type="submit" class="btn-primary">Adicionar usuário</button>
     </form>
   </div>
- 
+
   <div class="panel">
     <h2>Usuários cadastrados</h2>
     <table>
@@ -126,7 +126,7 @@
     </table>
   </div>
 </main>
- 
+
 <script>
 const msg = document.getElementById('msg');
 function mostrarMsg(texto, tipo){
@@ -134,7 +134,7 @@ function mostrarMsg(texto, tipo){
   msg.className = 'msg ' + tipo;
   msg.style.display = 'block';
 }
- 
+
 document.getElementById('user-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const dados = {
@@ -155,7 +155,7 @@ document.getElementById('user-form').addEventListener('submit', async (e) => {
     mostrarMsg(corpo.erro || 'Erro ao criar usuário.', 'erro');
   }
 });
- 
+
 async function excluirUsuario(id){
   if(!confirm('Excluir este usuário? Ele não vai mais conseguir entrar no sistema.')) return;
   const res = await fetch(`/api/usuarios/${id}`, {method:'DELETE'});
@@ -166,7 +166,7 @@ async function excluirUsuario(id){
     alert(corpo.erro || 'Erro ao excluir usuário.');
   }
 }
- 
+
 async function forcarTrocaSenha(id, username){
   if(!confirm(`Na próxima vez que ${username} entrar, vai ser obrigado a criar uma senha nova. Confirmar?`)) return;
   const res = await fetch(`/api/usuarios/${id}/forcar-troca-senha`, {method:'POST'});
@@ -178,7 +178,6 @@ async function forcarTrocaSenha(id, username){
   }
 }
 </script>
- 
+
 </body>
 </html>
- 

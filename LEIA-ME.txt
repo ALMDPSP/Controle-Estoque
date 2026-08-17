@@ -1,15 +1,3 @@
-CONTROLE DE ESTOQUE — ENTRADA E SAÍDA DE EQUIPAMENTO
-======================================================
-
-O que é:
-Um programa em Python (Flask) com página web, para cadastrar itens:
-
-  - Código do item        - NF de entrada
-  - Descrição              - Data de entrada
-  - Qtde                   - NF de saída
-  - Localização             - Data de saída
-  - VD da loja que vai receber o item
-
 ESTRUTURA DOS ARQUIVOS
 ------------------------------------------------------------------
 app.py                -> o programa principal (rotas, login, API)

@@ -302,7 +302,10 @@
     <div><div class="num" id="stat-saiu">0</div><div class="lbl">Já saíram</div></div>
     <div><div class="num" id="stat-expansao" style="color:var(--accent);">0</div><div class="lbl">Expansão</div></div>
     <div><div class="num" id="stat-sustentacao" style="color:var(--accent-2);">0</div><div class="lbl">Sustentação</div></div>
-    <div><div class="num" id="stat-reforma" style="color:var(--ok);">0</div><div class="lbl">Reforma/Projetos</div></div>
+    <div><div class="num" id="stat-requalificacao" style="color:var(--ok);">0</div><div class="lbl">Requalificação</div></div>
+    <div><div class="num" id="stat-ampliacao" style="color:#a78bfa;">0</div><div class="lbl">Ampliação</div></div>
+    <div><div class="num" id="stat-realocacao" style="color:#ff6b6b;">0</div><div class="lbl">Realocação</div></div>
+    <div><div class="num" id="stat-reversa" style="color:#8b96a8;">0</div><div class="lbl">Reversa</div></div>
   </div>
 </header>
 <nav style="padding:10px 32px; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:center; font-size:13px; flex-wrap:wrap; gap:10px;">
@@ -394,7 +397,10 @@
           <option value=""></option>
           <option value="Expansão">Expansão</option>
           <option value="Sustentação">Sustentação</option>
-          <option value="Reforma/Projetos">Reforma/Projetos</option>
+          <option value="Requalificação">Requalificação</option>
+          <option value="Ampliação">Ampliação</option>
+          <option value="Realocação">Realocação</option>
+          <option value="Reversa">Reversa</option>
         </select>
       </div>
       <div class="field">
@@ -408,6 +414,18 @@
       <div class="field">
         <label for="nro_patrimonio">Nº patrimônio</label>
         <input id="nro_patrimonio" name="nro_patrimonio" placeholder="Nº patrimônio">
+      </div>
+      <div class="field">
+        <label for="pedido">Pedido</label>
+        <input id="pedido" name="pedido" placeholder="Nº do pedido">
+      </div>
+      <div class="field">
+        <label for="val_aquis">ValAquis.</label>
+        <input id="val_aquis" name="val_aquis" placeholder="ValAquis.">
+      </div>
+      <div class="field">
+        <label for="chamado">Chamado</label>
+        <input id="chamado" name="chamado" placeholder="Nº do chamado">
       </div>
 
       <div class="form-actions">
@@ -432,7 +450,10 @@
           <option value="">Todos os tipos</option>
           <option value="Expansão">Expansão</option>
           <option value="Sustentação">Sustentação</option>
-          <option value="Reforma/Projetos">Reforma/Projetos</option>
+          <option value="Requalificação">Requalificação</option>
+          <option value="Ampliação">Ampliação</option>
+          <option value="Realocação">Realocação</option>
+          <option value="Reversa">Reversa</option>
         </select>
         <select id="filtro-status" class="filtro-select">
           <option value="">Todos os status</option>
@@ -469,6 +490,9 @@
             <th>Nº imob.</th>
             <th>Nº série</th>
             <th>Nº patrim.</th>
+            <th>Pedido</th>
+            <th>ValAquis.</th>
+            <th>Chamado</th>
             <th>Criado por</th>
             <th>Últ. alteração</th>
             <th>Situação</th>
@@ -602,7 +626,10 @@
           <option value=""></option>
           <option value="Expansão">Expansão</option>
           <option value="Sustentação">Sustentação</option>
-          <option value="Reforma/Projetos">Reforma/Projetos</option>
+          <option value="Requalificação">Requalificação</option>
+          <option value="Ampliação">Ampliação</option>
+          <option value="Realocação">Realocação</option>
+          <option value="Reversa">Reversa</option>
         </select>
       </div>
       <div class="field">
@@ -636,6 +663,18 @@
       <div class="field">
         <label for="fe-nro_patrimonio">Nº patrimônio</label>
         <input id="fe-nro_patrimonio">
+      </div>
+      <div class="field">
+        <label for="fe-pedido">Pedido</label>
+        <input id="fe-pedido">
+      </div>
+      <div class="field">
+        <label for="fe-val_aquis">ValAquis.</label>
+        <input id="fe-val_aquis">
+      </div>
+      <div class="field">
+        <label for="fe-chamado">Chamado</label>
+        <input id="fe-chamado">
       </div>
     </form>
     <div class="dlg-actions">
@@ -730,6 +769,9 @@ function renderizar(){
       <td data-label="Nº imob.">${escapeHtml(it.nro_imobilizado || '')}</td>
       <td data-label="Nº série">${escapeHtml(it.nro_serie || '')}</td>
       <td data-label="Nº patrim.">${escapeHtml(it.nro_patrimonio || '')}</td>
+      <td data-label="Pedido">${escapeHtml(it.pedido || '')}</td>
+      <td data-label="ValAquis.">${escapeHtml(it.val_aquis || '')}</td>
+      <td data-label="Chamado">${escapeHtml(it.chamado || '')}</td>
       <td data-label="Criado por">${it.criado_por ? `<span class="nome-destaque">${escapeHtml(it.criado_por)}</span>` : ''}</td>
       <td data-label="Últ. alteração">${it.atualizado_por ? `<span class="alteracao-destaque"><span class="quem">${escapeHtml(it.atualizado_por)}</span><span class="quando">${escapeHtml(it.atualizado_em || '')}</span></span>` : ''}</td>
       <td data-label="Situação">${saiu ? '<span class="badge saida">Saiu</span>' : '<span class="badge entrada">Em estoque</span>'}</td>
@@ -784,7 +826,10 @@ function atualizarStats(){
 
   document.getElementById('stat-expansao').textContent = somaPorTipo('Expansão');
   document.getElementById('stat-sustentacao').textContent = somaPorTipo('Sustentação');
-  document.getElementById('stat-reforma').textContent = somaPorTipo('Reforma/Projetos');
+  document.getElementById('stat-requalificacao').textContent = somaPorTipo('Requalificação');
+  document.getElementById('stat-ampliacao').textContent = somaPorTipo('Ampliação');
+  document.getElementById('stat-realocacao').textContent = somaPorTipo('Realocação');
+  document.getElementById('stat-reversa').textContent = somaPorTipo('Reversa');
 }
 
 let graficoTipoEstoque = null;
@@ -862,6 +907,9 @@ document.getElementById('item-form').addEventListener('submit', async (e) => {
     nro_imobilizado: form.nro_imobilizado.value,
     nro_serie: form.nro_serie.value,
     nro_patrimonio: form.nro_patrimonio.value,
+    pedido: form.pedido.value,
+    val_aquis: form.val_aquis.value,
+    chamado: form.chamado.value,
   };
   const res = await fetch('/api/itens', {
     method: 'POST',
@@ -1075,6 +1123,9 @@ function abrirEdicaoCompleta(id){
   document.getElementById('fe-nro_imobilizado').value = it.nro_imobilizado || '';
   document.getElementById('fe-nro_serie').value = it.nro_serie || '';
   document.getElementById('fe-nro_patrimonio').value = it.nro_patrimonio || '';
+  document.getElementById('fe-pedido').value = it.pedido || '';
+  document.getElementById('fe-val_aquis').value = it.val_aquis || '';
+  document.getElementById('fe-chamado').value = it.chamado || '';
   feDialog.showModal();
 }
 document.getElementById('fe-cancel').addEventListener('click', () => feDialog.close());
@@ -1102,6 +1153,9 @@ document.getElementById('fe-save').addEventListener('click', async () => {
     nro_imobilizado: document.getElementById('fe-nro_imobilizado').value,
     nro_serie: document.getElementById('fe-nro_serie').value,
     nro_patrimonio: document.getElementById('fe-nro_patrimonio').value,
+    pedido: document.getElementById('fe-pedido').value,
+    val_aquis: document.getElementById('fe-val_aquis').value,
+    chamado: document.getElementById('fe-chamado').value,
   };
   const res = await fetch(`/api/itens/${id}`, {
     method: 'PUT',
