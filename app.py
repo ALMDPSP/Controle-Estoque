@@ -22,6 +22,7 @@ Depois abra no navegador:
 
 import io
 import os
+import unicodedata
 from datetime import datetime
 from functools import wraps
 
@@ -30,7 +31,7 @@ from flask import (
     url_for, session, send_file, flash,
 )
 from werkzeug.security import check_password_hash
-from openpyxl import Workbook
+from openpyxl import Workbook, load_workbook
 
 import db
 
@@ -301,6 +302,130 @@ def exportar_excel():
         download_name=nome_arquivo,
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
+
+
+# ---------------------------------------------------------------------
+# Importação de planilha Excel
+# ---------------------------------------------------------------------
+
+def _normalizar(texto):
+    """Deixa o texto minúsculo, sem acento e sem espaços/pontuação, para
+    comparar nomes de coluna de forma tolerante (ex: 'Nº Patrimônio' == 'nro patrimonio')."""
+    if texto is None:
+        return ""
+    texto = str(texto).strip().lower()
+    texto = unicodedata.normalize("NFKD", texto).encode("ascii", "ignore").decode("ascii")
+    texto = "".join(c for c in texto if c.isalnum())
+    return texto
+
+
+# Cada campo do sistema aceita várias variações possíveis de nome de coluna
+# na planilha (já normalizadas: sem acento, sem espaço, minúsculo).
+ALIASES_COLUNAS = {
+    "codigo": ["codigo", "codigodoitem"],
+    "descricao": ["descricao", "descricaodoequipamento"],
+    "qtde": ["qtde", "quantidade", "qtd"],
+    "localizacao": ["localizacao"],
+    "nf_entrada": ["nfdeentrada", "nfentrada", "notafiscaldeentrada", "nf"],
+    "data_entrada": ["datadeentrada", "dataentrada"],
+    "nf_saida": ["nfdesaida", "nfsaida", "notafiscaldesaida"],
+    "data_saida": ["datadesaida", "datasaida"],
+    "vd_loja": ["vddalojadestino", "vddaloja", "vdloja", "vd", "lojadestino"],
+    "local": ["local"],
+    "armazenagem": ["armazenagem", "localarmazenagem"],
+    "status": ["status"],
+    "nro_imobilizado": ["nroimobilizado", "numeroimobilizado", "imobilizado"],
+    "nro_serie": ["nroserie", "numerodeserie", "nserie", "serie"],
+    "nro_patrimonio": ["nropatrimonio", "numeropatrimonio", "patrimonio"],
+    "tipo_estoque": ["tipodeestoque", "tipoestoque"],
+    "pedido": ["pedido"],
+    "val_aquis": ["valaquis", "valoraquisicao", "valordeaquisicao"],
+    "chamado": ["chamado"],
+}
+
+
+def _mapear_colunas(linha_cabecalho):
+    """Recebe a primeira linha da planilha (os títulos das colunas) e devolve
+    um dicionário {indice_da_coluna: campo_do_sistema}."""
+    mapa = {}
+    for indice, titulo in enumerate(linha_cabecalho):
+        normalizado = _normalizar(titulo)
+        for campo, apelidos in ALIASES_COLUNAS.items():
+            if normalizado in apelidos:
+                mapa[indice] = campo
+                break
+    return mapa
+
+
+def _valor_para_texto(valor):
+    """Converte o valor de uma célula do Excel (que pode vir como data,
+    número, etc.) para texto simples, do jeito que o sistema espera."""
+    if valor is None:
+        return ""
+    if isinstance(valor, datetime):
+        return valor.strftime("%Y-%m-%d")
+    return str(valor).strip()
+
+
+@app.route("/api/itens/importar", methods=["POST"])
+@login_required
+def api_importar():
+    senha = request.form.get("senha", "")
+    usuario_atual = db.buscar_usuario_por_id(session["user_id"])
+    if not usuario_atual or not check_password_hash(usuario_atual["password_hash"], senha):
+        return jsonify({"erro": "Senha incorreta."}), 403
+
+    arquivo = request.files.get("arquivo")
+    if not arquivo or not arquivo.filename:
+        return jsonify({"erro": "Nenhum arquivo enviado."}), 400
+    if not arquivo.filename.lower().endswith((".xlsx", ".xlsm")):
+        return jsonify({"erro": "Envie um arquivo Excel (.xlsx)."}), 400
+
+    try:
+        wb = load_workbook(arquivo, read_only=True, data_only=True)
+        ws = wb.active
+    except Exception:
+        return jsonify({"erro": "Não consegui abrir esse arquivo. Confirme se é um .xlsx válido."}), 400
+
+    linhas = ws.iter_rows(values_only=True)
+    try:
+        cabecalho = next(linhas)
+    except StopIteration:
+        return jsonify({"erro": "A planilha está vazia."}), 400
+
+    mapa_colunas = _mapear_colunas(cabecalho)
+    if "codigo" not in mapa_colunas.values():
+        return jsonify({"erro": "Não encontrei uma coluna de 'Código do item' na planilha. "
+                                 "Verifique se a primeira linha tem os títulos das colunas."}), 400
+
+    usuario = session.get("username")
+    novos_itens = []
+    ignoradas = 0
+
+    for linha in linhas:
+        if linha is None or all(v is None for v in linha):
+            continue
+        dados = {}
+        for indice, campo in mapa_colunas.items():
+            if indice < len(linha):
+                dados[campo] = _valor_para_texto(linha[indice])
+        if not dados.get("codigo"):
+            ignoradas += 1
+            continue
+        dados["criado_por"] = usuario
+        if not dados.get("data_entrada"):
+            dados["data_entrada"] = datetime.now().strftime("%Y-%m-%d")
+        novos_itens.append(dados)
+
+    if not novos_itens:
+        return jsonify({"erro": "Nenhuma linha válida encontrada (confira se a coluna 'Código do item' está preenchida)."}), 400
+
+    total = db.criar_itens_em_lote(
+        novos_itens, usuario,
+        observacao=f"Importado via planilha ({arquivo.filename})"
+    )
+
+    return jsonify({"ok": True, "importados": total, "ignoradas": ignoradas})
 
 
 # ---------------------------------------------------------------------

@@ -230,6 +230,51 @@ def criar_item(dados):
     return novo_id
 
 
+def criar_itens_em_lote(lista_dados, usuario, observacao="Importado via planilha"):
+    """Insere muitos itens de uma vez (uma única transação) — usado na importação
+    de planilhas Excel. Muito mais rápido do que chamar criar_item() em loop."""
+    campos = ["codigo", "descricao", "qtde", "localizacao", "nf_entrada",
+              "data_entrada", "nf_saida", "data_saida", "vd_loja",
+              "local", "armazenagem", "status", "nro_imobilizado",
+              "nro_serie", "nro_patrimonio", "tipo_estoque", "criado_por",
+              "pedido", "val_aquis", "chamado"]
+
+    conn = get_conn()
+    cur = get_cursor(conn)
+    ids_criados = []
+
+    if IS_PG:
+        for dados in lista_dados:
+            valores = [dados.get(c, "") for c in campos]
+            cur.execute(
+                q(f"INSERT INTO itens ({', '.join(campos)}) VALUES ({', '.join(['?'] * len(campos))}) RETURNING id"),
+                valores,
+            )
+            ids_criados.append(cur.fetchone()["id"])
+    else:
+        for dados in lista_dados:
+            valores = [dados.get(c, "") for c in campos]
+            cur.execute(
+                q(f"INSERT INTO itens ({', '.join(campos)}) VALUES ({', '.join(['?'] * len(campos))})"),
+                valores,
+            )
+            ids_criados.append(cur.lastrowid)
+
+    agora = datetime.now().strftime("%Y-%m-%d %H:%M")
+    mov_valores = [(item_id, "entrada", str(lista_dados[i].get("qtde", "")), usuario, agora, observacao)
+                   for i, item_id in enumerate(ids_criados)]
+    cur.executemany(
+        q("INSERT INTO movimentacoes (item_id, tipo, quantidade, usuario, data_hora, observacao) "
+          "VALUES (?, ?, ?, ?, ?, ?)"),
+        mov_valores,
+    )
+
+    conn.commit()
+    cur.close()
+    conn.close()
+    return len(ids_criados)
+
+
 def atualizar_item(item_id, novos_dados):
     campos_permitidos = ["codigo", "descricao", "qtde", "localizacao", "nf_entrada",
                           "data_entrada", "nf_saida", "data_saida", "vd_loja",

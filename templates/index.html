@@ -312,6 +312,7 @@
   <span style="color:var(--muted);">Logado como <strong style="color:var(--text);">{{ username }}</strong></span>
   <div style="display:flex; gap:16px; align-items:center;">
     <a href="/export" style="color:var(--accent); text-decoration:none;">⭳ Exportar para Excel</a>
+    <a href="#" id="abrir-importar" style="color:var(--accent-2); text-decoration:none;">⭱ Importar Excel</a>
     {% if is_admin %}<a href="{{ url_for('pagina_usuarios') }}" style="color:var(--muted); text-decoration:none;">Gerenciar usuários</a>{% endif %}
     <a href="{{ url_for('logout') }}" style="color:var(--muted); text-decoration:none;">Sair</a>
   </div>
@@ -680,6 +681,32 @@
     <div class="dlg-actions">
       <button type="button" class="btn-ghost" id="fe-cancel">Cancelar</button>
       <button type="button" class="btn-primary" id="fe-save">Salvar alterações</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog id="importar-dialog" style="width:min(480px, 94vw);">
+  <div class="dlg-body">
+    <h3>Importar planilha Excel</h3>
+    <p style="margin:0 0 16px; font-size:13px; color:var(--muted); line-height:1.5;">
+      A planilha deve ter uma linha de título com os nomes das colunas
+      (ex: "Código do item", "Descrição", "Qtde"...). Por segurança, confirme
+      sua senha para continuar — o upload fica registrado no histórico de cada item.
+    </p>
+    <div id="importar-msg" style="display:none; margin-bottom:14px;"></div>
+    <form id="importar-form">
+      <div class="field">
+        <label for="importar-arquivo">Arquivo (.xlsx)</label>
+        <input id="importar-arquivo" type="file" accept=".xlsx,.xlsm" required>
+      </div>
+      <div class="field">
+        <label for="importar-senha">Sua senha</label>
+        <input id="importar-senha" type="password" required>
+      </div>
+    </form>
+    <div class="dlg-actions">
+      <button type="button" class="btn-ghost" id="importar-cancel">Cancelar</button>
+      <button type="button" class="btn-primary" id="importar-enviar">Importar</button>
     </div>
   </div>
 </dialog>
@@ -1205,6 +1232,67 @@ async function abrirHistorico(id){
   }
 }
 document.getElementById('historico-fechar').addEventListener('click', () => historicoDialog.close());
+
+// ---------------------------------------------------------------------
+// Importar planilha Excel
+// ---------------------------------------------------------------------
+const importarDialog = document.getElementById('importar-dialog');
+const importarMsg = document.getElementById('importar-msg');
+
+document.getElementById('abrir-importar').addEventListener('click', (e) => {
+  e.preventDefault();
+  document.getElementById('importar-form').reset();
+  importarMsg.style.display = 'none';
+  importarDialog.showModal();
+});
+document.getElementById('importar-cancel').addEventListener('click', () => importarDialog.close());
+
+document.getElementById('importar-enviar').addEventListener('click', async () => {
+  const arquivoInput = document.getElementById('importar-arquivo');
+  const senha = document.getElementById('importar-senha').value;
+  const btn = document.getElementById('importar-enviar');
+
+  if(!arquivoInput.files.length){
+    alert('Escolha um arquivo .xlsx.');
+    return;
+  }
+  if(!senha){
+    alert('Digite sua senha para confirmar.');
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append('arquivo', arquivoInput.files[0]);
+  formData.append('senha', senha);
+
+  btn.disabled = true;
+  btn.textContent = 'Importando... aguarde';
+  importarMsg.style.display = 'none';
+
+  try{
+    const res = await fetch('/api/itens/importar', { method: 'POST', body: formData });
+    const corpo = await res.json();
+    if(res.ok){
+      importarDialog.close();
+      carregarItens();
+      let texto = `${corpo.importados} item(ns) importado(s) com sucesso.`;
+      if(corpo.ignoradas) texto += ` (${corpo.ignoradas} linha(s) ignorada(s) por falta de código.)`;
+      mostrarToast(texto);
+    } else {
+      importarMsg.style.display = 'block';
+      importarMsg.className = 'erro';
+      importarMsg.style.cssText = 'background:rgba(255,107,107,.12); border:1px solid rgba(255,107,107,.3); color:var(--danger); font-size:13px; padding:9px 11px; border-radius:6px;';
+      importarMsg.textContent = corpo.erro || 'Erro ao importar planilha.';
+    }
+  } catch(err){
+    importarMsg.style.display = 'block';
+    importarMsg.style.cssText = 'background:rgba(255,107,107,.12); border:1px solid rgba(255,107,107,.3); color:var(--danger); font-size:13px; padding:9px 11px; border-radius:6px;';
+    importarMsg.textContent = 'Erro de conexão ao importar. Tente novamente.';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Importar';
+  }
+});
 
 carregarItens();
 </script>
