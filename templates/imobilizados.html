@@ -56,10 +56,19 @@
     letter-spacing:.01em;
   }
   header p{margin:0; color:var(--muted); font-size:13px;}
-  .stats{display:flex; gap:22px; font-family:var(--mono); flex-wrap:wrap; justify-content:flex-end;}
-  .stats div{text-align:right;}
-  .stats .num{font-size:20px; font-weight:600; color:var(--accent);}
-  .stats .lbl{font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.08em;}
+  .stats{display:flex; gap:10px; font-family:var(--mono); flex-wrap:wrap; justify-content:flex-end;}
+  .stats .stat-box{
+    text-align:center; background:var(--panel-2); border:1px solid var(--line);
+    border-radius:8px; padding:8px 16px; min-width:88px;
+  }
+  .stats .num{font-size:20px; font-weight:700; color:var(--accent); display:block;}
+  .stats .lbl{font-size:10.5px; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; display:block; margin-top:2px;}
+  .nav-link{
+    padding:6px 14px; border-radius:20px; font-size:13px; text-decoration:none;
+    border:1px solid var(--line); transition:all .15s;
+  }
+  .nav-link:hover{border-color:var(--accent); color:var(--text) !important;}
+  .nav-link.ativo{background:var(--accent); color:#08131f !important; border-color:var(--accent); font-weight:600;}
 
   main{padding:26px 32px 60px; max-width:1400px; margin:0 auto;}
 
@@ -297,19 +306,22 @@
     <p>Equipamentos cadastrados que não estão fisicamente disponíveis em estoque. Use "Enviar para Estoque" quando o equipamento ficar disponível.</p>
   </div>
   <div class="stats">
-    <div><div class="num" id="stat-total">0</div><div class="lbl">Total de imobilizados</div></div>
-    <div><div class="num" id="stat-expansao" style="color:var(--accent);">0</div><div class="lbl">Expansão</div></div>
-    <div><div class="num" id="stat-sustentacao" style="color:var(--accent-2);">0</div><div class="lbl">Sustentação</div></div>
-    <div><div class="num" id="stat-requalificacao" style="color:var(--ok);">0</div><div class="lbl">Requalificação</div></div>
-    <div><div class="num" id="stat-ampliacao" style="color:#a78bfa;">0</div><div class="lbl">Ampliação</div></div>
-    <div><div class="num" id="stat-realocacao" style="color:#ff6b6b;">0</div><div class="lbl">Realocação</div></div>
-    <div><div class="num" id="stat-reversa" style="color:#8b96a8;">0</div><div class="lbl">Reversa</div></div>
+    <div class="stat-box"><span class="num" id="stat-total">0</span><span class="lbl">Total de imobilizados</span></div>
+    <div class="stat-box"><span class="num" id="stat-expansao" style="color:var(--accent);">0</span><span class="lbl">Expansão</span></div>
+    <div class="stat-box"><span class="num" id="stat-sustentacao" style="color:var(--accent-2);">0</span><span class="lbl">Sustentação</span></div>
+    <div class="stat-box"><span class="num" id="stat-requalificacao" style="color:var(--ok);">0</span><span class="lbl">Requalificação</span></div>
+    <div class="stat-box"><span class="num" id="stat-ampliacao" style="color:#a78bfa;">0</span><span class="lbl">Ampliação</span></div>
+    <div class="stat-box"><span class="num" id="stat-realocacao" style="color:#ff6b6b;">0</span><span class="lbl">Realocação</span></div>
+    <div class="stat-box"><span class="num" id="stat-reversa" style="color:#8b96a8;">0</span><span class="lbl">Reversa</span></div>
   </div>
 </header>
 <nav style="padding:10px 32px; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:center; font-size:13px; flex-wrap:wrap; gap:10px;">
-  <span style="color:var(--muted);">Logado como <strong style="color:var(--text);">{{ username }}</strong></span>
+  <div style="display:flex; gap:8px; align-items:center;">
+    <a href="{{ url_for('index') }}" class="nav-link" style="color:var(--muted);">Estoque</a>
+    <a href="{{ url_for('pagina_imobilizados') }}" class="nav-link ativo">Imobilizados</a>
+  </div>
   <div style="display:flex; gap:16px; align-items:center;">
-    <a href="{{ url_for('index') }}" style="color:var(--muted); text-decoration:none;">Estoque</a>
+    <span style="color:var(--muted);">Logado como <strong style="color:var(--text);">{{ username }}</strong></span>
     <a href="/export-imobilizados" style="color:var(--accent); text-decoration:none;">⭳ Exportar para Excel</a>
     <a href="#" id="abrir-importar" style="color:var(--accent-2); text-decoration:none;">⭱ Importar Excel</a>
     {% if is_admin %}<a href="{{ url_for('pagina_usuarios') }}" style="color:var(--muted); text-decoration:none;">Gerenciar usuários</a>{% endif %}
