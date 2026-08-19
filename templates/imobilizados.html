@@ -841,6 +841,19 @@ let graficoTipoEstoque = null;
 function atualizarGrafico(){
   try{
     if(typeof Chart === 'undefined') return; // biblioteca ainda não carregou
+
+    // Cor FIXA por categoria — não depende da ordem em que os dados aparecem,
+    // então "Sustentação" é sempre laranja, "Expansão" é sempre azul, etc.
+    const CORES_POR_TIPO = {
+      'Expansão': '#3ea6ff',
+      'Sustentação': '#ffb648',
+      'Requalificação': '#4cd792',
+      'Ampliação': '#a78bfa',
+      'Realocação': '#ff6b6b',
+      'Reversa': '#8b96a8',
+      'Não informado': '#4a5568',
+    };
+
     const contagem = {};
     itensCache.forEach(it => {
       const tipo = canonicalizarTipo(it.tipo_estoque) || 'Não informado';
@@ -848,15 +861,17 @@ function atualizarGrafico(){
       contagem[tipo] = (contagem[tipo] || 0) + qtde;
     });
 
-    const labels = Object.keys(contagem);
-    const valores = Object.values(contagem);
-    const cores = ['#3ea6ff', '#ffb648', '#4cd792', '#ff6b6b', '#a78bfa', '#8b96a8'];
+    const ordemFixa = Object.keys(CORES_POR_TIPO);
+    const labels = ordemFixa.filter(tipo => contagem[tipo] > 0);
+    const valores = labels.map(tipo => contagem[tipo]);
+    const cores = labels.map(tipo => CORES_POR_TIPO[tipo]);
 
     const ctx = document.getElementById('grafico-tipo-estoque');
     if(!ctx) return;
     if(graficoTipoEstoque){
       graficoTipoEstoque.data.labels = labels;
       graficoTipoEstoque.data.datasets[0].data = valores;
+      graficoTipoEstoque.data.datasets[0].backgroundColor = cores;
       graficoTipoEstoque.update();
       return;
     }
