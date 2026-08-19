@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Controle de Estoque · Entrada e Saída</title>
+<title>Imobilizados · Controle de Estoque</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <style>
   :root{
@@ -293,13 +293,11 @@
     <div class="brand">
       <span class="tag">Estoque</span>
     </div>
-    <h1>Controle de Entrada e Saída de Equipamento</h1>
-    <p>Os dados são salvos automaticamente em <code>estoque.xlsx</code>, na pasta do programa.</p>
+    <h1>Imobilizados</h1>
+    <p>Equipamentos cadastrados que não estão fisicamente disponíveis em estoque. Use "Enviar para Estoque" quando o equipamento ficar disponível.</p>
   </div>
   <div class="stats">
-    <div><div class="num" id="stat-total">0</div><div class="lbl">Itens</div></div>
-    <div><div class="num" id="stat-estoque">0</div><div class="lbl">Em estoque</div></div>
-    <div><div class="num" id="stat-saiu">0</div><div class="lbl">Já saíram</div></div>
+    <div><div class="num" id="stat-total">0</div><div class="lbl">Total de imobilizados</div></div>
     <div><div class="num" id="stat-expansao" style="color:var(--accent);">0</div><div class="lbl">Expansão</div></div>
     <div><div class="num" id="stat-sustentacao" style="color:var(--accent-2);">0</div><div class="lbl">Sustentação</div></div>
     <div><div class="num" id="stat-requalificacao" style="color:var(--ok);">0</div><div class="lbl">Requalificação</div></div>
@@ -311,8 +309,8 @@
 <nav style="padding:10px 32px; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:center; font-size:13px; flex-wrap:wrap; gap:10px;">
   <span style="color:var(--muted);">Logado como <strong style="color:var(--text);">{{ username }}</strong></span>
   <div style="display:flex; gap:16px; align-items:center;">
-    <a href="{{ url_for('pagina_imobilizados') }}" style="color:var(--muted); text-decoration:none;">Imobilizados</a>
-    <a href="/export" style="color:var(--accent); text-decoration:none;">⭳ Exportar para Excel</a>
+    <a href="{{ url_for('index') }}" style="color:var(--muted); text-decoration:none;">Estoque</a>
+    <a href="/export-imobilizados" style="color:var(--accent); text-decoration:none;">⭳ Exportar para Excel</a>
     <a href="#" id="abrir-importar" style="color:var(--accent-2); text-decoration:none;">⭱ Importar Excel</a>
     {% if is_admin %}<a href="{{ url_for('pagina_usuarios') }}" style="color:var(--muted); text-decoration:none;">Gerenciar usuários</a>{% endif %}
     <a href="{{ url_for('logout') }}" style="color:var(--muted); text-decoration:none;">Sair</a>
@@ -325,7 +323,7 @@
 <main>
 
   <section class="panel">
-    <h2>Registrar novo item (entrada)</h2>
+    <h2>Cadastrar novo imobilizado</h2>
     <form id="item-form">
       <div class="field">
         <label for="codigo">Código do item *</label>
@@ -473,6 +471,7 @@
       </div>
     </div>
     <div style="display:flex; align-items:center; gap:12px; margin-bottom:10px; min-height:32px;">
+      <button class="btn-primary" id="btn-enviar-selecionados" style="display:none;" onclick="enviarSelecionadosParaEstoque()">Enviar selecionados para Estoque</button>
       <button class="btn-ghost" id="btn-excluir-selecionados" style="display:none; color:var(--danger); border-color:rgba(255,107,107,.4);">Excluir selecionados</button>
       <span id="selecionados-info" style="font-size:12px; color:var(--muted);"></span>
     </div>
@@ -502,7 +501,7 @@
             <th>Chamado</th>
             <th>Criado por</th>
             <th>Últ. alteração</th>
-            <th>Situação</th>
+            <th>Enviado ao Estoque</th>
             <th></th>
           </tr>
         </thead>
@@ -520,63 +519,8 @@
 </main>
 
 <footer>
-  Arquivo de dados: <code id="footer-path">estoque.xlsx</code> — abra esse arquivo a qualquer momento no Excel para conferir ou fazer backup.
   <div class="credito">© 2026 · Todos os direitos reservados · Developed by <strong>Alexandre Martins</strong></div>
 </footer>
-
-<dialog id="qtde-dialog">
-  <div class="dlg-body">
-    <h3>Retirar do estoque</h3>
-    <input type="hidden" id="qtde-id">
-    <p style="margin:0 0 14px; font-size:13px; color:var(--muted);">
-      Quantidade atual: <strong id="qtde-atual" style="color:var(--text);">0</strong>
-    </p>
-    <div class="field">
-      <label for="qtde-retirar">Quantidade a retirar</label>
-      <input id="qtde-retirar" type="number" min="1" step="1" placeholder="Ex: 2">
-    </div>
-    <p style="margin:0; font-size:13px; color:var(--muted);">
-      Ficará: <strong id="qtde-resultado" style="color:var(--accent);">0</strong>
-    </p>
-    <div class="dlg-actions">
-      <button type="button" class="btn-ghost" id="qtde-cancel">Cancelar</button>
-      <button type="button" class="btn-primary" id="qtde-save">Confirmar retirada</button>
-    </div>
-  </div>
-</dialog>
-
-<dialog id="edit-dialog">
-  <div class="dlg-body">
-    <h3>Registrar saída do item</h3>
-    <input type="hidden" id="edit-id">
-    <p style="margin:0 0 14px; font-size:13px; color:var(--muted);">
-      Quantidade atual: <strong id="edit-qtde-atual" style="color:var(--text);">0</strong>
-    </p>
-    <div class="field">
-      <label for="edit-qtde_saida">Quantidade que está saindo</label>
-      <input id="edit-qtde_saida" type="number" min="1" step="1" placeholder="Ex: 2">
-    </div>
-    <p style="margin:-6px 0 14px; font-size:13px; color:var(--muted);">
-      Ficará em estoque: <strong id="edit-qtde-resultado" style="color:var(--accent);">0</strong>
-    </p>
-    <div class="field">
-      <label for="edit-nf_saida">NF de saída</label>
-      <input id="edit-nf_saida" placeholder="Nº nota fiscal">
-    </div>
-    <div class="field">
-      <label for="edit-data_saida">Data de saída</label>
-      <input id="edit-data_saida" type="date">
-    </div>
-    <div class="field">
-      <label for="edit-vd_loja">VD / loja de destino</label>
-      <input id="edit-vd_loja" placeholder="Vendedor / loja que vai receber">
-    </div>
-    <div class="dlg-actions">
-      <button type="button" class="btn-ghost" id="edit-cancel">Cancelar</button>
-      <button type="button" class="btn-primary" id="edit-save">Confirmar saída</button>
-    </div>
-  </div>
-</dialog>
 
 <dialog id="full-edit-dialog" style="width:min(720px, 94vw);">
   <div class="dlg-body">
@@ -704,8 +648,8 @@
       <div class="field">
         <label for="importar-tabela">Salvar em</label>
         <select id="importar-tabela">
+          <option value="imobilizados" selected>Imobilizados (mantém a quantidade da planilha)</option>
           <option value="estoque">Estoque (cada unidade vira uma linha)</option>
-          <option value="imobilizados">Imobilizados (mantém a quantidade da planilha)</option>
         </select>
       </div>
       <div class="field">
@@ -763,7 +707,7 @@ const syncStatus = document.getElementById('sync-status');
 
 async function carregarItens(silencioso){
   try{
-    const res = await fetch('/api/itens');
+    const res = await fetch('/api/imobilizados');
     if(!res.ok) throw new Error('falha');
     itensCache = await res.json();
     renderizar();
@@ -801,8 +745,6 @@ function renderizar(){
   const visiveis = ordenados.slice(0, itensExibidos);
 
   visiveis.forEach(it => {
-    const qtdeAtual = Number(it.qtde) || 0;
-    const saiu = qtdeAtual <= 0;
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td data-label=""><input type="checkbox" class="chk-item" value="${it.id}" onchange="atualizarSelecionados()"></td>
@@ -827,11 +769,10 @@ function renderizar(){
       <td data-label="Chamado">${escapeHtml(it.chamado || '')}</td>
       <td data-label="Criado por">${it.criado_por ? `<span class="nome-destaque">${escapeHtml(it.criado_por)}</span>` : ''}</td>
       <td data-label="Últ. alteração">${it.atualizado_por ? `<span class="alteracao-destaque"><span class="quem">${escapeHtml(it.atualizado_por)}</span><span class="quando">${escapeHtml(it.atualizado_em || '')}</span></span>` : ''}</td>
-      <td data-label="Situação">${saiu ? '<span class="badge saida">Saiu</span>' : '<span class="badge entrada">Em estoque</span>'}</td>
+      <td data-label="Enviado ao Estoque">${it.enviado_estoque_por ? `<span class="alteracao-destaque"><span class="quem">${escapeHtml(it.enviado_estoque_por)}</span><span class="quando">${escapeHtml(it.enviado_estoque_em || '')}</span></span>` : '<span style="color:var(--muted);">—</span>'}</td>
       <td class="linha-acoes">
         <div class="row-actions">
-          ${saiu ? '' : `<button class="btn-ghost" onclick="abrirQtde(${it.id}, ${qtdeAtual})">Retirar do estoque</button>`}
-          ${saiu ? '' : `<button class="btn-ghost" onclick="abrirSaida(${it.id}, ${qtdeAtual})">Registrar saída</button>`}
+          <button class="btn-primary" onclick="enviarParaEstoque(${it.id})">Enviar para Estoque</button>
           <button class="btn-ghost" onclick="abrirEdicaoCompleta(${it.id})">Editar</button>
           <button class="btn-ghost" onclick="abrirHistorico(${it.id})">Histórico</button>
           <button class="btn-ghost" onclick="excluirItem(${it.id})">Excluir</button>
@@ -870,10 +811,7 @@ filtroLocal.addEventListener('change', () => { itensExibidos = PAGINA_TAMANHO; r
 
 function atualizarStats(){
   const total = itensCache.length;
-  const saiu = itensCache.filter(it => (Number(it.qtde) || 0) <= 0).length;
   document.getElementById('stat-total').textContent = total;
-  document.getElementById('stat-estoque').textContent = total - saiu;
-  document.getElementById('stat-saiu').textContent = saiu;
 
   const somaPorTipo = (tipo) => itensCache
     .filter(it => normalizarTexto(it.tipo_estoque) === normalizarTexto(tipo))
@@ -966,7 +904,7 @@ document.getElementById('item-form').addEventListener('submit', async (e) => {
     val_aquis: form.val_aquis.value,
     chamado: form.chamado.value,
   };
-  const res = await fetch('/api/itens', {
+  const res = await fetch('/api/imobilizados', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify(dados)
@@ -982,120 +920,41 @@ document.getElementById('item-form').addEventListener('submit', async (e) => {
 
 buscaInput.addEventListener('input', () => { itensExibidos = PAGINA_TAMANHO; renderizar(); });
 
-const dialog = document.getElementById('edit-dialog');
-let qtdeAtualSaida = 0;
-function abrirSaida(id, qtdeAtual){
-  qtdeAtualSaida = Number(qtdeAtual) || 0;
-  document.getElementById('edit-id').value = id;
-  document.getElementById('edit-qtde-atual').textContent = qtdeAtualSaida;
-  document.getElementById('edit-qtde_saida').value = '';
-  document.getElementById('edit-qtde-resultado').textContent = qtdeAtualSaida;
-  document.getElementById('edit-nf_saida').value = '';
-  document.getElementById('edit-data_saida').value = new Date().toISOString().slice(0,10);
-  document.getElementById('edit-vd_loja').value = '';
-  dialog.showModal();
-  document.getElementById('edit-qtde_saida').focus();
-}
-document.getElementById('edit-qtde_saida').addEventListener('input', (e) => {
-  const saindo = Number(e.target.value) || 0;
-  const resultado = Math.max(0, qtdeAtualSaida - saindo);
-  document.getElementById('edit-qtde-resultado').textContent = resultado;
-});
-document.getElementById('edit-cancel').addEventListener('click', () => dialog.close());
-document.getElementById('edit-save').addEventListener('click', async () => {
-  const id = document.getElementById('edit-id').value;
-  const qtdeSaida = Number(document.getElementById('edit-qtde_saida').value);
-  if(!qtdeSaida || qtdeSaida <= 0){
-    alert('Digite quantos itens estão saindo (um número maior que zero).');
-    return;
-  }
-  if(qtdeSaida > qtdeAtualSaida){
-    alert(`Você não pode dar saída em mais do que a quantidade atual (${qtdeAtualSaida}).`);
-    return;
-  }
-  const itemAntes = itensCache.find(i => i.id === Number(id));
-  const valoresAnteriores = itemAntes ? {
-    qtde: itemAntes.qtde, nf_saida: itemAntes.nf_saida,
-    data_saida: itemAntes.data_saida, vd_loja: itemAntes.vd_loja,
-  } : null;
-  const novaQtde = qtdeAtualSaida - qtdeSaida;
-  const dados = {
-    qtde: String(novaQtde),
-    nf_saida: document.getElementById('edit-nf_saida').value,
-    data_saida: document.getElementById('edit-data_saida').value,
-    vd_loja: document.getElementById('edit-vd_loja').value,
-  };
-  const res = await fetch(`/api/itens/${id}`, {
-    method: 'PUT',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify(dados)
-  });
+// ---------------------------------------------------------------------
+// Enviar para Estoque
+// ---------------------------------------------------------------------
+async function enviarParaEstoque(id){
+  const it = itensCache.find(i => i.id === id);
+  const qtde = it ? (Number(it.qtde) || 1) : '?';
+  if(!confirm(`Enviar este imobilizado para o Estoque? Isso vai criar ${qtde} linha(s) individual(is) no Estoque (o registro de Imobilizado não será alterado).`)) return;
+  const res = await fetch(`/api/imobilizados/${id}/enviar-estoque`, { method: 'POST' });
   if(res.ok){
-    dialog.close();
+    const corpo = await res.json();
     carregarItens();
-    if(valoresAnteriores){
-      mostrarToast(`Saída de ${qtdeSaida} registrada.`, async () => {
-        await fetch(`/api/itens/${id}`, {
-          method: 'PUT',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify(valoresAnteriores)
-        });
-      });
-    }
+    mostrarToast(`${corpo.criados_no_estoque} linha(s) criada(s) no Estoque.`);
   } else {
-    alert('Erro ao registrar saída.');
+    const corpo = await res.json();
+    alert(corpo.erro || 'Erro ao enviar para o Estoque.');
   }
-});
+}
 
-const qtdeDialog = document.getElementById('qtde-dialog');
-let qtdeAtualSelecionada = 0;
-function abrirQtde(id, qtdeAtual){
-  qtdeAtualSelecionada = Number(qtdeAtual) || 0;
-  document.getElementById('qtde-id').value = id;
-  document.getElementById('qtde-atual').textContent = qtdeAtualSelecionada;
-  document.getElementById('qtde-retirar').value = '';
-  document.getElementById('qtde-resultado').textContent = qtdeAtualSelecionada;
-  qtdeDialog.showModal();
-  document.getElementById('qtde-retirar').focus();
-}
-document.getElementById('qtde-retirar').addEventListener('input', (e) => {
-  const retirar = Number(e.target.value) || 0;
-  const resultado = Math.max(0, qtdeAtualSelecionada - retirar);
-  document.getElementById('qtde-resultado').textContent = resultado;
-});
-document.getElementById('qtde-cancel').addEventListener('click', () => qtdeDialog.close());
-document.getElementById('qtde-save').addEventListener('click', async () => {
-  const id = document.getElementById('qtde-id').value;
-  const retirar = Number(document.getElementById('qtde-retirar').value);
-  if(!retirar || retirar <= 0){
-    alert('Digite quantos itens estão saindo (um número maior que zero).');
-    return;
-  }
-  if(retirar > qtdeAtualSelecionada){
-    alert(`Você não pode retirar mais do que a quantidade atual (${qtdeAtualSelecionada}).`);
-    return;
-  }
-  const qtdeAnterior = String(qtdeAtualSelecionada);
-  const novaQtde = qtdeAtualSelecionada - retirar;
-  const res = await fetch(`/api/itens/${id}`, {
-    method: 'PUT',
+async function enviarSelecionadosParaEstoque(){
+  const ids = Array.from(document.querySelectorAll('.chk-item:checked')).map(chk => Number(chk.value));
+  if(!ids.length) return;
+  if(!confirm(`Enviar ${ids.length} imobilizado(s) selecionado(s) para o Estoque?`)) return;
+  const res = await fetch('/api/imobilizados/enviar-estoque-em-lote', {
+    method: 'POST',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({qtde: String(novaQtde)})
+    body: JSON.stringify({ids})
   });
   if(res.ok){
-    qtdeDialog.close();
+    const corpo = await res.json();
     carregarItens();
-    mostrarToast(`${retirar} retirado(s) do estoque.`, async () => {
-      await fetch(`/api/itens/${id}`, {
-        method: 'PUT',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({qtde: qtdeAnterior})
-      });
-    });
+    mostrarToast(`${corpo.imobilizados_enviados} imobilizado(s) enviados (${corpo.criados_no_estoque} linha(s) criada(s) no Estoque).`);
   } else {
-    alert('Erro ao atualizar quantidade.');
+    alert('Erro ao enviar os selecionados para o Estoque.');
   }
-});
+}
 
 // ---------------------------------------------------------------------
 // Seleção múltipla / exclusão em massa
@@ -1103,12 +962,15 @@ document.getElementById('qtde-save').addEventListener('click', async () => {
 function atualizarSelecionados(){
   const marcados = document.querySelectorAll('.chk-item:checked');
   const btn = document.getElementById('btn-excluir-selecionados');
+  const btnEnviar = document.getElementById('btn-enviar-selecionados');
   const info = document.getElementById('selecionados-info');
   if(marcados.length > 0){
     btn.style.display = 'inline-block';
+    btnEnviar.style.display = 'inline-block';
     info.textContent = `${marcados.length} selecionado(s)`;
   } else {
     btn.style.display = 'none';
+    btnEnviar.style.display = 'none';
     info.textContent = '';
   }
   const todos = document.querySelectorAll('.chk-item');
@@ -1123,7 +985,7 @@ document.getElementById('btn-excluir-selecionados').addEventListener('click', as
   const ids = Array.from(document.querySelectorAll('.chk-item:checked')).map(chk => Number(chk.value));
   if(!ids.length) return;
   if(!confirm(`Excluir ${ids.length} item(ns) selecionado(s)? Essa ação não pode ser desfeita.`)) return;
-  const res = await fetch('/api/itens/excluir-em-lote', {
+  const res = await fetch('/api/imobilizados/excluir-em-lote', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({ids})
@@ -1140,13 +1002,13 @@ document.getElementById('btn-excluir-selecionados').addEventListener('click', as
 async function excluirItem(id){
   const it = itensCache.find(i => i.id === id);
   if(!confirm(`Excluir o item ${it ? it.codigo : ''}?`)) return;
-  const res = await fetch(`/api/itens/${id}`, {method:'DELETE'});
+  const res = await fetch(`/api/imobilizados/${id}`, {method:'DELETE'});
   if(res.ok){
     const corpo = await res.json();
     const itemExcluido = corpo.item;
     carregarItens();
     mostrarToast(`Item ${itemExcluido.codigo} excluído.`, async () => {
-      await fetch('/api/itens/restaurar', {
+      await fetch('/api/imobilizados/restaurar', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify(itemExcluido)
@@ -1252,7 +1114,7 @@ document.getElementById('fe-save').addEventListener('click', async () => {
     val_aquis: document.getElementById('fe-val_aquis').value,
     chamado: document.getElementById('fe-chamado').value,
   };
-  const res = await fetch(`/api/itens/${id}`, {
+  const res = await fetch(`/api/imobilizados/${id}`, {
     method: 'PUT',
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify(dados)
@@ -1282,7 +1144,7 @@ async function abrirHistorico(id){
   lista.innerHTML = '<p style="color:var(--muted); font-size:13px;">Carregando...</p>';
   historicoDialog.showModal();
   try{
-    const res = await fetch(`/api/itens/${id}/movimentacoes`);
+    const res = await fetch(`/api/imobilizados/${id}/movimentacoes`);
     const movs = await res.json();
     if(!movs.length){
       lista.innerHTML = '<p style="color:var(--muted); font-size:13px;">Nenhuma movimentação registrada ainda.</p>';
