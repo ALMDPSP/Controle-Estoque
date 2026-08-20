@@ -25,60 +25,52 @@
   .marca{
     position:relative; overflow:hidden;
     flex:1 1 0; min-width:420px;
-    background:
-      radial-gradient(circle at 18% 15%, rgba(62,166,255,.14), transparent 45%),
-      radial-gradient(circle at 85% 90%, rgba(255,182,72,.08), transparent 40%),
-      linear-gradient(160deg, var(--bg) 0%, var(--bg-deep) 100%);
-    display:flex; flex-direction:column; justify-content:center;
-    padding:64px 60px;
+    background:var(--bg-deep);
+    display:flex; flex-direction:column; justify-content:space-between;
+    padding:56px 60px;
     border-right:1px solid var(--line);
   }
   .marca::before{
-    content:''; position:absolute; inset:0; opacity:.5; pointer-events:none;
-    background-image: radial-gradient(rgba(255,255,255,.05) 1px, transparent 1px);
-    background-size:26px 26px;
-    mask-image: linear-gradient(180deg, transparent, black 30%, black 70%, transparent);
+    content:''; position:absolute; inset:0; opacity:.4; pointer-events:none;
+    background-image: radial-gradient(rgba(255,255,255,.045) 1px, transparent 1px);
+    background-size:24px 24px;
+    mask-image: linear-gradient(180deg, black, black 60%, transparent);
   }
-  .marca-conteudo{position:relative; max-width:420px; animation:subir-fade .5s ease-out both;}
-  @keyframes subir-fade{from{opacity:0; transform:translateY(10px);} to{opacity:1; transform:translateY(0);}}
+  .marca-conteudo{position:relative; max-width:400px; animation:subir-fade .4s ease-out both;}
+  @keyframes subir-fade{from{opacity:0; transform:translateY(8px);} to{opacity:1; transform:translateY(0);}}
 
   .selo{
-    display:inline-flex; align-items:center; gap:10px; margin-bottom:34px;
+    display:inline-flex; align-items:center; gap:11px; margin-bottom:46px;
   }
-  .selo-moldura{
-    position:relative; width:38px; height:38px; flex-shrink:0;
+  .selo-marca{
+    width:32px; height:32px; flex-shrink:0; border-radius:6px;
+    background:var(--panel-2); border:1px solid var(--line);
+    display:flex; align-items:center; justify-content:center;
   }
-  .selo-moldura span{
-    position:absolute; width:11px; height:11px; border:2px solid var(--accent);
-  }
-  .selo-moldura span:nth-child(1){top:0; left:0; border-right:none; border-bottom:none;}
-  .selo-moldura span:nth-child(2){top:0; right:0; border-left:none; border-bottom:none;}
-  .selo-moldura span:nth-child(3){bottom:0; left:0; border-right:none; border-top:none;}
-  .selo-moldura span:nth-child(4){bottom:0; right:0; border-left:none; border-top:none;}
-  .selo-moldura em{
-    position:absolute; inset:9px; border-radius:2px; background:var(--accent);
-    opacity:.9; font-style:normal;
-  }
-  .selo-texto{font-family:var(--mono); font-size:11px; letter-spacing:.18em; color:var(--muted); text-transform:uppercase;}
-  .selo-texto strong{display:block; color:var(--accent); font-size:12px; letter-spacing:.14em; margin-top:2px;}
+  .selo-marca svg{width:16px; height:16px;}
+  .selo-texto{font-size:13.5px; font-weight:600; color:var(--text); letter-spacing:-.005em;}
+  .selo-texto span{display:block; font-family:var(--mono); font-size:10px; letter-spacing:.1em; color:var(--muted); text-transform:uppercase; font-weight:400; margin-top:1px;}
 
   .marca h1{
-    font-size:38px; line-height:1.12; margin:0 0 16px; font-weight:700; letter-spacing:-.01em;
+    font-size:26px; line-height:1.3; margin:0 0 14px; font-weight:600; letter-spacing:-.005em; color:var(--text);
   }
-  .marca h1 .destaque{color:var(--accent);}
   .marca p.lead{
-    color:var(--muted); font-size:14.5px; line-height:1.6; margin:0 0 38px; max-width:380px;
+    color:var(--muted); font-size:13.5px; line-height:1.65; margin:0 0 40px; max-width:360px;
   }
 
-  .recursos{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:16px;}
-  .recursos li{display:flex; align-items:flex-start; gap:12px; font-size:13.5px; color:var(--text);}
-  .recursos .marcador{
-    font-family:var(--mono); font-size:11px; color:var(--accent);
-    border:1px solid rgba(62,166,255,.35); background:rgba(62,166,255,.08);
-    width:24px; height:24px; border-radius:6px; display:flex; align-items:center; justify-content:center;
-    flex-shrink:0; margin-top:1px;
+  .especificacoes{list-style:none; margin:0; padding:0; border-top:1px solid var(--line);}
+  .especificacoes li{
+    display:flex; justify-content:space-between; align-items:baseline; gap:16px;
+    padding:13px 0; border-bottom:1px solid var(--line); font-size:12.5px;
   }
-  .recursos span.rotulo{color:var(--muted); display:block; font-size:12.5px; margin-top:1px;}
+  .especificacoes dt{color:var(--muted); font-weight:400;}
+  .especificacoes dd{margin:0; color:var(--text); font-weight:500; text-align:right;}
+
+  .marca-rodape{
+    position:relative; font-family:var(--mono); font-size:10.5px; color:#4c5769;
+    letter-spacing:.04em; display:flex; gap:14px; align-items:center;
+  }
+  .marca-rodape .ponto{width:6px; height:6px; border-radius:50%; background:var(--ok); display:inline-block; margin-right:6px; box-shadow:0 0 0 3px rgba(76,215,146,.15);}
 
   /* ---------- Painel direito: formulário ---------- */
   .acesso{
@@ -86,62 +78,62 @@
     display:flex; align-items:center; justify-content:center; padding:40px 32px;
   }
   .card{
-    width:min(380px, 100%);
-    animation:subir-fade .5s ease-out .08s both;
+    width:min(360px, 100%);
+    animation:subir-fade .4s ease-out .06s both;
   }
   .card-eyebrow{
-    font-family:var(--mono); font-size:11px; letter-spacing:.14em; color:var(--muted);
-    text-transform:uppercase; margin:0 0 8px;
+    font-family:var(--mono); font-size:10.5px; letter-spacing:.12em; color:var(--muted);
+    text-transform:uppercase; margin:0 0 10px;
   }
-  h2{font-size:22px; margin:0 0 28px; font-weight:700; letter-spacing:-.01em;}
+  h2{font-size:20px; margin:0 0 30px; font-weight:600; letter-spacing:-.005em;}
 
   .field{display:flex; flex-direction:column; gap:7px; margin-bottom:16px;}
   .field label{font-size:12.5px; color:var(--muted); font-weight:500;}
   .field input{
-    background:var(--panel-2); border:1px solid var(--line); border-radius:8px;
-    padding:12px 13px; color:var(--text); font-size:14.5px; outline:none;
-    transition:border-color .15s, box-shadow .15s, background .15s;
+    background:var(--panel-2); border:1px solid var(--line); border-radius:6px;
+    padding:11px 13px; color:var(--text); font-size:14px; outline:none;
+    transition:border-color .15s, box-shadow .15s;
   }
   .field input::placeholder{color:#5b6577;}
   .field input:focus{
-    border-color:var(--accent); background:#1c2430;
-    box-shadow:0 0 0 3px rgba(62,166,255,.15);
+    border-color:var(--accent);
+    box-shadow:0 0 0 3px rgba(62,166,255,.13);
   }
 
   button{
-    width:100%; margin-top:10px; background:var(--accent); color:#08131f;
-    border:none; border-radius:8px; padding:13px; font-size:14.5px; font-weight:700;
-    cursor:pointer; transition:transform .12s, box-shadow .12s, opacity .12s;
-    box-shadow:0 4px 14px rgba(62,166,255,.25);
+    width:100%; margin-top:12px; background:var(--accent); color:#08131f;
+    border:none; border-radius:6px; padding:12px; font-size:14px; font-weight:600;
+    cursor:pointer; transition:background .15s;
   }
-  button:hover{transform:translateY(-1px); box-shadow:0 6px 18px rgba(62,166,255,.35);}
-  button:active{transform:translateY(0);}
+  button:hover{background:#5cb5ff;}
+  button:active{background:#2c93ec;}
   button:focus-visible, .field input:focus-visible{outline:2px solid var(--accent); outline-offset:2px;}
 
   .erro{
     background:rgba(255,107,107,.1); border:1px solid rgba(255,107,107,.3);
-    color:var(--danger); font-size:13px; padding:10px 12px; border-radius:8px; margin-bottom:18px;
+    color:var(--danger); font-size:13px; padding:10px 12px; border-radius:6px; margin-bottom:18px;
     display:flex; align-items:center; gap:8px;
   }
 
   .credito{
-    text-align:left; margin-top:28px; padding-top:18px; border-top:1px solid var(--line);
-    font-size:11px; letter-spacing:.03em; color:var(--muted);
+    text-align:left; margin-top:26px; padding-top:16px; border-top:1px solid var(--line);
+    font-size:11px; letter-spacing:.02em; color:var(--muted);
   }
-  .credito strong{color:var(--accent); font-weight:600;}
+  .credito strong{color:var(--text); font-weight:600;}
 
   @media (max-width: 860px){
     body{flex-direction:column;}
     .marca{
       flex:none; width:100%; min-width:0;
       border-right:none; border-bottom:1px solid var(--line);
-      padding:34px 28px; text-align:left;
+      padding:30px 26px;
     }
     .marca-conteudo{max-width:none;}
-    .marca h1{font-size:26px;}
-    .marca p.lead{margin-bottom:22px; font-size:13.5px;}
-    .recursos{display:none;}
-    .acesso{flex:none; width:100%; min-width:0; padding:32px 24px 44px;}
+    .marca h1{font-size:21px;}
+    .marca p.lead{margin-bottom:24px; font-size:13px;}
+    .especificacoes{display:none;}
+    .marca-rodape{display:none;}
+    .acesso{flex:none; width:100%; min-width:0; padding:30px 24px 40px;}
   }
 </style>
 </head>
@@ -150,35 +142,36 @@
   <div class="marca">
     <div class="marca-conteudo">
       <div class="selo">
-        <div class="selo-moldura"><span></span><span></span><span></span><span></span><em></em></div>
-        <div class="selo-texto">Sistema interno<strong>Controle de Ativos</strong></div>
+        <div class="selo-marca">
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="3" y="3" width="8" height="8" rx="1.5" stroke="#3ea6ff" stroke-width="1.8"/>
+            <rect x="13" y="3" width="8" height="8" rx="1.5" stroke="#3ea6ff" stroke-width="1.8" opacity=".45"/>
+            <rect x="3" y="13" width="8" height="8" rx="1.5" stroke="#3ea6ff" stroke-width="1.8" opacity=".45"/>
+            <rect x="13" y="13" width="8" height="8" rx="1.5" stroke="#3ea6ff" stroke-width="1.8"/>
+          </svg>
+        </div>
+        <div class="selo-texto">Controle de Ativos<span>Sistema interno</span></div>
       </div>
 
-      <h1>Cada equipamento, <span class="destaque">rastreado do início ao fim.</span></h1>
-      <p class="lead">Entrada, saída e imobilizados em um só lugar — com histórico completo de quem
-      cadastrou, retirou ou movimentou cada item.</p>
+      <h1>Gestão de estoque e imobilizados</h1>
+      <p class="lead">Cadastro, movimentação e histórico de equipamentos em um só sistema,
+      com registro de autoria em cada ação.</p>
 
-      <ul class="recursos">
-        <li>
-          <span class="marcador">↔</span>
-          <span>Estoque e Imobilizados<span class="rotulo">envie itens entre as duas tabelas quando ficarem disponíveis</span></span>
-        </li>
-        <li>
-          <span class="marcador">✓</span>
-          <span>Histórico por item<span class="rotulo">toda entrada, retirada e edição fica registrada com autor e data</span></span>
-        </li>
-        <li>
-          <span class="marcador">⇪</span>
-          <span>Importação em massa<span class="rotulo">carregue milhares de registros de uma planilha Excel</span></span>
-        </li>
+      <ul class="especificacoes">
+        <li><dt>Módulos</dt><dd>Estoque · Imobilizados</dd></li>
+        <li><dt>Rastreabilidade</dt><dd>Histórico por item e por usuário</dd></li>
+        <li><dt>Importação</dt><dd>Planilhas Excel (.xlsx)</dd></li>
+        <li><dt>Acesso</dt><dd>Restrito a usuários cadastrados</dd></li>
       </ul>
     </div>
+
+    <div class="marca-rodape"><span class="ponto"></span>Ambiente de produção</div>
   </div>
 
   <div class="acesso">
     <div class="card">
       <p class="card-eyebrow">Acesso restrito</p>
-      <h2>Entrar no sistema</h2>
+      <h2>Entrar</h2>
       {% if erro %}<div class="erro">⚠ {{ erro }}</div>{% endif %}
       <form method="POST">
         <div class="field">

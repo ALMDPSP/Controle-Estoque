@@ -145,10 +145,21 @@
   }
   .toolbar input[type=search]:focus{border-color:var(--accent);}
 
+  .tabela-scroll{
+    max-height:65vh; overflow-y:auto; overflow-x:auto;
+    border:1px solid var(--line); border-radius:8px;
+  }
+  .tabela-scroll::-webkit-scrollbar{width:10px; height:10px;}
+  .tabela-scroll::-webkit-scrollbar-track{background:var(--panel-2);}
+  .tabela-scroll::-webkit-scrollbar-thumb{background:var(--line); border-radius:6px;}
+  .tabela-scroll::-webkit-scrollbar-thumb:hover{background:var(--muted);}
+
   table{width:100%; border-collapse:collapse; font-size:13px;}
   thead th{
+    position:sticky; top:0; z-index:5;
     text-align:left;
     color:var(--muted);
+    background:var(--panel);
     font-weight:600;
     text-transform:uppercase;
     font-size:11px;
@@ -487,7 +498,7 @@
       <button class="btn-ghost" id="btn-excluir-selecionados" style="display:none; color:var(--danger); border-color:rgba(255,107,107,.4);">Excluir selecionados</button>
       <span id="selecionados-info" style="font-size:12px; color:var(--muted);"></span>
     </div>
-    <div style="overflow-x:auto;">
+    <div class="tabela-scroll">
       <table id="tabela-itens">
         <thead>
           <tr>
@@ -714,6 +725,7 @@ const filtroLocal = document.getElementById('filtro-local');
 let itensCache = [];
 let itensExibidos = 50; // paginação: quantos itens mostrar por vez
 const PAGINA_TAMANHO = 50;
+const idsSelecionados = new Set(); // seleção da tabela, sobrevive às atualizações automáticas
 
 const syncStatus = document.getElementById('sync-status');
 
@@ -759,7 +771,7 @@ function renderizar(){
   visiveis.forEach(it => {
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td data-label=""><input type="checkbox" class="chk-item" value="${it.id}" onchange="atualizarSelecionados()"></td>
+      <td data-label=""><input type="checkbox" class="chk-item" value="${it.id}" ${idsSelecionados.has(it.id) ? 'checked' : ''} onchange="toggleSelecionado(${it.id}, this.checked)"></td>
       <td class="codigo">${escapeHtml(it.codigo || '')}</td>
       <td data-label="Descrição">${escapeHtml(it.descricao || '')}</td>
       <td data-label="Qtde">${escapeHtml(String(it.qtde ?? ''))}</td>
@@ -809,7 +821,6 @@ function renderizar(){
 
   atualizarStats();
   atualizarGrafico();
-  document.getElementById('selecionar-todos').checked = false;
   atualizarSelecionados();
 }
 
@@ -966,7 +977,7 @@ async function enviarParaEstoque(id){
 }
 
 async function enviarSelecionadosParaEstoque(){
-  const ids = Array.from(document.querySelectorAll('.chk-item:checked')).map(chk => Number(chk.value));
+  const ids = Array.from(idsSelecionados);
   if(!ids.length) return;
   if(!confirm(`Enviar ${ids.length} imobilizado(s) selecionado(s) para o Estoque?`)) return;
   const res = await fetch('/api/imobilizados/enviar-estoque-em-lote', {
@@ -976,6 +987,7 @@ async function enviarSelecionadosParaEstoque(){
   });
   if(res.ok){
     const corpo = await res.json();
+    idsSelecionados.clear();
     carregarItens();
     mostrarToast(`${corpo.imobilizados_enviados} imobilizado(s) enviados (${corpo.criados_no_estoque} linha(s) criada(s) no Estoque).`);
   } else {
@@ -986,15 +998,22 @@ async function enviarSelecionadosParaEstoque(){
 // ---------------------------------------------------------------------
 // Seleção múltipla / exclusão em massa
 // ---------------------------------------------------------------------
+function toggleSelecionado(id, marcado){
+  if(marcado) idsSelecionados.add(id);
+  else idsSelecionados.delete(id);
+  atualizarSelecionados();
+}
 function atualizarSelecionados(){
-  const marcados = document.querySelectorAll('.chk-item:checked');
+  const idsAtuais = new Set(itensCache.map(it => it.id));
+  Array.from(idsSelecionados).forEach(id => { if(!idsAtuais.has(id)) idsSelecionados.delete(id); });
+
   const btn = document.getElementById('btn-excluir-selecionados');
   const btnEnviar = document.getElementById('btn-enviar-selecionados');
   const info = document.getElementById('selecionados-info');
-  if(marcados.length > 0){
+  if(idsSelecionados.size > 0){
     btn.style.display = 'inline-block';
     btnEnviar.style.display = 'inline-block';
-    info.textContent = `${marcados.length} selecionado(s)`;
+    info.textContent = `${idsSelecionados.size} selecionado(s)`;
   } else {
     btn.style.display = 'none';
     btnEnviar.style.display = 'none';
@@ -1002,14 +1021,19 @@ function atualizarSelecionados(){
   }
   const todos = document.querySelectorAll('.chk-item');
   const selecionarTodos = document.getElementById('selecionar-todos');
-  selecionarTodos.checked = todos.length > 0 && marcados.length === todos.length;
+  selecionarTodos.checked = todos.length > 0 && Array.from(todos).every(chk => idsSelecionados.has(Number(chk.value)));
 }
 document.getElementById('selecionar-todos').addEventListener('change', (e) => {
-  document.querySelectorAll('.chk-item').forEach(chk => { chk.checked = e.target.checked; });
+  document.querySelectorAll('.chk-item').forEach(chk => {
+    chk.checked = e.target.checked;
+    const id = Number(chk.value);
+    if(e.target.checked) idsSelecionados.add(id);
+    else idsSelecionados.delete(id);
+  });
   atualizarSelecionados();
 });
 document.getElementById('btn-excluir-selecionados').addEventListener('click', async () => {
-  const ids = Array.from(document.querySelectorAll('.chk-item:checked')).map(chk => Number(chk.value));
+  const ids = Array.from(idsSelecionados);
   if(!ids.length) return;
   if(!confirm(`Excluir ${ids.length} item(ns) selecionado(s)? Essa ação não pode ser desfeita.`)) return;
   const res = await fetch('/api/imobilizados/excluir-em-lote', {
@@ -1019,6 +1043,7 @@ document.getElementById('btn-excluir-selecionados').addEventListener('click', as
   });
   if(res.ok){
     const corpo = await res.json();
+    idsSelecionados.clear();
     carregarItens();
     mostrarToast(`${corpo.excluidos} item(ns) excluído(s).`);
   } else {
