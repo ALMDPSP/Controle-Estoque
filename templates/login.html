@@ -288,11 +288,11 @@ for(let i = 0; i < 14; i++){
 
 // Console com linhas aparecendo em sequência (efeito "máquina de escrever")
 const linhas = [
-  'Iniciando sessão segura...',
-  'Verificando credenciais...',
-  'Estoque: <span class="num">' + (1200 + Math.floor(Math.random()*400)) + '</span> itens sincronizados',
-  'Imobilizados: conexão <span class="ok">estável</span>',
-  'Aguardando autenticação<span class="cursor"></span>',
+  'auth.service — inicializando',
+  'tls — handshake concluído',
+  'estoque.db — <span class="ok">conectado</span>',
+  'imobilizados.db — <span class="ok">conectado</span>',
+  'aguardando credenciais<span class="cursor"></span>',
 ];
 const corpo = document.getElementById('console-corpo');
 const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
