@@ -18,13 +18,9 @@
   --mono:"SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace;
 }
 
-*{
-  box-sizing:border-box;
-}
+*{box-sizing:border-box}
 
-html,body{
-  height:100%;
-}
+html,body{height:100%}
 
 body{
   margin:0;
@@ -37,7 +33,7 @@ body{
   justify-content:center;
   padding:24px;
   position:relative;
-  overflow-x:hidden;
+  overflow:hidden;
 }
 
 /* =========================================================
@@ -88,13 +84,8 @@ body{
 }
 
 @keyframes flutuar{
-  0%,100%{
-    transform:translate(0,0) scale(1);
-  }
-
-  50%{
-    transform:translate(30px,-30px) scale(1.08);
-  }
+  0%,100%{transform:translate(0,0) scale(1)}
+  50%{transform:translate(30px,-30px) scale(1.08)}
 }
 
 .grade{
@@ -137,13 +128,8 @@ body{
     opacity:0;
   }
 
-  10%{
-    opacity:.7;
-  }
-
-  90%{
-    opacity:.5;
-  }
+  10%{opacity:.7}
+  90%{opacity:.5}
 
   100%{
     transform:translateY(-100vh);
@@ -152,13 +138,13 @@ body{
 }
 
 /* =========================================================
-   CARTÃO
+   CARD
 ========================================================= */
 
 .envoltorio{
   position:relative;
   z-index:1;
-  width:min(900px,100%);
+  width:min(920px,100%);
   animation:subir-fade .5s ease-out both;
 }
 
@@ -183,8 +169,7 @@ body{
   border:1px solid var(--line);
   border-radius:18px;
 
-  box-shadow:
-    0 24px 70px rgba(0,0,0,.55);
+  box-shadow:0 24px 70px rgba(0,0,0,.55);
 
   overflow:hidden;
 }
@@ -193,7 +178,7 @@ body{
   content:"";
   position:absolute;
   inset:0;
-  z-index:10;
+  z-index:20;
   padding:1.5px;
   border-radius:18px;
 
@@ -218,31 +203,29 @@ body{
 }
 
 @keyframes girar{
-  to{
-    transform:rotate(360deg);
-  }
+  to{transform:rotate(360deg)}
 }
 
 /* =========================================================
-   CENTRO DE DISTRIBUIÇÃO
+   PAINEL DO CENTRO DE DISTRIBUIÇÃO
 ========================================================= */
 
 .console{
   position:relative;
-  flex:1 1 0;
-  min-width:420px;
+  flex:1.15 1 0;
+  min-width:450px;
 
   background:
     radial-gradient(
       circle at 50% 40%,
-      rgba(62,166,255,.09),
-      transparent 50%
+      rgba(62,166,255,.10),
+      transparent 55%
     ),
     linear-gradient(160deg,#0c1119,#080b10);
 
   border-right:1px solid var(--line);
 
-  padding:28px 28px 20px;
+  padding:28px;
 
   display:flex;
   flex-direction:column;
@@ -250,15 +233,13 @@ body{
   overflow:hidden;
 }
 
-/* topo */
-
 .cd-topo{
+  position:relative;
+  z-index:30;
+
   display:flex;
   align-items:center;
   justify-content:space-between;
-
-  position:relative;
-  z-index:20;
 }
 
 .cd-status{
@@ -281,13 +262,8 @@ body{
 }
 
 @keyframes pulsar{
-  0%,100%{
-    opacity:.5;
-  }
-
-  50%{
-    opacity:1;
-  }
+  0%,100%{opacity:.5}
+  50%{opacity:1}
 }
 
 .cd-status-text{
@@ -302,18 +278,12 @@ body{
   font-size:9px;
   color:var(--accent-2);
   letter-spacing:.08em;
-
   animation:live-piscar 1.5s infinite;
 }
 
 @keyframes live-piscar{
-  0%,100%{
-    opacity:.45;
-  }
-
-  50%{
-    opacity:1;
-  }
+  0%,100%{opacity:.45}
+  50%{opacity:1}
 }
 
 /* =========================================================
@@ -323,54 +293,56 @@ body{
 .cd-cena{
   position:relative;
   flex:1;
-  min-height:340px;
-  margin-top:8px;
+  min-height:410px;
+  margin-top:4px;
   overflow:hidden;
 }
 
 /* chão */
 
-.cd-cena:before{
+.cd-cena::before{
   content:"";
 
   position:absolute;
 
-  left:-20%;
-  right:-20%;
-  bottom:42px;
+  left:-25%;
+  right:-25%;
+  bottom:5px;
 
-  height:90px;
+  height:155px;
 
   background:
     linear-gradient(
-      rgba(62,166,255,.05) 1px,
+      rgba(62,166,255,.06) 1px,
       transparent 1px
     ),
     linear-gradient(
       90deg,
-      rgba(62,166,255,.05) 1px,
+      rgba(62,166,255,.06) 1px,
       transparent 1px
     );
 
   background-size:28px 28px;
 
-  transform:perspective(180px) rotateX(55deg);
+  transform:
+    perspective(180px)
+    rotateX(58deg);
 
   transform-origin:bottom;
 
   opacity:.7;
 }
 
-/* linha do chão */
+/* linha luminosa */
 
-.cd-cena:after{
+.cd-cena::after{
   content:"";
 
   position:absolute;
 
   left:-20%;
   right:-20%;
-  bottom:42px;
+  bottom:60px;
 
   height:1px;
 
@@ -383,86 +355,89 @@ body{
       transparent
     );
 
-  box-shadow:
-    0 0 18px rgba(62,166,255,.2);
+  box-shadow:0 0 18px rgba(62,166,255,.2);
 }
 
 /* =========================================================
-   PRÉDIO
+   GALPÃO
 ========================================================= */
 
 .cd-predio{
   position:absolute;
 
-  width:300px;
-  height:190px;
+  width:390px;
+  height:245px;
 
   left:50%;
-  top:35px;
+  top:26px;
 
   transform:translateX(-50%);
+
+  z-index:2;
 }
 
 .cd-telhado{
   position:absolute;
 
-  left:0;
   top:0;
+  left:0;
 
   width:100%;
-  height:18px;
+  height:24px;
 
   background:
     linear-gradient(
       180deg,
-      #1b2a3c,
-      #111b28
+      #22364c,
+      #111c2a
     );
 
-  border:1px solid rgba(62,166,255,.3);
+  border:1px solid rgba(62,166,255,.35);
 
   transform:skewX(-20deg);
 
   box-shadow:
-    0 0 20px rgba(62,166,255,.12);
+    0 0 25px rgba(62,166,255,.14);
 }
 
 .cd-fachada{
   position:absolute;
 
-  top:18px;
+  top:22px;
   left:8px;
 
-  width:284px;
-  height:165px;
+  width:374px;
+  height:215px;
 
   background:
     linear-gradient(
       90deg,
-      rgba(62,166,255,.04) 1px,
+      rgba(62,166,255,.035) 1px,
       transparent 1px
     ),
     linear-gradient(
-      #111923,
-      #0b1017
+      #121c27,
+      #080e15
     );
 
   background-size:35px 35px;
 
-  border:1px solid rgba(255,255,255,.08);
+  border:1px solid rgba(255,255,255,.10);
 
   box-shadow:
-    0 15px 35px rgba(0,0,0,.45),
-    inset 0 0 35px rgba(62,166,255,.04);
+    0 20px 45px rgba(0,0,0,.55),
+    inset 0 0 40px rgba(62,166,255,.05);
 }
 
-/* Logo */
+/* =========================================================
+   PARTE SUPERIOR DO GALPÃO
+========================================================= */
 
 .cd-logo-predio{
   position:absolute;
 
-  top:18px;
-  left:20px;
+  top:16px;
+  left:22px;
 
   display:flex;
   flex-direction:column;
@@ -471,13 +446,13 @@ body{
 }
 
 .cd-logo-predio span{
-  font-size:22px;
+  font-size:24px;
   font-weight:700;
 
   color:var(--accent);
 
   text-shadow:
-    0 0 12px rgba(62,166,255,.45);
+    0 0 15px rgba(62,166,255,.55);
 }
 
 .cd-logo-predio small{
@@ -486,15 +461,13 @@ body{
   letter-spacing:.18em;
 }
 
-/* =========================================================
-   LUZES DO GALPÃO
-========================================================= */
+/* luzes */
 
 .cd-luzes{
   position:absolute;
 
-  right:20px;
-  top:25px;
+  top:24px;
+  right:22px;
 
   display:flex;
   gap:8px;
@@ -509,35 +482,318 @@ body{
   background:var(--accent-2);
 
   box-shadow:
-    0 0 8px rgba(94,242,214,.8);
+    0 0 9px rgba(94,242,214,.8);
 
   animation:luz-cd 2s ease-in-out infinite;
 }
 
-.cd-luzes i:nth-child(2){
-  animation-delay:.3s;
-}
-
-.cd-luzes i:nth-child(3){
-  animation-delay:.6s;
-}
-
-.cd-luzes i:nth-child(4){
-  animation-delay:.9s;
-}
-
-.cd-luzes i:nth-child(5){
-  animation-delay:1.2s;
-}
+.cd-luzes i:nth-child(2){animation-delay:.25s}
+.cd-luzes i:nth-child(3){animation-delay:.5s}
+.cd-luzes i:nth-child(4){animation-delay:.75s}
+.cd-luzes i:nth-child(5){animation-delay:1s}
 
 @keyframes luz-cd{
+  0%,100%{opacity:.2}
+  50%{opacity:1}
+}
+
+/* =========================================================
+   PRATELEIRAS
+========================================================= */
+
+.prateleiras{
+  position:absolute;
+
+  left:20px;
+  top:66px;
+
+  width:205px;
+  height:105px;
+
+  display:flex;
+  flex-direction:column;
+  justify-content:space-between;
+}
+
+.prateleira{
+  position:relative;
+
+  height:28px;
+
+  border-bottom:3px solid #31445a;
+
+  background:
+    linear-gradient(
+      90deg,
+      rgba(62,166,255,.08),
+      transparent
+    );
+}
+
+.prateleira::before,
+.prateleira::after{
+  content:"";
+
+  position:absolute;
+
+  bottom:-3px;
+
+  width:3px;
+  height:28px;
+
+  background:#26384d;
+}
+
+.prateleira::before{
+  left:8px;
+}
+
+.prateleira::after{
+  right:8px;
+}
+
+/* caixas nas prateleiras */
+
+.estoque-caixa{
+  position:absolute;
+
+  width:22px;
+  height:17px;
+
+  bottom:5px;
+
+  border:1px solid rgba(62,166,255,.4);
+
+  background:
+    linear-gradient(
+      135deg,
+      #1b3b58,
+      #0d1c2b
+    );
+
+  box-shadow:
+    0 0 7px rgba(62,166,255,.08);
+}
+
+.c1{left:25px}
+.c2{left:52px}
+.c3{left:82px}
+.c4{left:115px}
+.c5{left:145px}
+.c6{left:174px}
+
+.p1 .estoque-caixa:nth-child(1){animation:piscar-caixa 3s infinite}
+.p2 .estoque-caixa:nth-child(2){animation:piscar-caixa 3s 1s infinite}
+.p3 .estoque-caixa:nth-child(3){animation:piscar-caixa 3s 2s infinite}
+
+@keyframes piscar-caixa{
   0%,100%{
-    opacity:.25;
+    filter:brightness(.8);
   }
 
   50%{
-    opacity:1;
+    filter:brightness(1.5);
   }
+}
+
+/* =========================================================
+   EMPILHADEIRA
+========================================================= */
+
+.empilhadeira{
+  position:absolute;
+
+  width:72px;
+  height:65px;
+
+  left:230px;
+  bottom:28px;
+
+  z-index:8;
+
+  animation:
+    empilhadeira-move
+    8s
+    ease-in-out
+    infinite;
+}
+
+@keyframes empilhadeira-move{
+
+  0%,100%{
+    transform:translateX(0);
+  }
+
+  45%{
+    transform:translateX(55px);
+  }
+
+  65%{
+    transform:translateX(55px);
+  }
+}
+
+.emp-corpo{
+  position:absolute;
+
+  bottom:8px;
+  left:8px;
+
+  width:45px;
+  height:27px;
+
+  background:
+    linear-gradient(
+      145deg,
+      #24445a,
+      #102030
+    );
+
+  border:1px solid rgba(94,242,214,.45);
+
+  border-radius:4px;
+}
+
+.emp-cabine{
+  position:absolute;
+
+  bottom:32px;
+  left:25px;
+
+  width:28px;
+  height:25px;
+
+  border:2px solid #45627b;
+
+  border-bottom:none;
+
+  background:rgba(7,14,21,.7);
+}
+
+.emp-teto{
+  position:absolute;
+
+  top:-4px;
+  left:-3px;
+
+  width:34px;
+  height:3px;
+
+  background:#4c657d;
+}
+
+.emp-mastro{
+  position:absolute;
+
+  bottom:7px;
+  right:5px;
+
+  width:4px;
+  height:58px;
+
+  background:
+    linear-gradient(
+      90deg,
+      #3b526a,
+      #7590a8
+    );
+
+  box-shadow:
+    0 0 5px rgba(62,166,255,.3);
+}
+
+.emp-garfo{
+  position:absolute;
+
+  right:-31px;
+  bottom:10px;
+
+  width:33px;
+  height:3px;
+
+  background:#758ca1;
+
+  box-shadow:
+    0 6px 0 #758ca1;
+}
+
+.emp-roda{
+  position:absolute;
+
+  bottom:0;
+
+  width:13px;
+  height:13px;
+
+  border-radius:50%;
+
+  background:#05080c;
+
+  border:2px solid #46586d;
+}
+
+.emp-roda.r1{left:12px}
+.emp-roda.r2{left:42px}
+
+/* =========================================================
+   PALLET
+========================================================= */
+
+.pallet{
+  position:absolute;
+
+  width:58px;
+  height:38px;
+
+  bottom:22px;
+  left:95px;
+
+  z-index:7;
+}
+
+.pallet-base{
+  position:absolute;
+
+  bottom:0;
+  left:0;
+
+  width:58px;
+  height:7px;
+
+  background:#604c35;
+
+  border:1px solid #846847;
+}
+
+.pallet-caixa{
+  position:absolute;
+
+  width:25px;
+  height:20px;
+
+  background:
+    linear-gradient(
+      135deg,
+      #23445d,
+      #122638
+    );
+
+  border:1px solid rgba(62,166,255,.45);
+}
+
+.pallet-caixa:nth-child(1){
+  left:3px;
+  bottom:7px;
+}
+
+.pallet-caixa:nth-child(2){
+  left:30px;
+  bottom:7px;
+}
+
+.pallet-caixa:nth-child(3){
+  left:16px;
+  bottom:26px;
 }
 
 /* =========================================================
@@ -547,39 +803,42 @@ body{
 .cd-portas{
   position:absolute;
 
-  left:18px;
+  left:245px;
   right:18px;
   bottom:0;
 
-  height:88px;
+  height:110px;
 
   display:flex;
-  justify-content:space-between;
+  gap:12px;
+
   align-items:flex-end;
 }
 
 .porta{
-  width:65px;
-  height:75px;
+  width:62px;
+  height:102px;
 
-  border:1px solid rgba(62,166,255,.22);
+  border:1px solid rgba(62,166,255,.25);
+
   border-bottom:none;
 
   background:
     repeating-linear-gradient(
       0deg,
-      rgba(62,166,255,.04) 0px,
-      rgba(62,166,255,.04) 7px,
-      rgba(62,166,255,.12) 8px,
-      rgba(62,166,255,.04) 9px
+      rgba(62,166,255,.03) 0px,
+      rgba(62,166,255,.03) 8px,
+      rgba(62,166,255,.12) 9px,
+      rgba(62,166,255,.03) 10px
     ),
-    #080d14;
+    #070c13;
 
   position:relative;
+
   overflow:hidden;
 }
 
-.porta:before{
+.porta::before{
   content:"";
 
   position:absolute;
@@ -587,7 +846,7 @@ body{
   width:100%;
   height:2px;
 
-  top:18px;
+  top:24px;
 
   background:var(--accent);
 
@@ -600,19 +859,23 @@ body{
 .porta span{
   position:absolute;
 
-  width:12px;
-  height:12px;
+  width:10px;
+  height:10px;
 
   background:var(--accent-2);
 
   border-radius:2px;
 
-  bottom:10px;
-  left:26px;
+  bottom:8px;
+  left:25px;
 
   opacity:.5;
 
-  animation:scanner-porta 2.5s linear infinite;
+  animation:
+    scanner-porta
+    2.5s
+    linear
+    infinite;
 }
 
 @keyframes scanner-porta{
@@ -621,16 +884,12 @@ body{
     opacity:0;
   }
 
-  20%{
-    opacity:.7;
-  }
+  20%{opacity:.7}
 
-  80%{
-    opacity:.7;
-  }
+  80%{opacity:.7}
 
   100%{
-    transform:translateY(-50px);
+    transform:translateY(-70px);
     opacity:0;
   }
 }
@@ -642,15 +901,15 @@ body{
 .cd-esteira{
   position:absolute;
 
-  width:270px;
-  height:75px;
+  width:330px;
+  height:82px;
 
   left:50%;
-  bottom:45px;
+  bottom:38px;
 
   transform:translateX(-50%);
 
-  z-index:5;
+  z-index:10;
 }
 
 .esteira-base{
@@ -660,21 +919,21 @@ body{
   right:0;
   bottom:10px;
 
-  height:13px;
+  height:14px;
 
   background:
     linear-gradient(
       180deg,
-      #263547,
+      #2a4057,
       #111b27
     );
 
-  border:1px solid rgba(62,166,255,.3);
+  border:1px solid rgba(62,166,255,.35);
 
   transform:skewX(-12deg);
 
   box-shadow:
-    0 0 15px rgba(62,166,255,.1);
+    0 0 18px rgba(62,166,255,.12);
 }
 
 .esteira-rolo{
@@ -695,11 +954,12 @@ body{
   animation:rolar 1s linear infinite;
 }
 
-.r1{left:15px;}
-.r2{left:70px;animation-delay:.1s;}
-.r3{left:125px;animation-delay:.2s;}
-.r4{left:180px;animation-delay:.3s;}
-.r5{left:235px;animation-delay:.4s;}
+.r1{left:15px}
+.r2{left:70px;animation-delay:.1s}
+.r3{left:125px;animation-delay:.2s}
+.r4{left:180px;animation-delay:.3s}
+.r5{left:235px;animation-delay:.4s}
+.r6{left:290px;animation-delay:.5s}
 
 @keyframes rolar{
   to{
@@ -707,26 +967,24 @@ body{
   }
 }
 
-/* =========================================================
-   CAIXAS
-========================================================= */
+/* caixas na esteira */
 
 .caixa{
   position:absolute;
 
-  width:40px;
-  height:31px;
+  width:43px;
+  height:32px;
 
-  bottom:24px;
+  bottom:25px;
 
   background:
     linear-gradient(
       135deg,
-      #18334b,
-      #0d1c2b
+      #1a3b57,
+      #0c1d2d
     );
 
-  border:1px solid rgba(62,166,255,.45);
+  border:1px solid rgba(62,166,255,.5);
 
   border-radius:3px;
 
@@ -740,10 +998,10 @@ body{
   color:var(--accent);
 
   box-shadow:
-    0 5px 12px rgba(0,0,0,.4);
+    0 6px 15px rgba(0,0,0,.45);
 }
 
-.caixa:after{
+.caixa::before{
   content:"";
 
   position:absolute;
@@ -758,22 +1016,37 @@ body{
 }
 
 .caixa-1{
-  animation:caixa-movimento 6s linear infinite;
+  animation:
+    caixa-movimento
+    6s
+    linear
+    infinite;
 }
 
 .caixa-2{
-  animation:caixa-movimento 6s linear infinite;
+  animation:
+    caixa-movimento
+    6s
+    linear
+    infinite;
+
   animation-delay:-2s;
 }
 
 .caixa-3{
-  animation:caixa-movimento 6s linear infinite;
+  animation:
+    caixa-movimento
+    6s
+    linear
+    infinite;
+
   animation-delay:-4s;
 }
 
 @keyframes caixa-movimento{
+
   0%{
-    left:-45px;
+    left:-50px;
     opacity:0;
   }
 
@@ -786,7 +1059,7 @@ body{
   }
 
   100%{
-    left:275px;
+    left:340px;
     opacity:0;
   }
 }
@@ -798,17 +1071,17 @@ body{
 .cd-caminhao{
   position:absolute;
 
-  width:140px;
-  height:55px;
+  width:145px;
+  height:58px;
 
-  bottom:37px;
-  left:-160px;
+  bottom:48px;
+  left:-170px;
 
-  z-index:6;
+  z-index:12;
 
   animation:
     caminhao-entrega
-    12s
+    13s
     ease-in-out
     infinite;
 }
@@ -819,26 +1092,26 @@ body{
   left:0;
   bottom:10px;
 
-  width:98px;
-  height:40px;
+  width:102px;
+  height:42px;
 
   background:
     linear-gradient(
       145deg,
-      #17283a,
-      #0d1621
+      #19334a,
+      #0d1722
     );
 
-  border:1px solid rgba(62,166,255,.4);
+  border:1px solid rgba(62,166,255,.45);
 
-  border-radius:4px 2px 2px 4px;
+  border-radius:4px;
 
   display:flex;
   align-items:center;
   justify-content:center;
 
   box-shadow:
-    0 8px 15px rgba(0,0,0,.4);
+    0 8px 18px rgba(0,0,0,.5);
 }
 
 .caminhao-carroceria span{
@@ -848,7 +1121,7 @@ body{
 
   color:var(--accent);
 
-  letter-spacing:.08em;
+  letter-spacing:.1em;
 }
 
 .caminhao-cabine{
@@ -857,17 +1130,17 @@ body{
   right:0;
   bottom:10px;
 
-  width:43px;
-  height:34px;
+  width:45px;
+  height:35px;
 
   background:
     linear-gradient(
       145deg,
-      #23425a,
-      #102130
+      #254861,
+      #102232
     );
 
-  border:1px solid rgba(94,242,214,.35);
+  border:1px solid rgba(94,242,214,.4);
 
   border-radius:3px 7px 2px 2px;
 }
@@ -878,12 +1151,12 @@ body{
   right:5px;
   top:5px;
 
-  width:24px;
+  width:25px;
   height:13px;
 
-  background:#07131d;
+  background:#06121d;
 
-  border:1px solid rgba(62,166,255,.4);
+  border:1px solid rgba(62,166,255,.45);
 }
 
 .roda{
@@ -899,23 +1172,15 @@ body{
   background:#05080d;
 
   border:2px solid #344357;
-
-  box-shadow:
-    0 0 5px rgba(62,166,255,.2);
 }
 
-.roda-1{
-  left:18px;
-}
-
-.roda-2{
-  right:10px;
-}
+.roda-1{left:18px}
+.roda-2{right:10px}
 
 @keyframes caminhao-entrega{
 
   0%{
-    left:-160px;
+    left:-170px;
     opacity:0;
   }
 
@@ -923,15 +1188,15 @@ body{
     opacity:1;
   }
 
-  35%{
-    left:calc(50% - 70px);
+  32%{
+    left:calc(50% - 72px);
   }
 
-  60%{
-    left:calc(50% - 70px);
+  55%{
+    left:calc(50% - 72px);
   }
 
-  85%{
+  82%{
     left:calc(100% + 30px);
     opacity:1;
   }
@@ -943,52 +1208,7 @@ body{
 }
 
 /* =========================================================
-   INDICADORES
-========================================================= */
-
-.cd-indicadores{
-  position:absolute;
-
-  left:10px;
-  right:10px;
-  bottom:0;
-
-  display:flex;
-  justify-content:space-between;
-
-  gap:10px;
-
-  z-index:10;
-}
-
-.cd-indicadores div{
-  display:flex;
-  flex-direction:column;
-  gap:2px;
-}
-
-.cd-indicadores strong{
-  font-family:var(--mono);
-
-  font-size:13px;
-
-  color:var(--text);
-}
-
-.cd-indicadores span{
-  font-family:var(--mono);
-
-  font-size:8px;
-
-  color:#596578;
-
-  text-transform:uppercase;
-
-  letter-spacing:.04em;
-}
-
-/* =========================================================
-   PAINEL DE LOGIN
+   LOGIN
 ========================================================= */
 
 .acesso{
@@ -1008,6 +1228,7 @@ body{
   display:flex;
   align-items:center;
   gap:12px;
+
   margin-bottom:26px;
 }
 
@@ -1039,7 +1260,7 @@ body{
     0 0 22px rgba(62,166,255,.25);
 }
 
-.logo-icone:after{
+.logo-icone::after{
   content:"";
 
   position:absolute;
@@ -1103,13 +1324,13 @@ h1{
 
 .sub{
   color:var(--muted);
-
   font-size:13px;
-
   margin:0 0 24px;
 }
 
-/* campos */
+/* =========================================================
+   CAMPOS
+========================================================= */
 
 .field{
   display:flex;
@@ -1122,9 +1343,7 @@ h1{
 
 .field label{
   font-size:12px;
-
   color:var(--muted);
-
   font-weight:500;
 }
 
@@ -1191,7 +1410,9 @@ h1{
   color:var(--accent);
 }
 
-/* botão */
+/* =========================================================
+   BOTÃO
+========================================================= */
 
 button{
   width:100%;
@@ -1244,7 +1465,9 @@ button:focus-visible,
   outline-offset:2px;
 }
 
-/* erro */
+/* =========================================================
+   ERRO
+========================================================= */
 
 .erro{
   background:rgba(255,107,107,.1);
@@ -1266,34 +1489,30 @@ button:focus-visible,
   gap:8px;
 }
 
-/* crédito */
-
-.credito{
-  text-align:center;
-
-  margin-top:22px;
-
-  padding-top:16px;
-
-  border-top:1px solid var(--line);
-
-  font-size:10.5px;
-
-  letter-spacing:.03em;
-
-  color:#5b6577;
-}
-
-.credito strong{
-  color:var(--accent-2);
-  font-weight:600;
-}
-
 /* =========================================================
    RESPONSIVO
 ========================================================= */
 
+@media(max-width:850px){
+
+  .console{
+    min-width:420px;
+  }
+
+  .cd-predio{
+    transform:
+      translateX(-50%)
+      scale(.88);
+
+    transform-origin:top center;
+  }
+}
+
 @media(max-width:760px){
+
+  body{
+    overflow:auto;
+  }
 
   .card{
     flex-direction:column;
@@ -1305,15 +1524,16 @@ button:focus-visible,
     width:100%;
     min-width:0;
 
-    border-right:none;
+    height:430px;
 
+    border-right:none;
     border-bottom:1px solid var(--line);
 
     padding:22px 24px;
   }
 
   .cd-cena{
-    min-height:300px;
+    min-height:350px;
   }
 
   .acesso{
@@ -1331,25 +1551,17 @@ button:focus-visible,
   .cd-predio{
     transform:
       translateX(-50%)
-      scale(.82);
-
-    transform-origin:top center;
+      scale(.72);
   }
 
   .cd-esteira{
     transform:
       translateX(-50%)
-      scale(.82);
-
-    transform-origin:center bottom;
+      scale(.75);
   }
 
-  .cd-indicadores strong{
-    font-size:11px;
-  }
-
-  .cd-indicadores span{
-    font-size:7px;
+  .empilhadeira{
+    display:none;
   }
 }
 
@@ -1406,6 +1618,7 @@ button:focus-visible,
 
   <div class="card">
 
+
     <!-- ===================================================
          CENTRO DE DISTRIBUIÇÃO
     ==================================================== -->
@@ -1433,7 +1646,10 @@ button:focus-visible,
 
       <div class="cd-cena">
 
-        <!-- GALPÃO -->
+
+        <!-- =================================================
+             GALPÃO
+        ================================================== -->
 
         <div class="cd-predio">
 
@@ -1441,10 +1657,21 @@ button:focus-visible,
 
           <div class="cd-fachada">
 
+
+            <!-- LOGO -->
+
             <div class="cd-logo-predio">
+
               <span>CD</span>
-              <small>LOGÍSTICA</small>
+
+              <small>
+                LOGÍSTICA
+              </small>
+
             </div>
+
+
+            <!-- LUZES -->
 
             <div class="cd-luzes">
               <i></i>
@@ -1454,11 +1681,52 @@ button:focus-visible,
               <i></i>
             </div>
 
-            <div class="cd-portas">
 
-              <div class="porta">
-                <span></span>
+            <!-- =================================================
+                 PRATELEIRAS
+            ================================================== -->
+
+            <div class="prateleiras">
+
+              <div class="prateleira p1">
+
+                <div class="estoque-caixa c1"></div>
+                <div class="estoque-caixa c2"></div>
+                <div class="estoque-caixa c3"></div>
+                <div class="estoque-caixa c4"></div>
+                <div class="estoque-caixa c5"></div>
+
               </div>
+
+
+              <div class="prateleira p2">
+
+                <div class="estoque-caixa c2"></div>
+                <div class="estoque-caixa c3"></div>
+                <div class="estoque-caixa c4"></div>
+                <div class="estoque-caixa c5"></div>
+                <div class="estoque-caixa c6"></div>
+
+              </div>
+
+
+              <div class="prateleira p3">
+
+                <div class="estoque-caixa c1"></div>
+                <div class="estoque-caixa c3"></div>
+                <div class="estoque-caixa c4"></div>
+                <div class="estoque-caixa c5"></div>
+
+              </div>
+
+            </div>
+
+
+            <!-- =================================================
+                 DOCAS
+            ================================================== -->
+
+            <div class="cd-portas">
 
               <div class="porta">
                 <span></span>
@@ -1475,7 +1743,46 @@ button:focus-visible,
         </div>
 
 
-        <!-- ESTEIRA -->
+        <!-- =================================================
+             PALLET
+        ================================================== -->
+
+        <div class="pallet">
+
+          <div class="pallet-base"></div>
+
+          <div class="pallet-caixa"></div>
+          <div class="pallet-caixa"></div>
+          <div class="pallet-caixa"></div>
+
+        </div>
+
+
+        <!-- =================================================
+             EMPILHADEIRA
+        ================================================== -->
+
+        <div class="empilhadeira">
+
+          <div class="emp-corpo"></div>
+
+          <div class="emp-cabine"></div>
+
+          <div class="emp-teto"></div>
+
+          <div class="emp-mastro"></div>
+
+          <div class="emp-garfo"></div>
+
+          <div class="emp-roda r1"></div>
+          <div class="emp-roda r2"></div>
+
+        </div>
+
+
+        <!-- =================================================
+             ESTEIRA
+        ================================================== -->
 
         <div class="cd-esteira">
 
@@ -1486,6 +1793,8 @@ button:focus-visible,
           <div class="esteira-rolo r3"></div>
           <div class="esteira-rolo r4"></div>
           <div class="esteira-rolo r5"></div>
+          <div class="esteira-rolo r6"></div>
+
 
           <div class="caixa caixa-1">
             BOX
@@ -1502,7 +1811,9 @@ button:focus-visible,
         </div>
 
 
-        <!-- CAMINHÃO -->
+        <!-- =================================================
+             CAMINHÃO
+        ================================================== -->
 
         <div class="cd-caminhao">
 
@@ -1511,44 +1822,15 @@ button:focus-visible,
           </div>
 
           <div class="caminhao-cabine">
+
             <div class="caminhao-janela"></div>
+
           </div>
 
           <div class="roda roda-1"></div>
           <div class="roda roda-2"></div>
 
         </div>
-
-
-        <!-- INDICADORES -->
-
-        <div class="cd-indicadores">
-
-          <div>
-            <strong>1.248</strong>
-            <span>itens em estoque</span>
-          </div>
-
-          <div>
-            <strong>98,7%</strong>
-            <span>operação</span>
-          </div>
-
-          <div>
-            <strong>24/7</strong>
-            <span>monitoramento</span>
-          </div>
-
-        </div>
-
-      </div>
-
-
-      <div class="console-rodape">
-
-        <span>OPERAÇÃO ONLINE</span>
-
-        <span>SLA 99.9%</span>
 
       </div>
 
@@ -1657,6 +1939,7 @@ button:focus-visible,
 
             </svg>
 
+
             <input
               id="username"
               name="username"
@@ -1700,6 +1983,7 @@ button:focus-visible,
 
             </svg>
 
+
             <input
               id="password"
               name="password"
@@ -1738,7 +2022,7 @@ button:focus-visible,
 <script>
 
 /* =========================================================
-   PARTÍCULAS
+   PARTÍCULAS DO FUNDO
 ========================================================= */
 
 const container =
