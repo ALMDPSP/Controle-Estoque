@@ -144,6 +144,84 @@ def pagina_usuarios():
     )
 
 
+@app.route("/cadastro-itens")
+@login_required
+def pagina_cadastro_itens():
+    return render_template(
+        "cadastro_itens.html",
+        username=session.get("username"),
+        is_admin=session.get("role") == "admin",
+    )
+
+
+# ---------------------------------------------------------------------
+# API - Cadastro mestre de itens
+# ---------------------------------------------------------------------
+
+@app.route("/api/cadastro-itens", methods=["GET"])
+@login_required
+def api_listar_cadastro_itens():
+    return jsonify(db.listar_cadastro_itens())
+
+
+@app.route("/api/cadastro-itens", methods=["POST"])
+@login_required
+def api_criar_cadastro_item():
+    dados = request.get_json(force=True)
+    codigo = (dados.get("codigo") or "").strip()
+    descricao = (dados.get("descricao") or "").strip()
+    unidade = (dados.get("unidade") or "UN").strip()
+
+    if not codigo:
+        return jsonify({"erro": "Código do item é obrigatório."}), 400
+    if not descricao:
+        return jsonify({"erro": "Descrição do item é obrigatória."}), 400
+    if db.buscar_cadastro_item_por_codigo(codigo):
+        return jsonify({"erro": "Já existe um item cadastrado com este código."}), 400
+
+    novo = db.criar_cadastro_item({
+        "codigo": codigo,
+        "descricao": descricao,
+        "unidade": unidade,
+        "criado_por": session.get("username"),
+    })
+    return jsonify(novo), 201
+
+
+@app.route("/api/cadastro-itens/<int:item_id>", methods=["PUT"])
+@login_required
+def api_atualizar_cadastro_item(item_id):
+    dados = request.get_json(force=True)
+    codigo = (dados.get("codigo") or "").strip()
+    descricao = (dados.get("descricao") or "").strip()
+    unidade = (dados.get("unidade") or "UN").strip()
+    if not codigo or not descricao:
+        return jsonify({"erro": "Código e descrição são obrigatórios."}), 400
+    existente = db.buscar_cadastro_item_por_codigo(codigo)
+    if existente and existente["id"] != item_id:
+        return jsonify({"erro": "Já existe outro item com este código."}), 400
+    ok = db.atualizar_cadastro_item(item_id, {
+        "codigo": codigo, "descricao": descricao, "unidade": unidade,
+        "atualizado_por": session.get("username"),
+        "atualizado_em": datetime.now().strftime("%Y-%m-%d %H:%M"),
+    })
+    if not ok:
+        return jsonify({"erro": "Item de cadastro não encontrado."}), 404
+    return jsonify({"ok": True})
+
+
+@app.route("/api/cadastro-itens/<int:item_id>", methods=["DELETE"])
+@login_required
+def api_excluir_cadastro_item(item_id):
+    item = db.buscar_cadastro_item_por_id(item_id)
+    if not item:
+        return jsonify({"erro": "Item de cadastro não encontrado."}), 404
+    if db.contar_uso_cadastro_item(item["codigo"]):
+        return jsonify({"erro": "Este código já foi utilizado no Estoque ou nos Imobilizados e não pode ser excluído."}), 400
+    db.excluir_cadastro_item(item_id)
+    return jsonify({"ok": True})
+
+
 @app.route("/imobilizados")
 @login_required
 def pagina_imobilizados():
@@ -194,11 +272,19 @@ def api_criar_imobilizado():
         "chamado": (dados.get("chamado") or "").strip(),
         "criado_por": session.get("username"),
     }
-    novo_id = db.criar_imobilizado(novo)
-    novo["id"] = novo_id
-    db.registrar_movimentacao(novo_id, "entrada", novo["qtde"], session.get("username"),
-                               "Cadastro do imobilizado", tabela="imobilizados")
-    return jsonify(novo), 201
+    try:
+        qtde_informada = int(float(dados.get("qtde") or 1))
+    except (ValueError, TypeError):
+        qtde_informada = 1
+    qtde_informada = max(qtde_informada, 1)
+
+    # Cada unidade do Imobilizado também ocupa uma linha própria.
+    # Ex.: quantidade 2 => duas linhas, ambas com qtde=1.
+    linhas = [dict(novo, qtde="1") for _ in range(qtde_informada)]
+    total = db.criar_imobilizados_em_lote(
+        linhas, session.get("username"), observacao="Cadastro manual do imobilizado"
+    )
+    return jsonify({"ok": True, "criados": total, "codigo": codigo}), 201
 
 
 @app.route("/api/imobilizados/<int:item_id>", methods=["PUT"])
@@ -670,9 +756,15 @@ def api_importar():
                 base["qtde"] = "1"
                 novos_itens.extend(dict(base) for _ in range(qtde_linha))
             else:
-                # Imobilizado: mantém a quantidade exatamente como veio na planilha,
-                # numa única linha (não é dividido).
-                novos_itens.append(dados)
+                # Imobilizado: cada unidade também vira uma linha própria.
+                try:
+                    qtde_linha = int(float(dados.get("qtde") or 1))
+                except (ValueError, TypeError):
+                    qtde_linha = 1
+                qtde_linha = max(qtde_linha, 1)
+                base = dict(dados)
+                base["qtde"] = "1"
+                novos_itens.extend(dict(base) for _ in range(qtde_linha))
 
         if not novos_itens:
             return jsonify({"erro": "Nenhuma linha válida encontrada (confira se a coluna 'Código do item' está preenchida)."}), 400

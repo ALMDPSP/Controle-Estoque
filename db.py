@@ -118,6 +118,18 @@ def init_db():
                 vd_loja TEXT
             )
         """)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS cadastro_itens (
+                id SERIAL PRIMARY KEY,
+                codigo TEXT UNIQUE NOT NULL,
+                descricao TEXT NOT NULL,
+                unidade TEXT DEFAULT 'UN',
+                criado_por TEXT,
+                criado_em TEXT,
+                atualizado_por TEXT,
+                atualizado_em TEXT
+            )
+        """)
     else:
         cur.execute("""
             CREATE TABLE IF NOT EXISTS itens (
@@ -165,6 +177,18 @@ def init_db():
                 nf_saida TEXT,
                 data_saida TEXT,
                 vd_loja TEXT
+            )
+        """)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS cadastro_itens (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                codigo TEXT UNIQUE NOT NULL,
+                descricao TEXT NOT NULL,
+                unidade TEXT DEFAULT 'UN',
+                criado_por TEXT,
+                criado_em TEXT,
+                atualizado_por TEXT,
+                atualizado_em TEXT
             )
         """)
 
@@ -277,6 +301,85 @@ def init_db():
 
     cur.close()
     conn.close()
+
+
+# ---------------------------------------------------------------------
+# Cadastro mestre de itens
+# ---------------------------------------------------------------------
+
+def listar_cadastro_itens():
+    conn = get_conn()
+    cur = get_cursor(conn)
+    cur.execute("SELECT * FROM cadastro_itens ORDER BY codigo")
+    linhas = cur.fetchall()
+    itens = [dict(r) for r in linhas]
+    cur.close(); conn.close()
+    return itens
+
+
+def buscar_cadastro_item_por_codigo(codigo):
+    conn = get_conn(); cur = get_cursor(conn)
+    cur.execute(q("SELECT * FROM cadastro_itens WHERE LOWER(codigo) = LOWER(?)"), (codigo,))
+    row = cur.fetchone()
+    item = dict(row) if row else None
+    cur.close(); conn.close()
+    return item
+
+
+def buscar_cadastro_item_por_id(item_id):
+    conn = get_conn(); cur = get_cursor(conn)
+    cur.execute(q("SELECT * FROM cadastro_itens WHERE id = ?"), (item_id,))
+    row = cur.fetchone()
+    item = dict(row) if row else None
+    cur.close(); conn.close()
+    return item
+
+
+def criar_cadastro_item(dados):
+    conn = get_conn(); cur = get_cursor(conn)
+    agora = datetime.now().strftime("%Y-%m-%d %H:%M")
+    campos = ["codigo", "descricao", "unidade", "criado_por", "criado_em"]
+    valores = [dados.get(c, "") for c in campos[:-1]] + [agora]
+    if IS_PG:
+        cur.execute(q(f"INSERT INTO cadastro_itens ({', '.join(campos)}) VALUES ({', '.join(['?'] * len(campos))}) RETURNING *"), valores)
+        item = dict(cur.fetchone())
+    else:
+        cur.execute(q(f"INSERT INTO cadastro_itens ({', '.join(campos)}) VALUES ({', '.join(['?'] * len(campos))})"), valores)
+        novo_id = cur.lastrowid
+        cur.execute(q("SELECT * FROM cadastro_itens WHERE id = ?"), (novo_id,))
+        item = dict(cur.fetchone())
+    conn.commit(); cur.close(); conn.close()
+    return item
+
+
+def atualizar_cadastro_item(item_id, dados):
+    campos = ["codigo", "descricao", "unidade", "atualizado_por", "atualizado_em"]
+    valores = [dados.get(c, "") for c in campos]
+    conn = get_conn(); cur = get_cursor(conn)
+    cur.execute(q(f"UPDATE cadastro_itens SET {', '.join(f'{c} = ?' for c in campos)} WHERE id = ?"), valores + [item_id])
+    afetadas = cur.rowcount
+    conn.commit(); cur.close(); conn.close()
+    return afetadas > 0
+
+
+def contar_uso_cadastro_item(codigo):
+    conn = get_conn(); cur = get_cursor(conn)
+    cur.execute(q("SELECT COUNT(*) AS total FROM itens WHERE LOWER(codigo) = LOWER(?)"), (codigo,))
+    row = cur.fetchone()
+    total = row["total"] if isinstance(row, dict) else row[0]
+    cur.execute(q("SELECT COUNT(*) AS total FROM imobilizados WHERE LOWER(codigo) = LOWER(?)"), (codigo,))
+    row = cur.fetchone()
+    total += row["total"] if isinstance(row, dict) else row[0]
+    cur.close(); conn.close()
+    return total
+
+
+def excluir_cadastro_item(item_id):
+    conn = get_conn(); cur = get_cursor(conn)
+    cur.execute(q("DELETE FROM cadastro_itens WHERE id = ?"), (item_id,))
+    ok = cur.rowcount > 0
+    conn.commit(); cur.close(); conn.close()
+    return ok
 
 
 # ---------------------------------------------------------------------

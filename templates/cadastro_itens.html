@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cadastro de itens · Controle de Ativos</title>
+<style>
+  :root{--bg:#12181f;--panel:#1a2029;--panel-2:#212934;--line:#2b3444;--text:#e7ebf1;--muted:#8b96a8;--accent:#3ea6ff;--accent-2:#ffb648;--ok:#4cd792;--danger:#ff6b6b;--mono:"SFMono-Regular",Consolas,monospace;}
+  *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--text);font-family:"Segoe UI",Inter,system-ui,sans-serif;min-height:100vh}
+  header{padding:28px 32px 18px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:12px}
+  .brand{display:flex;align-items:baseline;gap:10px}.tag{font-family:var(--mono);font-size:12px;letter-spacing:.12em;color:var(--accent-2);text-transform:uppercase;border:1px solid var(--accent-2);padding:2px 8px;border-radius:3px}
+  h1{font-size:22px;margin:4px 0 2px;font-weight:600}.subtitle{margin:0;color:var(--muted);font-size:13px}
+  nav{padding:10px 32px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;font-size:13px}
+  nav a{color:var(--muted);text-decoration:none;padding:6px 14px;border:1px solid var(--line);border-radius:20px}.nav-active{background:var(--accent);color:#08131f!important;border-color:var(--accent)!important;font-weight:600}
+  main{padding:26px 32px 60px;max-width:1100px;margin:0 auto}.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:20px 22px;margin-bottom:24px}.panel h2{font-size:13px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin:0 0 16px}
+  form{display:grid;grid-template-columns:1fr 2fr 1fr auto;gap:14px 16px;align-items:end}.field{display:flex;flex-direction:column;gap:6px}.field label{font-size:12px;color:var(--muted)}
+  input{background:var(--panel-2);border:1px solid var(--line);border-radius:6px;padding:10px;color:var(--text);font-size:14px;outline:none}input:focus{border-color:var(--accent)}
+  button{font:inherit;font-size:13px;border:none;border-radius:6px;padding:10px 16px;cursor:pointer;font-weight:600}.primary{background:var(--accent);color:#08131f}.ghost{background:transparent;color:var(--muted);border:1px solid var(--line)}.danger:hover{color:var(--danger);border-color:var(--danger)}
+  .msg{display:none;padding:9px 11px;border-radius:6px;margin-bottom:14px;font-size:13px}.ok{display:block;background:rgba(76,215,146,.12);border:1px solid rgba(76,215,146,.3);color:var(--ok)}.erro{display:block;background:rgba(255,107,107,.12);border:1px solid rgba(255,107,107,.3);color:var(--danger)}
+  table{width:100%;border-collapse:collapse;font-size:13px}th{text-align:left;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.06em;padding:10px;border-bottom:1px solid var(--line)}td{padding:10px;border-bottom:1px solid var(--line)}.codigo{font-family:var(--mono);color:var(--accent)}.actions{display:flex;gap:7px;justify-content:flex-end}
+  .hint{margin:0 0 16px;color:var(--muted);font-size:12px;line-height:1.5}
+  @media(max-width:800px){form{grid-template-columns:1fr 1fr}.field:nth-child(2){grid-column:span 2}.actions{justify-content:flex-start}}
+  @media(max-width:560px){header,nav,main{padding-left:16px;padding-right:16px}form{grid-template-columns:1fr}.field:nth-child(2){grid-column:auto}.actions{justify-content:flex-start}table{display:block;overflow-x:auto;white-space:nowrap}}
+</style>
+</head>
+<body>
+<header><div><div class="brand"><span class="tag">Cadastro</span><strong>Controle de Ativos</strong></div><h1>Cadastro de itens</h1><p class="subtitle">Cadastre uma vez e reutilize o item no Estoque e nos Imobilizados.</p></div></header>
+<nav><div style="display:flex;gap:8px;flex-wrap:wrap"><a href="{{ url_for('index') }}">Estoque</a><a href="{{ url_for('pagina_imobilizados') }}">Imobilizados</a><a class="nav-active" href="{{ url_for('pagina_cadastro_itens') }}">Cadastro de itens</a></div><div style="display:flex;gap:14px;align-items:center"><span style="color:var(--muted)">Logado como <strong style="color:var(--text)">{{ username }}</strong></span>{% if is_admin %}<a href="{{ url_for('pagina_usuarios') }}">Usuários</a>{% endif %}<a href="{{ url_for('logout') }}">Sair</a></div></nav>
+<main>
+<section class="panel"><h2>Novo item</h2><p class="hint">O código deve ser único. Ao informar esse código no Estoque ou em Imobilizados, a descrição será preenchida automaticamente.</p><div id="msg" class="msg"></div><form id="cadastro-form"><div class="field"><label for="codigo">Código do item *</label><input id="codigo" required placeholder="EX: EQP-0231"></div><div class="field"><label for="descricao">Descrição *</label><input id="descricao" required placeholder="Descrição do equipamento"></div><div class="field"><label for="unidade">Unidade</label><input id="unidade" value="UN" placeholder="UN"></div><button class="primary" type="submit">Cadastrar item</button></form></section>
+<section class="panel"><h2>Itens cadastrados <span id="total" style="font-family:var(--mono);color:var(--accent)"></span></h2><table><thead><tr><th>Código</th><th>Descrição</th><th>Unidade</th><th>Criado por</th><th>Ações</th></tr></thead><tbody id="tbody"></tbody></table></section>
+</main>
+<script>
+let itens=[];const tbody=document.getElementById('tbody'),msg=document.getElementById('msg');
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function showMsg(t,ok){msg.textContent=t;msg.className='msg '+(ok?'ok':'erro');msg.style.display='block';}
+async function carregar(){const r=await fetch('/api/cadastro-itens');itens=await r.json();document.getElementById('total').textContent=`(${itens.length})`;tbody.innerHTML=itens.map(i=>`<tr><td class="codigo">${esc(i.codigo)}</td><td>${esc(i.descricao)}</td><td>${esc(i.unidade||'UN')}</td><td>${esc(i.criado_por||'-')}</td><td><div class="actions"><button class="ghost" onclick="editar(${i.id})">Editar</button><button class="ghost danger" onclick="excluir(${i.id})">Excluir</button></div></td></tr>`).join('')||'<tr><td colspan="5" style="color:var(--muted)">Nenhum item cadastrado ainda.</td></tr>'; }
+document.getElementById('cadastro-form').addEventListener('submit',async e=>{e.preventDefault();const d={codigo:codigo.value.trim(),descricao:descricao.value.trim(),unidade:unidade.value.trim()||'UN'};const r=await fetch('/api/cadastro-itens',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)});const b=await r.json();if(r.ok){e.target.reset();unidade.value='UN';showMsg('Item cadastrado com sucesso.',true);carregar();}else showMsg(b.erro||'Erro ao cadastrar item.',false);});
+async function editar(id){const i=itens.find(x=>x.id===id);if(!i)return;const c=prompt('Código do item:',i.codigo);if(c===null)return;const d=prompt('Descrição:',i.descricao);if(d===null)return;const u=prompt('Unidade:',i.unidade||'UN');if(u===null)return;const r=await fetch('/api/cadastro-itens/'+id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({codigo:c.trim(),descricao:d.trim(),unidade:u.trim()||'UN'})});const b=await r.json();if(r.ok){showMsg('Item atualizado com sucesso.',true);carregar();}else showMsg(b.erro||'Erro ao atualizar item.',false);}
+async function excluir(id){if(!confirm('Excluir este item do cadastro?'))return;const r=await fetch('/api/cadastro-itens/'+id,{method:'DELETE'});const b=await r.json();if(r.ok){showMsg('Item excluído.',true);carregar();}else showMsg(b.erro||'Não foi possível excluir.',false);}
+carregar();
+</script></body></html>

@@ -330,6 +330,7 @@
   <div style="display:flex; gap:8px; align-items:center;">
     <a href="{{ url_for('index') }}" class="nav-link" style="color:var(--muted);">Estoque</a>
     <a href="{{ url_for('pagina_imobilizados') }}" class="nav-link ativo">Imobilizados</a>
+    <a href="{{ url_for('pagina_cadastro_itens') }}" class="nav-link" style="color:var(--muted);">Cadastro de itens</a>
   </div>
   <div style="display:flex; gap:16px; align-items:center;">
     <span style="color:var(--muted);">Logado como <strong style="color:var(--text);">{{ username }}</strong></span>
@@ -350,11 +351,12 @@
     <form id="item-form">
       <div class="field">
         <label for="codigo">Código do item *</label>
-        <input id="codigo" name="codigo" required placeholder="EX: EQP-0231">
+        <input id="codigo" name="codigo" list="lista-cadastro-itens" required placeholder="Selecione um código cadastrado" autocomplete="off">
+        <datalist id="lista-cadastro-itens"></datalist>
       </div>
       <div class="field wide">
-        <label for="descricao">Descrição</label>
-        <input id="descricao" name="descricao" placeholder="Descrição do equipamento">
+        <label for="descricao">Descrição (preenchida pelo cadastro)</label>
+        <input id="descricao" name="descricao" placeholder="Será preenchida automaticamente" readonly>
       </div>
       <div class="field">
         <label for="qtde">Qtde</label>
@@ -918,9 +920,40 @@ function escapeHtml(str){
   }[s]));
 }
 
+// ---------------------------------------------------------------------
+// Cadastro mestre de itens
+// ---------------------------------------------------------------------
+let cadastroItens = [];
+async function carregarCadastroItens(){
+  try{
+    const res = await fetch('/api/cadastro-itens');
+    if(!res.ok) return;
+    cadastroItens = await res.json();
+    const lista = document.getElementById('lista-cadastro-itens');
+    lista.innerHTML = cadastroItens.map(it => `<option value="${escapeHtml(it.codigo)}">${escapeHtml(it.descricao || '')}</option>`).join('');
+  }catch(err){ console.error('Erro ao carregar cadastro de itens:', err); }
+}
+function preencherDescricaoDoCadastro(){
+  const codigo = document.getElementById('codigo').value.trim();
+  const encontrado = cadastroItens.find(it => String(it.codigo).toLowerCase() === codigo.toLowerCase());
+  const descricao = document.getElementById('descricao');
+  descricao.value = encontrado ? (encontrado.descricao || '') : '';
+  descricao.title = encontrado ? `Unidade: ${encontrado.unidade || 'UN'}` : '';
+}
+document.getElementById('codigo').addEventListener('input', preencherDescricaoDoCadastro);
+document.getElementById('codigo').addEventListener('change', preencherDescricaoDoCadastro);
+carregarCadastroItens();
+
 document.getElementById('item-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const form = e.target;
+  preencherDescricaoDoCadastro();
+  const cadastro = cadastroItens.find(it => String(it.codigo).toLowerCase() === String(form.codigo.value).trim().toLowerCase());
+  if(!cadastro){
+    alert('Cadastre o código do item na página “Cadastro de itens” antes de lançar no sistema.');
+    document.getElementById('codigo').focus();
+    return;
+  }
   const dados = {
     codigo: form.codigo.value,
     descricao: form.descricao.value,
