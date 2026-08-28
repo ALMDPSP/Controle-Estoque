@@ -925,26 +925,45 @@ function escapeHtml(str){
 // Cadastro mestre de itens
 let cadastroItens = [];
 async function carregarCadastroItens(){
+  const lista = document.getElementById('codigo');
+  if(!lista) return;
   try{
-    const res = await fetch('/api/cadastro-itens?tipo=imobilizados');
-    if(!res.ok) return;
+    lista.disabled = true;
+    const res = await fetch('/api/cadastro-itens?tipo=imobilizados', { cache: 'no-store' });
+    if(!res.ok) throw new Error('HTTP '+res.status);
     cadastroItens = await res.json();
-    const lista = document.getElementById('codigo');
-    const atual = lista.value;
+    const atual = String(lista.value || '').trim();
     lista.innerHTML = '<option value="">Selecione o código</option>' +
-      cadastroItens.map(it => `<option value="${escapeHtml(it.codigo)}">${escapeHtml(it.codigo)}</option>`).join('');
-    if(cadastroItens.some(it => it.codigo === atual)) lista.value = atual;
+      cadastroItens.map(it => {
+        const valor = String(it.codigo || '');
+        return `<option value="${escapeHtml(valor)}">${escapeHtml(valor)}</option>`;
+      }).join('');
+    if(atual && cadastroItens.some(it => String(it.codigo || '').trim().toLowerCase() === atual.toLowerCase())){
+      lista.value = atual;
+    }
     preencherDescricaoDoCadastro();
-  }catch(err){ console.error('Erro ao carregar cadastro de itens:', err); }
+  }catch(err){
+    console.error('Erro ao carregar cadastro de itens:', err);
+    lista.innerHTML = '<option value="">Erro ao carregar códigos</option>';
+  }finally{
+    lista.disabled = false;
+  }
 }
 function preencherDescricaoDoCadastro(){
-  const codigo = document.getElementById('codigo').value.trim();
-  const encontrado = cadastroItens.find(it => String(it.codigo).toLowerCase() === codigo.toLowerCase());
-  const descricao = document.getElementById('descricao');
-  descricao.value = encontrado ? (encontrado.descricao || '') : '';
-  descricao.title = encontrado ? `Unidade: ${encontrado.unidade || 'UN'}` : '';
+  const lista = document.getElementById('codigo');
+  const campoDescricao = document.getElementById('descricao');
+  if(!lista || !campoDescricao) return;
+  const codigoSelecionado = String(lista.value || '').trim().toLowerCase();
+  const encontrado = cadastroItens.find(it => String(it.codigo || '').trim().toLowerCase() === codigoSelecionado);
+  campoDescricao.value = encontrado ? (encontrado.descricao || '') : '';
+  campoDescricao.title = encontrado ? `Unidade: ${encontrado.unidade || 'UN'}` : '';
 }
-document.getElementById('codigo').addEventListener('change', preencherDescricaoDoCadastro);
+const codigoItemSelect = document.getElementById('codigo');
+if(codigoItemSelect){
+  codigoItemSelect.addEventListener('change', preencherDescricaoDoCadastro);
+  codigoItemSelect.addEventListener('focus', carregarCadastroItens);
+}
+carregarCadastroItens();
 
 document.getElementById('item-form').addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -990,6 +1009,7 @@ document.getElementById('item-form').addEventListener('submit', async (e) => {
     alert(erro.erro || 'Erro ao salvar item.');
   }
 });
+
 
 buscaInput.addEventListener('input', () => { itensExibidos = PAGINA_TAMANHO; renderizar(); });
 
