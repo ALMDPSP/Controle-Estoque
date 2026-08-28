@@ -124,6 +124,7 @@ def init_db():
                 codigo TEXT UNIQUE NOT NULL,
                 descricao TEXT NOT NULL,
                 unidade TEXT DEFAULT 'UN',
+                tipo TEXT NOT NULL DEFAULT 'estoque',
                 criado_por TEXT,
                 criado_em TEXT,
                 atualizado_por TEXT,
@@ -185,6 +186,7 @@ def init_db():
                 codigo TEXT UNIQUE NOT NULL,
                 descricao TEXT NOT NULL,
                 unidade TEXT DEFAULT 'UN',
+                tipo TEXT NOT NULL DEFAULT 'estoque',
                 criado_por TEXT,
                 criado_em TEXT,
                 atualizado_por TEXT,
@@ -221,6 +223,16 @@ def init_db():
         except Exception:
             conn.rollback()  # coluna já existe (comum no SQLite, que não tem "IF NOT EXISTS")
 
+    # Migração: tipo do cadastro mestre (estoque ou imobilizados).
+    try:
+        if IS_PG:
+            cur.execute("ALTER TABLE cadastro_itens ADD COLUMN IF NOT EXISTS tipo TEXT DEFAULT 'estoque'")
+        else:
+            cur.execute("ALTER TABLE cadastro_itens ADD COLUMN tipo TEXT DEFAULT 'estoque'")
+        conn.commit()
+    except Exception:
+        conn.rollback()
+
     # Migração: coluna que obriga o usuário a trocar a senha no primeiro acesso.
     try:
         if IS_PG:
@@ -245,6 +257,61 @@ def init_db():
             conn.commit()
         except Exception:
             conn.rollback()
+
+    # Completa o tipo dos cadastros antigos e garante que cada cadastro tenha
+    # pelo menos uma linha na tabela de destino.
+    try:
+        # Registros criados em versões anteriores não tinham o campo de tipo.
+        # Se já existirem somente nos Imobilizados, corrige o destino antes da sincronização.
+        cur.execute(q("""
+            UPDATE cadastro_itens SET tipo = 'imobilizados'
+            WHERE tipo = 'estoque'
+              AND EXISTS (SELECT 1 FROM imobilizados i WHERE LOWER(i.codigo) = LOWER(cadastro_itens.codigo))
+              AND NOT EXISTS (SELECT 1 FROM itens e WHERE LOWER(e.codigo) = LOWER(cadastro_itens.codigo))
+        """))
+        conn.commit()
+    except Exception:
+        conn.rollback()
+
+    try:
+        cur.execute("SELECT id, codigo, descricao, unidade, tipo FROM cadastro_itens")
+        cadastros = cur.fetchall()
+        for cadastro in cadastros:
+            c = dict(cadastro)
+            tipo = (c.get("tipo") or "").strip().lower()
+            if tipo not in ("estoque", "imobilizados"):
+                cur.execute(q("SELECT COUNT(*) AS total FROM imobilizados WHERE LOWER(codigo) = LOWER(?)"), (c["codigo"],))
+                r = cur.fetchone(); total_imob = r["total"] if isinstance(r, dict) else r[0]
+                tipo = "imobilizados" if total_imob else "estoque"
+                cur.execute(q("UPDATE cadastro_itens SET tipo = ? WHERE id = ?"), (tipo, c["id"]))
+
+            tabela = "imobilizados" if tipo == "imobilizados" else "itens"
+            cur.execute(q(f"SELECT COUNT(*) AS total FROM {tabela} WHERE LOWER(codigo) = LOWER(?)"), (c["codigo"],))
+            r = cur.fetchone(); total = r["total"] if isinstance(r, dict) else r[0]
+            if total == 0:
+                dados_base = {
+                    "codigo": c["codigo"], "descricao": c["descricao"], "qtde": "1",
+                    "localizacao": "", "nf_entrada": "",
+                    "data_entrada": datetime.now().strftime("%Y-%m-%d"), "nf_saida": "",
+                    "data_saida": "", "vd_loja": "", "local": "", "armazenagem": "",
+                    "status": "", "nro_imobilizado": "", "nro_serie": "",
+                    "nro_patrimonio": "", "tipo_estoque": "",
+                    "criado_por": c.get("criado_por") or "sistema", "pedido": "",
+                    "val_aquis": "", "chamado": "",
+                }
+                campos = CAMPOS_IMOBILIZADO if tabela == "imobilizados" else [
+                    "codigo", "descricao", "qtde", "localizacao", "nf_entrada",
+                    "data_entrada", "nf_saida", "data_saida", "vd_loja", "local",
+                    "armazenagem", "status", "nro_imobilizado", "nro_serie",
+                    "nro_patrimonio", "tipo_estoque", "criado_por", "pedido",
+                    "val_aquis", "chamado"
+                ]
+                valores = [dados_base.get(campo, "") for campo in campos]
+                cur.execute(q(f"INSERT INTO {tabela} ({', '.join(campos)}) VALUES ({', '.join(['?'] * len(campos))})"), valores)
+        conn.commit()
+    except Exception as exc:
+        conn.rollback()
+        print(f"[migração] Não foi possível sincronizar cadastro mestre: {exc}")
 
     # Migração: coluna que indica se a movimentação é do Estoque ou do Imobilizado.
     try:
@@ -307,12 +374,29 @@ def init_db():
 # Cadastro mestre de itens
 # ---------------------------------------------------------------------
 
-def listar_cadastro_itens():
+def listar_cadastro_itens(tipo=None):
     conn = get_conn()
     cur = get_cursor(conn)
-    cur.execute("SELECT * FROM cadastro_itens ORDER BY codigo")
+    if tipo in ("estoque", "imobilizados"):
+        cur.execute(q("SELECT * FROM cadastro_itens WHERE tipo = ? ORDER BY codigo"), (tipo,))
+    else:
+        cur.execute("SELECT * FROM cadastro_itens ORDER BY codigo")
     linhas = cur.fetchall()
     itens = [dict(r) for r in linhas]
+    # Quantidade atual no destino do cadastro.
+    for item in itens:
+        tabela = "imobilizados" if item.get("tipo") == "imobilizados" else "itens"
+        cur.execute(q(f"SELECT qtde FROM {tabela} WHERE LOWER(codigo) = LOWER(?)"), (item["codigo"],))
+        linhas_destino = cur.fetchall()
+        item["linhas"] = len(linhas_destino)
+        total_qtde = 0
+        for linha in linhas_destino:
+            valor = linha["qtde"] if isinstance(linha, dict) else linha[0]
+            try:
+                total_qtde += int(float(valor or 0))
+            except (ValueError, TypeError):
+                pass
+        item["quantidade"] = total_qtde
     cur.close(); conn.close()
     return itens
 
@@ -335,11 +419,23 @@ def buscar_cadastro_item_por_id(item_id):
     return item
 
 
+def _dados_linha_inicial_cadastro(dados, usuario):
+    return {
+        "codigo": dados["codigo"], "descricao": dados["descricao"], "qtde": "1",
+        "localizacao": "", "nf_entrada": "", "data_entrada": datetime.now().strftime("%Y-%m-%d"),
+        "nf_saida": "", "data_saida": "", "vd_loja": "", "local": "",
+        "armazenagem": "", "status": "", "nro_imobilizado": "", "nro_serie": "",
+        "nro_patrimonio": "", "tipo_estoque": "", "criado_por": usuario,
+        "pedido": "", "val_aquis": "", "chamado": "",
+    }
+
+
 def criar_cadastro_item(dados):
     conn = get_conn(); cur = get_cursor(conn)
     agora = datetime.now().strftime("%Y-%m-%d %H:%M")
-    campos = ["codigo", "descricao", "unidade", "criado_por", "criado_em"]
-    valores = [dados.get(c, "") for c in campos[:-1]] + [agora]
+    campos = ["codigo", "descricao", "unidade", "tipo", "criado_por", "criado_em"]
+    valores = [dados.get("codigo", ""), dados.get("descricao", ""), dados.get("unidade", "UN"),
+               dados.get("tipo", "estoque"), dados.get("criado_por", ""), agora]
     if IS_PG:
         cur.execute(q(f"INSERT INTO cadastro_itens ({', '.join(campos)}) VALUES ({', '.join(['?'] * len(campos))}) RETURNING *"), valores)
         item = dict(cur.fetchone())
@@ -348,7 +444,26 @@ def criar_cadastro_item(dados):
         novo_id = cur.lastrowid
         cur.execute(q("SELECT * FROM cadastro_itens WHERE id = ?"), (novo_id,))
         item = dict(cur.fetchone())
+
+    tabela = "imobilizados" if item["tipo"] == "imobilizados" else "itens"
+    linha = _dados_linha_inicial_cadastro(item, dados.get("criado_por", ""))
+    campos_destino = CAMPOS_IMOBILIZADO if tabela == "imobilizados" else [
+        "codigo", "descricao", "qtde", "localizacao", "nf_entrada", "data_entrada",
+        "nf_saida", "data_saida", "vd_loja", "local", "armazenagem", "status",
+        "nro_imobilizado", "nro_serie", "nro_patrimonio", "tipo_estoque", "criado_por",
+        "pedido", "val_aquis", "chamado"
+    ]
+    valores_destino = [linha.get(c, "") for c in campos_destino]
+    if IS_PG:
+        cur.execute(q(f"INSERT INTO {tabela} ({', '.join(campos_destino)}) VALUES ({', '.join(['?'] * len(campos_destino))}) RETURNING id"), valores_destino)
+        destino_id = cur.fetchone()["id"]
+    else:
+        cur.execute(q(f"INSERT INTO {tabela} ({', '.join(campos_destino)}) VALUES ({', '.join(['?'] * len(campos_destino))})"), valores_destino)
+        destino_id = cur.lastrowid
+    cur.execute(q("INSERT INTO movimentacoes (item_id, tipo, quantidade, usuario, data_hora, observacao, tabela) VALUES (?, ?, ?, ?, ?, ?, ?)"),
+                (destino_id, "entrada", "1", dados.get("criado_por", ""), agora, "Item criado pelo Cadastro de itens", tabela))
     conn.commit(); cur.close(); conn.close()
+    item["destino_id"] = destino_id
     return item
 
 
@@ -358,20 +473,14 @@ def atualizar_cadastro_item(item_id, dados):
     conn = get_conn(); cur = get_cursor(conn)
     cur.execute(q(f"UPDATE cadastro_itens SET {', '.join(f'{c} = ?' for c in campos)} WHERE id = ?"), valores + [item_id])
     afetadas = cur.rowcount
+    # Mantém descrição/código sincronizados nas linhas já existentes.
+    if afetadas:
+        cur.execute(q("UPDATE itens SET codigo = ?, descricao = ? WHERE LOWER(codigo) = LOWER(?)"),
+                    (dados.get("codigo", ""), dados.get("descricao", ""), dados.get("codigo_anterior", dados.get("codigo", ""))))
+        cur.execute(q("UPDATE imobilizados SET codigo = ?, descricao = ? WHERE LOWER(codigo) = LOWER(?)"),
+                    (dados.get("codigo", ""), dados.get("descricao", ""), dados.get("codigo_anterior", dados.get("codigo", ""))))
     conn.commit(); cur.close(); conn.close()
     return afetadas > 0
-
-
-def contar_uso_cadastro_item(codigo):
-    conn = get_conn(); cur = get_cursor(conn)
-    cur.execute(q("SELECT COUNT(*) AS total FROM itens WHERE LOWER(codigo) = LOWER(?)"), (codigo,))
-    row = cur.fetchone()
-    total = row["total"] if isinstance(row, dict) else row[0]
-    cur.execute(q("SELECT COUNT(*) AS total FROM imobilizados WHERE LOWER(codigo) = LOWER(?)"), (codigo,))
-    row = cur.fetchone()
-    total += row["total"] if isinstance(row, dict) else row[0]
-    cur.close(); conn.close()
-    return total
 
 
 def excluir_cadastro_item(item_id):

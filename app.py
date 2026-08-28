@@ -161,7 +161,10 @@ def pagina_cadastro_itens():
 @app.route("/api/cadastro-itens", methods=["GET"])
 @login_required
 def api_listar_cadastro_itens():
-    return jsonify(db.listar_cadastro_itens())
+    tipo = (request.args.get("tipo") or "").strip().lower()
+    if tipo not in ("estoque", "imobilizados"):
+        tipo = None
+    return jsonify(db.listar_cadastro_itens(tipo))
 
 
 @app.route("/api/cadastro-itens", methods=["POST"])
@@ -171,7 +174,10 @@ def api_criar_cadastro_item():
     codigo = (dados.get("codigo") or "").strip()
     descricao = (dados.get("descricao") or "").strip()
     unidade = (dados.get("unidade") or "UN").strip()
+    tipo = (dados.get("tipo") or "").strip().lower()
 
+    if tipo not in ("estoque", "imobilizados"):
+        return jsonify({"erro": "Selecione se o item pertence ao Estoque ou aos Imobilizados."}), 400
     if not codigo:
         return jsonify({"erro": "Código do item é obrigatório."}), 400
     if not descricao:
@@ -183,6 +189,7 @@ def api_criar_cadastro_item():
         "codigo": codigo,
         "descricao": descricao,
         "unidade": unidade,
+        "tipo": tipo,
         "criado_por": session.get("username"),
     })
     return jsonify(novo), 201
@@ -195,6 +202,7 @@ def api_atualizar_cadastro_item(item_id):
     codigo = (dados.get("codigo") or "").strip()
     descricao = (dados.get("descricao") or "").strip()
     unidade = (dados.get("unidade") or "UN").strip()
+    codigo_anterior = db.buscar_cadastro_item_por_id(item_id)
     if not codigo or not descricao:
         return jsonify({"erro": "Código e descrição são obrigatórios."}), 400
     existente = db.buscar_cadastro_item_por_codigo(codigo)
@@ -202,6 +210,7 @@ def api_atualizar_cadastro_item(item_id):
         return jsonify({"erro": "Já existe outro item com este código."}), 400
     ok = db.atualizar_cadastro_item(item_id, {
         "codigo": codigo, "descricao": descricao, "unidade": unidade,
+        "codigo_anterior": (codigo_anterior or {}).get("codigo", codigo),
         "atualizado_por": session.get("username"),
         "atualizado_em": datetime.now().strftime("%Y-%m-%d %H:%M"),
     })
@@ -216,8 +225,8 @@ def api_excluir_cadastro_item(item_id):
     item = db.buscar_cadastro_item_por_id(item_id)
     if not item:
         return jsonify({"erro": "Item de cadastro não encontrado."}), 404
-    if db.contar_uso_cadastro_item(item["codigo"]):
-        return jsonify({"erro": "Este código já foi utilizado no Estoque ou nos Imobilizados e não pode ser excluído."}), 400
+    # A exclusão remove o cadastro mestre, mas preserva as linhas já lançadas
+    # no Estoque/Imobilizados para não apagar histórico operacional.
     db.excluir_cadastro_item(item_id)
     return jsonify({"ok": True})
 
@@ -249,6 +258,11 @@ def api_criar_imobilizado():
     codigo = (dados.get("codigo") or "").strip()
     if not codigo:
         return jsonify({"erro": "Código do item é obrigatório."}), 400
+    cadastro = db.buscar_cadastro_item_por_codigo(codigo)
+    if not cadastro:
+        return jsonify({"erro": "Cadastre o código do item antes de lançar no sistema."}), 400
+    if cadastro.get("tipo") != "imobilizados":
+        return jsonify({"erro": "Este item foi cadastrado para o Estoque."}), 400
 
     novo = {
         "codigo": codigo,
@@ -439,6 +453,11 @@ def api_criar():
     codigo = (dados.get("codigo") or "").strip()
     if not codigo:
         return jsonify({"erro": "Código do item é obrigatório."}), 400
+    cadastro = db.buscar_cadastro_item_por_codigo(codigo)
+    if not cadastro:
+        return jsonify({"erro": "Cadastre o código do item antes de lançar no sistema."}), 400
+    if cadastro.get("tipo") != "estoque":
+        return jsonify({"erro": "Este item foi cadastrado para os Imobilizados."}), 400
 
     base = {
         "codigo": codigo,
