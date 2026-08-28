@@ -330,7 +330,6 @@
   <div style="display:flex; gap:8px; align-items:center;">
     <a href="{{ url_for('index') }}" class="nav-link" style="color:var(--muted);">Estoque</a>
     <a href="{{ url_for('pagina_imobilizados') }}" class="nav-link ativo">Imobilizados</a>
-    <a href="{{ url_for('pagina_cadastro_itens') }}" class="nav-link" style="color:var(--muted);">Cadastro de itens</a>
   </div>
   <div style="display:flex; gap:16px; align-items:center;">
     <span style="color:var(--muted);">Logado como <strong style="color:var(--text);">{{ username }}</strong></span>
@@ -351,13 +350,11 @@
     <form id="item-form">
       <div class="field">
         <label for="codigo">Código do item *</label>
-        <select id="codigo" name="codigo" required>
-          <option value="">Selecione o código</option>
-        </select>
+        <input id="codigo" name="codigo" required placeholder="EX: EQP-0231">
       </div>
       <div class="field wide">
-        <label for="descricao">Descrição (preenchida pelo cadastro)</label>
-        <input id="descricao" name="descricao" placeholder="Será preenchida automaticamente" readonly>
+        <label for="descricao">Descrição</label>
+        <input id="descricao" name="descricao" placeholder="Descrição do equipamento">
       </div>
       <div class="field">
         <label for="qtde">Qtde</label>
@@ -921,60 +918,9 @@ function escapeHtml(str){
   }[s]));
 }
 
-// ---------------------------------------------------------------------
-// Cadastro mestre de itens
-let cadastroItens = [];
-async function carregarCadastroItens(){
-  const lista = document.getElementById('codigo');
-  if(!lista) return;
-  try{
-    lista.disabled = true;
-    const res = await fetch('/api/cadastro-itens', { cache: 'no-store' });
-    if(!res.ok) throw new Error('HTTP '+res.status);
-    cadastroItens = await res.json();
-    const atual = String(lista.value || '').trim();
-    lista.innerHTML = '<option value="">Selecione o código</option>' +
-      cadastroItens.map(it => {
-        const valor = String(it.codigo || '');
-        return `<option value="${escapeHtml(valor)}">${escapeHtml(valor)}</option>`;
-      }).join('');
-    if(atual && cadastroItens.some(it => String(it.codigo || '').trim().toLowerCase() === atual.toLowerCase())){
-      lista.value = atual;
-    }
-    preencherDescricaoDoCadastro();
-  }catch(err){
-    console.error('Erro ao carregar cadastro de itens:', err);
-    lista.innerHTML = '<option value="">Erro ao carregar códigos</option>';
-  }finally{
-    lista.disabled = false;
-  }
-}
-function preencherDescricaoDoCadastro(){
-  const lista = document.getElementById('codigo');
-  const campoDescricao = document.getElementById('descricao');
-  if(!lista || !campoDescricao) return;
-  const codigoSelecionado = String(lista.value || '').trim().toLowerCase();
-  const encontrado = cadastroItens.find(it => String(it.codigo || '').trim().toLowerCase() === codigoSelecionado);
-  campoDescricao.value = encontrado ? (encontrado.descricao || '') : '';
-  campoDescricao.title = encontrado ? `Unidade: ${encontrado.unidade || 'UN'}` : '';
-}
-const codigoItemSelect = document.getElementById('codigo');
-if(codigoItemSelect){
-  codigoItemSelect.addEventListener('change', preencherDescricaoDoCadastro);
-  codigoItemSelect.addEventListener('focus', carregarCadastroItens);
-}
-carregarCadastroItens();
-
 document.getElementById('item-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const form = e.target;
-  preencherDescricaoDoCadastro();
-  const cadastro = cadastroItens.find(it => String(it.codigo).toLowerCase() === String(form.codigo.value).trim().toLowerCase());
-  if(!cadastro){
-    alert('Cadastre o código do item na página “Cadastro de itens” antes de lançar no sistema.');
-    document.getElementById('codigo').focus();
-    return;
-  }
   const dados = {
     codigo: form.codigo.value,
     descricao: form.descricao.value,
@@ -1009,7 +955,6 @@ document.getElementById('item-form').addEventListener('submit', async (e) => {
     alert(erro.erro || 'Erro ao salvar item.');
   }
 });
-
 
 buscaInput.addEventListener('input', () => { itensExibidos = PAGINA_TAMANHO; renderizar(); });
 

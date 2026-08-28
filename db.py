@@ -118,19 +118,6 @@ def init_db():
                 vd_loja TEXT
             )
         """)
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS cadastro_itens (
-                id SERIAL PRIMARY KEY,
-                codigo TEXT UNIQUE NOT NULL,
-                descricao TEXT NOT NULL,
-                unidade TEXT DEFAULT 'UN',
-                tipo TEXT NOT NULL DEFAULT 'estoque',
-                criado_por TEXT,
-                criado_em TEXT,
-                atualizado_por TEXT,
-                atualizado_em TEXT
-            )
-        """)
     else:
         cur.execute("""
             CREATE TABLE IF NOT EXISTS itens (
@@ -180,19 +167,6 @@ def init_db():
                 vd_loja TEXT
             )
         """)
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS cadastro_itens (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                codigo TEXT UNIQUE NOT NULL,
-                descricao TEXT NOT NULL,
-                unidade TEXT DEFAULT 'UN',
-                tipo TEXT NOT NULL DEFAULT 'estoque',
-                criado_por TEXT,
-                criado_em TEXT,
-                atualizado_por TEXT,
-                atualizado_em TEXT
-            )
-        """)
 
     conn.commit()
 
@@ -223,16 +197,6 @@ def init_db():
         except Exception:
             conn.rollback()  # coluna já existe (comum no SQLite, que não tem "IF NOT EXISTS")
 
-    # Migração: tipo do cadastro mestre (estoque ou imobilizados).
-    try:
-        if IS_PG:
-            cur.execute("ALTER TABLE cadastro_itens ADD COLUMN IF NOT EXISTS tipo TEXT DEFAULT 'estoque'")
-        else:
-            cur.execute("ALTER TABLE cadastro_itens ADD COLUMN tipo TEXT DEFAULT 'estoque'")
-        conn.commit()
-    except Exception:
-        conn.rollback()
-
     # Migração: coluna que obriga o usuário a trocar a senha no primeiro acesso.
     try:
         if IS_PG:
@@ -257,8 +221,6 @@ def init_db():
             conn.commit()
         except Exception:
             conn.rollback()
-
-    conn.commit()
 
     # Migração: coluna que indica se a movimentação é do Estoque ou do Imobilizado.
     try:
@@ -315,115 +277,6 @@ def init_db():
 
     cur.close()
     conn.close()
-
-
-# ---------------------------------------------------------------------
-# Cadastro mestre de itens
-# ---------------------------------------------------------------------
-
-def listar_cadastro_itens(tipo=None):
-    conn = get_conn()
-    cur = get_cursor(conn)
-    if tipo in ("estoque", "imobilizados"):
-        cur.execute(q("SELECT * FROM cadastro_itens WHERE tipo = ? ORDER BY codigo"), (tipo,))
-    else:
-        cur.execute("SELECT * FROM cadastro_itens ORDER BY codigo")
-    linhas = cur.fetchall()
-    itens = [dict(r) for r in linhas]
-    # Quantidade atual no destino do cadastro.
-    for item in itens:
-        tabela = "imobilizados" if item.get("tipo") == "imobilizados" else "itens"
-        cur.execute(q(f"SELECT qtde FROM {tabela} WHERE LOWER(codigo) = LOWER(?)"), (item["codigo"],))
-        linhas_destino = cur.fetchall()
-        item["linhas"] = len(linhas_destino)
-        total_qtde = 0
-        for linha in linhas_destino:
-            valor = linha["qtde"] if isinstance(linha, dict) else linha[0]
-            try:
-                total_qtde += int(float(valor or 0))
-            except (ValueError, TypeError):
-                pass
-        item["quantidade"] = total_qtde
-    cur.close(); conn.close()
-    return itens
-
-
-def buscar_cadastro_item_por_codigo(codigo):
-    conn = get_conn(); cur = get_cursor(conn)
-    cur.execute(q("SELECT * FROM cadastro_itens WHERE LOWER(codigo) = LOWER(?)"), (codigo,))
-    row = cur.fetchone()
-    item = dict(row) if row else None
-    cur.close(); conn.close()
-    return item
-
-
-def buscar_cadastro_item_por_id(item_id):
-    conn = get_conn(); cur = get_cursor(conn)
-    cur.execute(q("SELECT * FROM cadastro_itens WHERE id = ?"), (item_id,))
-    row = cur.fetchone()
-    item = dict(row) if row else None
-    cur.close(); conn.close()
-    return item
-
-
-def _dados_linha_inicial_cadastro(dados, usuario):
-    return {
-        "codigo": dados["codigo"], "descricao": dados["descricao"], "qtde": "1",
-        "localizacao": "", "nf_entrada": "", "data_entrada": datetime.now().strftime("%Y-%m-%d"),
-        "nf_saida": "", "data_saida": "", "vd_loja": "", "local": "",
-        "armazenagem": "", "status": "", "nro_imobilizado": "", "nro_serie": "",
-        "nro_patrimonio": "", "tipo_estoque": "", "criado_por": usuario,
-        "pedido": "", "val_aquis": "", "chamado": "",
-    }
-
-
-def criar_cadastro_item(dados):
-    """Cria somente o cadastro mestre.
-
-    O lançamento operacional no Estoque/Imobilizados acontece quando o
-    usuário utilizar o código na respectiva tela. O cadastro não cria uma
-    linha automática nas tabelas operacionais.
-    """
-    conn = get_conn(); cur = get_cursor(conn)
-    agora = datetime.now().strftime("%Y-%m-%d %H:%M")
-    campos = ["codigo", "descricao", "unidade", "tipo", "criado_por", "criado_em"]
-    valores = [dados.get("codigo", ""), dados.get("descricao", ""),
-               dados.get("unidade", "UN"), dados.get("tipo", "estoque"),
-               dados.get("criado_por", ""), agora]
-    if IS_PG:
-        cur.execute(q(f"INSERT INTO cadastro_itens ({', '.join(campos)}) VALUES ({', '.join(['?'] * len(campos))}) RETURNING *"), valores)
-        item = dict(cur.fetchone())
-    else:
-        cur.execute(q(f"INSERT INTO cadastro_itens ({', '.join(campos)}) VALUES ({', '.join(['?'] * len(campos))})"), valores)
-        novo_id = cur.lastrowid
-        cur.execute(q("SELECT * FROM cadastro_itens WHERE id = ?"), (novo_id,))
-        item = dict(cur.fetchone())
-    conn.commit(); cur.close(); conn.close()
-    return item
-
-
-def atualizar_cadastro_item(item_id, dados):
-    campos = ["codigo", "descricao", "unidade", "atualizado_por", "atualizado_em"]
-    valores = [dados.get(c, "") for c in campos]
-    conn = get_conn(); cur = get_cursor(conn)
-    cur.execute(q(f"UPDATE cadastro_itens SET {', '.join(f'{c} = ?' for c in campos)} WHERE id = ?"), valores + [item_id])
-    afetadas = cur.rowcount
-    # Mantém descrição/código sincronizados nas linhas já existentes.
-    if afetadas:
-        cur.execute(q("UPDATE itens SET codigo = ?, descricao = ? WHERE LOWER(codigo) = LOWER(?)"),
-                    (dados.get("codigo", ""), dados.get("descricao", ""), dados.get("codigo_anterior", dados.get("codigo", ""))))
-        cur.execute(q("UPDATE imobilizados SET codigo = ?, descricao = ? WHERE LOWER(codigo) = LOWER(?)"),
-                    (dados.get("codigo", ""), dados.get("descricao", ""), dados.get("codigo_anterior", dados.get("codigo", ""))))
-    conn.commit(); cur.close(); conn.close()
-    return afetadas > 0
-
-
-def excluir_cadastro_item(item_id):
-    conn = get_conn(); cur = get_cursor(conn)
-    cur.execute(q("DELETE FROM cadastro_itens WHERE id = ?"), (item_id,))
-    ok = cur.rowcount > 0
-    conn.commit(); cur.close(); conn.close()
-    return ok
 
 
 # ---------------------------------------------------------------------
