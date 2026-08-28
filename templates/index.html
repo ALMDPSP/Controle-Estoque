@@ -993,7 +993,7 @@ async function carregarCadastroItens(){
   if(!lista) return;
   try{
     lista.disabled = true;
-    const res = await fetch('/api/cadastro-itens?tipo=estoque', { cache: 'no-store' });
+    const res = await fetch('/api/cadastro-itens', { cache: 'no-store' });
     if(!res.ok) throw new Error('HTTP '+res.status);
     cadastroItens = await res.json();
     const atual = String(lista.value || '').trim();

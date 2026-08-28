@@ -161,10 +161,9 @@ def pagina_cadastro_itens():
 @app.route("/api/cadastro-itens", methods=["GET"])
 @login_required
 def api_listar_cadastro_itens():
-    tipo = (request.args.get("tipo") or "").strip().lower()
-    if tipo not in ("estoque", "imobilizados"):
-        tipo = None
-    return jsonify(db.listar_cadastro_itens(tipo))
+    # O cadastro mestre é único: todo item cadastrado fica disponível
+    # tanto no Estoque quanto nos Imobilizados.
+    return jsonify(db.listar_cadastro_itens())
 
 
 @app.route("/api/cadastro-itens", methods=["POST"])
@@ -174,10 +173,6 @@ def api_criar_cadastro_item():
     codigo = (dados.get("codigo") or "").strip()
     descricao = (dados.get("descricao") or "").strip()
     unidade = (dados.get("unidade") or "UN").strip()
-    tipo = (dados.get("tipo") or "").strip().lower()
-
-    if tipo not in ("estoque", "imobilizados"):
-        return jsonify({"erro": "Selecione se o item pertence ao Estoque ou aos Imobilizados."}), 400
     if not codigo:
         return jsonify({"erro": "Código do item é obrigatório."}), 400
     if not descricao:
@@ -189,7 +184,7 @@ def api_criar_cadastro_item():
         "codigo": codigo,
         "descricao": descricao,
         "unidade": unidade,
-        "tipo": tipo,
+        "tipo": "estoque",
         "criado_por": session.get("username"),
     })
     return jsonify(novo), 201
@@ -261,12 +256,9 @@ def api_criar_imobilizado():
     cadastro = db.buscar_cadastro_item_por_codigo(codigo)
     if not cadastro:
         return jsonify({"erro": "Cadastre o código do item antes de lançar no sistema."}), 400
-    if cadastro.get("tipo") != "imobilizados":
-        return jsonify({"erro": "Este item foi cadastrado para o Estoque."}), 400
-
     novo = {
         "codigo": codigo,
-        "descricao": (dados.get("descricao") or "").strip(),
+        "descricao": cadastro.get("descricao", ""),
         "qtde": dados.get("qtde", ""),
         "localizacao": (dados.get("localizacao") or "").strip(),
         "nf_entrada": (dados.get("nf_entrada") or "").strip(),
@@ -456,12 +448,9 @@ def api_criar():
     cadastro = db.buscar_cadastro_item_por_codigo(codigo)
     if not cadastro:
         return jsonify({"erro": "Cadastre o código do item antes de lançar no sistema."}), 400
-    if cadastro.get("tipo") != "estoque":
-        return jsonify({"erro": "Este item foi cadastrado para os Imobilizados."}), 400
-
     base = {
         "codigo": codigo,
-        "descricao": (dados.get("descricao") or "").strip(),
+        "descricao": cadastro.get("descricao", ""),
         "qtde": "1",
         "localizacao": (dados.get("localizacao") or "").strip(),
         "nf_entrada": (dados.get("nf_entrada") or "").strip(),

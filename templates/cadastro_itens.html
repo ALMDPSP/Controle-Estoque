@@ -9,101 +9,70 @@
 header{padding:28px 32px 18px;border-bottom:1px solid var(--line)}h1{font-size:22px;margin:6px 0 2px}.subtitle{margin:0;color:var(--muted);font-size:13px}.brand{display:flex;gap:10px;align-items:baseline}.tag{font:12px var(--mono);letter-spacing:.12em;color:#ffb648;text-transform:uppercase;border:1px solid #ffb648;padding:2px 8px;border-radius:3px}
 nav{padding:10px 32px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;font-size:13px}nav a{color:var(--muted);text-decoration:none;padding:6px 14px;border:1px solid var(--line);border-radius:20px}.nav-active{background:var(--accent);color:#08131f!important;border-color:var(--accent)!important;font-weight:600}
 main{padding:26px 32px 60px;max-width:1100px;margin:auto}.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:20px 22px;margin-bottom:24px}.panel h2{font-size:13px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin:0 0 16px}
-.tabs{display:flex;gap:8px;margin-bottom:18px}.tab{background:transparent;color:var(--muted);border:1px solid var(--line);padding:9px 15px;border-radius:7px;cursor:pointer;font-weight:600}.tab.active{background:var(--accent);color:#08131f;border-color:var(--accent)}.tab-panel{display:none}.tab-panel.active{display:block}
-form{display:grid;grid-template-columns:1fr 2fr 1fr 1fr auto;gap:14px 16px;align-items:end}.field{display:flex;flex-direction:column;gap:6px}.field label{font-size:12px;color:var(--muted)}input,select{background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:10px;color:var(--text);font-size:14px;outline:none}input:focus,select:focus{border-color:var(--accent)}button{font:inherit;font-size:13px;border:none;border-radius:6px;padding:10px 16px;cursor:pointer;font-weight:600}.primary{background:var(--accent);color:#08131f}.ghost{background:transparent;color:var(--muted);border:1px solid var(--line)}.danger:hover{color:var(--danger);border-color:var(--danger)}
+form{display:grid;grid-template-columns:1fr 2fr 1fr auto;gap:14px 16px;align-items:end}.field{display:flex;flex-direction:column;gap:6px}.field label{font-size:12px;color:var(--muted)}input{background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:10px;color:var(--text);font-size:14px;outline:none}input:focus{border-color:var(--accent)}button{font:inherit;font-size:13px;border:none;border-radius:6px;padding:10px 16px;cursor:pointer;font-weight:600}.primary{background:var(--accent);color:#08131f}.ghost{background:transparent;color:var(--muted);border:1px solid var(--line)}.danger{color:var(--muted)}.danger:hover{color:var(--danger);border-color:var(--danger)}
 .msg{display:none;padding:9px 11px;border-radius:6px;margin-bottom:14px;font-size:13px}.ok{display:block;background:rgba(76,215,146,.12);border:1px solid rgba(76,215,146,.3);color:var(--ok)}.erro{display:block;background:rgba(255,107,107,.12);border:1px solid rgba(255,107,107,.3);color:var(--danger)}
-table{width:100%;border-collapse:collapse;font-size:13px}th{text-align:left;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.06em;padding:10px;border-bottom:1px solid var(--line)}td{padding:10px;border-bottom:1px solid var(--line)}.codigo{font-family:var(--mono);color:var(--accent)}.actions{display:flex;gap:7px;justify-content:flex-end}.tipo{font-size:11px;padding:4px 8px;border-radius:20px;border:1px solid var(--line)}.hint{margin:0 0 16px;color:var(--muted);font-size:12px;line-height:1.5}.empty{color:var(--muted);text-align:center;padding:22px}
-@media(max-width:900px){form{grid-template-columns:1fr 1fr}.field:nth-child(2){grid-column:span 2}.primary{grid-column:span 2}}
-@media(max-width:560px){header,nav,main{padding-left:16px;padding-right:16px}form{grid-template-columns:1fr}.field:nth-child(2),.primary{grid-column:auto}.tabs{flex-direction:column}table{display:block;overflow-x:auto;white-space:nowrap}.actions{justify-content:flex-start}}
+table{width:100%;border-collapse:collapse;font-size:13px}th{text-align:left;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.06em;padding:10px;border-bottom:1px solid var(--line)}td{padding:10px;border-bottom:1px solid var(--line)}.codigo{font-family:var(--mono);color:var(--accent)}.actions{display:flex;gap:7px;justify-content:flex-end}.empty{color:var(--muted);text-align:center;padding:22px}.hint{margin:0 0 16px;color:var(--muted);font-size:12px;line-height:1.5}
+@media(max-width:800px){form{grid-template-columns:1fr 1fr}.field:nth-child(2){grid-column:span 2}.primary{grid-column:span 2}}@media(max-width:560px){header,nav,main{padding-left:16px;padding-right:16px}form{grid-template-columns:1fr}.field:nth-child(2),.primary{grid-column:auto}.actions{justify-content:flex-start}table{display:block;overflow-x:auto;white-space:nowrap}}
 </style>
 </head>
 <body>
-<header><div class="brand"><span class="tag">Cadastro</span><strong>Controle de Ativos</strong></div><h1>Cadastro de itens</h1><p class="subtitle">Cadastre o item uma vez e defina se ele será controlado no Estoque ou nos Imobilizados.</p></header>
+<header><div class="brand"><span class="tag">Cadastro</span><strong>Controle de Ativos</strong></div><h1>Cadastro de itens</h1><p class="subtitle">Cadastre aqui os itens que poderão ser utilizados no Estoque e nos Imobilizados.</p></header>
 <nav><div style="display:flex;gap:8px;flex-wrap:wrap"><a href="{{ url_for('index') }}">Estoque</a><a href="{{ url_for('pagina_imobilizados') }}">Imobilizados</a><a class="nav-active" href="{{ url_for('pagina_cadastro_itens') }}">Cadastro de itens</a></div><div style="display:flex;gap:14px;align-items:center"><span style="color:var(--muted)">Logado como <strong style="color:var(--text)">{{ username }}</strong></span>{% if is_admin %}<a href="{{ url_for('pagina_usuarios') }}">Usuários</a>{% endif %}<a href="{{ url_for('logout') }}">Sair</a></div></nav>
-<main style="max-width:760px;">
+<main>
 <section class="panel">
   <h2>Novo cadastro de item</h2>
-  <p class="hint">Cadastre aqui somente os dados básicos do item. Este cadastro não cria registros automaticamente no Estoque ou nos Imobilizados. Depois, o código ficará disponível na tela correspondente para lançamento.</p>
+  <p class="hint">O cadastro é único. Depois de cadastrado, o código ficará disponível tanto no Estoque quanto nos Imobilizados. Esta tela não registra quantidade nem movimentação.</p>
   <div id="msg" class="msg"></div>
-  <form id="cadastro-form" style="grid-template-columns:1fr 1fr;">
-    <div class="field">
-      <label for="codigo">Código do item *</label>
-      <input id="codigo" required placeholder="EX: EQP-0231" autocomplete="off">
-    </div>
-    <div class="field">
-      <label for="unidade">Unidade</label>
-      <input id="unidade" value="UN" placeholder="UN">
-    </div>
-    <div class="field" style="grid-column:1/-1;">
-      <label for="descricao">Descrição *</label>
-      <input id="descricao" required placeholder="Descrição do item">
-    </div>
-    <div class="field">
-      <label for="tipo">Destino do item *</label>
-      <select id="tipo" required>
-        <option value="">Selecione</option>
-        <option value="estoque">Estoque</option>
-        <option value="imobilizados">Imobilizados</option>
-      </select>
-    </div>
-    <div style="display:flex;align-items:flex-end;">
-      <button class="primary" type="submit" style="width:100%;">Cadastrar item</button>
-    </div>
+  <form id="cadastro-form">
+    <div class="field"><label for="codigo">Código do item *</label><input id="codigo" required placeholder="EX: EQP-0231" autocomplete="off"></div>
+    <div class="field"><label for="descricao">Descrição *</label><input id="descricao" required placeholder="Descrição do item"></div>
+    <div class="field"><label for="unidade">Unidade</label><input id="unidade" value="UN" placeholder="UN"></div>
+    <button class="primary" type="submit">Cadastrar item</button>
   </form>
+</section>
+<section class="panel">
+  <h2>Itens cadastrados</h2>
+  <div id="tabela-wrap"><p class="empty">Carregando...</p></div>
 </section>
 </main>
 <script>
-const msg = document.getElementById('msg');
-const form = document.getElementById('cadastro-form');
-const codigo = document.getElementById('codigo');
-const descricao = document.getElementById('descricao');
-const unidade = document.getElementById('unidade');
-const tipo = document.getElementById('tipo');
-
-function showMsg(text, ok){
-  msg.textContent = text;
-  msg.className = 'msg ' + (ok ? 'ok' : 'erro');
-  msg.style.display = 'block';
-}
-
-form.addEventListener('submit', async (event) => {
-  event.preventDefault();
-  const dados = {
-    codigo: codigo.value.trim(),
-    descricao: descricao.value.trim(),
-    unidade: unidade.value.trim() || 'UN',
-    tipo: tipo.value
-  };
-
-  if(!dados.codigo || !dados.descricao || !dados.tipo){
-    showMsg('Preencha código, descrição e destino.', false);
-    return;
-  }
-
-  const botao = form.querySelector('button[type="submit"]');
-  botao.disabled = true;
-  botao.textContent = 'Cadastrando...';
+const msg=document.getElementById('msg');
+const form=document.getElementById('cadastro-form');
+function showMsg(text,ok){msg.textContent=text;msg.className='msg '+(ok?'ok':'erro');msg.style.display='block'}
+function escapeHtml(str){return String(str).replace(/[&<>"']/g,s=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]))}
+async function carregarItens(){
+  const wrap=document.getElementById('tabela-wrap');
   try{
-    const res = await fetch('/api/cadastro-itens', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      cache: 'no-store',
-      body: JSON.stringify(dados)
-    });
-    const corpo = await res.json();
-    if(!res.ok){
-      showMsg(corpo.erro || 'Erro ao cadastrar item.', false);
-      return;
-    }
-    form.reset();
-    unidade.value = 'UN';
-    showMsg(`Item ${corpo.codigo} cadastrado com sucesso. Ele já está disponível na seleção de código do ${corpo.tipo === 'imobilizados' ? 'Imobilizados' : 'Estoque'}.`, true);
-  }catch(err){
-    console.error(err);
-    showMsg('Erro de conexão. Verifique se o sistema está conectado ao servidor.', false);
-  }finally{
-    botao.disabled = false;
-    botao.textContent = 'Cadastrar item';
-  }
+    const res=await fetch('/api/cadastro-itens',{cache:'no-store'});
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const itens=await res.json();
+    if(!itens.length){wrap.innerHTML='<p class="empty">Nenhum item cadastrado.</p>';return;}
+    wrap.innerHTML=`<table><thead><tr><th>Código</th><th>Descrição</th><th>Unidade</th><th style="text-align:right">Ações</th></tr></thead><tbody>${itens.map(it=>`<tr><td class="codigo">${escapeHtml(it.codigo||'')}</td><td>${escapeHtml(it.descricao||'')}</td><td>${escapeHtml(it.unidade||'UN')}</td><td><div class="actions"><button class="ghost danger" onclick="excluirItem(${Number(it.id)},'${escapeHtml(it.codigo||'')}')">Excluir</button></div></td></tr>`).join('')}</tbody></table>`;
+  }catch(err){console.error(err);wrap.innerHTML='<p class="empty">Não foi possível carregar os itens cadastrados.</p>'}
+}
+async function excluirItem(id,codigo){
+  if(!confirm(`Excluir o cadastro do item ${codigo}?\n\nOs lançamentos já existentes no Estoque ou Imobilizados serão preservados.`)) return;
+  try{
+    const res=await fetch('/api/cadastro-itens/'+id,{method:'DELETE'});
+    const corpo=await res.json();
+    if(!res.ok){showMsg(corpo.erro||'Erro ao excluir item.',false);return}
+    showMsg(`Cadastro ${codigo} excluído com sucesso.`,true);
+    carregarItens();
+  }catch(err){showMsg('Erro de conexão ao excluir o item.',false)}
+}
+form.addEventListener('submit',async e=>{
+  e.preventDefault();
+  const dados={codigo:document.getElementById('codigo').value.trim(),descricao:document.getElementById('descricao').value.trim(),unidade:document.getElementById('unidade').value.trim()||'UN'};
+  if(!dados.codigo||!dados.descricao){showMsg('Preencha código e descrição.',false);return}
+  const botao=form.querySelector('button');botao.disabled=true;botao.textContent='Cadastrando...';
+  try{
+    const res=await fetch('/api/cadastro-itens',{method:'POST',headers:{'Content-Type':'application/json'},cache:'no-store',body:JSON.stringify(dados)});
+    const corpo=await res.json();
+    if(!res.ok){showMsg(corpo.erro||'Erro ao cadastrar item.',false);return}
+    form.reset();document.getElementById('unidade').value='UN';
+    showMsg(`Item ${corpo.codigo} cadastrado com sucesso.`,true);carregarItens();
+  }catch(err){console.error(err);showMsg('Erro de conexão. Verifique o servidor.',false)}finally{botao.disabled=false;botao.textContent='Cadastrar item'}
 });
-</script></body></html>
+carregarItens();
+</script>
+</body></html>
