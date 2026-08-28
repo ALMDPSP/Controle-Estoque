@@ -1,0 +1,33 @@
+CONTROLE DE ESTOQUE — ENTRADA E SAÍDA DE EQUIPAMENTO
+======================================================
+
+O que é:
+Um programa em Python (Flask) com página web, para cadastrar itens:
+
+  - Código do item        - NF de entrada
+  - Descrição              - Data de entrada
+  - Qtde                   - NF de saída
+  - Localização             - Data de saída
+  - VD da loja que vai receber o item
+
+Agora o programa tem:
+  - LOGIN por usuário e senha (cada pessoa com o seu)
+  - Banco de dados de verdade (não é mais um arquivo Excel solto —
+    isso é o que permite hospedar na internet sem perder dados)
+  - Botão "Exportar para Excel" a qualquer momento, que baixa um
+    .xlsx com tudo o que está cadastrado
+
+MELHORIAS — CADASTRO MESTRE DE ITENS
+====================================
+
+- Nova página "Cadastro de itens" para criar um cadastro mestre com:
+    Código do item, Descrição e Unidade.
+- O código cadastrado fica disponível para lançamento tanto no Estoque
+  quanto em Imobilizados.
+- Ao selecionar/digitar um código cadastrado, a descrição é preenchida
+  automaticamente.
+- O sistema impede o lançamento manual nessas telas quando o código não
+  existe no cadastro mestre.
+- Quantidade no Estoque e em Imobilizados é individualizada em linhas:
+  quantidade 2 gera 2 registros, cada um com Qtde = 1.
+- A importação Excel também individualiza a quantidade de Imobilizados.

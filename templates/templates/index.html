@@ -1,0 +1,1481 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Controle de Estoque · Entrada e Saída</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+  :root{
+    --bg: #12181f;
+    --panel: #1a2029;
+    --panel-2: #212934;
+    --line: #2b3444;
+    --text: #e7ebf1;
+    --muted: #8b96a8;
+    --accent: #3ea6ff;
+    --accent-2: #ffb648;
+    --ok: #4cd792;
+    --danger: #ff6b6b;
+    --mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--text);
+    font-family: "Segoe UI", Inter, system-ui, -apple-system, sans-serif;
+    min-height:100vh;
+  }
+  header{
+    padding:28px 32px 18px;
+    border-bottom:1px solid var(--line);
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-end;
+    flex-wrap:wrap;
+    gap:12px;
+  }
+  header .brand{
+    display:flex; align-items:baseline; gap:10px;
+  }
+  header .brand .tag{
+    font-family:var(--mono);
+    font-size:12px;
+    letter-spacing:.12em;
+    color:var(--accent-2);
+    text-transform:uppercase;
+    border:1px solid var(--accent-2);
+    padding:2px 8px;
+    border-radius:3px;
+  }
+  h1{
+    font-size:22px;
+    margin:4px 0 2px;
+    font-weight:600;
+    letter-spacing:.01em;
+  }
+  header p{margin:0; color:var(--muted); font-size:13px;}
+  .stats{display:flex; gap:10px; font-family:var(--mono); flex-wrap:wrap; justify-content:flex-end;}
+  .stats .stat-box{
+    text-align:center; background:var(--panel-2); border:1px solid var(--line);
+    border-radius:8px; padding:8px 16px; min-width:88px;
+  }
+  .stats .num{font-size:20px; font-weight:700; color:var(--accent); display:block;}
+  .stats .lbl{font-size:10.5px; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; display:block; margin-top:2px;}
+  .nav-link{
+    padding:6px 14px; border-radius:20px; font-size:13px; text-decoration:none;
+    border:1px solid var(--line); transition:all .15s;
+  }
+  .nav-link:hover{border-color:var(--accent); color:var(--text) !important;}
+  .nav-link.ativo{background:var(--accent); color:#08131f !important; border-color:var(--accent); font-weight:600;}
+
+  main{padding:26px 32px 60px; max-width:1400px; margin:0 auto;}
+
+  .panel{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:20px 22px;
+    margin-bottom:24px;
+  }
+  .panel h2{
+    font-size:13px;
+    text-transform:uppercase;
+    letter-spacing:.1em;
+    color:var(--muted);
+    margin:0 0 16px;
+    font-weight:600;
+  }
+  form#item-form{
+    display:grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap:14px 16px;
+  }
+  .field{display:flex; flex-direction:column; gap:6px;}
+  .field label{font-size:12px; color:var(--muted);}
+  .field input, .field select{
+    background:var(--panel-2);
+    border:1px solid var(--line);
+    border-radius:6px;
+    padding:9px 10px;
+    color:var(--text);
+    font-size:14px;
+    outline:none;
+    transition:border-color .15s;
+  }
+  .field input:focus, .field select:focus{border-color:var(--accent);}
+  .field.wide{grid-column: span 2;}
+
+  .form-actions{
+    grid-column: 1 / -1;
+    display:flex;
+    gap:10px;
+    margin-top:4px;
+  }
+  button{
+    font-family:inherit;
+    font-size:13px;
+    border:none;
+    border-radius:6px;
+    padding:10px 18px;
+    cursor:pointer;
+    font-weight:600;
+    transition:opacity .15s, transform .05s;
+  }
+  button:active{transform: translateY(1px);}
+  .btn-primary{background:var(--accent); color:#08131f;}
+  .btn-primary:hover{opacity:.9;}
+  .btn-ghost{background:transparent; color:var(--muted); border:1px solid var(--line);}
+  .btn-ghost:hover{color:var(--text); border-color:var(--muted);}
+
+  .toolbar{
+    display:flex; justify-content:space-between; align-items:center;
+    margin-bottom:14px; gap:12px; flex-wrap:wrap;
+  }
+  .toolbar input[type=search]{
+    background:var(--panel-2);
+    border:1px solid var(--line);
+    border-radius:6px;
+    padding:9px 12px;
+    color:var(--text);
+    font-size:13px;
+    min-width:260px;
+    outline:none;
+  }
+  .toolbar input[type=search]:focus{border-color:var(--accent);}
+
+  .tabela-scroll{
+    max-height:65vh; overflow-y:auto; overflow-x:auto;
+    border:1px solid var(--line); border-radius:8px;
+  }
+  .tabela-scroll::-webkit-scrollbar{width:10px; height:10px;}
+  .tabela-scroll::-webkit-scrollbar-track{background:var(--panel-2);}
+  .tabela-scroll::-webkit-scrollbar-thumb{background:var(--line); border-radius:6px;}
+  .tabela-scroll::-webkit-scrollbar-thumb:hover{background:var(--muted);}
+
+  table{width:100%; border-collapse:collapse; font-size:13px;}
+  thead th{
+    position:sticky; top:0; z-index:5;
+    text-align:left;
+    color:var(--muted);
+    background:var(--panel);
+    font-weight:600;
+    text-transform:uppercase;
+    font-size:11px;
+    letter-spacing:.06em;
+    padding:10px 10px;
+    border-bottom:1px solid var(--line);
+    white-space:nowrap;
+  }
+  tbody td{
+    padding:10px 10px;
+    border-bottom:1px solid var(--line);
+    vertical-align:middle;
+  }
+  tbody tr:hover{background:var(--panel-2);}
+  td.codigo{font-family:var(--mono); color:var(--accent);}
+  .badge{
+    font-family:var(--mono);
+    font-size:11px;
+    padding:2px 8px;
+    border-radius:20px;
+    display:inline-block;
+    white-space:nowrap;
+  }
+  .badge.entrada{background:rgba(76,215,146,.12); color:var(--ok); border:1px solid rgba(76,215,146,.3);}
+  .badge.saida{background:rgba(255,107,107,.12); color:var(--danger); border:1px solid rgba(255,107,107,.3);}
+  .data-pill{
+    font-family:var(--mono); font-size:11.5px; padding:3px 8px; border-radius:5px;
+    display:inline-block; white-space:nowrap; font-weight:600;
+  }
+  .data-pill.entrada{background:rgba(76,215,146,.10); color:var(--ok);}
+  .data-pill.saida{background:rgba(255,107,107,.10); color:var(--danger);}
+  .status-pill{
+    font-size:11.5px; padding:3px 9px; border-radius:20px; font-weight:600;
+    display:inline-block; white-space:nowrap; letter-spacing:.02em;
+  }
+  .status-pill.reservado{background:rgba(255,182,72,.14); color:var(--accent-2); border:1px solid rgba(255,182,72,.35);}
+  .status-pill.separado{background:rgba(62,166,255,.14); color:var(--accent); border:1px solid rgba(62,166,255,.35);}
+  .status-pill.enviado{background:rgba(76,215,146,.14); color:var(--ok); border:1px solid rgba(76,215,146,.35);}
+  .nome-destaque{font-weight:700; color:var(--text);}
+  .alteracao-destaque{
+    background:var(--panel-2); border-radius:6px; padding:4px 8px; display:inline-block;
+  }
+  .alteracao-destaque .quem{font-weight:700; color:var(--accent);}
+  .alteracao-destaque .quando{display:block; color:var(--muted); font-size:10.5px; font-family:var(--mono); margin-top:1px;}
+  .row-actions{display:flex; gap:6px;}
+  .row-actions button{padding:6px 10px; font-size:12px;}
+  .empty{
+    text-align:center; padding:40px 20px; color:var(--muted); font-size:13px;
+  }
+
+  dialog{
+    border:1px solid var(--line);
+    border-radius:10px;
+    background:var(--panel);
+    color:var(--text);
+    padding:0;
+    width:min(480px, 92vw);
+  }
+  dialog::backdrop{background:rgba(0,0,0,.55);}
+  dialog .dlg-body{padding:20px 22px;}
+  dialog h3{margin:0 0 14px; font-size:15px;}
+  dialog .field{margin-bottom:12px;}
+  dialog .dlg-actions{display:flex; justify-content:flex-end; gap:10px; margin-top:6px;}
+
+  footer{
+    text-align:center; color:var(--muted); font-size:12px; padding:0 0 12px;
+  }
+  footer code{font-family:var(--mono); color:var(--accent-2);}
+  footer .credito{
+    margin-top:18px;
+    padding-top:16px;
+    border-top:1px solid var(--line);
+    font-size:11px;
+    letter-spacing:.04em;
+    color:var(--muted);
+  }
+  footer .credito strong{
+    color:var(--accent);
+    font-weight:600;
+  }
+
+  @media (max-width: 900px){
+    form#item-form{grid-template-columns: repeat(2, 1fr);}
+    .field.wide{grid-column: span 2;}
+  }
+
+  .filtro-select{
+    background:var(--panel-2); border:1px solid var(--line); border-radius:6px;
+    padding:9px 10px; color:var(--text); font-size:13px; outline:none;
+  }
+  .filtro-select:focus{border-color:var(--accent);}
+
+  .toast{
+    background:var(--panel); border:1px solid var(--line); border-radius:8px;
+    padding:12px 16px; display:flex; align-items:center; gap:14px;
+    box-shadow:0 8px 24px rgba(0,0,0,.4); font-size:13px; color:var(--text);
+    animation:toast-in .18s ease-out;
+  }
+  @keyframes toast-in{from{opacity:0; transform:translateY(8px);} to{opacity:1; transform:translateY(0);}}
+  .toast button{padding:6px 12px; font-size:12px;}
+  .toast .toast-msg{white-space:nowrap;}
+
+  .mov-item{
+    background:var(--panel-2); border-radius:8px; padding:10px 12px; font-size:13px;
+  }
+  .mov-item .mov-tipo{
+    font-weight:700; text-transform:uppercase; font-size:10.5px; letter-spacing:.05em;
+    padding:2px 7px; border-radius:4px; display:inline-block; margin-bottom:4px;
+  }
+  .mov-item .mov-tipo.entrada{background:rgba(76,215,146,.15); color:var(--ok);}
+  .mov-item .mov-tipo.retirada, .mov-item .mov-tipo.saida{background:rgba(255,107,107,.15); color:var(--danger);}
+  .mov-item .mov-tipo.ajuste{background:rgba(255,182,72,.15); color:var(--accent-2);}
+  .mov-item .mov-tipo.edicao{background:rgba(62,166,255,.15); color:var(--accent);}
+  .mov-item .mov-tipo.exclusao{background:rgba(255,107,107,.15); color:var(--danger);}
+  .mov-item .mov-tipo.restauracao{background:rgba(76,215,146,.15); color:var(--ok);}
+  .mov-item .mov-obs{color:var(--text);}
+  .mov-item .mov-meta{color:var(--muted); font-size:11.5px; margin-top:4px; font-family:var(--mono);}
+
+  /* Layout em cartões para telas pequenas */
+  @media (max-width: 760px){
+    #tabela-itens thead{display:none;}
+    #tabela-itens, #tabela-itens tbody, #tabela-itens tr, #tabela-itens td{display:block; width:100%;}
+    #tabela-itens tr{
+      background:var(--panel-2); border:1px solid var(--line); border-radius:10px;
+      padding:12px 14px; margin-bottom:12px;
+    }
+    #tabela-itens td{
+      border-bottom:none; padding:6px 0; display:flex; justify-content:space-between;
+      align-items:center; gap:10px; text-align:right;
+    }
+    #tabela-itens td[data-label]::before{
+      content: attr(data-label); color:var(--muted); font-size:11px; text-transform:uppercase;
+      letter-spacing:.05em; text-align:left; flex-shrink:0;
+    }
+    #tabela-itens td:empty{display:none;}
+    #tabela-itens td.codigo{
+      font-size:15px; justify-content:flex-start; padding-bottom:8px;
+      border-bottom:1px solid var(--line); margin-bottom:6px;
+    }
+    #tabela-itens td.codigo::before{content:none;}
+    #tabela-itens td.linha-acoes{display:block; text-align:left; margin-top:8px;}
+    #tabela-itens td.linha-acoes::before{content:none;}
+    #tabela-itens .row-actions{flex-wrap:wrap;}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="brand">
+      <span class="tag">Estoque</span>
+    </div>
+    <h1>Estoque</h1>
+    <p>Controle de Entrada e Saída de Equipamento.</p>
+  </div>
+  <div class="stats">
+    <div class="stat-box"><span class="num" id="stat-total">0</span><span class="lbl">Itens</span></div>
+    <div class="stat-box"><span class="num" id="stat-estoque">0</span><span class="lbl">Em estoque</span></div>
+    <div class="stat-box"><span class="num" id="stat-saiu">0</span><span class="lbl">Já saíram</span></div>
+    <div class="stat-box"><span class="num" id="stat-expansao" style="color:var(--accent);">0</span><span class="lbl">Expansão</span></div>
+    <div class="stat-box"><span class="num" id="stat-sustentacao" style="color:var(--accent-2);">0</span><span class="lbl">Sustentação</span></div>
+    <div class="stat-box"><span class="num" id="stat-requalificacao" style="color:var(--ok);">0</span><span class="lbl">Requalificação</span></div>
+    <div class="stat-box"><span class="num" id="stat-ampliacao" style="color:#a78bfa;">0</span><span class="lbl">Ampliação</span></div>
+    <div class="stat-box"><span class="num" id="stat-realocacao" style="color:#ff6b6b;">0</span><span class="lbl">Realocação</span></div>
+    <div class="stat-box"><span class="num" id="stat-reversa" style="color:#8b96a8;">0</span><span class="lbl">Reversa</span></div>
+  </div>
+</header>
+<nav style="padding:10px 32px; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:center; font-size:13px; flex-wrap:wrap; gap:10px;">
+  <div style="display:flex; gap:8px; align-items:center;">
+    <a href="{{ url_for('index') }}" class="nav-link ativo">Estoque</a>
+    <a href="{{ url_for('pagina_imobilizados') }}" class="nav-link" style="color:var(--muted);">Imobilizados</a>
+    <a href="{{ url_for('pagina_cadastro_itens') }}" class="nav-link" style="color:var(--muted);">Cadastro de itens</a>
+  </div>
+  <div style="display:flex; gap:16px; align-items:center;">
+    <span style="color:var(--muted);">Logado como <strong style="color:var(--text);">{{ username }}</strong></span>
+    <a href="/export" style="color:var(--accent); text-decoration:none;">⭳ Exportar para Excel</a>
+    <a href="#" id="abrir-importar" style="color:var(--accent-2); text-decoration:none;">⭱ Importar Excel</a>
+    {% if is_admin %}<a href="{{ url_for('pagina_usuarios') }}" style="color:var(--muted); text-decoration:none;">Gerenciar usuários</a>{% endif %}
+    <a href="{{ url_for('logout') }}" style="color:var(--muted); text-decoration:none;">Sair</a>
+  </div>
+</nav>
+<div id="sync-bar" style="text-align:center; font-size:11px; color:var(--muted); padding:6px 0; font-family:var(--mono); background:var(--panel-2); border-bottom:1px solid var(--line);">
+  <span id="sync-status">conectado — dados compartilhados em tempo real</span>
+</div>
+
+<main>
+
+  <section class="panel">
+    <h2>Registrar novo item (entrada)</h2>
+    <form id="item-form">
+      <div class="field">
+        <label for="codigo">Código do item *</label>
+        <select id="codigo" name="codigo" required>
+          <option value="">Selecione o código</option>
+        </select>
+      </div>
+      <div class="field wide">
+        <label for="descricao">Descrição (preenchida pelo cadastro)</label>
+        <input id="descricao" name="descricao" placeholder="Será preenchida automaticamente" readonly>
+      </div>
+      <div class="field">
+        <label for="qtde">Qtde</label>
+        <input id="qtde" name="qtde" type="number" min="0" step="1" placeholder="0">
+      </div>
+      <div class="field">
+        <label for="localizacao">Localização</label>
+        <input id="localizacao" name="localizacao" placeholder="Depósito / prateleira">
+      </div>
+
+      <div class="field">
+        <label for="nf_entrada">NF de entrada</label>
+        <input id="nf_entrada" name="nf_entrada" placeholder="Nº nota fiscal">
+      </div>
+      <div class="field">
+        <label for="data_entrada">Data de entrada</label>
+        <input id="data_entrada" name="data_entrada" type="date">
+      </div>
+      <div class="field">
+        <label for="nf_saida">NF de saída</label>
+        <input id="nf_saida" name="nf_saida" placeholder="(preencher na saída)">
+      </div>
+      <div class="field">
+        <label for="data_saida">Data de saída</label>
+        <input id="data_saida" name="data_saida" type="date">
+      </div>
+      <div class="field">
+        <label for="vd_loja">VD / loja de destino</label>
+        <input id="vd_loja" name="vd_loja" placeholder="Vendedor / loja que vai receber">
+      </div>
+
+      <div class="field">
+        <label for="local">Local</label>
+        <select id="local" name="local">
+          <option value=""></option>
+          <option value="CD">CD</option>
+          <option value="Engemon">Engemon</option>
+          <option value="Loja">Loja</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="armazenagem">Armazenagem</label>
+        <select id="armazenagem" name="armazenagem">
+          <option value=""></option>
+          <option value="Container">Container</option>
+          <option value="Gaiola">Gaiola</option>
+          <option value="CD">CD</option>
+          <option value="Caixa">Caixa</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="status">Status</label>
+        <select id="status" name="status">
+          <option value=""></option>
+          <option value="Reservado">Reservado</option>
+          <option value="Separado">Separado</option>
+          <option value="Enviado">Enviado</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="tipo_estoque">Tipo de Estoque</label>
+        <select id="tipo_estoque" name="tipo_estoque">
+          <option value=""></option>
+          <option value="Expansão">Expansão</option>
+          <option value="Sustentação">Sustentação</option>
+          <option value="Requalificação">Requalificação</option>
+          <option value="Ampliação">Ampliação</option>
+          <option value="Realocação">Realocação</option>
+          <option value="Reversa">Reversa</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="nro_imobilizado">Nº imobilizado</label>
+        <input id="nro_imobilizado" name="nro_imobilizado" placeholder="Nº imobilizado">
+      </div>
+      <div class="field">
+        <label for="nro_serie">Nº série</label>
+        <input id="nro_serie" name="nro_serie" placeholder="Nº de série">
+      </div>
+      <div class="field">
+        <label for="nro_patrimonio">Nº patrimônio</label>
+        <input id="nro_patrimonio" name="nro_patrimonio" placeholder="Nº patrimônio">
+      </div>
+      <div class="field">
+        <label for="pedido">Pedido</label>
+        <input id="pedido" name="pedido" placeholder="Nº do pedido">
+      </div>
+      <div class="field">
+        <label for="val_aquis">ValAquis.</label>
+        <input id="val_aquis" name="val_aquis" placeholder="ValAquis.">
+      </div>
+      <div class="field">
+        <label for="chamado">Chamado</label>
+        <input id="chamado" name="chamado" placeholder="Nº do chamado">
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" class="btn-primary">Salvar item</button>
+        <button type="reset" class="btn-ghost">Limpar</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="panel">
+    <h2>Estoque por tipo</h2>
+    <div style="max-width:520px; margin:0 auto;">
+      <canvas id="grafico-tipo-estoque" height="220"></canvas>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="toolbar">
+      <h2 style="margin:0;">Itens cadastrados</h2>
+      <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+        <select id="filtro-tipo" class="filtro-select">
+          <option value="">Todos os tipos</option>
+          <option value="Expansão">Expansão</option>
+          <option value="Sustentação">Sustentação</option>
+          <option value="Requalificação">Requalificação</option>
+          <option value="Ampliação">Ampliação</option>
+          <option value="Realocação">Realocação</option>
+          <option value="Reversa">Reversa</option>
+        </select>
+        <select id="filtro-status" class="filtro-select">
+          <option value="">Todos os status</option>
+          <option value="Reservado">Reservado</option>
+          <option value="Separado">Separado</option>
+          <option value="Enviado">Enviado</option>
+        </select>
+        <select id="filtro-local" class="filtro-select">
+          <option value="">Todos os locais</option>
+          <option value="CD">CD</option>
+          <option value="Engemon">Engemon</option>
+          <option value="Loja">Loja</option>
+        </select>
+        <input type="search" id="busca" placeholder="Buscar por código, descrição, loja...">
+      </div>
+    </div>
+    <div style="display:flex; align-items:center; gap:12px; margin-bottom:10px; min-height:32px;">
+      <button class="btn-ghost" id="btn-excluir-selecionados" style="display:none; color:var(--danger); border-color:rgba(255,107,107,.4);">Excluir selecionados</button>
+      <span id="selecionados-info" style="font-size:12px; color:var(--muted);"></span>
+    </div>
+    <div class="tabela-scroll">
+      <table id="tabela-itens">
+        <thead>
+          <tr>
+            <th><input type="checkbox" id="selecionar-todos"></th>
+            <th>Código</th>
+            <th>Descrição</th>
+            <th>Qtde</th>
+            <th>Localização</th>
+            <th>NF entrada</th>
+            <th>Data entrada</th>
+            <th>NF saída</th>
+            <th>Data saída</th>
+            <th>VD / loja</th>
+            <th>Local</th>
+            <th>Armazenagem</th>
+            <th>Status</th>
+            <th>Tipo de estoque</th>
+            <th>Nº imob.</th>
+            <th>Nº série</th>
+            <th>Nº patrim.</th>
+            <th>Pedido</th>
+            <th>ValAquis.</th>
+            <th>Chamado</th>
+            <th>Criado por</th>
+            <th>Últ. alteração</th>
+            <th>Situação</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="tbody">
+        </tbody>
+      </table>
+      <div class="empty" id="empty-msg" style="display:none;">Nenhum item cadastrado ainda.</div>
+      <div id="paginacao" style="text-align:center; margin-top:16px; display:none;">
+        <button class="btn-ghost" id="btn-carregar-mais">Carregar mais</button>
+        <div style="font-size:12px; color:var(--muted); margin-top:8px;" id="paginacao-info"></div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  Arquivo de dados: <code id="footer-path">estoque.xlsx</code> — abra esse arquivo a qualquer momento no Excel para conferir ou fazer backup.
+  <div class="credito">© 2026 · Todos os direitos reservados · Developed by <strong>Alexandre Martins</strong></div>
+</footer>
+
+<dialog id="qtde-dialog">
+  <div class="dlg-body">
+    <h3>Retirar do estoque</h3>
+    <input type="hidden" id="qtde-id">
+    <p style="margin:0 0 14px; font-size:13px; color:var(--muted);">
+      Quantidade atual: <strong id="qtde-atual" style="color:var(--text);">0</strong>
+    </p>
+    <div class="field">
+      <label for="qtde-retirar">Quantidade a retirar</label>
+      <input id="qtde-retirar" type="number" min="1" step="1" placeholder="Ex: 2">
+    </div>
+    <p style="margin:0; font-size:13px; color:var(--muted);">
+      Ficará: <strong id="qtde-resultado" style="color:var(--accent);">0</strong>
+    </p>
+    <div class="dlg-actions">
+      <button type="button" class="btn-ghost" id="qtde-cancel">Cancelar</button>
+      <button type="button" class="btn-primary" id="qtde-save">Confirmar retirada</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog id="edit-dialog">
+  <div class="dlg-body">
+    <h3>Registrar saída do item</h3>
+    <input type="hidden" id="edit-id">
+    <p style="margin:0 0 14px; font-size:13px; color:var(--muted);">
+      Quantidade atual: <strong id="edit-qtde-atual" style="color:var(--text);">0</strong>
+    </p>
+    <div class="field">
+      <label for="edit-qtde_saida">Quantidade que está saindo</label>
+      <input id="edit-qtde_saida" type="number" min="1" step="1" placeholder="Ex: 2">
+    </div>
+    <p style="margin:-6px 0 14px; font-size:13px; color:var(--muted);">
+      Ficará em estoque: <strong id="edit-qtde-resultado" style="color:var(--accent);">0</strong>
+    </p>
+    <div class="field">
+      <label for="edit-nf_saida">NF de saída</label>
+      <input id="edit-nf_saida" placeholder="Nº nota fiscal">
+    </div>
+    <div class="field">
+      <label for="edit-data_saida">Data de saída</label>
+      <input id="edit-data_saida" type="date">
+    </div>
+    <div class="field">
+      <label for="edit-vd_loja">VD / loja de destino</label>
+      <input id="edit-vd_loja" placeholder="Vendedor / loja que vai receber">
+    </div>
+    <div class="dlg-actions">
+      <button type="button" class="btn-ghost" id="edit-cancel">Cancelar</button>
+      <button type="button" class="btn-primary" id="edit-save">Confirmar saída</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog id="full-edit-dialog" style="width:min(720px, 94vw);">
+  <div class="dlg-body">
+    <h3>Editar item</h3>
+    <input type="hidden" id="fe-id">
+    <form id="full-edit-form" style="display:grid; grid-template-columns:repeat(3, 1fr); gap:12px 14px;">
+      <div class="field">
+        <label for="fe-codigo">Código do item</label>
+        <input id="fe-codigo" required>
+      </div>
+      <div class="field" style="grid-column: span 2;">
+        <label for="fe-descricao">Descrição</label>
+        <input id="fe-descricao">
+      </div>
+      <div class="field">
+        <label for="fe-qtde">Qtde</label>
+        <input id="fe-qtde" type="number" min="0" step="1">
+      </div>
+      <div class="field">
+        <label for="fe-localizacao">Localização</label>
+        <input id="fe-localizacao">
+      </div>
+      <div class="field">
+        <label for="fe-local">Local</label>
+        <select id="fe-local">
+          <option value=""></option>
+          <option value="CD">CD</option>
+          <option value="Engemon">Engemon</option>
+          <option value="Loja">Loja</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="fe-armazenagem">Armazenagem</label>
+        <select id="fe-armazenagem">
+          <option value=""></option>
+          <option value="Container">Container</option>
+          <option value="Gaiola">Gaiola</option>
+          <option value="CD">CD</option>
+          <option value="Caixa">Caixa</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="fe-status">Status</label>
+        <select id="fe-status">
+          <option value=""></option>
+          <option value="Reservado">Reservado</option>
+          <option value="Separado">Separado</option>
+          <option value="Enviado">Enviado</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="fe-tipo_estoque">Tipo de Estoque</label>
+        <select id="fe-tipo_estoque">
+          <option value=""></option>
+          <option value="Expansão">Expansão</option>
+          <option value="Sustentação">Sustentação</option>
+          <option value="Requalificação">Requalificação</option>
+          <option value="Ampliação">Ampliação</option>
+          <option value="Realocação">Realocação</option>
+          <option value="Reversa">Reversa</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="fe-nf_entrada">NF de entrada</label>
+        <input id="fe-nf_entrada">
+      </div>
+      <div class="field">
+        <label for="fe-data_entrada">Data de entrada</label>
+        <input id="fe-data_entrada" type="date">
+      </div>
+      <div class="field">
+        <label for="fe-nf_saida">NF de saída</label>
+        <input id="fe-nf_saida">
+      </div>
+      <div class="field">
+        <label for="fe-data_saida">Data de saída</label>
+        <input id="fe-data_saida" type="date">
+      </div>
+      <div class="field">
+        <label for="fe-vd_loja">VD / loja de destino</label>
+        <input id="fe-vd_loja">
+      </div>
+      <div class="field">
+        <label for="fe-nro_imobilizado">Nº imobilizado</label>
+        <input id="fe-nro_imobilizado">
+      </div>
+      <div class="field">
+        <label for="fe-nro_serie">Nº série</label>
+        <input id="fe-nro_serie">
+      </div>
+      <div class="field">
+        <label for="fe-nro_patrimonio">Nº patrimônio</label>
+        <input id="fe-nro_patrimonio">
+      </div>
+      <div class="field">
+        <label for="fe-pedido">Pedido</label>
+        <input id="fe-pedido">
+      </div>
+      <div class="field">
+        <label for="fe-val_aquis">ValAquis.</label>
+        <input id="fe-val_aquis">
+      </div>
+      <div class="field">
+        <label for="fe-chamado">Chamado</label>
+        <input id="fe-chamado">
+      </div>
+    </form>
+    <div class="dlg-actions">
+      <button type="button" class="btn-ghost" id="fe-cancel">Cancelar</button>
+      <button type="button" class="btn-primary" id="fe-save">Salvar alterações</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog id="importar-dialog" style="width:min(480px, 94vw);">
+  <div class="dlg-body">
+    <h3>Importar planilha Excel</h3>
+    <p style="margin:0 0 16px; font-size:13px; color:var(--muted); line-height:1.5;">
+      A planilha deve ter uma linha de título com os nomes das colunas
+      (ex: "Código do item", "Descrição", "Qtde"...). Por segurança, confirme
+      sua senha para continuar — o upload fica registrado no histórico de cada item.
+    </p>
+    <div id="importar-msg" style="display:none; margin-bottom:14px;"></div>
+    <form id="importar-form">
+      <div class="field">
+        <label for="importar-tabela">Salvar em</label>
+        <select id="importar-tabela">
+          <option value="estoque">Estoque (cada unidade vira uma linha)</option>
+          <option value="imobilizados">Imobilizados (mantém a quantidade da planilha)</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="importar-arquivo">Arquivo (.xlsx)</label>
+        <input id="importar-arquivo" type="file" accept=".xlsx,.xlsm" required>
+      </div>
+      <div class="field">
+        <label for="importar-senha">Sua senha</label>
+        <input id="importar-senha" type="password" required>
+      </div>
+    </form>
+    <div class="dlg-actions">
+      <button type="button" class="btn-ghost" id="importar-cancel">Cancelar</button>
+      <button type="button" class="btn-primary" id="importar-enviar">Importar</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog id="historico-dialog" style="width:min(560px, 94vw);">
+  <div class="dlg-body">
+    <h3 id="historico-titulo">Histórico do item</h3>
+    <div id="historico-lista" style="max-height:60vh; overflow-y:auto; display:flex; flex-direction:column; gap:10px;"></div>
+    <div class="dlg-actions">
+      <button type="button" class="btn-ghost" id="historico-fechar">Fechar</button>
+    </div>
+  </div>
+</dialog>
+
+<div id="toast-container" style="position:fixed; bottom:20px; left:50%; transform:translateX(-50%); z-index:9999; display:flex; flex-direction:column; gap:8px; align-items:center;"></div>
+
+<script>
+function normalizarTexto(str){
+  return (str || '').toString().trim().toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+const TIPOS_ESTOQUE_CANONICOS = ['Expansão','Sustentação','Requalificação','Ampliação','Realocação','Reversa'];
+function canonicalizarTipo(valor){
+  const norm = normalizarTexto(valor);
+  if(!norm) return '';
+  const match = TIPOS_ESTOQUE_CANONICOS.find(t => normalizarTexto(t) === norm);
+  return match || (valor || '').toString().trim();
+}
+
+const tbody = document.getElementById('tbody');
+const emptyMsg = document.getElementById('empty-msg');
+const buscaInput = document.getElementById('busca');
+const filtroTipo = document.getElementById('filtro-tipo');
+const filtroStatus = document.getElementById('filtro-status');
+const filtroLocal = document.getElementById('filtro-local');
+let itensCache = [];
+let itensExibidos = 50; // paginação: quantos itens mostrar por vez
+const PAGINA_TAMANHO = 50;
+const idsSelecionados = new Set(); // seleção da tabela, sobrevive às atualizações automáticas
+
+const syncStatus = document.getElementById('sync-status');
+
+async function carregarItens(silencioso){
+  try{
+    const res = await fetch('/api/itens');
+    if(!res.ok) throw new Error('falha');
+    itensCache = await res.json();
+    renderizar();
+    syncStatus.textContent = 'conectado — atualizado ' + new Date().toLocaleTimeString('pt-BR');
+    syncStatus.style.color = 'var(--muted)';
+  }catch(err){
+    syncStatus.textContent = 'sem conexão com o servidor — verifique a rede';
+    syncStatus.style.color = 'var(--danger)';
+    if(!silencioso) throw err;
+  }
+}
+
+// Atualiza a lista automaticamente a cada 4s, para todo mundo ver
+// as mudanças feitas por outras pessoas sem precisar recarregar a página.
+setInterval(() => carregarItens(true), 4000);
+
+function renderizar(){
+  const termo = buscaInput.value.trim().toLowerCase();
+  const tipoSel = filtroTipo.value;
+  const statusSel = filtroStatus.value;
+  const localSel = filtroLocal.value;
+
+  const filtrados = itensCache.filter(it => {
+    if(termo && !Object.values(it).join(' ').toLowerCase().includes(termo)) return false;
+    if(tipoSel && normalizarTexto(it.tipo_estoque) !== normalizarTexto(tipoSel)) return false;
+    if(statusSel && (it.status || '') !== statusSel) return false;
+    if(localSel && (it.local || '') !== localSel) return false;
+    return true;
+  });
+
+  tbody.innerHTML = '';
+  emptyMsg.style.display = filtrados.length ? 'none' : 'block';
+
+  const ordenados = filtrados.slice().reverse();
+  const visiveis = ordenados.slice(0, itensExibidos);
+
+  visiveis.forEach(it => {
+    const qtdeAtual = Number(it.qtde) || 0;
+    const saiu = qtdeAtual <= 0;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td data-label=""><input type="checkbox" class="chk-item" value="${it.id}" ${idsSelecionados.has(it.id) ? 'checked' : ''} onchange="toggleSelecionado(${it.id}, this.checked)"></td>
+      <td class="codigo">${escapeHtml(it.codigo || '')}</td>
+      <td data-label="Descrição">${escapeHtml(it.descricao || '')}</td>
+      <td data-label="Qtde">${escapeHtml(String(it.qtde ?? ''))}</td>
+      <td data-label="Localização">${escapeHtml(it.localizacao || '')}</td>
+      <td data-label="NF entrada">${escapeHtml(it.nf_entrada || '')}</td>
+      <td data-label="Data entrada">${it.data_entrada ? `<span class="data-pill entrada">${escapeHtml(it.data_entrada)}</span>` : ''}</td>
+      <td data-label="NF saída">${escapeHtml(it.nf_saida || '')}</td>
+      <td data-label="Data saída">${it.data_saida ? `<span class="data-pill saida">${escapeHtml(it.data_saida)}</span>` : ''}</td>
+      <td data-label="VD / loja">${escapeHtml(it.vd_loja || '')}</td>
+      <td data-label="Local">${escapeHtml(it.local || '')}</td>
+      <td data-label="Armazenagem">${escapeHtml(it.armazenagem || '')}</td>
+      <td data-label="Status">${it.status ? `<span class="status-pill ${escapeHtml((it.status||'').toLowerCase())}">${escapeHtml(it.status)}</span>` : ''}</td>
+      <td data-label="Tipo de estoque">${escapeHtml(it.tipo_estoque || '')}</td>
+      <td data-label="Nº imob.">${escapeHtml(it.nro_imobilizado || '')}</td>
+      <td data-label="Nº série">${escapeHtml(it.nro_serie || '')}</td>
+      <td data-label="Nº patrim.">${escapeHtml(it.nro_patrimonio || '')}</td>
+      <td data-label="Pedido">${escapeHtml(it.pedido || '')}</td>
+      <td data-label="ValAquis.">${escapeHtml(it.val_aquis || '')}</td>
+      <td data-label="Chamado">${escapeHtml(it.chamado || '')}</td>
+      <td data-label="Criado por">${it.criado_por ? `<span class="nome-destaque">${escapeHtml(it.criado_por)}</span>` : ''}</td>
+      <td data-label="Últ. alteração">${it.atualizado_por ? `<span class="alteracao-destaque"><span class="quem">${escapeHtml(it.atualizado_por)}</span><span class="quando">${escapeHtml(it.atualizado_em || '')}</span></span>` : ''}</td>
+      <td data-label="Situação">${saiu ? '<span class="badge saida">Saiu</span>' : '<span class="badge entrada">Em estoque</span>'}</td>
+      <td class="linha-acoes">
+        <div class="row-actions">
+          ${saiu ? '' : `<button class="btn-ghost" onclick="abrirQtde(${it.id}, ${qtdeAtual})">Retirar do estoque</button>`}
+          ${saiu ? '' : `<button class="btn-ghost" onclick="abrirSaida(${it.id}, ${qtdeAtual})">Registrar saída</button>`}
+          <button class="btn-ghost" onclick="abrirEdicaoCompleta(${it.id})">Editar</button>
+          <button class="btn-ghost" onclick="abrirHistorico(${it.id})">Histórico</button>
+          <button class="btn-ghost" onclick="excluirItem(${it.id})">Excluir</button>
+        </div>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  const painelPag = document.getElementById('paginacao');
+  const infoPag = document.getElementById('paginacao-info');
+  if(ordenados.length > itensExibidos){
+    painelPag.style.display = 'block';
+    infoPag.textContent = `Mostrando ${visiveis.length} de ${ordenados.length} itens`;
+  } else if(ordenados.length > PAGINA_TAMANHO){
+    painelPag.style.display = 'block';
+    document.getElementById('btn-carregar-mais').style.display = 'none';
+    infoPag.textContent = `Mostrando todos os ${ordenados.length} itens`;
+  } else {
+    painelPag.style.display = 'none';
+  }
+
+  atualizarStats();
+  atualizarGrafico();
+  atualizarSelecionados();
+}
+
+document.getElementById('btn-carregar-mais').addEventListener('click', () => {
+  itensExibidos += PAGINA_TAMANHO;
+  renderizar();
+});
+filtroTipo.addEventListener('change', () => { itensExibidos = PAGINA_TAMANHO; renderizar(); });
+filtroStatus.addEventListener('change', () => { itensExibidos = PAGINA_TAMANHO; renderizar(); });
+filtroLocal.addEventListener('change', () => { itensExibidos = PAGINA_TAMANHO; renderizar(); });
+
+function atualizarStats(){
+  const total = itensCache.length;
+  const saiu = itensCache.filter(it => (Number(it.qtde) || 0) <= 0).length;
+  document.getElementById('stat-total').textContent = total;
+  document.getElementById('stat-estoque').textContent = total - saiu;
+  document.getElementById('stat-saiu').textContent = saiu;
+
+  const somaPorTipo = (tipo) => itensCache
+    .filter(it => normalizarTexto(it.tipo_estoque) === normalizarTexto(tipo))
+    .reduce((soma, it) => soma + (Number(it.qtde) || 0), 0);
+
+  document.getElementById('stat-expansao').textContent = somaPorTipo('Expansão');
+  document.getElementById('stat-sustentacao').textContent = somaPorTipo('Sustentação');
+  document.getElementById('stat-requalificacao').textContent = somaPorTipo('Requalificação');
+  document.getElementById('stat-ampliacao').textContent = somaPorTipo('Ampliação');
+  document.getElementById('stat-realocacao').textContent = somaPorTipo('Realocação');
+  document.getElementById('stat-reversa').textContent = somaPorTipo('Reversa');
+}
+
+let graficoTipoEstoque = null;
+function atualizarGrafico(){
+  try{
+    if(typeof Chart === 'undefined') return; // biblioteca ainda não carregou
+
+    // Cor FIXA por categoria — não depende da ordem em que os dados aparecem,
+    // então "Sustentação" é sempre laranja, "Expansão" é sempre azul, etc.
+    const CORES_POR_TIPO = {
+      'Expansão': '#3ea6ff',
+      'Sustentação': '#ffb648',
+      'Requalificação': '#4cd792',
+      'Ampliação': '#a78bfa',
+      'Realocação': '#ff6b6b',
+      'Reversa': '#8b96a8',
+      'Não informado': '#4a5568',
+    };
+
+    const contagem = {};
+    itensCache.forEach(it => {
+      const tipo = canonicalizarTipo(it.tipo_estoque) || 'Não informado';
+      const qtde = Number(it.qtde) || 1;
+      contagem[tipo] = (contagem[tipo] || 0) + qtde;
+    });
+
+    // Monta os rótulos sempre na MESMA ordem fixa (a ordem de CORES_POR_TIPO),
+    // incluindo só os tipos que realmente têm itens.
+    const ordemFixa = Object.keys(CORES_POR_TIPO);
+    const labels = ordemFixa.filter(tipo => contagem[tipo] > 0);
+    const valores = labels.map(tipo => contagem[tipo]);
+    const cores = labels.map(tipo => CORES_POR_TIPO[tipo]);
+
+    const ctx = document.getElementById('grafico-tipo-estoque');
+    if(!ctx) return;
+    if(graficoTipoEstoque){
+      graficoTipoEstoque.data.labels = labels;
+      graficoTipoEstoque.data.datasets[0].data = valores;
+      graficoTipoEstoque.data.datasets[0].backgroundColor = cores;
+      graficoTipoEstoque.update();
+      return;
+    }
+    graficoTipoEstoque = new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: labels,
+        datasets: [{
+          data: valores,
+          backgroundColor: cores,
+          borderColor: '#1a2029',
+          borderWidth: 2,
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: { color: '#e7ebf1', font: { size: 12 } }
+          }
+        }
+      }
+    });
+  }catch(err){
+    console.error('Erro ao desenhar o gráfico:', err);
+  }
+}
+
+function escapeHtml(str){
+  return String(str).replace(/[&<>"']/g, s => ({
+    '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'
+  }[s]));
+}
+
+// ---------------------------------------------------------------------
+// Cadastro mestre de itens
+let cadastroItens = [];
+async function carregarCadastroItens(){
+  const lista = document.getElementById('codigo');
+  if(!lista) return;
+  try{
+    lista.disabled = true;
+    const res = await fetch('/api/cadastro-itens', { cache: 'no-store' });
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    cadastroItens = await res.json();
+    const atual = String(lista.value || '').trim();
+    lista.innerHTML = '<option value="">Selecione o código</option>' +
+      cadastroItens.map(it => {
+        const valor = String(it.codigo || '');
+        return `<option value="${escapeHtml(valor)}">${escapeHtml(valor)}</option>`;
+      }).join('');
+    if(atual && cadastroItens.some(it => String(it.codigo || '').trim().toLowerCase() === atual.toLowerCase())){
+      lista.value = atual;
+    }
+    preencherDescricaoDoCadastro();
+  }catch(err){
+    console.error('Erro ao carregar cadastro de itens:', err);
+    lista.innerHTML = '<option value="">Erro ao carregar códigos</option>';
+  }finally{
+    lista.disabled = false;
+  }
+}
+function preencherDescricaoDoCadastro(){
+  const lista = document.getElementById('codigo');
+  const campoDescricao = document.getElementById('descricao');
+  if(!lista || !campoDescricao) return;
+  const codigoSelecionado = String(lista.value || '').trim().toLowerCase();
+  const encontrado = cadastroItens.find(it => String(it.codigo || '').trim().toLowerCase() === codigoSelecionado);
+  campoDescricao.value = encontrado ? (encontrado.descricao || '') : '';
+  campoDescricao.title = encontrado ? `Unidade: ${encontrado.unidade || 'UN'}` : '';
+}
+const codigoItemSelect = document.getElementById('codigo');
+if(codigoItemSelect){
+  codigoItemSelect.addEventListener('change', preencherDescricaoDoCadastro);
+  codigoItemSelect.addEventListener('focus', carregarCadastroItens);
+}
+carregarCadastroItens();
+
+document.getElementById('item-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const form = e.target;
+  preencherDescricaoDoCadastro();
+  const cadastro = cadastroItens.find(it => String(it.codigo).toLowerCase() === String(form.codigo.value).trim().toLowerCase());
+  if(!cadastro){
+    alert('Cadastre o código do item na página “Cadastro de itens” antes de lançar no sistema.');
+    document.getElementById('codigo').focus();
+    return;
+  }
+  const dados = {
+    codigo: form.codigo.value,
+    descricao: form.descricao.value,
+    qtde: form.qtde.value,
+    localizacao: form.localizacao.value,
+    nf_entrada: form.nf_entrada.value,
+    data_entrada: form.data_entrada.value,
+    nf_saida: form.nf_saida.value,
+    data_saida: form.data_saida.value,
+    vd_loja: form.vd_loja.value,
+    local: form.local.value,
+    armazenagem: form.armazenagem.value,
+    status: form.status.value,
+    tipo_estoque: form.tipo_estoque.value,
+    nro_imobilizado: form.nro_imobilizado.value,
+    nro_serie: form.nro_serie.value,
+    nro_patrimonio: form.nro_patrimonio.value,
+    pedido: form.pedido.value,
+    val_aquis: form.val_aquis.value,
+    chamado: form.chamado.value,
+  };
+  const res = await fetch('/api/itens', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(dados)
+  });
+  if(res.ok){
+    form.reset();
+    carregarItens();
+  } else {
+    const erro = await res.json();
+    alert(erro.erro || 'Erro ao salvar item.');
+  }
+});
+
+
+buscaInput.addEventListener('input', () => { itensExibidos = PAGINA_TAMANHO; renderizar(); });
+
+const dialog = document.getElementById('edit-dialog');
+let qtdeAtualSaida = 0;
+function abrirSaida(id, qtdeAtual){
+  qtdeAtualSaida = Number(qtdeAtual) || 0;
+  document.getElementById('edit-id').value = id;
+  document.getElementById('edit-qtde-atual').textContent = qtdeAtualSaida;
+  document.getElementById('edit-qtde_saida').value = '';
+  document.getElementById('edit-qtde-resultado').textContent = qtdeAtualSaida;
+  document.getElementById('edit-nf_saida').value = '';
+  document.getElementById('edit-data_saida').value = new Date().toISOString().slice(0,10);
+  document.getElementById('edit-vd_loja').value = '';
+  dialog.showModal();
+  document.getElementById('edit-qtde_saida').focus();
+}
+document.getElementById('edit-qtde_saida').addEventListener('input', (e) => {
+  const saindo = Number(e.target.value) || 0;
+  const resultado = Math.max(0, qtdeAtualSaida - saindo);
+  document.getElementById('edit-qtde-resultado').textContent = resultado;
+});
+document.getElementById('edit-cancel').addEventListener('click', () => dialog.close());
+document.getElementById('edit-save').addEventListener('click', async () => {
+  const id = document.getElementById('edit-id').value;
+  const qtdeSaida = Number(document.getElementById('edit-qtde_saida').value);
+  if(!qtdeSaida || qtdeSaida <= 0){
+    alert('Digite quantos itens estão saindo (um número maior que zero).');
+    return;
+  }
+  if(qtdeSaida > qtdeAtualSaida){
+    alert(`Você não pode dar saída em mais do que a quantidade atual (${qtdeAtualSaida}).`);
+    return;
+  }
+  const itemAntes = itensCache.find(i => i.id === Number(id));
+  const valoresAnteriores = itemAntes ? {
+    qtde: itemAntes.qtde, nf_saida: itemAntes.nf_saida,
+    data_saida: itemAntes.data_saida, vd_loja: itemAntes.vd_loja,
+  } : null;
+  const novaQtde = qtdeAtualSaida - qtdeSaida;
+  const dados = {
+    qtde: String(novaQtde),
+    nf_saida: document.getElementById('edit-nf_saida').value,
+    data_saida: document.getElementById('edit-data_saida').value,
+    vd_loja: document.getElementById('edit-vd_loja').value,
+  };
+  const res = await fetch(`/api/itens/${id}`, {
+    method: 'PUT',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(dados)
+  });
+  if(res.ok){
+    dialog.close();
+    carregarItens();
+    if(valoresAnteriores){
+      mostrarToast(`Saída de ${qtdeSaida} registrada.`, async () => {
+        await fetch(`/api/itens/${id}`, {
+          method: 'PUT',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(valoresAnteriores)
+        });
+      });
+    }
+  } else {
+    alert('Erro ao registrar saída.');
+  }
+});
+
+const qtdeDialog = document.getElementById('qtde-dialog');
+let qtdeAtualSelecionada = 0;
+function abrirQtde(id, qtdeAtual){
+  qtdeAtualSelecionada = Number(qtdeAtual) || 0;
+  document.getElementById('qtde-id').value = id;
+  document.getElementById('qtde-atual').textContent = qtdeAtualSelecionada;
+  document.getElementById('qtde-retirar').value = '';
+  document.getElementById('qtde-resultado').textContent = qtdeAtualSelecionada;
+  qtdeDialog.showModal();
+  document.getElementById('qtde-retirar').focus();
+}
+document.getElementById('qtde-retirar').addEventListener('input', (e) => {
+  const retirar = Number(e.target.value) || 0;
+  const resultado = Math.max(0, qtdeAtualSelecionada - retirar);
+  document.getElementById('qtde-resultado').textContent = resultado;
+});
+document.getElementById('qtde-cancel').addEventListener('click', () => qtdeDialog.close());
+document.getElementById('qtde-save').addEventListener('click', async () => {
+  const id = document.getElementById('qtde-id').value;
+  const retirar = Number(document.getElementById('qtde-retirar').value);
+  if(!retirar || retirar <= 0){
+    alert('Digite quantos itens estão saindo (um número maior que zero).');
+    return;
+  }
+  if(retirar > qtdeAtualSelecionada){
+    alert(`Você não pode retirar mais do que a quantidade atual (${qtdeAtualSelecionada}).`);
+    return;
+  }
+  const qtdeAnterior = String(qtdeAtualSelecionada);
+  const novaQtde = qtdeAtualSelecionada - retirar;
+  const res = await fetch(`/api/itens/${id}`, {
+    method: 'PUT',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({qtde: String(novaQtde)})
+  });
+  if(res.ok){
+    qtdeDialog.close();
+    carregarItens();
+    mostrarToast(`${retirar} retirado(s) do estoque.`, async () => {
+      await fetch(`/api/itens/${id}`, {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({qtde: qtdeAnterior})
+      });
+    });
+  } else {
+    alert('Erro ao atualizar quantidade.');
+  }
+});
+
+// ---------------------------------------------------------------------
+// Seleção múltipla / exclusão em massa
+// ---------------------------------------------------------------------
+function toggleSelecionado(id, marcado){
+  if(marcado) idsSelecionados.add(id);
+  else idsSelecionados.delete(id);
+  atualizarSelecionados();
+}
+function atualizarSelecionados(){
+  // Remove da seleção qualquer id que não exista mais na lista atual
+  // (ex: foi excluído por outra pessoa).
+  const idsAtuais = new Set(itensCache.map(it => it.id));
+  Array.from(idsSelecionados).forEach(id => { if(!idsAtuais.has(id)) idsSelecionados.delete(id); });
+
+  const btn = document.getElementById('btn-excluir-selecionados');
+  const info = document.getElementById('selecionados-info');
+  if(idsSelecionados.size > 0){
+    btn.style.display = 'inline-block';
+    info.textContent = `${idsSelecionados.size} selecionado(s)`;
+  } else {
+    btn.style.display = 'none';
+    info.textContent = '';
+  }
+  const todos = document.querySelectorAll('.chk-item');
+  const selecionarTodos = document.getElementById('selecionar-todos');
+  selecionarTodos.checked = todos.length > 0 && Array.from(todos).every(chk => idsSelecionados.has(Number(chk.value)));
+}
+document.getElementById('selecionar-todos').addEventListener('change', (e) => {
+  document.querySelectorAll('.chk-item').forEach(chk => {
+    chk.checked = e.target.checked;
+    const id = Number(chk.value);
+    if(e.target.checked) idsSelecionados.add(id);
+    else idsSelecionados.delete(id);
+  });
+  atualizarSelecionados();
+});
+document.getElementById('btn-excluir-selecionados').addEventListener('click', async () => {
+  const ids = Array.from(idsSelecionados);
+  if(!ids.length) return;
+  if(!confirm(`Excluir ${ids.length} item(ns) selecionado(s)? Essa ação não pode ser desfeita.`)) return;
+  const res = await fetch('/api/itens/excluir-em-lote', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ids})
+  });
+  if(res.ok){
+    const corpo = await res.json();
+    idsSelecionados.clear();
+    carregarItens();
+    mostrarToast(`${corpo.excluidos} item(ns) excluído(s).`);
+  } else {
+    alert('Erro ao excluir os itens selecionados.');
+  }
+});
+
+async function excluirItem(id){
+  const it = itensCache.find(i => i.id === id);
+  if(!confirm(`Excluir o item ${it ? it.codigo : ''}?`)) return;
+  const res = await fetch(`/api/itens/${id}`, {method:'DELETE'});
+  if(res.ok){
+    const corpo = await res.json();
+    const itemExcluido = corpo.item;
+    carregarItens();
+    mostrarToast(`Item ${itemExcluido.codigo} excluído.`, async () => {
+      await fetch('/api/itens/restaurar', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(itemExcluido)
+      });
+    });
+  } else {
+    alert('Erro ao excluir item.');
+  }
+}
+
+// ---------------------------------------------------------------------
+// Toast (mensagens com "Desfazer")
+// ---------------------------------------------------------------------
+const toastContainer = document.getElementById('toast-container');
+function mostrarToast(mensagem, aoDesfazer, duracaoMs){
+  duracaoMs = duracaoMs || 8000;
+  const el = document.createElement('div');
+  el.className = 'toast';
+  const msgEl = document.createElement('span');
+  msgEl.className = 'toast-msg';
+  msgEl.textContent = mensagem;
+  el.appendChild(msgEl);
+
+  let timer = null;
+  if(aoDesfazer){
+    const btn = document.createElement('button');
+    btn.className = 'btn-primary';
+    btn.textContent = 'Desfazer';
+    btn.addEventListener('click', async () => {
+      clearTimeout(timer);
+      el.remove();
+      await aoDesfazer();
+      carregarItens();
+    });
+    el.appendChild(btn);
+  }
+  const fechar = document.createElement('button');
+  fechar.className = 'btn-ghost';
+  fechar.textContent = '×';
+  fechar.style.padding = '6px 10px';
+  fechar.addEventListener('click', () => { clearTimeout(timer); el.remove(); });
+  el.appendChild(fechar);
+
+  toastContainer.appendChild(el);
+  timer = setTimeout(() => el.remove(), duracaoMs);
+}
+
+// ---------------------------------------------------------------------
+// Edição completa do item
+// ---------------------------------------------------------------------
+const feDialog = document.getElementById('full-edit-dialog');
+function abrirEdicaoCompleta(id){
+  const it = itensCache.find(i => i.id === id);
+  if(!it) return;
+  document.getElementById('fe-id').value = it.id;
+  document.getElementById('fe-codigo').value = it.codigo || '';
+  document.getElementById('fe-descricao').value = it.descricao || '';
+  document.getElementById('fe-qtde').value = it.qtde || '';
+  document.getElementById('fe-localizacao').value = it.localizacao || '';
+  document.getElementById('fe-local').value = it.local || '';
+  document.getElementById('fe-armazenagem').value = it.armazenagem || '';
+  document.getElementById('fe-status').value = it.status || '';
+  document.getElementById('fe-tipo_estoque').value = it.tipo_estoque || '';
+  document.getElementById('fe-nf_entrada').value = it.nf_entrada || '';
+  document.getElementById('fe-data_entrada').value = it.data_entrada || '';
+  document.getElementById('fe-nf_saida').value = it.nf_saida || '';
+  document.getElementById('fe-data_saida').value = it.data_saida || '';
+  document.getElementById('fe-vd_loja').value = it.vd_loja || '';
+  document.getElementById('fe-nro_imobilizado').value = it.nro_imobilizado || '';
+  document.getElementById('fe-nro_serie').value = it.nro_serie || '';
+  document.getElementById('fe-nro_patrimonio').value = it.nro_patrimonio || '';
+  document.getElementById('fe-pedido').value = it.pedido || '';
+  document.getElementById('fe-val_aquis').value = it.val_aquis || '';
+  document.getElementById('fe-chamado').value = it.chamado || '';
+  feDialog.showModal();
+}
+document.getElementById('fe-cancel').addEventListener('click', () => feDialog.close());
+document.getElementById('fe-save').addEventListener('click', async () => {
+  const id = document.getElementById('fe-id').value;
+  const codigo = document.getElementById('fe-codigo').value.trim();
+  if(!codigo){
+    alert('Código do item é obrigatório.');
+    return;
+  }
+  const dados = {
+    codigo,
+    descricao: document.getElementById('fe-descricao').value,
+    qtde: document.getElementById('fe-qtde').value,
+    localizacao: document.getElementById('fe-localizacao').value,
+    local: document.getElementById('fe-local').value,
+    armazenagem: document.getElementById('fe-armazenagem').value,
+    status: document.getElementById('fe-status').value,
+    tipo_estoque: document.getElementById('fe-tipo_estoque').value,
+    nf_entrada: document.getElementById('fe-nf_entrada').value,
+    data_entrada: document.getElementById('fe-data_entrada').value,
+    nf_saida: document.getElementById('fe-nf_saida').value,
+    data_saida: document.getElementById('fe-data_saida').value,
+    vd_loja: document.getElementById('fe-vd_loja').value,
+    nro_imobilizado: document.getElementById('fe-nro_imobilizado').value,
+    nro_serie: document.getElementById('fe-nro_serie').value,
+    nro_patrimonio: document.getElementById('fe-nro_patrimonio').value,
+    pedido: document.getElementById('fe-pedido').value,
+    val_aquis: document.getElementById('fe-val_aquis').value,
+    chamado: document.getElementById('fe-chamado').value,
+  };
+  const res = await fetch(`/api/itens/${id}`, {
+    method: 'PUT',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(dados)
+  });
+  if(res.ok){
+    feDialog.close();
+    carregarItens();
+  } else {
+    const erro = await res.json();
+    alert(erro.erro || 'Erro ao salvar alterações.');
+  }
+});
+
+// ---------------------------------------------------------------------
+// Histórico de movimentações
+// ---------------------------------------------------------------------
+const historicoDialog = document.getElementById('historico-dialog');
+const TIPO_LABEL = {
+  entrada: 'Entrada', retirada: 'Retirada', saida: 'Saída',
+  ajuste: 'Ajuste', edicao: 'Edição', exclusao: 'Exclusão', restauracao: 'Restauração',
+};
+async function abrirHistorico(id){
+  const it = itensCache.find(i => i.id === id);
+  document.getElementById('historico-titulo').textContent =
+    'Histórico' + (it ? ` — ${it.codigo}` : '');
+  const lista = document.getElementById('historico-lista');
+  lista.innerHTML = '<p style="color:var(--muted); font-size:13px;">Carregando...</p>';
+  historicoDialog.showModal();
+  try{
+    const res = await fetch(`/api/itens/${id}/movimentacoes`);
+    const movs = await res.json();
+    if(!movs.length){
+      lista.innerHTML = '<p style="color:var(--muted); font-size:13px;">Nenhuma movimentação registrada ainda.</p>';
+      return;
+    }
+    lista.innerHTML = movs.map(m => `
+      <div class="mov-item">
+        <span class="mov-tipo ${escapeHtml(m.tipo)}">${escapeHtml(TIPO_LABEL[m.tipo] || m.tipo)}</span>
+        <div class="mov-obs">${escapeHtml(m.observacao || '')}${m.quantidade ? ' · qtde: ' + escapeHtml(String(m.quantidade)) : ''}</div>
+        <div class="mov-meta">${escapeHtml(m.usuario || '-')} · ${escapeHtml(m.data_hora || '')}</div>
+      </div>
+    `).join('');
+  } catch(err){
+    lista.innerHTML = '<p style="color:var(--danger); font-size:13px;">Erro ao carregar histórico.</p>';
+  }
+}
+document.getElementById('historico-fechar').addEventListener('click', () => historicoDialog.close());
+
+// ---------------------------------------------------------------------
+// Importar planilha Excel
+// ---------------------------------------------------------------------
+const importarDialog = document.getElementById('importar-dialog');
+const importarMsg = document.getElementById('importar-msg');
+
+document.getElementById('abrir-importar').addEventListener('click', (e) => {
+  e.preventDefault();
+  document.getElementById('importar-form').reset();
+  importarMsg.style.display = 'none';
+  importarDialog.showModal();
+});
+document.getElementById('importar-cancel').addEventListener('click', () => importarDialog.close());
+
+document.getElementById('importar-enviar').addEventListener('click', async () => {
+  const arquivoInput = document.getElementById('importar-arquivo');
+  const senha = document.getElementById('importar-senha').value;
+  const btn = document.getElementById('importar-enviar');
+
+  if(!arquivoInput.files.length){
+    alert('Escolha um arquivo .xlsx.');
+    return;
+  }
+  if(!senha){
+    alert('Digite sua senha para confirmar.');
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append('arquivo', arquivoInput.files[0]);
+  formData.append('senha', senha);
+  formData.append('tabela', document.getElementById('importar-tabela').value);
+
+  btn.disabled = true;
+  btn.textContent = 'Importando... aguarde';
+  importarMsg.style.display = 'none';
+
+  try{
+    const res = await fetch('/api/itens/importar', { method: 'POST', body: formData });
+    const corpo = await res.json();
+    if(res.ok){
+      importarDialog.close();
+      carregarItens();
+      const nomeTabela = corpo.tabela === 'imobilizados' ? 'Imobilizados' : 'Estoque';
+      let texto = `${corpo.importados} registro(s) importado(s) para ${nomeTabela}.`;
+      if(corpo.ignoradas) texto += ` (${corpo.ignoradas} linha(s) ignorada(s) por falta de código.)`;
+      mostrarToast(texto);
+    } else {
+      importarMsg.style.display = 'block';
+      importarMsg.className = 'erro';
+      importarMsg.style.cssText = 'background:rgba(255,107,107,.12); border:1px solid rgba(255,107,107,.3); color:var(--danger); font-size:13px; padding:9px 11px; border-radius:6px;';
+      importarMsg.textContent = corpo.erro || 'Erro ao importar planilha.';
+    }
+  } catch(err){
+    importarMsg.style.display = 'block';
+    importarMsg.style.cssText = 'background:rgba(255,107,107,.12); border:1px solid rgba(255,107,107,.3); color:var(--danger); font-size:13px; padding:9px 11px; border-radius:6px;';
+    importarMsg.textContent = 'Erro de conexão ao importar. Tente novamente.';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Importar';
+  }
+});
+
+carregarItens();
+</script>
+
+</body>
+</html>
