@@ -91,8 +91,26 @@
   .simulador-detalhe{max-width:500px;margin-top:16px;color:var(--text);font-size:13px;line-height:1.55;}
   .simulador-detalhe strong{color:var(--accent-2);}
   .simulador-aviso{margin-top:9px;color:var(--muted);font-size:11px;}
+  .kit-padrao-panel{display:none;border:1px solid var(--line);border-radius:12px;background:var(--panel-2);padding:14px;height:300px;overflow:auto;}
+  .kit-padrao-panel.ativo{display:block;}
+  .kit-form{display:grid;grid-template-columns:minmax(135px,1fr) minmax(180px,1.6fr) 95px auto auto;gap:8px;align-items:end;margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--line);}
+  .kit-field{display:flex;flex-direction:column;gap:4px;min-width:0;}
+  .kit-field label{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);}
+  .kit-field input,.kit-field select{width:100%;background:var(--panel);border:1px solid var(--line);border-radius:7px;padding:8px 9px;color:var(--text);font-size:12px;outline:none;}
+  .kit-field input:focus,.kit-field select:focus{border-color:var(--accent);}
+  .kit-table{width:100%;border-collapse:collapse;font-size:12px;}
+  .kit-table th{position:sticky;top:-14px;background:var(--panel-2);z-index:2;color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.05em;padding:8px;border-bottom:1px solid var(--line);}
+  .kit-table td{padding:8px;border-bottom:1px solid var(--line);vertical-align:middle;}
+  .kit-qtd{font-family:var(--mono);font-weight:800;color:var(--ok);}
+  .kit-code{font-family:var(--mono);color:var(--accent);}
+  .kit-sem-vinculo{color:var(--accent-2);font-size:10px;}
+  .kit-actions{display:flex;gap:5px;white-space:nowrap;}
+  .kit-actions button{padding:5px 8px;font-size:11px;}
+  .kit-title-line{display:flex;justify-content:space-between;gap:8px;align-items:center;margin-bottom:9px;}
+  .kit-title-line strong{font-size:12px;}
+  .kit-title-line span{font-size:10px;color:var(--muted);}
   @media(max-width:900px){.graficos-duplos{grid-template-columns:1fr;}}
-  @media(max-width:600px){.grafico-controles{width:100%;}.grafico-controles select,.grafico-controles button{flex:1;}.simulador-numero{font-size:52px;}}
+  @media(max-width:600px){.grafico-controles{width:100%;}.grafico-controles select,.grafico-controles button{flex:1;}.simulador-numero{font-size:52px;}.kit-form{grid-template-columns:1fr 1fr}.kit-form .kit-wide{grid-column:1/-1;}}
 
   .panel{
     background:var(--panel);
@@ -504,6 +522,7 @@
               <option value="bar">Barras</option>
               <option value="doughnut">Rosca</option>
               <option value="polarArea">Polar</option>
+              <option value="kit">Kit padrão de loja</option>
             </select>
             <button type="button" class="btn-simulador" id="btn-simular-lojas">Simular abertura de loja</button>
           </div>
@@ -511,12 +530,24 @@
         <div class="grafico-area" id="grafico-codigo-wrap">
           <canvas id="grafico-codigo-item"></canvas>
         </div>
+        <div class="kit-padrao-panel" id="kit-padrao-panel">
+          <div class="kit-title-line"><strong>Kit padrão de uma loja</strong><span>Edite esta lista para alterar a regra da simulação.</span></div>
+          <form class="kit-form" id="kit-form">
+            <input type="hidden" id="kit-id">
+            <div class="kit-field"><label>Produto / código</label><select id="kit-codigo"><option value="">Sem código vinculado</option></select></div>
+            <div class="kit-field kit-wide"><label>Descrição *</label><input id="kit-descricao" required placeholder="Ex.: Micro Dell"></div>
+            <div class="kit-field"><label>Qtd. por loja *</label><input id="kit-quantidade" type="number" min="1" step="1" value="1" required></div>
+            <button type="submit" class="btn-primary" id="kit-salvar">Cadastrar</button>
+            <button type="button" class="btn-ghost" id="kit-cancelar" style="display:none">Cancelar</button>
+          </form>
+          <table class="kit-table"><thead><tr><th>Código</th><th>Item</th><th>Qtd./loja</th><th>Em estoque</th><th>Lojas suportadas</th><th>Ações</th></tr></thead><tbody id="kit-tbody"></tbody></table>
+        </div>
         <div class="simulador-resumo" id="simulador-resumo">
           <div class="simulador-icone">🏪</div>
           <div class="simulador-numero" id="simulador-numero">0</div>
           <div class="simulador-label">lojas completas possíveis</div>
           <div class="simulador-detalhe" id="simulador-detalhe"></div>
-          <div class="simulador-aviso">Cálculo feito com o estoque disponível e a “Qtd. necessária por loja” configurada em Cadastro de Produtos.</div>
+          <div class="simulador-aviso">Cálculo feito com o estoque disponível e o “Kit padrão de loja” configurado neste painel.</div>
         </div>
       </div>
     </div>
@@ -936,6 +967,7 @@ function renderizar(){
   atualizarStats();
   atualizarGrafico();
   if(modoSimuladorLojas) renderizarSimuladorLojas();
+  else if(modeloGraficoCodigo==='kit') renderizarKitPadrao();
   else atualizarGraficoCodigoItem();
   atualizarSelecionados();
 }
@@ -1036,6 +1068,7 @@ function atualizarGrafico(){
 let graficoCodigoItem = null;
 let modoSimuladorLojas = false;
 let modeloGraficoCodigo = 'bar';
+let kitPadraoCache = [];
 
 const PALETA_GRAFICO_CODIGO = [
   '#3ea6ff','#4cd792','#ffb648','#a78bfa','#ff6b6b','#56cfe1',
@@ -1085,7 +1118,7 @@ function opcoesGraficoCodigo(tipo){
 
 function atualizarGraficoCodigoItem(){
   try{
-    if(typeof Chart === 'undefined' || modoSimuladorLojas) return;
+    if(typeof Chart === 'undefined' || modoSimuladorLojas || modeloGraficoCodigo==='kit') return;
     const {labels,valores}=dadosQuantidadePorCodigo();
     const ctx=document.getElementById('grafico-codigo-item');
     if(!ctx) return;
@@ -1116,20 +1149,38 @@ function atualizarGraficoCodigoItem(){
   }catch(err){console.error('Erro no gráfico por código:',err);}
 }
 
-function calcularSimulacaoLojas(){
-  const disponibilidade={};
-  itensCache.forEach(it=>{
-    const codigo=(it.codigo||'').trim();
-    const qtde=Number(it.qtde)||0;
-    if(codigo && qtde>0) disponibilidade[codigo]=(disponibilidade[codigo]||0)+qtde;
-  });
+function normalizarKitTexto(valor){
+  return String(valor||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
+}
 
-  const requisitos=(produtosCache||[]).map(p=>{
-    const necessario=Math.max(1,parseInt(p.qtde_por_loja,10)||1);
-    const disponivel=disponibilidade[p.codigo]||0;
+function singularizarKitTexto(valor){
+  return normalizarKitTexto(valor).split(' ').map(p=>p.length>4 && p.endsWith('s') ? p.slice(0,-1) : p).join(' ');
+}
+
+function itemEstoqueCombinaComKit(item, kit){
+  if(kit.codigo) return String(item.codigo||'').trim() === String(kit.codigo).trim();
+  const kd=singularizarKitTexto(kit.descricao);
+  const id=singularizarKitTexto(item.descricao);
+  if(!kd || !id) return false;
+  if(kd===id) return true;
+  // Sem código vinculado, permite correspondência por descrição para o kit inicial.
+  // Evita confundir "scanner com fio" com "scanner sem fio".
+  if(kd.includes('scanner com fio') && id.includes('scanner sem fio')) return false;
+  if(kd.includes('scanner sem fio') && id.includes('scanner com fio')) return false;
+  if(kd.length>=6 && id.length>=6 && (kd.includes(id) || id.includes(kd))) return true;
+  return false;
+}
+
+function calcularSimulacaoLojas(){
+  const requisitos=(kitPadraoCache||[]).map(k=>{
+    const necessario=Math.max(1,parseInt(k.quantidade,10)||1);
+    const disponivel=itensCache.reduce((soma,it)=>{
+      const qtde=Number(it.qtde)||0;
+      return soma + (qtde>0 && itemEstoqueCombinaComKit(it,k) ? qtde : 0);
+    },0);
     return {
-      codigo:p.codigo,
-      descricao:p.descricao||'',
+      codigo:k.codigo||'',
+      descricao:k.descricao||'',
       necessario,
       disponivel,
       lojas:Math.floor(disponivel/necessario)
@@ -1137,16 +1188,17 @@ function calcularSimulacaoLojas(){
   });
 
   if(!requisitos.length){
-    return {lojas:0, detalhe:'Cadastre os produtos e informe a quantidade necessária por loja para iniciar a simulação.'};
+    return {lojas:0, detalhe:'Cadastre pelo menos um item em “Kit padrão de loja” para iniciar a simulação.'};
   }
 
   const lojas=Math.min(...requisitos.map(r=>r.lojas));
   const limitantes=requisitos.filter(r=>r.lojas===lojas);
   const primeiro=limitantes[0];
   const faltantes=requisitos.filter(r=>r.disponivel<r.necessario).length;
-  let detalhe=`Item limitante: <strong>${escapeHtml(primeiro.codigo)}</strong> — ${escapeHtml(primeiro.descricao)}. Em estoque: <strong>${primeiro.disponivel}</strong> · Necessário por loja: <strong>${primeiro.necessario}</strong>.`;
+  const ident=primeiro.codigo ? `<strong>${escapeHtml(primeiro.codigo)}</strong> — ` : '';
+  let detalhe=`Item limitante: ${ident}${escapeHtml(primeiro.descricao)}. Em estoque: <strong>${primeiro.disponivel}</strong> · Necessário por loja: <strong>${primeiro.necessario}</strong>.`;
   if(limitantes.length>1) detalhe+=` Há ${limitantes.length} itens empatados como limitantes.`;
-  if(faltantes>0) detalhe+=` ${faltantes} produto(s) ainda não possuem quantidade suficiente nem para uma loja completa.`;
+  if(faltantes>0) detalhe+=` ${faltantes} item(ns) do kit ainda não possuem quantidade suficiente para uma loja completa.`;
   return {lojas,detalhe};
 }
 
@@ -1156,9 +1208,9 @@ function renderizarSimuladorLojas(){
   document.getElementById('simulador-detalhe').innerHTML=resultado.detalhe;
 }
 
-function alternarSimuladorLojas(){
-  modoSimuladorLojas=!modoSimuladorLojas;
+function exibirModoGraficoCodigo(){
   const wrap=document.getElementById('grafico-codigo-wrap');
+  const kitPanel=document.getElementById('kit-padrao-panel');
   const resumo=document.getElementById('simulador-resumo');
   const btn=document.getElementById('btn-simular-lojas');
   const seletor=document.getElementById('modelo-grafico-codigo');
@@ -1167,28 +1219,45 @@ function alternarSimuladorLojas(){
 
   if(modoSimuladorLojas){
     wrap.style.display='none';
+    kitPanel.classList.remove('ativo');
     resumo.classList.add('ativo');
     seletor.style.display='none';
     btn.classList.add('ativo');
-    btn.textContent='Voltar ao gráfico';
+    btn.textContent='Voltar';
     titulo.textContent='Capacidade para inauguração de lojas';
-    subtitulo.textContent='Resultado considerando o kit completo configurado para uma loja.';
+    subtitulo.textContent='Resultado cruzando o estoque atual com o Kit padrão de loja.';
     renderizarSimuladorLojas();
+    return;
+  }
+
+  resumo.classList.remove('ativo');
+  seletor.style.display='inline-block';
+  btn.classList.remove('ativo');
+  btn.textContent='Simular abertura de loja';
+
+  if(modeloGraficoCodigo==='kit'){
+    wrap.style.display='none';
+    kitPanel.classList.add('ativo');
+    titulo.textContent='Kit padrão de loja';
+    subtitulo.textContent='Cadastre, edite ou exclua os equipamentos e quantidades necessários para inaugurar uma loja.';
+    renderizarKitPadrao();
   }else{
+    kitPanel.classList.remove('ativo');
     wrap.style.display='block';
-    resumo.classList.remove('ativo');
-    seletor.style.display='inline-block';
-    btn.classList.remove('ativo');
-    btn.textContent='Simular abertura de loja';
     titulo.textContent='Quantidade por código do item';
     subtitulo.textContent='Visualize a distribuição do estoque e altere o modelo do gráfico.';
     atualizarGraficoCodigoItem();
   }
 }
 
+function alternarSimuladorLojas(){
+  modoSimuladorLojas=!modoSimuladorLojas;
+  exibirModoGraficoCodigo();
+}
+
 document.getElementById('modelo-grafico-codigo')?.addEventListener('change',e=>{
   modeloGraficoCodigo=e.target.value;
-  atualizarGraficoCodigoItem();
+  exibirModoGraficoCodigo();
 });
 document.getElementById('btn-simular-lojas')?.addEventListener('click',alternarSimuladorLojas);
 
@@ -1198,6 +1267,90 @@ function escapeHtml(str){
   }[s]));
 }
 
+async function carregarKitPadrao(){
+  try{
+    const res=await fetch('/api/kit-padrao');
+    if(!res.ok) throw new Error('Falha ao carregar kit padrão');
+    kitPadraoCache=await res.json();
+    renderizarKitPadrao();
+    if(modoSimuladorLojas) renderizarSimuladorLojas();
+  }catch(err){console.error(err);}
+}
+
+function preencherSelectKitProdutos(){
+  const el=document.getElementById('kit-codigo');
+  if(!el) return;
+  const valor=el.value;
+  el.innerHTML='<option value="">Sem código vinculado</option>';
+  (produtosCache||[]).forEach(p=>{
+    const o=document.createElement('option');
+    o.value=p.codigo; o.textContent=`${p.codigo} — ${p.descricao}`; el.appendChild(o);
+  });
+  el.value=valor;
+}
+
+function renderizarKitPadrao(){
+  const tbody=document.getElementById('kit-tbody');
+  if(!tbody) return;
+  tbody.innerHTML='';
+  (kitPadraoCache||[]).forEach(k=>{
+    const tr=document.createElement('tr');
+    const necessario=Math.max(1,Number(k.quantidade)||1);
+    const disponivel=itensCache.reduce((soma,it)=>{const q=Number(it.qtde)||0;return soma+(q>0 && itemEstoqueCombinaComKit(it,k)?q:0)},0);
+    const suporta=Math.floor(disponivel/necessario);
+    tr.innerHTML=`<td>${k.codigo ? `<span class="kit-code">${escapeHtml(k.codigo)}</span>` : '<span class="kit-sem-vinculo">por descrição</span>'}</td><td>${escapeHtml(k.descricao)}</td><td><span class="kit-qtd">${necessario}</span></td><td>${disponivel}</td><td><span class="kit-qtd">${suporta}</span></td><td><div class="kit-actions"><button type="button" class="btn-ghost" onclick="editarItemKit(${k.id})">Editar</button><button type="button" class="btn-ghost" style="color:var(--danger)" onclick="excluirItemKit(${k.id})">Excluir</button></div></td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+function limparFormKit(){
+  document.getElementById('kit-id').value='';
+  document.getElementById('kit-codigo').value='';
+  document.getElementById('kit-descricao').value='';
+  document.getElementById('kit-quantidade').value='1';
+  document.getElementById('kit-salvar').textContent='Cadastrar';
+  document.getElementById('kit-cancelar').style.display='none';
+}
+
+function editarItemKit(id){
+  const k=kitPadraoCache.find(x=>x.id===id); if(!k)return;
+  document.getElementById('kit-id').value=k.id;
+  document.getElementById('kit-codigo').value=k.codigo||'';
+  document.getElementById('kit-descricao').value=k.descricao||'';
+  document.getElementById('kit-quantidade').value=Number(k.quantidade)||1;
+  document.getElementById('kit-salvar').textContent='Salvar alteração';
+  document.getElementById('kit-cancelar').style.display='inline-block';
+}
+
+async function excluirItemKit(id){
+  const k=kitPadraoCache.find(x=>x.id===id);
+  if(!confirm(`Excluir “${k ? k.descricao : 'este item'}” do kit padrão?`)) return;
+  const res=await fetch('/api/kit-padrao/'+id,{method:'DELETE'});
+  if(!res.ok){const x=await res.json();alert(x.erro||'Erro ao excluir item do kit');return;}
+  await carregarKitPadrao();
+}
+
+document.getElementById('kit-codigo')?.addEventListener('change',e=>{
+  const p=produtosCache.find(x=>x.codigo===e.target.value);
+  if(p) document.getElementById('kit-descricao').value=p.descricao||'';
+});
+document.getElementById('kit-cancelar')?.addEventListener('click',limparFormKit);
+document.getElementById('kit-form')?.addEventListener('submit',async e=>{
+  e.preventDefault();
+  const id=document.getElementById('kit-id').value;
+  const payload={
+    codigo:document.getElementById('kit-codigo').value,
+    descricao:document.getElementById('kit-descricao').value.trim(),
+    quantidade:Number(document.getElementById('kit-quantidade').value)
+  };
+  const res=await fetch(id ? '/api/kit-padrao/'+id : '/api/kit-padrao',{
+    method:id?'PUT':'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)
+  });
+  if(!res.ok){const x=await res.json();alert(x.erro||'Erro ao salvar item do kit');return;}
+  limparFormKit();
+  await carregarKitPadrao();
+});
+
 let produtosCache = [];
 async function carregarProdutos(){
   try{
@@ -1205,6 +1358,7 @@ async function carregarProdutos(){
     if(!res.ok) throw new Error('Falha ao carregar produtos');
     produtosCache = await res.json();
     preencherSelectProdutos();
+    preencherSelectKitProdutos();
     if(modoSimuladorLojas) renderizarSimuladorLojas();
   }catch(err){ console.error(err); }
 }
@@ -1669,6 +1823,7 @@ document.getElementById('importar-enviar').addEventListener('click', async () =>
 
 carregarItens();
 carregarProdutos();
+carregarKitPadrao();
 </script>
 
 </body>

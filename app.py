@@ -205,6 +205,56 @@ def api_excluir_produto(produto_id):
     return (jsonify({"ok": True}) if ok else (jsonify({"erro": "Produto não encontrado."}), 404))
 
 
+# ---------------------------------------------------------------------
+# API - Kit padrão de loja
+# ---------------------------------------------------------------------
+
+@app.route("/api/kit-padrao", methods=["GET"])
+@login_required
+def api_listar_kit_padrao():
+    return jsonify(db.listar_kit_padrao_loja())
+
+@app.route("/api/kit-padrao", methods=["POST"])
+@login_required
+def api_criar_item_kit_padrao():
+    dados = request.get_json(force=True)
+    codigo = (dados.get("codigo") or "").strip() or None
+    descricao = (dados.get("descricao") or "").strip()
+    try:
+        quantidade = int(dados.get("quantidade") or 1)
+    except (TypeError, ValueError):
+        quantidade = 0
+    if not descricao:
+        return jsonify({"erro": "Descrição do item é obrigatória."}), 400
+    if quantidade < 1:
+        return jsonify({"erro": "A quantidade do kit deve ser no mínimo 1."}), 400
+    novo_id = db.criar_item_kit(codigo, descricao, quantidade, session.get("username"))
+    return jsonify({"ok": True, "id": novo_id}), 201
+
+@app.route("/api/kit-padrao/<int:item_id>", methods=["PUT"])
+@login_required
+def api_atualizar_item_kit_padrao(item_id):
+    dados = request.get_json(force=True)
+    codigo = (dados.get("codigo") or "").strip() or None
+    descricao = (dados.get("descricao") or "").strip()
+    try:
+        quantidade = int(dados.get("quantidade") or 1)
+    except (TypeError, ValueError):
+        quantidade = 0
+    if not descricao:
+        return jsonify({"erro": "Descrição do item é obrigatória."}), 400
+    if quantidade < 1:
+        return jsonify({"erro": "A quantidade do kit deve ser no mínimo 1."}), 400
+    ok = db.atualizar_item_kit(item_id, codigo, descricao, quantidade)
+    return (jsonify({"ok": True}) if ok else (jsonify({"erro": "Item do kit não encontrado."}), 404))
+
+@app.route("/api/kit-padrao/<int:item_id>", methods=["DELETE"])
+@login_required
+def api_excluir_item_kit_padrao(item_id):
+    ok = db.excluir_item_kit(item_id)
+    return (jsonify({"ok": True}) if ok else (jsonify({"erro": "Item do kit não encontrado."}), 404))
+
+
 @app.route("/imobilizados")
 @login_required
 def pagina_imobilizados():

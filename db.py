@@ -194,6 +194,67 @@ def init_db():
 
     conn.commit()
 
+    # Kit padrão de loja: configuração independente usada pelo simulador de inauguração.
+    if IS_PG:
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS kit_padrao_loja (
+                id SERIAL PRIMARY KEY,
+                codigo TEXT,
+                descricao TEXT NOT NULL,
+                quantidade INTEGER NOT NULL DEFAULT 1,
+                criado_por TEXT,
+                criado_em TEXT
+            )
+        """)
+    else:
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS kit_padrao_loja (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                codigo TEXT,
+                descricao TEXT NOT NULL,
+                quantidade INTEGER NOT NULL DEFAULT 1,
+                criado_por TEXT,
+                criado_em TEXT
+            )
+        """)
+    conn.commit()
+
+    # Na primeira execução, carrega o kit padrão informado para uma loja.
+    cur.execute("SELECT COUNT(*) FROM kit_padrao_loja")
+    if cur.fetchone()[0] == 0:
+        kit_inicial = [
+            (None, "Micro Dell", 14),
+            (None, "Monitores", 13),
+            (None, "Scanner com fio", 12),
+            (None, "Scanner sem fio", 1),
+            (None, "Impressora Epson", 5),
+            (None, "Impressora i9", 1),
+            (None, "Impressora L42", 1),
+            (None, "Impressora Lexmark", 1),
+            (None, "Teclado", 9),
+            (None, "Mouse", 9),
+            (None, "Gaveta", 4),
+            (None, "Pinpad", 4),
+            (None, "Tira-teima", 1),
+            (None, "Teclado TEC55", 4),
+            (None, "Display tela cliente", 4),
+            (None, "Kit coletor (coletor, bandoleira e capa)", 1),
+            (None, "Kit AP (AP e POE)", 1),
+            (None, "Firewall", 1),
+            (None, "Headset", 1),
+            (None, "Switch", 1),
+            (None, "Rack", 1),
+            (None, "ATA", 1),
+            (None, "VOIP", 1),
+            (None, "Telefone sem fio", 1),
+        ]
+        agora_kit = datetime.now().strftime("%Y-%m-%d %H:%M")
+        cur.executemany(
+            q("INSERT INTO kit_padrao_loja (codigo, descricao, quantidade, criado_por, criado_em) VALUES (?, ?, ?, ?, ?)"),
+            [(codigo, descricao, quantidade, "sistema", agora_kit) for codigo, descricao, quantidade in kit_inicial],
+        )
+        conn.commit()
+
     # Migração: quantidade necessária de cada produto para montar uma loja completa.
     # Produtos existentes recebem 1 como padrão e podem ser ajustados no cadastro.
     try:
@@ -357,6 +418,47 @@ def atualizar_produto(produto_id, codigo, descricao, qtde_por_loja):
 def excluir_produto(produto_id):
     conn = get_conn(); cur = get_cursor(conn)
     cur.execute(q("DELETE FROM produtos WHERE id = ?"), (produto_id,))
+    ok = cur.rowcount > 0; conn.commit(); cur.close(); conn.close(); return ok
+
+
+# ---------------------------------------------------------------------
+# Kit padrão de loja
+# ---------------------------------------------------------------------
+
+def listar_kit_padrao_loja():
+    conn = get_conn(); cur = get_cursor(conn)
+    cur.execute("SELECT * FROM kit_padrao_loja ORDER BY id")
+    rows = [dict(r) for r in cur.fetchall()]
+    cur.close(); conn.close(); return rows
+
+def buscar_item_kit(item_id):
+    conn = get_conn(); cur = get_cursor(conn)
+    cur.execute(q("SELECT * FROM kit_padrao_loja WHERE id = ?"), (item_id,))
+    row = cur.fetchone(); result = dict(row) if row else None
+    cur.close(); conn.close(); return result
+
+def criar_item_kit(codigo, descricao, quantidade, usuario):
+    conn = get_conn(); cur = get_cursor(conn)
+    agora = datetime.now().strftime("%Y-%m-%d %H:%M")
+    if IS_PG:
+        cur.execute(q("INSERT INTO kit_padrao_loja (codigo, descricao, quantidade, criado_por, criado_em) VALUES (?, ?, ?, ?, ?) RETURNING id"),
+                    (codigo or None, descricao, quantidade, usuario, agora))
+        novo_id = cur.fetchone()["id"]
+    else:
+        cur.execute(q("INSERT INTO kit_padrao_loja (codigo, descricao, quantidade, criado_por, criado_em) VALUES (?, ?, ?, ?, ?)"),
+                    (codigo or None, descricao, quantidade, usuario, agora))
+        novo_id = cur.lastrowid
+    conn.commit(); cur.close(); conn.close(); return novo_id
+
+def atualizar_item_kit(item_id, codigo, descricao, quantidade):
+    conn = get_conn(); cur = get_cursor(conn)
+    cur.execute(q("UPDATE kit_padrao_loja SET codigo = ?, descricao = ?, quantidade = ? WHERE id = ?"),
+                (codigo or None, descricao, quantidade, item_id))
+    ok = cur.rowcount > 0; conn.commit(); cur.close(); conn.close(); return ok
+
+def excluir_item_kit(item_id):
+    conn = get_conn(); cur = get_cursor(conn)
+    cur.execute(q("DELETE FROM kit_padrao_loja WHERE id = ?"), (item_id,))
     ok = cur.rowcount > 0; conn.commit(); cur.close(); conn.close(); return ok
 
 
