@@ -73,7 +73,28 @@
   main{padding:26px 32px 60px; max-width:1400px; margin:0 auto;}
 
   .graficos-duplos{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:24px; align-items:start;}
+  .grafico-card{min-width:0;}
+  .grafico-head{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap;margin-bottom:12px;}
+  .grafico-head h2{margin-bottom:4px;}
+  .grafico-sub{margin:0;color:var(--muted);font-size:12px;line-height:1.45;}
+  .grafico-controles{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+  .modelo-grafico-tabs{display:inline-flex;align-items:center;gap:4px;padding:4px;background:#111923;border:1px solid var(--line);border-radius:10px;box-shadow:inset 0 1px 0 rgba(255,255,255,.025);}
+  .modelo-grafico-btn{appearance:none;border:1px solid transparent;background:transparent;color:#9eabba;border-radius:7px;padding:7px 10px;font-size:11px;font-weight:700;letter-spacing:.02em;cursor:pointer;transition:all .16s ease;white-space:nowrap;}
+  .modelo-grafico-btn:hover{color:var(--text);background:rgba(255,255,255,.04);}
+  .modelo-grafico-btn.ativo{color:#07131e;background:linear-gradient(135deg,#58b8ff,#3ea6ff);border-color:#67c0ff;box-shadow:0 4px 14px rgba(62,166,255,.22);}
+  .tipo-grafico-grid{display:grid;grid-template-columns:repeat(6,minmax(92px,1fr));gap:9px;margin:4px 0 14px;}
+  .tipo-grafico-card{appearance:none;background:var(--panel-2);border:1px solid var(--line);border-radius:9px;padding:9px 8px 8px;min-width:0;cursor:pointer;color:var(--text);transition:border-color .16s,transform .16s,background .16s;text-align:center;}
+  .tipo-grafico-card:hover{border-color:#46546a;transform:translateY(-1px);}
+  .tipo-grafico-card.ativo{border-color:var(--tipo-cor,var(--accent));background:color-mix(in srgb,var(--tipo-cor,var(--accent)) 9%,var(--panel-2));box-shadow:0 0 0 1px color-mix(in srgb,var(--tipo-cor,var(--accent)) 25%,transparent);}
+  .tipo-grafico-card .tipo-num{display:block;font-family:var(--mono);font-size:18px;line-height:1.1;font-weight:800;color:var(--tipo-cor,var(--accent));}
+  .tipo-grafico-card .tipo-lbl{display:block;margin-top:5px;font-family:var(--mono);font-size:9px;line-height:1.15;color:#aeb9c8;text-transform:uppercase;letter-spacing:.055em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .grafico-area{height:320px;position:relative;padding:14px 12px 10px;border:1px solid rgba(82,99,123,.28);border-radius:14px;background:linear-gradient(180deg,rgba(255,255,255,.018),rgba(255,255,255,.004)),radial-gradient(circle at 50% 0%,rgba(62,166,255,.055),transparent 52%);box-shadow:inset 0 1px 0 rgba(255,255,255,.025);}
+  .grafico-area canvas{filter:drop-shadow(0 8px 18px rgba(0,0,0,.10));}
+  .grafico-vazio{position:absolute;inset:0;display:none;place-items:center;text-align:center;color:var(--muted);font-size:12px;padding:24px;pointer-events:none;}
+  .grafico-vazio.ativo{display:grid;}
+  @media(max-width:1100px){.tipo-grafico-grid{grid-template-columns:repeat(3,1fr);}}
   @media(max-width:900px){.graficos-duplos{grid-template-columns:1fr;}}
+  @media(max-width:600px){.grafico-controles{width:100%;}.modelo-grafico-tabs{width:100%;}.modelo-grafico-btn{flex:1;}.tipo-grafico-grid{grid-template-columns:repeat(2,1fr);}}
 
   .panel{
     background:var(--panel);
@@ -467,15 +488,38 @@
   <section class="panel">
     <div class="graficos-duplos">
       <div>
-        <h2>Estoque por tipo</h2>
+        <h2>Imobilizados por tipo</h2>
         <div style="max-width:520px; margin:0 auto;">
           <canvas id="grafico-tipo-estoque" height="220"></canvas>
         </div>
       </div>
-      <div>
-        <h2>Quantidade por código do item</h2>
-        <div style="max-width:620px; margin:0 auto;">
-          <canvas id="grafico-codigo-item" height="220"></canvas>
+      <div class="grafico-card">
+        <div class="grafico-head">
+          <div>
+            <h2 id="titulo-grafico-codigo">Quantidade por código do item</h2>
+            <p class="grafico-sub" id="subtitulo-grafico-codigo">Contagem dos itens cadastrados em Imobilizados.</p>
+          </div>
+          <div class="grafico-controles">
+            <div class="modelo-grafico-tabs" aria-label="Modelo do gráfico">
+              <button type="button" class="modelo-grafico-btn ativo" data-imob-modelo-grafico="bar">Barras</button>
+              <button type="button" class="modelo-grafico-btn" data-imob-modelo-grafico="doughnut">Rosca</button>
+              <button type="button" class="modelo-grafico-btn" data-imob-modelo-grafico="polarArea">Polar</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="tipo-grafico-grid" aria-label="Filtrar gráfico por tipo de imobilizado">
+          <button type="button" class="tipo-grafico-card ativo" data-imob-tipo-grafico="Expansão" style="--tipo-cor:#3ea6ff"><span class="tipo-num" id="imob-graf-stat-expansao">0</span><span class="tipo-lbl">Expansão</span></button>
+          <button type="button" class="tipo-grafico-card" data-imob-tipo-grafico="Sustentação" style="--tipo-cor:#ffb648"><span class="tipo-num" id="imob-graf-stat-sustentacao">0</span><span class="tipo-lbl">Sustentação</span></button>
+          <button type="button" class="tipo-grafico-card" data-imob-tipo-grafico="Requalificação" style="--tipo-cor:#4cd792"><span class="tipo-num" id="imob-graf-stat-requalificacao">0</span><span class="tipo-lbl">Requalificação</span></button>
+          <button type="button" class="tipo-grafico-card" data-imob-tipo-grafico="Ampliação" style="--tipo-cor:#a78bfa"><span class="tipo-num" id="imob-graf-stat-ampliacao">0</span><span class="tipo-lbl">Ampliação</span></button>
+          <button type="button" class="tipo-grafico-card" data-imob-tipo-grafico="Realocação" style="--tipo-cor:#ff6b6b"><span class="tipo-num" id="imob-graf-stat-realocacao">0</span><span class="tipo-lbl">Realocação</span></button>
+          <button type="button" class="tipo-grafico-card" data-imob-tipo-grafico="Reversa" style="--tipo-cor:#8b96a8"><span class="tipo-num" id="imob-graf-stat-reversa">0</span><span class="tipo-lbl">Reversa</span></button>
+        </div>
+
+        <div class="grafico-area">
+          <canvas id="grafico-codigo-item"></canvas>
+          <div class="grafico-vazio" id="grafico-imob-vazio">Nenhum item cadastrado para este tipo.</div>
         </div>
       </div>
     </div>
@@ -857,12 +901,18 @@ function atualizarStats(){
     .filter(it => normalizarTexto(it.tipo_estoque) === normalizarTexto(tipo))
     .reduce((soma, it) => soma + (Number(it.qtde) || 0), 0);
 
-  document.getElementById('stat-expansao').textContent = somaPorTipo('Expansão');
-  document.getElementById('stat-sustentacao').textContent = somaPorTipo('Sustentação');
-  document.getElementById('stat-requalificacao').textContent = somaPorTipo('Requalificação');
-  document.getElementById('stat-ampliacao').textContent = somaPorTipo('Ampliação');
-  document.getElementById('stat-realocacao').textContent = somaPorTipo('Realocação');
-  document.getElementById('stat-reversa').textContent = somaPorTipo('Reversa');
+  const mapa = {
+    'Expansão':['stat-expansao','imob-graf-stat-expansao'],
+    'Sustentação':['stat-sustentacao','imob-graf-stat-sustentacao'],
+    'Requalificação':['stat-requalificacao','imob-graf-stat-requalificacao'],
+    'Ampliação':['stat-ampliacao','imob-graf-stat-ampliacao'],
+    'Realocação':['stat-realocacao','imob-graf-stat-realocacao'],
+    'Reversa':['stat-reversa','imob-graf-stat-reversa']
+  };
+  Object.entries(mapa).forEach(([tipo,ids])=>{
+    const valor=somaPorTipo(tipo);
+    ids.forEach(id=>{ const el=document.getElementById(id); if(el) el.textContent=valor; });
+  });
 }
 
 let graficoTipoEstoque = null;
@@ -930,28 +980,128 @@ function atualizarGrafico(){
 }
 
 let graficoCodigoItem = null;
+let modeloGraficoCodigoImob = 'bar';
+let tipoGraficoCodigoImob = 'Expansão';
 const PALETA_GRAFICO_CODIGO = ['#3ea6ff','#4cd792','#ffb648','#a78bfa','#ff6b6b','#56cfe1','#f78c6b','#82aaff','#c3e88d','#f07178','#89ddff','#ffc777'];
 function compararCodigosNaturais(a,b){return String(a||'').localeCompare(String(b||''),'pt-BR',{numeric:true,sensitivity:'base'});}
 function descricaoProdutoPorCodigo(codigo){
   const p=(produtosCache||[]).find(x=>String(x.codigo||'').trim()===String(codigo||'').trim());
   if(p&&p.descricao) return p.descricao;
   const it=(itensCache||[]).find(x=>String(x.codigo||'').trim()===String(codigo||'').trim()&&x.descricao);
-  return it?it.descricao:'Descrição não cadastrada';
+  return it?it.descricao:(codigo==='Sem código'?'Item sem código':'Descrição não cadastrada');
+}
+function dadosQuantidadePorCodigoImob(tipoFiltro){
+  const contagem={};
+  itensCache.forEach(it=>{
+    if(tipoFiltro && normalizarTexto(it.tipo_estoque)!==normalizarTexto(tipoFiltro)) return;
+    const codigo=String(it.codigo||'Sem código').trim()||'Sem código';
+    const q=Number(it.qtde)||0;
+    if(q>0) contagem[codigo]=(contagem[codigo]||0)+q;
+  });
+  const codigos=Object.keys(contagem).sort(compararCodigosNaturais);
+  const labels=codigos.map(c=>`${c} — ${descricaoProdutoPorCodigo(c)}`);
+  return {codigos,labels,valores:codigos.map(c=>contagem[c])};
+}
+function gradienteBarraImob(ctx){
+  const chart=ctx.chart;
+  const area=chart.chartArea;
+  if(!area) return 'rgba(62,166,255,.78)';
+  const g=chart.ctx.createLinearGradient(0,area.top,0,area.bottom);
+  g.addColorStop(0,'rgba(91,190,255,.98)');
+  g.addColorStop(1,'rgba(40,128,235,.70)');
+  return g;
+}
+function opcoesGraficoCodigoImob(tipo){
+  const circular=tipo==='doughnut'||tipo==='polarArea';
+  return {
+    responsive:true,
+    maintainAspectRatio:false,
+    animation:{duration:650,easing:'easeOutQuart'},
+    interaction:{mode:tipo==='bar'?'index':'nearest',intersect:false},
+    layout:{padding:{top:8,right:8,bottom:4,left:6}},
+    plugins:{
+      legend:{
+        display:circular,
+        position:'bottom',
+        labels:{color:'#cbd3df',boxWidth:10,boxHeight:10,usePointStyle:true,pointStyle:'circle',padding:14,font:{size:10.5}}
+      },
+      tooltip:{
+        enabled:true,
+        backgroundColor:'rgba(8,13,20,.97)',
+        titleColor:'#fff',bodyColor:'#dce4ef',borderColor:'rgba(91,111,140,.55)',borderWidth:1,
+        padding:12,cornerRadius:9,displayColors:true,boxPadding:5,
+        callbacks:{
+          title:(items)=>{
+            if(!items||!items.length) return '';
+            const label=String(items[0].label||'');
+            return label.includes(' — ')?label.split(' — ').slice(1).join(' — '):label;
+          },
+          afterTitle:(items)=>{
+            if(!items||!items.length) return '';
+            const label=String(items[0].label||'');
+            return label.includes(' — ')?`Código: ${label.split(' — ')[0]}`:'';
+          },
+          label:(ctx)=>`Quantidade cadastrada: ${Number(ctx.raw)||0} unidade(s)`
+        }
+      }
+    },
+    scales:circular?{}:{
+      y:{beginAtZero:true,grace:'8%',ticks:{precision:0,color:'#8f9bad',font:{size:10},padding:8},grid:{color:'rgba(139,150,168,.095)',drawTicks:false},border:{display:false}},
+      x:{ticks:{display:false},grid:{display:false},border:{display:false}}
+    }
+  };
 }
 function atualizarGraficoCodigoItem(){
   try{
-    if(typeof Chart === 'undefined') return;
-    const contagem={};
-    itensCache.forEach(it=>{ const codigo=String(it.codigo||'Sem código').trim()||'Sem código'; const q=Number(it.qtde)||0; if(q>0) contagem[codigo]=(contagem[codigo]||0)+q; });
-    const codigos=Object.keys(contagem).sort(compararCodigosNaturais);
-    const labels=codigos.map(c=>`${c} — ${descricaoProdutoPorCodigo(c)}`);
-    const valores=codigos.map(c=>contagem[c]);
-    const cores=labels.map((_,i)=>PALETA_GRAFICO_CODIGO[i%PALETA_GRAFICO_CODIGO.length]);
-    const ctx=document.getElementById('grafico-codigo-item'); if(!ctx) return;
+    if(typeof Chart==='undefined') return;
+    const {labels,valores}=dadosQuantidadePorCodigoImob(tipoGraficoCodigoImob);
+    const ctx=document.getElementById('grafico-codigo-item');
+    if(!ctx) return;
     if(graficoCodigoItem){graficoCodigoItem.destroy();graficoCodigoItem=null;}
-    graficoCodigoItem=new Chart(ctx,{type:'bar',data:{labels,datasets:[{label:'Quantidade',data:valores,backgroundColor:cores,borderColor:cores,borderWidth:1,borderRadius:5}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:(ctx)=>` ${ctx.label}: ${ctx.raw} unidade(s)`}}},scales:{y:{beginAtZero:true,ticks:{precision:0,color:'#8b96a8'}},x:{ticks:{color:'#8b96a8',autoSkip:false,maxRotation:60,minRotation:30}}}}});
+
+    const vazio=document.getElementById('grafico-imob-vazio');
+    if(vazio) vazio.classList.toggle('ativo',labels.length===0);
+
+    const titulo=document.getElementById('titulo-grafico-codigo');
+    const subtitulo=document.getElementById('subtitulo-grafico-codigo');
+    if(titulo) titulo.textContent=`Quantidade por código — ${tipoGraficoCodigoImob}`;
+    if(subtitulo) subtitulo.textContent=`Contagem dos itens cadastrados como ${tipoGraficoCodigoImob}. Sem simulação de loja.`;
+    if(!labels.length) return;
+
+    const cores=labels.map((_,i)=>PALETA_GRAFICO_CODIGO[i%PALETA_GRAFICO_CODIGO.length]);
+    const dataset=modeloGraficoCodigoImob==='bar'?{
+      label:`Quantidade — ${tipoGraficoCodigoImob}`,
+      data:valores,
+      backgroundColor:(ctx)=>gradienteBarraImob(ctx),
+      hoverBackgroundColor:'#73c8ff',
+      borderColor:'rgba(126,205,255,.95)',
+      hoverBorderColor:'#ffffff',
+      borderWidth:1,hoverBorderWidth:2,borderRadius:9,borderSkipped:false,maxBarThickness:34,barPercentage:.82,categoryPercentage:.72
+    }:{
+      label:`Quantidade — ${tipoGraficoCodigoImob}`,
+      data:valores,
+      backgroundColor:cores,
+      borderColor:'#121923',borderWidth:2,
+      hoverOffset:modeloGraficoCodigoImob==='doughnut'?8:2
+    };
+    graficoCodigoItem=new Chart(ctx,{type:modeloGraficoCodigoImob,data:{labels,datasets:[dataset]},options:opcoesGraficoCodigoImob(modeloGraficoCodigoImob)});
   }catch(err){console.error('Erro no gráfico por código:',err);}
 }
+
+document.querySelectorAll('[data-imob-tipo-grafico]').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    tipoGraficoCodigoImob=btn.dataset.imobTipoGrafico;
+    document.querySelectorAll('[data-imob-tipo-grafico]').forEach(b=>b.classList.toggle('ativo',b===btn));
+    atualizarGraficoCodigoItem();
+  });
+});
+document.querySelectorAll('[data-imob-modelo-grafico]').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    modeloGraficoCodigoImob=btn.dataset.imobModeloGrafico;
+    document.querySelectorAll('[data-imob-modelo-grafico]').forEach(b=>b.classList.toggle('ativo',b===btn));
+    atualizarGraficoCodigoItem();
+  });
+});
 
 function escapeHtml(str){
   return String(str).replace(/[&<>"']/g, s => ({
