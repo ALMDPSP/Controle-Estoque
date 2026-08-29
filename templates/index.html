@@ -152,6 +152,27 @@
   .loja-resumo-card span{display:block;font-size:9px;text-transform:uppercase;letter-spacing:.065em;color:var(--muted);margin-bottom:4px;}
   .loja-resumo-card strong{font-family:var(--mono);font-size:17px;color:var(--text);}
   .loja-resumo-card.ok strong{color:var(--ok);}.loja-resumo-card.alerta strong{color:var(--accent-2);}.loja-resumo-card.erro strong{color:var(--danger);}
+  .loja-3d-layout{display:grid;grid-template-columns:minmax(0,2.35fr) minmax(250px,.85fr);gap:12px;align-items:stretch;}
+  .loja-3d-stage{position:relative;min-height:420px;border:1px solid #354258;border-radius:14px;overflow:hidden;background:#0a1017;box-shadow:0 18px 46px rgba(0,0,0,.28),inset 0 0 0 1px rgba(255,255,255,.02);}
+  .loja-3d-img{display:block;width:100%;height:100%;min-height:420px;object-fit:cover;object-position:center;filter:saturate(.96) contrast(1.03) brightness(.90);transition:transform .35s ease,filter .35s ease;}
+  .loja-3d-stage:hover .loja-3d-img{transform:scale(1.012);filter:saturate(1) contrast(1.04) brightness(.94);}
+  .loja-3d-vinheta{position:absolute;inset:0;pointer-events:none;background:linear-gradient(180deg,rgba(5,10,16,.14),transparent 28%,transparent 72%,rgba(5,10,16,.46)),linear-gradient(90deg,rgba(5,10,16,.18),transparent 18%,transparent 82%,rgba(5,10,16,.16));}
+  .loja-hotspot{position:absolute;z-index:3;display:flex;align-items:center;gap:6px;border:1px solid rgba(255,255,255,.28);border-radius:999px;background:rgba(9,16,24,.88);color:#fff;padding:5px 9px 5px 5px;box-shadow:0 7px 20px rgba(0,0,0,.32);cursor:pointer;backdrop-filter:blur(6px);transition:transform .16s,border-color .16s,background .16s;}
+  .loja-hotspot:hover,.loja-hotspot.ativo{transform:translateY(-2px);border-color:var(--accent);background:rgba(15,31,48,.96);}
+  .loja-hotspot span{width:20px;height:20px;border-radius:50%;display:grid;place-items:center;background:var(--accent);color:#07111b;font-family:var(--mono);font-size:9px;font-weight:900;}
+  .loja-hotspot strong{font-size:9px;letter-spacing:.04em;white-space:nowrap;}.loja-hotspot small{display:none;font-size:8px;color:#b9c8da;white-space:nowrap;}
+  .loja-hotspot.pdvs:hover small,.loja-hotspot.pdvs.ativo small{display:inline;}
+  .loja-hotspot.entrada{left:4%;bottom:7%;}.loja-hotspot.pdvs{right:7%;bottom:18%;}.loja-hotspot.balcao{right:22%;top:41%;}.loja-hotspot.prateleiras{left:35%;top:42%;}
+  .loja-3d-status{position:absolute;left:12px;top:12px;z-index:3;display:flex;gap:8px;align-items:center;background:rgba(8,15,23,.86);border:1px solid rgba(255,255,255,.18);border-radius:9px;padding:8px 10px;backdrop-filter:blur(7px);box-shadow:0 8px 20px rgba(0,0,0,.22);}
+  .loja-3d-status .status-ponto{width:8px;height:8px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 4px rgba(76,215,146,.12);}.loja-3d-status strong{display:block;font-size:9.5px}.loja-3d-status small{display:block;font-size:8px;color:var(--muted);margin-top:2px}
+  .loja-3d-lateral{display:flex;flex-direction:column;gap:9px;min-width:0;}
+  .loja-equip-grupo{border:1px solid #344052;border-radius:11px;background:linear-gradient(180deg,rgba(255,255,255,.018),rgba(255,255,255,.004)),#111923;padding:10px;min-width:0;transition:border-color .18s,box-shadow .18s,transform .18s;}
+  .loja-equip-grupo.destaque{border-color:rgba(62,166,255,.38);}.loja-equip-grupo.foco{border-color:var(--accent);box-shadow:0 0 0 2px rgba(62,166,255,.11),0 10px 28px rgba(0,0,0,.18);transform:translateY(-1px);}
+  .loja-area-explica{font-size:9px;line-height:1.4;color:var(--muted);margin:-2px 0 8px;padding-bottom:8px;border-bottom:1px solid var(--line);}
+  .loja-3d-lateral .equipamentos-zona{display:grid;grid-template-columns:1fr;gap:5px;max-height:260px;overflow:auto;padding-right:2px;}
+  .loja-3d-lateral .equipamento-loja{max-width:none;min-width:0;flex-basis:auto;padding:6px 7px;}
+  .loja-3d-areas-secundarias{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-top:10px;}
+  .loja-3d-areas-secundarias .equipamentos-zona{max-height:125px;overflow:auto;}
   .loja-planta{display:grid;grid-template-columns:1.15fr 2.3fr 1.35fr;grid-template-rows:auto minmax(220px,1fr) minmax(150px,auto);gap:9px;padding:10px;border:1px solid rgba(82,99,123,.35);border-radius:14px;background:linear-gradient(90deg,rgba(255,255,255,.018) 1px,transparent 1px),linear-gradient(rgba(255,255,255,.018) 1px,transparent 1px),#0f161f;background-size:24px 24px;box-shadow:inset 0 0 0 4px #0b1118,inset 0 0 0 5px #344052;min-height:500px;position:relative;overflow:hidden;}
   .loja-zona{position:relative;border:1px solid #344052;border-radius:10px;background:rgba(24,34,47,.92);padding:10px;min-width:0;overflow:hidden;box-shadow:inset 0 1px 0 rgba(255,255,255,.025);}
   .loja-zona-titulo{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:#aeb9c8;font-weight:800;}
@@ -180,6 +201,8 @@
   .loja-virtual-legenda{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:10px;color:var(--muted);font-size:9.5px;}
   .loja-virtual-legenda span{display:inline-flex;align-items:center;gap:5px;}.loja-leg-dot{width:8px;height:8px;border-radius:50%;display:inline-block;}
   .loja-vazia{padding:16px;border:1px dashed #3b485e;border-radius:8px;color:var(--muted);font-size:10px;text-align:center;width:100%;}
+  @media(max-width:1100px){.loja-3d-layout{grid-template-columns:1fr}.loja-3d-lateral{display:grid;grid-template-columns:1fr 1fr}.loja-3d-lateral .equipamentos-zona{max-height:170px}.loja-3d-areas-secundarias{grid-template-columns:1fr 1fr 1fr}}
+  @media(max-width:700px){.loja-3d-stage,.loja-3d-img{min-height:320px}.loja-3d-lateral{grid-template-columns:1fr}.loja-3d-areas-secundarias{grid-template-columns:1fr}.loja-hotspot small{display:none!important}.loja-hotspot strong{font-size:8px}.loja-hotspot{padding-right:7px}.loja-hotspot.balcao{right:14%;top:44%}.loja-hotspot.prateleiras{left:25%;top:44%}}
   @media(max-width:1100px){.tipo-grafico-grid{grid-template-columns:repeat(3,1fr);}}
   @media(max-width:900px){.graficos-duplos{grid-template-columns:1fr;}}
   @media(max-width:600px){.grafico-controles{width:100%;}.modelo-grafico-tabs{width:100%;}.modelo-grafico-btn{flex:1;}.grafico-controles>button{flex:1;}.tipo-grafico-grid{grid-template-columns:repeat(2,1fr);}.simulador-numero{font-size:52px;}.kit-form{grid-template-columns:1fr 1fr}.kit-form .kit-wide{grid-column:1/-1;}}
@@ -635,7 +658,7 @@
         </div>
         <div class="loja-virtual-panel" id="loja-virtual-panel">
           <div class="loja-virtual-topo">
-            <div><h3>Loja virtual — Kit padrão</h3><p>Representação visual do kit configurado. Os equipamentos são distribuídos por área e comparados com o estoque classificado como Expansão.</p></div>
+            <div><h3>Loja virtual 3D — Kit padrão</h3><p>Visualize a loja montada pela entrada. Os equipamentos do Kit aparecem por área e são comparados com o estoque de Expansão.</p></div>
             <button type="button" class="btn-ghost" id="btn-voltar-kit-virtual">← Voltar ao Kit padrão</button>
           </div>
           <div class="loja-virtual-resumo">
@@ -644,13 +667,35 @@
             <div class="loja-resumo-card ok"><span>Itens atendidos</span><strong id="loja-virtual-atendidos">0</strong></div>
             <div class="loja-resumo-card alerta" id="loja-card-faltantes"><span>Itens com falta</span><strong id="loja-virtual-faltantes">0</strong></div>
           </div>
-          <div class="loja-planta">
-            <div class="loja-zona loja-entrada" aria-label="Entrada da loja"></div>
-            <div class="loja-zona loja-atendimento"><div class="loja-zona-titulo"><span>Atendimento / balcão</span><span class="zona-icone">🧑‍💼</span></div><div class="equipamentos-zona" id="zona-atendimento"></div></div>
-            <div class="loja-zona loja-vendas"><div class="loja-zona-titulo"><span>Área de vendas e exposição</span><span class="zona-icone">🛒</span></div><div class="prateleiras-visual" aria-label="Prateleiras da loja"><div class="prateleira"></div><div class="prateleira"></div><div class="prateleira"></div><div class="prateleira"></div></div><div class="equipamentos-zona" id="zona-vendas"></div></div>
-            <div class="loja-zona loja-rede"><div class="loja-zona-titulo"><span>CPD / Rede</span><span class="zona-icone">🌐</span></div><div class="equipamentos-zona" id="zona-rede"></div></div>
-            <div class="loja-zona loja-caixas"><div class="loja-zona-titulo"><span>Frente de caixa / PDVs</span><span class="zona-icone">🧾</span></div><div class="equipamentos-zona" id="zona-caixas"></div></div>
-            <div class="loja-zona loja-apoio"><div class="loja-zona-titulo"><span>Apoio / Operação</span><span class="zona-icone">📦</span></div><div class="equipamentos-zona" id="zona-apoio"></div></div>
+          <div class="loja-3d-layout">
+            <div class="loja-3d-stage" id="loja-3d-stage">
+              <img src="{{ url_for('static', filename='loja_3d.png') }}" alt="Visualização 3D da loja montada, vista pela entrada" class="loja-3d-img">
+              <div class="loja-3d-vinheta"></div>
+              <button type="button" class="loja-hotspot entrada" data-foco-zona="entrada"><span>1</span><strong>Entrada</strong></button>
+              <button type="button" class="loja-hotspot pdvs" data-foco-zona="caixas"><span>2</span><strong>PDVs</strong><small>Pinpad · Monitor · TEC55 · Epson</small></button>
+              <button type="button" class="loja-hotspot balcao" data-foco-zona="atendimento"><span>3</span><strong>Balcão</strong></button>
+              <button type="button" class="loja-hotspot prateleiras" data-foco-zona="vendas"><span>4</span><strong>Prateleiras</strong></button>
+              <div class="loja-3d-status">
+                <span class="status-ponto"></span>
+                <div><strong>Vista da entrada</strong><small>Loja padrão montada com base no Kit por loja</small></div>
+              </div>
+            </div>
+            <aside class="loja-3d-lateral">
+              <div class="loja-equip-grupo destaque" id="grupo-zona-caixas">
+                <div class="loja-zona-titulo"><span>Frente de caixa / PDVs</span><span class="zona-icone">🧾</span></div>
+                <div class="loja-area-explica">PDVs posicionados na lateral da entrada. O Kit pode conter pinpad, monitor, teclado TEC55, impressora Epson e demais equipamentos de caixa.</div>
+                <div class="equipamentos-zona" id="zona-caixas"></div>
+              </div>
+              <div class="loja-equip-grupo" id="grupo-zona-atendimento">
+                <div class="loja-zona-titulo"><span>Balcão / Atendimento</span><span class="zona-icone">🧑‍💼</span></div>
+                <div class="equipamentos-zona" id="zona-atendimento"></div>
+              </div>
+            </aside>
+          </div>
+          <div class="loja-3d-areas-secundarias">
+            <div class="loja-equip-grupo" id="grupo-zona-vendas"><div class="loja-zona-titulo"><span>Área de vendas / Prateleiras</span><span class="zona-icone">🛒</span></div><div class="equipamentos-zona" id="zona-vendas"></div></div>
+            <div class="loja-equip-grupo" id="grupo-zona-rede"><div class="loja-zona-titulo"><span>CPD / Rede</span><span class="zona-icone">🌐</span></div><div class="equipamentos-zona" id="zona-rede"></div></div>
+            <div class="loja-equip-grupo" id="grupo-zona-apoio"><div class="loja-zona-titulo"><span>Apoio / Operação</span><span class="zona-icone">📦</span></div><div class="equipamentos-zona" id="zona-apoio"></div></div>
           </div>
           <div class="loja-virtual-legenda"><span><i class="loja-leg-dot" style="background:var(--ok)"></i> estoque suficiente para 1 loja</span><span><i class="loja-leg-dot" style="background:var(--danger)"></i> quantidade insuficiente</span><span>As prateleiras representam o ambiente físico e não alteram o cálculo, salvo se forem cadastradas no Kit padrão.</span></div>
         </div>
@@ -1814,6 +1859,17 @@ function renderizarLojaVirtual(){
   });
 }
 
+function focarZonaLojaVirtual(zona){
+  document.querySelectorAll('.loja-hotspot').forEach(b=>b.classList.toggle('ativo',b.dataset.focoZona===zona));
+  document.querySelectorAll('.loja-equip-grupo').forEach(g=>g.classList.remove('foco'));
+  if(zona && zona!=='entrada'){
+    const alvo=document.getElementById('grupo-zona-'+zona);
+    if(alvo){alvo.classList.add('foco');alvo.scrollIntoView({behavior:'smooth',block:'nearest'});}
+  }
+}
+
+document.querySelectorAll('.loja-hotspot').forEach(btn=>btn.addEventListener('click',()=>focarZonaLojaVirtual(btn.dataset.focoZona)));
+
 function abrirLojaVirtual(){
   modoLojaVirtual=true;
   modoKitPadrao=false;
@@ -1868,8 +1924,8 @@ function exibirModoGraficoCodigo(){
     if(modeloTabs) modeloTabs.style.display='none';
     if(lojaVirtualPanel) lojaVirtualPanel.classList.add('ativo');
     btnKit.classList.add('ativo');
-    titulo.textContent='Loja virtual — Kit padrão';
-    subtitulo.textContent='Veja os equipamentos do Kit padrão posicionados por área e confira se o estoque de Expansão atende 1 loja.';
+    titulo.textContent='Loja virtual 3D — Kit padrão';
+    subtitulo.textContent='Veja uma loja montada em 3D, com os equipamentos do Kit separados por área e conferência do estoque de Expansão.';
     renderizarLojaVirtual();
     return;
   }
