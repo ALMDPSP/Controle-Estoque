@@ -220,6 +220,31 @@ def init_db():
         """)
     conn.commit()
 
+    # Auditoria de autenticação: registra sucesso, falha, bloqueio e troca de senha.
+    if IS_PG:
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS login_eventos (
+                id SERIAL PRIMARY KEY,
+                username TEXT,
+                ip TEXT,
+                resultado TEXT NOT NULL,
+                motivo TEXT,
+                data_hora TEXT NOT NULL
+            )
+        """)
+    else:
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS login_eventos (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT,
+                ip TEXT,
+                resultado TEXT NOT NULL,
+                motivo TEXT,
+                data_hora TEXT NOT NULL
+            )
+        """)
+    conn.commit()
+
     # Na primeira execução, carrega o kit padrão informado para uma loja.
     cur.execute("SELECT COUNT(*) FROM kit_padrao_loja")
     if cur.fetchone()[0] == 0:
@@ -683,6 +708,31 @@ def excluir_itens_em_lote(ids):
     cur.close()
     conn.close()
     return afetadas
+
+
+# ---------------------------------------------------------------------
+# Auditoria de autenticação
+# ---------------------------------------------------------------------
+
+def registrar_evento_login(username, ip, resultado, motivo=None):
+    conn = get_conn()
+    cur = get_cursor(conn)
+    cur.execute(
+        q("INSERT INTO login_eventos (username, ip, resultado, motivo, data_hora) VALUES (?, ?, ?, ?, ?)") ,
+        (username or "", ip or "", resultado, motivo or "", datetime.now().strftime("%Y-%m-%d %H:%M:%S")),
+    )
+    conn.commit()
+    cur.close()
+    conn.close()
+
+def listar_eventos_login_recentes(limite=200):
+    conn = get_conn()
+    cur = get_cursor(conn)
+    cur.execute(q("SELECT * FROM login_eventos ORDER BY id DESC LIMIT ?"), (int(limite),))
+    linhas = [dict(r) for r in cur.fetchall()]
+    cur.close()
+    conn.close()
+    return linhas
 
 
 # ---------------------------------------------------------------------

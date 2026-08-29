@@ -24,6 +24,9 @@ import io
 import os
 import unicodedata
 import zipfile
+import secrets
+import hmac
+import time
 from datetime import datetime
 from functools import wraps
 
@@ -40,6 +43,65 @@ import db
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "troque-esta-chave-em-producao")
+app.config.update(
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE="Lax",
+    SESSION_COOKIE_SECURE=os.environ.get("SESSION_COOKIE_SECURE", "0") == "1",
+)
+
+# Proteções leves de autenticação. O limite é mantido em memória do processo
+# para não exigir serviços externos e não altera nenhuma API já existente.
+LOGIN_ATTEMPTS = {}
+LOGIN_MAX_FAILURES = 5
+LOGIN_WINDOW_SECONDS = 10 * 60
+
+def _client_ip():
+    forwarded = (request.headers.get("X-Forwarded-For") or "").split(",")[0].strip()
+    return forwarded or request.remote_addr or "desconhecido"
+
+def _login_key(username):
+    return f"{_client_ip()}|{(username or '').strip().lower()}"
+
+def _prune_login_attempts(key):
+    agora = time.time()
+    tentativas = [t for t in LOGIN_ATTEMPTS.get(key, []) if agora - t < LOGIN_WINDOW_SECONDS]
+    if tentativas:
+        LOGIN_ATTEMPTS[key] = tentativas
+    else:
+        LOGIN_ATTEMPTS.pop(key, None)
+    return tentativas
+
+def _login_wait_seconds(username):
+    key = _login_key(username)
+    tentativas = _prune_login_attempts(key)
+    if len(tentativas) < LOGIN_MAX_FAILURES:
+        return 0
+    return max(1, int(LOGIN_WINDOW_SECONDS - (time.time() - tentativas[0])))
+
+def _register_login_failure(username):
+    key = _login_key(username)
+    tentativas = _prune_login_attempts(key)
+    tentativas.append(time.time())
+    LOGIN_ATTEMPTS[key] = tentativas
+
+def _clear_login_failures(username):
+    LOGIN_ATTEMPTS.pop(_login_key(username), None)
+
+def _csrf_token():
+    token = session.get("_csrf_token")
+    if not token:
+        token = secrets.token_urlsafe(32)
+        session["_csrf_token"] = token
+    return token
+
+def _csrf_ok():
+    recebido = request.form.get("csrf_token", "")
+    esperado = session.get("_csrf_token", "")
+    return bool(recebido and esperado and hmac.compare_digest(recebido, esperado))
+
+@app.context_processor
+def _inject_security_helpers():
+    return {"csrf_token": _csrf_token()}
 
 
 # ---------------------------------------------------------------------
@@ -100,19 +162,38 @@ def manager_required(view):
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "GET":
-        return render_template("login.html", erro=None)
+        return render_template("login.html", erro=None, username_value="")
 
     username = request.form.get("username", "").strip()
     password = request.form.get("password", "")
+
+    if not _csrf_ok():
+        db.registrar_evento_login(username, _client_ip(), "falha", "token de segurança inválido")
+        return render_template("login.html", erro="A sessão de segurança expirou. Atualize a página e tente novamente.", username_value=username), 400
+
+    espera = _login_wait_seconds(username)
+    if espera > 0:
+        minutos = max(1, (espera + 59) // 60)
+        db.registrar_evento_login(username, _client_ip(), "bloqueado", "limite de tentativas excedido")
+        return render_template(
+            "login.html",
+            erro=f"Muitas tentativas de acesso. Aguarde aproximadamente {minutos} minuto(s) e tente novamente.",
+            username_value=username,
+        ), 429
+
     usuario = db.buscar_usuario_por_username(username)
 
     if not usuario or not check_password_hash(usuario["password_hash"], password):
-        return render_template("login.html", erro="Usuário ou senha inválidos.")
+        _register_login_failure(username)
+        db.registrar_evento_login(username, _client_ip(), "falha", "usuário ou senha inválidos")
+        return render_template("login.html", erro="Usuário ou senha inválidos.", username_value=username), 401
 
+    _clear_login_failures(username)
     session["user_id"] = usuario["id"]
     session["username"] = usuario["username"]
     session["role"] = usuario["role"]
     session["precisa_trocar_senha"] = usuario.get("precisa_trocar_senha") == "1"
+    db.registrar_evento_login(usuario["username"], _client_ip(), "sucesso", "login realizado")
 
     if session["precisa_trocar_senha"]:
         return redirect(url_for("trocar_senha"))
@@ -129,6 +210,13 @@ def trocar_senha():
     if request.method == "GET":
         return render_template("trocar_senha.html", username=session.get("username"), erro=None)
 
+    if not _csrf_ok():
+        return render_template(
+            "trocar_senha.html",
+            username=session.get("username"),
+            erro="A sessão de segurança expirou. Atualize a página e tente novamente.",
+        ), 400
+
     nova = request.form.get("nova_senha", "")
     confirmar = request.form.get("confirmar_senha", "")
 
@@ -140,7 +228,9 @@ def trocar_senha():
                                 erro="As senhas não conferem.")
 
     db.trocar_senha(session["user_id"], nova)
+    db.registrar_evento_login(session.get("username"), _client_ip(), "senha_alterada", "senha atualizada pelo usuário")
     session["precisa_trocar_senha"] = False
+    session["_csrf_token"] = secrets.token_urlsafe(32)
     return redirect(url_for("dashboard"))
 
 
@@ -226,6 +316,20 @@ def api_movimentacoes_recentes():
         m["codigo"]=ref.get("codigo","")
         m["descricao"]=ref.get("descricao","")
     return jsonify(movs)
+
+
+@app.route("/api/auditoria-login")
+@admin_required
+def api_auditoria_login():
+    try:
+        limite=max(1,min(int(request.args.get("limite", 200)),500))
+    except (TypeError,ValueError):
+        limite=200
+    eventos=db.listar_eventos_login_recentes(limite)
+    # Não expõe o IP na interface para usuários da aplicação.
+    for evento in eventos:
+        evento.pop("ip", None)
+    return jsonify(eventos)
 
 
 @app.route("/api/busca-global")
