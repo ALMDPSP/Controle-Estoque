@@ -15,30 +15,59 @@
   --muted:#7f8da1;
   --blue:#3ea6ff;
   --cyan:#5ef2d6;
+  --purple:#8c6cff;
   --red:#ff6b6b;
-  --yellow:#ffb648;
   --mono:"SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace;
 }
 
-*{box-sizing:border-box;}
+*{
+  box-sizing:border-box;
+}
 
-html,body{width:100%;min-height:100%;}
+html,
+body{
+  width:100%;
+  min-height:100%;
+}
 
 body{
   margin:0;
   min-height:100vh;
   padding:24px;
+
   display:flex;
   align-items:center;
   justify-content:center;
+
   background:
-    radial-gradient(circle at 15% 20%,rgba(62,166,255,.08),transparent 30%),
-    radial-gradient(circle at 85% 80%,rgba(94,242,214,.06),transparent 30%),
+    radial-gradient(
+      circle at 15% 20%,
+      rgba(62,166,255,.08),
+      transparent 30%
+    ),
+    radial-gradient(
+      circle at 85% 80%,
+      rgba(94,242,214,.06),
+      transparent 30%
+    ),
     var(--bg);
+
   color:var(--text);
-  font-family:"Segoe UI",Inter,system-ui,-apple-system,sans-serif;
+
+  font-family:
+    "Segoe UI",
+    Inter,
+    system-ui,
+    -apple-system,
+    sans-serif;
+
   overflow:hidden;
 }
+
+
+/* =========================================================
+   FUNDO
+========================================================= */
 
 .aurora{
   position:fixed;
@@ -57,33 +86,74 @@ body{
 }
 
 .aurora span:nth-child(1){
-  width:520px;height:520px;left:-220px;top:-220px;background:#168cff;
+  width:520px;
+  height:520px;
+  left:-220px;
+  top:-220px;
+  background:#168cff;
 }
+
 .aurora span:nth-child(2){
-  width:450px;height:450px;right:-180px;bottom:-200px;
-  background:#26d9c0;animation-delay:-7s;
+  width:450px;
+  height:450px;
+  right:-180px;
+  bottom:-200px;
+  background:#26d9c0;
+  animation-delay:-7s;
 }
+
 .aurora span:nth-child(3){
-  width:320px;height:320px;left:48%;top:45%;
-  background:#7054ff;opacity:.08;animation-delay:-12s;
+  width:320px;
+  height:320px;
+  left:48%;
+  top:45%;
+  background:#7054ff;
+  opacity:.08;
+  animation-delay:-12s;
 }
 
 @keyframes auroraMove{
-  0%,100%{transform:translate(0,0) scale(1);}
-  50%{transform:translate(30px,-35px) scale(1.08);}
+  0%,100%{
+    transform:translate(0,0) scale(1);
+  }
+
+  50%{
+    transform:translate(30px,-35px) scale(1.08);
+  }
 }
+
 
 .grid{
   position:fixed;
   inset:0;
   pointer-events:none;
   z-index:0;
+
   background-image:
-    linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),
-    linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px);
+    linear-gradient(
+      rgba(255,255,255,.025) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      90deg,
+      rgba(255,255,255,.025) 1px,
+      transparent 1px
+    );
+
   background-size:46px 46px;
-  mask-image:radial-gradient(ellipse 75% 70% at center,black 20%,transparent 90%);
+
+  mask-image:
+    radial-gradient(
+      ellipse 75% 70% at center,
+      black 20%,
+      transparent 90%
+    );
 }
+
+
+/* =========================================================
+   PARTÍCULAS
+========================================================= */
 
 #particles{
   position:fixed;
@@ -94,41 +164,89 @@ body{
 
 .particle{
   position:absolute;
+
   width:2px;
   height:2px;
+
   border-radius:50%;
+
   background:var(--blue);
-  box-shadow:0 0 8px var(--blue);
+
+  box-shadow:
+    0 0 8px var(--blue);
+
   opacity:0;
+
   animation:particleUp linear infinite;
 }
 
 @keyframes particleUp{
-  0%{transform:translateY(20px);opacity:0;}
-  15%{opacity:.6;}
-  80%{opacity:.35;}
-  100%{transform:translateY(-100vh);opacity:0;}
+
+  0%{
+    transform:translateY(20px);
+    opacity:0;
+  }
+
+  15%{
+    opacity:.6;
+  }
+
+  80%{
+    opacity:.35;
+  }
+
+  100%{
+    transform:translateY(-100vh);
+    opacity:0;
+  }
 }
+
+
+/* =========================================================
+   CARD
+========================================================= */
 
 .wrapper{
   position:relative;
   z-index:2;
-  width:min(520px,100%);
+
+  width:min(1050px,100%);
+
   animation:cardIn .65s ease-out both;
 }
 
 @keyframes cardIn{
-  from{opacity:0;transform:translateY(18px) scale(.985);}
-  to{opacity:1;transform:translateY(0) scale(1);}
+  from{
+    opacity:0;
+    transform:translateY(18px) scale(.985);
+  }
+
+  to{
+    opacity:1;
+    transform:translateY(0) scale(1);
+  }
 }
 
 .card{
   position:relative;
+
+  display:flex;
+
+  min-height:600px;
+
   overflow:hidden;
+
   border-radius:20px;
-  padding:44px 42px 32px;
-  background:linear-gradient(135deg,rgba(18,25,35,.98),rgba(9,13,19,.99));
+
+  background:
+    linear-gradient(
+      135deg,
+      rgba(18,25,35,.98),
+      rgba(9,13,19,.99)
+    );
+
   border:1px solid rgba(255,255,255,.09);
+
   box-shadow:
     0 35px 90px rgba(0,0,0,.65),
     0 0 0 1px rgba(255,255,255,.015) inset;
@@ -136,10 +254,14 @@ body{
 
 .card::before{
   content:"";
+
   position:absolute;
   inset:0;
+
   padding:1px;
+
   border-radius:20px;
+
   background:
     conic-gradient(
       from 0deg,
@@ -149,68 +271,1260 @@ body{
       rgba(94,242,214,.7) 300deg,
       transparent 330deg
     );
+
   -webkit-mask:
     linear-gradient(#000 0 0) content-box,
     linear-gradient(#000 0 0);
+
   -webkit-mask-composite:xor;
   mask-composite:exclude;
+
   animation:borderSpin 8s linear infinite;
+
   pointer-events:none;
+
   z-index:50;
 }
 
-@keyframes borderSpin{to{transform:rotate(360deg);}}
+@keyframes borderSpin{
+  to{
+    transform:rotate(360deg);
+  }
+}
 
-.top-status{
+
+/* =========================================================
+   PAINEL ESQUERDO
+========================================================= */
+
+.visual{
+  position:relative;
+
+  flex:1.35;
+
+  min-width:550px;
+
+  overflow:hidden;
+
+  border-right:1px solid var(--line);
+
+  background:
+    radial-gradient(
+      ellipse at 50% 48%,
+      rgba(62,166,255,.10),
+      transparent 55%
+    ),
+    linear-gradient(
+      160deg,
+      #0b121b,
+      #070b11
+    );
+}
+
+
+/* =========================================================
+   HEADER DA ANIMAÇÃO
+========================================================= */
+
+.visual-header{
+  position:absolute;
+
+  top:25px;
+  left:28px;
+  right:28px;
+
+  z-index:30;
+
   display:flex;
   align-items:center;
   justify-content:space-between;
-  margin-bottom:28px;
-  font-family:var(--mono);
-  font-size:9px;
-  letter-spacing:.1em;
-  color:#68778a;
 }
 
-.system{
+.system-name{
   display:flex;
   align-items:center;
-  gap:9px;
+  gap:10px;
+
+  font-family:var(--mono);
+  font-size:10px;
+
+  color:#93a1b4;
+
+  letter-spacing:.08em;
 }
 
 .status-dot{
-  width:7px;
-  height:7px;
+  width:8px;
+  height:8px;
+
   border-radius:50%;
+
   background:var(--cyan);
-  box-shadow:0 0 10px rgba(94,242,214,.8);
+
+  box-shadow:
+    0 0 10px rgba(94,242,214,.8);
+
   animation:statusPulse 1.8s ease-in-out infinite;
 }
 
 @keyframes statusPulse{
-  0%,100%{opacity:.45;}
-  50%{opacity:1;}
+  0%,100%{
+    opacity:.45;
+  }
+
+  50%{
+    opacity:1;
+  }
 }
 
-.live{color:var(--cyan);}
+.live{
+  font-family:var(--mono);
+
+  font-size:9px;
+
+  color:var(--cyan);
+
+  letter-spacing:.12em;
+}
+
+
+/* =========================================================
+   CENA
+========================================================= */
+
+.scene{
+  position:absolute;
+
+  inset:65px 0 0;
+
+  overflow:hidden;
+}
+
+
+/* =========================================================
+   GLOW CENTRAL
+========================================================= */
+
+.scene-glow{
+  position:absolute;
+
+  width:430px;
+  height:250px;
+
+  left:50%;
+  top:45%;
+
+  transform:translate(-50%,-50%);
+
+  border-radius:50%;
+
+  background:
+    radial-gradient(
+      ellipse,
+      rgba(62,166,255,.12),
+      transparent 68%
+    );
+
+  filter:blur(10px);
+}
+
+
+/* =========================================================
+   PISO EM PERSPECTIVA
+========================================================= */
+
+.floor{
+  position:absolute;
+
+  width:800px;
+  height:360px;
+
+  left:50%;
+  bottom:-160px;
+
+  transform:
+    translateX(-50%)
+    perspective(300px)
+    rotateX(58deg);
+
+  background:
+    linear-gradient(
+      rgba(62,166,255,.08) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      90deg,
+      rgba(62,166,255,.08) 1px,
+      transparent 1px
+    );
+
+  background-size:42px 42px;
+
+  border-top:1px solid rgba(62,166,255,.18);
+
+  opacity:.65;
+}
+
+
+/* =========================================================
+   GALPÃO
+========================================================= */
+
+.warehouse{
+  position:absolute;
+
+  width:470px;
+  height:285px;
+
+  left:50%;
+  top:42px;
+
+  transform:translateX(-50%);
+
+  z-index:5;
+}
+
+
+/* telhado */
+
+.roof{
+  position:absolute;
+
+  left:4px;
+  top:0;
+
+  width:455px;
+  height:35px;
+
+  background:
+    linear-gradient(
+      180deg,
+      #263b52,
+      #101c2a
+    );
+
+  border:1px solid rgba(62,166,255,.32);
+
+  transform:
+    skewX(-18deg);
+
+  box-shadow:
+    0 0 30px rgba(62,166,255,.12);
+}
+
+.roof::after{
+  content:"";
+
+  position:absolute;
+
+  left:25px;
+  right:25px;
+  top:8px;
+
+  height:1px;
+
+  background:
+    repeating-linear-gradient(
+      90deg,
+      rgba(94,242,214,.5) 0 35px,
+      transparent 35px 55px
+    );
+}
+
+
+/* corpo */
+
+.building{
+  position:absolute;
+
+  left:10px;
+  top:31px;
+
+  width:450px;
+  height:245px;
+
+  overflow:hidden;
+
+  border:1px solid rgba(255,255,255,.11);
+
+  background:
+    linear-gradient(
+      90deg,
+      rgba(62,166,255,.035) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      180deg,
+      #111d29,
+      #080e15
+    );
+
+  background-size:45px 45px;
+
+  box-shadow:
+    0 30px 55px rgba(0,0,0,.6),
+    inset 0 0 60px rgba(62,166,255,.035);
+}
+
+
+/* =========================================================
+   IDENTIFICAÇÃO DO GALPÃO
+========================================================= */
+
+.warehouse-label{
+  position:absolute;
+
+  left:20px;
+  top:16px;
+
+  font-family:var(--mono);
+}
+
+.warehouse-label strong{
+  display:block;
+
+  font-size:25px;
+
+  color:var(--blue);
+
+  letter-spacing:.04em;
+
+  text-shadow:
+    0 0 18px rgba(62,166,255,.45);
+}
+
+.warehouse-label span{
+  font-size:7px;
+
+  color:var(--cyan);
+
+  letter-spacing:.22em;
+}
+
+
+/* =========================================================
+   LUZES
+========================================================= */
+
+.ceiling-lights{
+  position:absolute;
+
+  right:20px;
+  top:23px;
+
+  display:flex;
+  gap:8px;
+}
+
+.ceiling-lights i{
+  width:5px;
+  height:5px;
+
+  border-radius:50%;
+
+  background:var(--cyan);
+
+  box-shadow:
+    0 0 9px rgba(94,242,214,.8);
+
+  animation:lightBlink 2.2s ease-in-out infinite;
+}
+
+.ceiling-lights i:nth-child(2){
+  animation-delay:.3s;
+}
+
+.ceiling-lights i:nth-child(3){
+  animation-delay:.6s;
+}
+
+.ceiling-lights i:nth-child(4){
+  animation-delay:.9s;
+}
+
+@keyframes lightBlink{
+  0%,100%{opacity:.2}
+  50%{opacity:1}
+}
+
+
+/* =========================================================
+   PRATELEIRAS
+========================================================= */
+
+.shelves{
+  position:absolute;
+
+  left:22px;
+  top:67px;
+
+  width:225px;
+  height:125px;
+}
+
+.shelf{
+  position:absolute;
+
+  left:0;
+  right:0;
+
+  height:34px;
+
+  border-bottom:3px solid #35495e;
+
+  background:
+    linear-gradient(
+      90deg,
+      rgba(62,166,255,.05),
+      transparent
+    );
+}
+
+.shelf:nth-child(1){top:0}
+.shelf:nth-child(2){top:43px}
+.shelf:nth-child(3){top:86px}
+
+.shelf::before,
+.shelf::after{
+  content:"";
+
+  position:absolute;
+
+  bottom:-3px;
+
+  width:3px;
+  height:34px;
+
+  background:#2b3c4f;
+}
+
+.shelf::before{
+  left:8px;
+}
+
+.shelf::after{
+  right:8px;
+}
+
+
+/* caixas */
+
+.box{
+  position:absolute;
+
+  width:27px;
+  height:20px;
+
+  bottom:6px;
+
+  border:1px solid rgba(62,166,255,.42);
+
+  background:
+    linear-gradient(
+      135deg,
+      #1d3d57,
+      #0c1b2a
+    );
+
+  box-shadow:
+    0 0 7px rgba(62,166,255,.08);
+}
+
+.shelf:nth-child(1) .box:nth-child(1){left:25px}
+.shelf:nth-child(1) .box:nth-child(2){left:62px}
+.shelf:nth-child(1) .box:nth-child(3){left:105px}
+.shelf:nth-child(1) .box:nth-child(4){left:150px}
+.shelf:nth-child(1) .box:nth-child(5){left:188px}
+
+.shelf:nth-child(2) .box:nth-child(1){left:40px}
+.shelf:nth-child(2) .box:nth-child(2){left:82px}
+.shelf:nth-child(2) .box:nth-child(3){left:128px}
+.shelf:nth-child(2) .box:nth-child(4){left:174px}
+
+.shelf:nth-child(3) .box:nth-child(1){left:20px}
+.shelf:nth-child(3) .box:nth-child(2){left:62px}
+.shelf:nth-child(3) .box:nth-child(3){left:112px}
+.shelf:nth-child(3) .box:nth-child(4){left:164px}
+
+
+/* =========================================================
+   ÁREA INTERNA
+========================================================= */
+
+.internal-light{
+  position:absolute;
+
+  left:255px;
+  top:64px;
+
+  width:1px;
+  height:120px;
+
+  background:
+    linear-gradient(
+      transparent,
+      rgba(94,242,214,.5),
+      transparent
+    );
+
+  box-shadow:
+    0 0 20px rgba(94,242,214,.2);
+}
+
+
+/* =========================================================
+   DOCA
+========================================================= */
+
+.docks{
+  position:absolute;
+
+  right:20px;
+  bottom:0;
+
+  height:132px;
+
+  display:flex;
+  align-items:flex-end;
+
+  gap:12px;
+}
+
+.dock{
+  position:relative;
+
+  width:70px;
+  height:125px;
+
+  border:
+    1px solid
+    rgba(62,166,255,.3);
+
+  border-bottom:none;
+
+  background:
+    repeating-linear-gradient(
+      0deg,
+      rgba(62,166,255,.025) 0 8px,
+      rgba(62,166,255,.10) 9px,
+      rgba(62,166,255,.025) 10px
+    ),
+    #070c13;
+}
+
+.dock::before{
+  content:"";
+
+  position:absolute;
+
+  left:7px;
+  right:7px;
+
+  top:22px;
+
+  height:2px;
+
+  background:var(--blue);
+
+  opacity:.35;
+
+  box-shadow:
+    0 0 12px rgba(62,166,255,.6);
+}
+
+.dock-number{
+  position:absolute;
+
+  top:7px;
+  left:9px;
+
+  font-family:var(--mono);
+
+  font-size:7px;
+
+  color:#56677c;
+}
+
+.dock-light{
+  position:absolute;
+
+  bottom:10px;
+  left:50%;
+
+  width:6px;
+  height:6px;
+
+  transform:translateX(-50%);
+
+  border-radius:50%;
+
+  background:var(--cyan);
+
+  box-shadow:
+    0 0 10px var(--cyan);
+
+  animation:dockScan 2.8s linear infinite;
+}
+
+@keyframes dockScan{
+
+  0%{
+    transform:
+      translate(-50%,0);
+    opacity:0;
+  }
+
+  20%{
+    opacity:1;
+  }
+
+  100%{
+    transform:
+      translate(-50%,-88px);
+    opacity:0;
+  }
+}
+
+
+/* =========================================================
+   ESTEIRA
+========================================================= */
+
+.conveyor{
+  position:absolute;
+
+  width:355px;
+  height:90px;
+
+  left:50%;
+  bottom:42px;
+
+  transform:translateX(-50%);
+
+  z-index:15;
+}
+
+.conveyor-base{
+  position:absolute;
+
+  left:0;
+  right:0;
+
+  bottom:12px;
+
+  height:15px;
+
+  background:
+    linear-gradient(
+      180deg,
+      #344b61,
+      #111d29
+    );
+
+  border:1px solid rgba(62,166,255,.4);
+
+  transform:skewX(-10deg);
+
+  box-shadow:
+    0 0 20px rgba(62,166,255,.15);
+}
+
+.roller{
+  position:absolute;
+
+  bottom:14px;
+
+  width:8px;
+  height:8px;
+
+  border-radius:50%;
+
+  background:#607086;
+
+  animation:rollerSpin 1s linear infinite;
+}
+
+.roller:nth-child(2){left:18px}
+.roller:nth-child(3){left:75px}
+.roller:nth-child(4){left:132px}
+.roller:nth-child(5){left:189px}
+.roller:nth-child(6){left:246px}
+.roller:nth-child(7){left:303px}
+
+@keyframes rollerSpin{
+  to{
+    transform:rotate(360deg);
+  }
+}
+
+
+/* caixas da esteira */
+
+.moving-box{
+  position:absolute;
+
+  width:44px;
+  height:31px;
+
+  bottom:28px;
+
+  display:flex;
+  align-items:center;
+  justify-content:center;
+
+  font-family:var(--mono);
+  font-size:7px;
+
+  color:var(--blue);
+
+  background:
+    linear-gradient(
+      135deg,
+      #1d425f,
+      #0c1d2c
+    );
+
+  border:1px solid rgba(62,166,255,.55);
+
+  border-radius:3px;
+
+  box-shadow:
+    0 7px 15px rgba(0,0,0,.45);
+}
+
+.moving-box::after{
+  content:"";
+
+  position:absolute;
+
+  left:50%;
+
+  top:0;
+
+  height:100%;
+
+  width:1px;
+
+  background:
+    rgba(94,242,214,.2);
+}
+
+.moving-box:nth-of-type(8){
+  animation:boxMove 6s linear infinite;
+}
+
+.moving-box:nth-of-type(9){
+  animation:
+    boxMove
+    6s
+    linear
+    infinite;
+
+  animation-delay:-2s;
+}
+
+.moving-box:nth-of-type(10){
+  animation:
+    boxMove
+    6s
+    linear
+    infinite;
+
+  animation-delay:-4s;
+}
+
+@keyframes boxMove{
+
+  0%{
+    left:-50px;
+    opacity:0;
+  }
+
+  12%{
+    opacity:1;
+  }
+
+  84%{
+    opacity:1;
+  }
+
+  100%{
+    left:365px;
+    opacity:0;
+  }
+}
+
+
+/* =========================================================
+   EMPILHADEIRA
+========================================================= */
+
+.forklift{
+  position:absolute;
+
+  width:90px;
+  height:72px;
+
+  left:250px;
+  bottom:62px;
+
+  z-index:20;
+
+  animation:
+    forkliftMove
+    9s
+    ease-in-out
+    infinite;
+}
+
+@keyframes forkliftMove{
+
+  0%,100%{
+    transform:translateX(0);
+  }
+
+  42%{
+    transform:translateX(72px);
+  }
+
+  58%{
+    transform:translateX(72px);
+  }
+}
+
+.fork-body{
+  position:absolute;
+
+  left:8px;
+  bottom:9px;
+
+  width:52px;
+  height:29px;
+
+  background:
+    linear-gradient(
+      145deg,
+      #254a63,
+      #102332
+    );
+
+  border:
+    1px solid
+    rgba(94,242,214,.45);
+
+  border-radius:4px;
+}
+
+.fork-cabin{
+  position:absolute;
+
+  left:28px;
+  bottom:37px;
+
+  width:34px;
+  height:27px;
+
+  border:
+    2px solid
+    #536b82;
+
+  border-bottom:none;
+
+  background:
+    rgba(5,12,19,.75);
+}
+
+.fork-roof{
+  position:absolute;
+
+  left:25px;
+  bottom:64px;
+
+  width:40px;
+  height:3px;
+
+  background:#5c7186;
+}
+
+.fork-mast{
+  position:absolute;
+
+  right:8px;
+  bottom:8px;
+
+  width:4px;
+  height:60px;
+
+  background:
+    linear-gradient(
+      90deg,
+      #3c5268,
+      #7791a8
+    );
+}
+
+.fork-arm{
+  position:absolute;
+
+  right:-30px;
+  bottom:11px;
+
+  width:34px;
+  height:3px;
+
+  background:#7b91a5;
+
+  box-shadow:
+    0 7px 0 #7b91a5;
+}
+
+.fork-wheel{
+  position:absolute;
+
+  bottom:0;
+
+  width:14px;
+  height:14px;
+
+  border-radius:50%;
+
+  background:#05080c;
+
+  border:2px solid #44566b;
+}
+
+.fork-wheel.one{
+  left:12px;
+}
+
+.fork-wheel.two{
+  left:47px;
+}
+
+
+/* =========================================================
+   PALLET
+========================================================= */
+
+.pallet{
+  position:absolute;
+
+  width:64px;
+  height:55px;
+
+  left:95px;
+  bottom:59px;
+
+  z-index:14;
+}
+
+.pallet-base{
+  position:absolute;
+
+  bottom:0;
+
+  width:64px;
+  height:7px;
+
+  background:#684e35;
+
+  border:1px solid #8c6a48;
+}
+
+.pallet-box{
+  position:absolute;
+
+  width:28px;
+  height:22px;
+
+  background:
+    linear-gradient(
+      135deg,
+      #1d3e59,
+      #0e2132
+    );
+
+  border:
+    1px solid
+    rgba(62,166,255,.45);
+}
+
+.pallet-box:nth-child(1){
+  left:3px;
+  bottom:7px;
+}
+
+.pallet-box:nth-child(2){
+  right:3px;
+  bottom:7px;
+}
+
+.pallet-box:nth-child(3){
+  left:18px;
+  bottom:28px;
+}
+
+
+/* =========================================================
+   CAMINHÃO
+========================================================= */
+
+.truck{
+  position:absolute;
+
+  width:160px;
+  height:65px;
+
+  left:-190px;
+  bottom:48px;
+
+  z-index:25;
+
+  animation:
+    truckDelivery
+    14s
+    ease-in-out
+    infinite;
+}
+
+@keyframes truckDelivery{
+
+  0%{
+    left:-190px;
+    opacity:0;
+  }
+
+  7%{
+    opacity:1;
+  }
+
+  31%{
+    left:calc(50% - 80px);
+  }
+
+  56%{
+    left:calc(50% - 80px);
+  }
+
+  83%{
+    left:calc(100% + 30px);
+    opacity:1;
+  }
+
+  94%,100%{
+    left:calc(100% + 30px);
+    opacity:0;
+  }
+}
+
+.truck-body{
+  position:absolute;
+
+  left:0;
+  bottom:11px;
+
+  width:112px;
+  height:43px;
+
+  display:flex;
+  align-items:center;
+  justify-content:center;
+
+  background:
+    linear-gradient(
+      145deg,
+      #1a3b55,
+      #0d1a27
+    );
+
+  border:
+    1px solid
+    rgba(62,166,255,.45);
+
+  border-radius:4px;
+
+  box-shadow:
+    0 9px 20px rgba(0,0,0,.5);
+}
+
+.truck-body span{
+  font-family:var(--mono);
+
+  font-size:7px;
+
+  color:var(--blue);
+
+  letter-spacing:.12em;
+}
+
+.truck-cab{
+  position:absolute;
+
+  right:0;
+  bottom:11px;
+
+  width:50px;
+  height:38px;
+
+  border:
+    1px solid
+    rgba(94,242,214,.4);
+
+  border-radius:
+    3px
+    7px
+    3px
+    2px;
+
+  background:
+    linear-gradient(
+      145deg,
+      #244961,
+      #102332
+    );
+}
+
+.truck-window{
+  position:absolute;
+
+  right:6px;
+  top:6px;
+
+  width:28px;
+  height:14px;
+
+  background:#07131e;
+
+  border:
+    1px solid
+    rgba(62,166,255,.5);
+}
+
+.truck-wheel{
+  position:absolute;
+
+  bottom:0;
+
+  width:16px;
+  height:16px;
+
+  border-radius:50%;
+
+  background:#04070b;
+
+  border:2px solid #46596d;
+}
+
+.truck-wheel.one{
+  left:20px;
+}
+
+.truck-wheel.two{
+  right:10px;
+}
+
+
+/* =========================================================
+   PEQUENO HUD
+========================================================= */
+
+.hud{
+  position:absolute;
+
+  left:28px;
+  bottom:25px;
+
+  z-index:30;
+
+  display:flex;
+  align-items:center;
+  gap:9px;
+
+  font-family:var(--mono);
+
+  font-size:8px;
+
+  color:#566579;
+
+  letter-spacing:.08em;
+}
+
+.hud-line{
+  width:35px;
+  height:1px;
+
+  background:
+    linear-gradient(
+      90deg,
+      var(--blue),
+      transparent
+    );
+}
+
+
+/* =========================================================
+   PAINEL LOGIN
+========================================================= */
+
+.login{
+  position:relative;
+
+  flex:1;
+
+  min-width:360px;
+
+  padding:46px 42px 34px;
+
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+
+  background:
+    linear-gradient(
+      160deg,
+      rgba(15,21,30,.95),
+      rgba(9,13,19,.98)
+    );
+}
+
+
+/* =========================================================
+   LOGO
+========================================================= */
 
 .brand{
   display:flex;
+
   align-items:center;
+
   gap:13px;
+
   margin-bottom:30px;
 }
 
 .logo{
   position:relative;
+
   width:46px;
   height:46px;
+
   display:flex;
   align-items:center;
   justify-content:center;
+
   border-radius:12px;
-  background:linear-gradient(145deg,#1b2736,#0c131c);
-  border:1px solid rgba(62,166,255,.35);
+
+  background:
+    linear-gradient(
+      145deg,
+      #1b2736,
+      #0c131c
+    );
+
+  border:
+    1px solid
+    rgba(62,166,255,.35);
+
   box-shadow:
     0 0 24px rgba(62,166,255,.18),
     inset 0 0 15px rgba(255,255,255,.02);
@@ -218,181 +1532,342 @@ body{
 
 .logo::after{
   content:"";
+
   position:absolute;
+
   inset:-5px;
+
   border-radius:15px;
-  border:1px solid rgba(62,166,255,.18);
+
+  border:
+    1px solid
+    rgba(62,166,255,.18);
 }
 
-.logo svg{width:23px;height:23px;}
+.logo svg{
+  width:23px;
+  height:23px;
+}
 
-.brand-name{font-size:15px;font-weight:700;}
+.brand-name{
+  font-size:15px;
+  font-weight:700;
+}
 
 .brand-name span{
   display:block;
+
   margin-top:3px;
+
   font-family:var(--mono);
+
   font-size:9px;
+
   color:var(--cyan);
+
   letter-spacing:.16em;
+
   text-transform:uppercase;
 }
 
-.tag{
-  display:block;
-  margin-bottom:7px;
-  font-family:var(--mono);
-  font-size:9px;
-  color:var(--blue);
-  letter-spacing:.14em;
-  text-transform:uppercase;
-}
+
+/* =========================================================
+   TEXTO
+========================================================= */
 
 h1{
-  margin:0 0 8px;
+  margin:0 0 7px;
+
   font-size:23px;
+
   letter-spacing:-.025em;
-  background:linear-gradient(90deg,#f1f5fa,#b8d9fb);
+
+  background:
+    linear-gradient(
+      90deg,
+      #f1f5fa,
+      #b8d9fb
+    );
+
   -webkit-background-clip:text;
   background-clip:text;
+
   color:transparent;
 }
 
 .subtitle{
-  margin:0 0 24px;
+  margin:0 0 27px;
+
   color:var(--muted);
+
   font-size:13px;
-  line-height:1.5;
 }
 
-.aviso{
-  margin-bottom:18px;
-  padding:11px 13px;
-  border-radius:8px;
-  border:1px solid rgba(255,182,72,.28);
-  background:rgba(255,182,72,.07);
-  color:#e5ad5c;
-  font-size:12px;
-  line-height:1.5;
-  box-shadow:inset 0 0 18px rgba(255,182,72,.02);
-}
 
-.erro{
-  margin-bottom:18px;
-  padding:10px 12px;
-  border-radius:8px;
-  border:1px solid rgba(255,107,107,.3);
-  background:rgba(255,107,107,.08);
-  color:var(--red);
-  font-size:12px;
-}
+/* =========================================================
+   CAMPOS
+========================================================= */
 
-.field{margin-bottom:17px;}
+.field{
+  margin-bottom:17px;
+}
 
 .field label{
   display:block;
+
   margin-bottom:7px;
+
   font-size:12px;
+
   color:#8996a8;
 }
 
-.input-wrap{position:relative;}
+.input-wrap{
+  position:relative;
+}
 
 .input-wrap svg{
   position:absolute;
+
   left:13px;
   top:50%;
+
   width:16px;
   height:16px;
+
   transform:translateY(-50%);
+
   color:#536176;
+
   transition:.2s;
+
   pointer-events:none;
 }
 
-.input-wrap:focus-within svg{color:var(--blue);}
+.input-wrap:focus-within svg{
+  color:var(--blue);
+}
 
 input{
   width:100%;
+
   height:46px;
-  padding:0 13px 0 40px;
+
+  padding:
+    0
+    13px
+    0
+    40px;
+
   border-radius:9px;
-  border:1px solid rgba(255,255,255,.09);
+
+  border:
+    1px solid
+    rgba(255,255,255,.09);
+
   outline:none;
+
   color:var(--text);
-  background:rgba(5,9,14,.72);
+
+  background:
+    rgba(5,9,14,.72);
+
   font-size:14px;
-  transition:border-color .2s,box-shadow .2s,background .2s;
+
+  transition:
+    border-color .2s,
+    box-shadow .2s,
+    background .2s;
 }
 
-input::placeholder{color:#465366;}
+input::placeholder{
+  color:#465366;
+}
 
 input:focus{
   border-color:var(--blue);
-  background:rgba(5,9,14,.9);
+
+  background:
+    rgba(5,9,14,.9);
+
   box-shadow:
     0 0 0 3px rgba(62,166,255,.12),
     0 0 22px rgba(62,166,255,.08);
 }
 
-input:focus-visible{
-  outline:2px solid var(--blue);
-  outline-offset:2px;
-}
+
+/* =========================================================
+   BOTÃO
+========================================================= */
 
 button{
   position:relative;
+
   width:100%;
+
   height:46px;
+
   margin-top:8px;
+
   border:0;
+
   border-radius:9px;
+
   cursor:pointer;
+
   overflow:hidden;
+
   color:#06131d;
+
   font-size:14px;
+
   font-weight:750;
-  background:linear-gradient(100deg,#3ea6ff,#5ef2d6);
-  box-shadow:0 7px 25px rgba(62,166,255,.22);
-  transition:transform .15s,box-shadow .15s;
+
+  background:
+    linear-gradient(
+      100deg,
+      #3ea6ff,
+      #5ef2d6
+    );
+
+  box-shadow:
+    0 7px 25px rgba(62,166,255,.22);
+
+  transition:
+    transform .15s,
+    box-shadow .15s;
 }
 
 button::after{
   content:"";
+
   position:absolute;
+
   top:0;
   bottom:0;
+
   width:80px;
+
   left:-100px;
-  background:linear-gradient(90deg,transparent,rgba(255,255,255,.35),transparent);
+
+  background:
+    linear-gradient(
+      90deg,
+      transparent,
+      rgba(255,255,255,.35),
+      transparent
+    );
+
   transform:skewX(-20deg);
+
   animation:buttonShine 4s ease-in-out infinite;
 }
 
 @keyframes buttonShine{
-  0%,65%{left:-100px;}
-  80%,100%{left:calc(100% + 100px);}
+
+  0%,65%{
+    left:-100px;
+  }
+
+  80%{
+    left:calc(100% + 100px);
+  }
+
+  100%{
+    left:calc(100% + 100px);
+  }
 }
 
 button:hover{
   transform:translateY(-1px);
-  box-shadow:0 10px 30px rgba(62,166,255,.34);
+
+  box-shadow:
+    0 10px 30px rgba(62,166,255,.34);
 }
 
-button:active{transform:translateY(0);}
+button:active{
+  transform:translateY(0);
+}
 
-button:focus-visible{
-  outline:2px solid var(--blue);
+button:focus-visible,
+input:focus-visible{
+  outline:
+    2px solid
+    var(--blue);
+
   outline-offset:2px;
 }
 
+
+/* =========================================================
+   ERRO
+========================================================= */
+
+.erro{
+  margin-bottom:18px;
+
+  padding:10px 12px;
+
+  border-radius:8px;
+
+  border:
+    1px solid
+    rgba(255,107,107,.3);
+
+  background:
+    rgba(255,107,107,.08);
+
+  color:var(--red);
+
+  font-size:12px;
+}
+
+
+/* =========================================================
+   AVISO DE SEGURANÇA
+========================================================= */
+
+.aviso{
+  margin:-8px 0 18px;
+
+  padding:10px 12px;
+
+  border-radius:8px;
+
+  border:
+    1px solid
+    rgba(255,182,72,.28);
+
+  background:
+    rgba(255,182,72,.07);
+
+  color:#e5ad5c;
+
+  font-size:11px;
+
+  line-height:1.45;
+}
+
+
+/* =========================================================
+   CRÉDITO
+========================================================= */
+
 .credit{
   margin-top:25px;
+
   padding-top:17px;
-  border-top:1px solid rgba(255,255,255,.07);
+
+  border-top:
+    1px solid
+    rgba(255,255,255,.07);
+
   text-align:center;
+
   color:#526073;
+
   font-size:10px;
+
   letter-spacing:.025em;
 }
 
@@ -401,27 +1876,145 @@ button:focus-visible{
   font-weight:600;
 }
 
-@media(max-width:600px){
-  body{padding:12px;overflow:auto;}
-  .wrapper{width:100%;}
-  .card{padding:34px 28px 28px;border-radius:16px;}
+
+/* =========================================================
+   RESPONSIVO
+========================================================= */
+
+@media(max-width:900px){
+
+  .visual{
+    min-width:500px;
+  }
+
+  .warehouse{
+    transform:
+      translateX(-50%)
+      scale(.9);
+
+    transform-origin:top center;
+  }
+
+  .conveyor{
+    transform:
+      translateX(-50%)
+      scale(.85);
+  }
 }
 
-@media(max-width:420px){
-  body{padding:0;}
-  .wrapper{width:100%;}
+@media(max-width:760px){
+
+  body{
+    padding:12px;
+    overflow:auto;
+  }
+
+  .card{
+    flex-direction:column;
+  }
+
+  .visual{
+    flex:none;
+
+    width:100%;
+    min-width:0;
+
+    height:440px;
+
+    border-right:0;
+    border-bottom:
+      1px solid
+      var(--line);
+  }
+
+  .login{
+    flex:none;
+
+    width:100%;
+    min-width:0;
+
+    padding:35px 28px 30px;
+  }
+
+  .scene{
+    inset:60px 0 0;
+  }
+
+  .warehouse{
+    transform:
+      translateX(-50%)
+      scale(.75);
+  }
+
+  .conveyor{
+    transform:
+      translateX(-50%)
+      scale(.7);
+  }
+
+  .forklift{
+    display:none;
+  }
+}
+
+@media(max-width:480px){
+
+  body{
+    padding:0;
+  }
+
+  .wrapper{
+    width:100%;
+  }
+
   .card{
     min-height:100vh;
-    display:flex;
-    flex-direction:column;
-    justify-content:center;
+
     border-radius:0;
   }
-  .card::before{border-radius:0;}
+
+  .card::before{
+    border-radius:0;
+  }
+
+  .visual{
+    height:370px;
+  }
+
+  .warehouse{
+    top:35px;
+
+    transform:
+      translateX(-50%)
+      scale(.63);
+  }
+
+  .conveyor{
+    bottom:30px;
+
+    transform:
+      translateX(-50%)
+      scale(.6);
+  }
+
+  .truck{
+    display:none;
+  }
+
+  .login{
+    padding:30px 22px 25px;
+  }
+
+  .brand{
+    margin-bottom:24px;
+  }
 }
 
 @media(prefers-reduced-motion:reduce){
-  *,*::before,*::after{
+
+  *,
+  *::before,
+  *::after{
     animation-duration:.001ms !important;
     animation-iteration-count:1 !important;
     transition-duration:.001ms !important;
@@ -429,6 +2022,7 @@ button:focus-visible{
 }
 </style>
 </head>
+
 
 <body>
 
@@ -439,136 +2033,480 @@ button:focus-visible{
 </div>
 
 <div class="grid"></div>
+
 <div id="particles"></div>
 
+
 <div class="wrapper">
+
   <div class="card">
 
-    <div class="top-status">
-      <div class="system">
-        <span class="status-dot"></span>
-        CONTROLE DE ATIVOS - PRELOAND
+
+    <!-- =====================================================
+         CENTRO DE DISTRIBUIÇÃO
+    ====================================================== -->
+
+    <section class="visual">
+
+
+      <div class="visual-header">
+
+        <div class="system-name">
+
+          <span class="status-dot"></span>
+
+          CONTROLE DE ATIVOS - PRELOAND
+
+        </div>
+
+        <div class="live">
+          ● ON LINE
+        </div>
+
       </div>
-      <div class="live">● ON LINE</div>
-    </div>
 
-    <div class="brand">
-      <div class="logo">
-        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M12 2L21 7V17L12 22L3 17V7L12 2Z"
-            stroke="#3ea6ff" stroke-width="1.6" stroke-linejoin="round"/>
-          <path d="M3 7L12 12L21 7"
-            stroke="#5ef2d6" stroke-width="1.6" stroke-linejoin="round"/>
-          <path d="M12 12V22"
-            stroke="#3ea6ff" stroke-width="1.6"/>
-        </svg>
+
+      <div class="scene">
+
+        <div class="scene-glow"></div>
+
+        <div class="floor"></div>
+
+
+        <!-- =================================================
+             GALPÃO
+        ================================================== -->
+
+        <div class="warehouse">
+
+          <div class="roof"></div>
+
+          <div class="building">
+
+
+            <div class="warehouse-label">
+
+              <strong>CD</strong>
+
+              <span>
+                LOGÍSTICA
+              </span>
+
+            </div>
+
+
+            <div class="ceiling-lights">
+              <i></i>
+              <i></i>
+              <i></i>
+              <i></i>
+            </div>
+
+
+            <!-- PRATELEIRAS -->
+
+            <div class="shelves">
+
+              <div class="shelf">
+
+                <div class="box"></div>
+                <div class="box"></div>
+                <div class="box"></div>
+                <div class="box"></div>
+                <div class="box"></div>
+
+              </div>
+
+
+              <div class="shelf">
+
+                <div class="box"></div>
+                <div class="box"></div>
+                <div class="box"></div>
+                <div class="box"></div>
+
+              </div>
+
+
+              <div class="shelf">
+
+                <div class="box"></div>
+                <div class="box"></div>
+                <div class="box"></div>
+                <div class="box"></div>
+
+              </div>
+
+            </div>
+
+
+            <div class="internal-light"></div>
+
+
+            <!-- DOCAS -->
+
+            <div class="docks">
+
+              <div class="dock">
+
+                <span class="dock-number">
+                  DOCA - 01
+                </span>
+
+                <span class="dock-light"></span>
+
+              </div>
+
+
+              <div class="dock">
+
+                <span class="dock-number">
+                  DOCA - 02
+                </span>
+
+                <span class="dock-light"></span>
+
+              </div>
+
+            </div>
+
+          </div>
+
+        </div>
+
+
+        <!-- =================================================
+             PALLET
+        ================================================== -->
+
+        <div class="pallet">
+
+          <div class="pallet-base"></div>
+
+          <div class="pallet-box"></div>
+          <div class="pallet-box"></div>
+          <div class="pallet-box"></div>
+
+        </div>
+
+
+        <!-- =================================================
+             EMPILHADEIRA
+        ================================================== -->
+
+        <div class="forklift">
+
+          <div class="fork-body"></div>
+
+          <div class="fork-cabin"></div>
+
+          <div class="fork-roof"></div>
+
+          <div class="fork-mast"></div>
+
+          <div class="fork-arm"></div>
+
+          <div class="fork-wheel one"></div>
+          <div class="fork-wheel two"></div>
+
+        </div>
+
+
+        <!-- =================================================
+             ESTEIRA
+        ================================================== -->
+
+        <div class="conveyor">
+
+          <div class="conveyor-base"></div>
+
+          <div class="roller"></div>
+          <div class="roller"></div>
+          <div class="roller"></div>
+          <div class="roller"></div>
+          <div class="roller"></div>
+          <div class="roller"></div>
+          <div class="roller"></div>
+
+
+          <div class="moving-box">
+            CAIXA
+          </div>
+
+          <div class="moving-box">
+            CAIXA
+          </div>
+
+          <div class="moving-box">
+            CAIXA
+          </div>
+
+        </div>
+
+
+        <!-- =================================================
+             CAMINHÃO
+        ================================================== -->
+
+        <div class="truck">
+
+          <div class="truck-body">
+            <span>DPSP</span>
+          </div>
+
+          <div class="truck-cab">
+
+            <div class="truck-window"></div>
+
+          </div>
+
+          <div class="truck-wheel one"></div>
+          <div class="truck-wheel two"></div>
+
+        </div>
+
+
+        <div class="hud">
+
+          <span class="hud-line"></span>
+
+          LOGISTICS SYSTEM
+
+        </div>
+
       </div>
 
-      <div class="brand-name">
-        Controle de Ativos
-        <span>Sistema interno</span>
-      </div>
-    </div>
+    </section>
 
-    <span class="tag">Segurança · Primeiro acesso</span>
 
-    <h1>Defina uma nova senha</h1>
+    <!-- =====================================================
+         TROCA DE SENHA
+    ====================================================== -->
 
-    <p class="subtitle">
-      Olá, {{ username }}. Para continuar, defina uma nova senha para sua conta.
-    </p>
+    <section class="login">
 
-    <div class="aviso">
-      ⚠ Este é o seu primeiro acesso. Por segurança,
-      defina uma nova senha antes de continuar.
-    </div>
 
-    {% if erro %}
-    <div class="erro">⚠ {{ erro }}</div>
-    {% endif %}
+      <div class="brand">
 
-    <form method="POST">
+        <div class="logo">
 
-      <div class="field">
-        <label for="nova_senha">
-          Nova senha (mín. 6 caracteres)
-        </label>
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
 
-        <div class="input-wrap">
-          <svg viewBox="0 0 24 24" fill="none"
-            stroke="currentColor" stroke-width="1.8">
-            <rect x="4.5" y="10.5" width="15" height="9.5" rx="2"/>
-            <path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/>
+            <path
+              d="M12 2L21 7V17L12 22L3 17V7L12 2Z"
+              stroke="#3ea6ff"
+              stroke-width="1.6"
+              stroke-linejoin="round"
+            />
+
+            <path
+              d="M3 7L12 12L21 7"
+              stroke="#5ef2d6"
+              stroke-width="1.6"
+              stroke-linejoin="round"
+            />
+
+            <path
+              d="M12 12V22"
+              stroke="#3ea6ff"
+              stroke-width="1.6"
+            />
+
           </svg>
 
-          <input
-            id="nova_senha"
-            name="nova_senha"
-            type="password"
-            placeholder="Digite sua nova senha"
-            required
-            minlength="6"
-            autofocus
-            autocomplete="new-password"
-          >
         </div>
+
+
+        <div class="brand-name">
+
+          Controle de Ativos
+
+          <span>
+            Sistema interno
+          </span>
+
+        </div>
+
       </div>
 
-      <div class="field">
-        <label for="confirmar_senha">
-          Confirmar nova senha
-        </label>
 
-        <div class="input-wrap">
-          <svg viewBox="0 0 24 24" fill="none"
-            stroke="currentColor" stroke-width="1.8">
-            <path d="M5 12.5L9.2 17L19 7"/>
-          </svg>
+      <h1>
+        Defina uma nova senha
+      </h1>
 
-          <input
-            id="confirmar_senha"
-            name="confirmar_senha"
-            type="password"
-            placeholder="Digite novamente sua senha"
-            required
-            minlength="6"
-            autocomplete="new-password"
-          >
-        </div>
+      <p class="subtitle">
+        Olá, {{ username }}. Atualize sua senha para continuar.
+      </p>
+
+      <div class="aviso">
+        ⚠ Primeiro acesso: escolha uma nova senha com pelo menos 6 caracteres.
       </div>
 
-      <button type="submit">Salvar nova senha</button>
 
-    </form>
+      {% if erro %}
 
-    <div class="credit">
-      © 2026 · Todos os direitos reservados ·
-      Developed by <strong>Alexandre Martins</strong>
-    </div>
+      <div class="erro">
+        ⚠ {{ erro }}
+      </div>
+
+      {% endif %}
+
+
+      <form method="POST">
+
+
+        <div class="field">
+
+          <label for="nova_senha">
+            Nova senha
+          </label>
+
+          <div class="input-wrap">
+
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+            >
+
+              <rect
+                x="4.5"
+                y="10.5"
+                width="15"
+                height="9.5"
+                rx="2"
+              />
+
+              <path
+                d="M8 10.5V7.5a4 4 0 0 1 8 0v3"
+              />
+
+            </svg>
+
+
+            <input
+              id="nova_senha"
+              name="nova_senha"
+              type="password"
+              placeholder="••••••••"
+              autocomplete="new-password"
+              minlength="6"
+              autofocus
+              required
+            >
+
+          </div>
+
+        </div>
+
+
+        <div class="field">
+
+          <label for="confirmar_senha">
+            Confirmar nova senha
+          </label>
+
+          <div class="input-wrap">
+
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+            >
+
+              <path
+                d="M5 12.5L9.2 17L19 7"
+              />
+
+            </svg>
+
+
+            <input
+              id="confirmar_senha"
+              name="confirmar_senha"
+              type="password"
+              placeholder="••••••••"
+              autocomplete="new-password"
+              minlength="6"
+              required
+            >
+
+          </div>
+
+        </div>
+
+
+        <button type="submit">
+          Salvar nova senha
+        </button>
+
+      </form>
+
+
+      <div class="credit">
+
+        © 2026 · Todos os direitos reservados ·
+        Developed by
+        <strong>Alexandre Martins</strong>
+
+      </div>
+
+    </section>
 
   </div>
+
 </div>
 
+
 <script>
-const particleContainer = document.getElementById("particles");
+
+/* =========================================================
+   PARTÍCULAS
+========================================================= */
+
+const particleContainer =
+  document.getElementById("particles");
 
 for(let i = 0; i < 18; i++){
-  const particle = document.createElement("span");
 
-  particle.className = "particle";
+  const particle =
+    document.createElement("span");
 
-  particle.style.left = Math.random() * 100 + "%";
-  particle.style.top = (80 + Math.random() * 30) + "%";
-  particle.style.animationDuration = (10 + Math.random() * 14) + "s";
-  particle.style.animationDelay = (-Math.random() * 14) + "s";
+  particle.className =
+    "particle";
 
-  const size = 1 + Math.random() * 2;
+  particle.style.left =
+    Math.random() * 100 + "%";
 
-  particle.style.width = size + "px";
-  particle.style.height = size + "px";
+  particle.style.top =
+    (80 + Math.random() * 30) + "%";
 
-  particleContainer.appendChild(particle);
+  particle.style.animationDuration =
+    (10 + Math.random() * 14) + "s";
+
+  particle.style.animationDelay =
+    (-Math.random() * 14) + "s";
+
+  const size =
+    1 + Math.random() * 2;
+
+  particle.style.width =
+    size + "px";
+
+  particle.style.height =
+    size + "px";
+
+  particleContainer.appendChild(
+    particle
+  );
 }
+
 </script>
 
 </body>
