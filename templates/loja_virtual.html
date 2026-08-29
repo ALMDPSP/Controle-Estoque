@@ -16,7 +16,7 @@ header .brand{display:flex;align-items:baseline;gap:10px}
 header .tag{font-family:var(--mono);font-size:12px;letter-spacing:.12em;color:var(--accent2);text-transform:uppercase;border:1px solid var(--accent2);padding:2px 8px;border-radius:3px}
 h1{font-size:26px;margin:6px 0 4px;font-weight:700}.sub{margin:0;color:var(--muted);font-size:13px;max-width:820px;line-height:1.6}
 .nav{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-.nav a,.nav button{text-decoration:none;border:1px solid var(--line);background:var(--panel2);color:var(--text);padding:10px 14px;border-radius:10px;font-size:13px;cursor:pointer}
+.nav a,.nav button{text-decoration:none;border:1px solid var(--line);background:var(--panel2);color:var(--text);padding:10px 14px;border-radius:10px;font-size:13px;cursor:pointer}.nav button{font-family:inherit}
 .nav a.primary,.nav button.primary{background:var(--accent);border-color:var(--accent);color:#08131f;font-weight:700}
 main{padding:24px 32px 48px;max-width:1560px;margin:0 auto}
 .kpis{display:grid;grid-template-columns:repeat(5,minmax(150px,1fr));gap:12px;margin-bottom:18px}
@@ -32,16 +32,19 @@ main{padding:24px 32px 48px;max-width:1560px;margin:0 auto}
 .stage img{display:block;width:100%;height:680px;object-fit:cover;object-position:center center;filter:contrast(1.03) saturate(.98);transition:transform .6s ease, object-position .5s ease, filter .4s ease}
 .stage::after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(180deg,rgba(4,8,13,.08),transparent 18%,transparent 74%,rgba(4,8,13,.35)),linear-gradient(90deg,rgba(4,8,13,.05),transparent 14%,transparent 86%,rgba(4,8,13,.12))}
 .stage[data-view="entrada"] img{transform:scale(1)}
+.stage[data-view="interior"] img{transform:scale(1.34);transform-origin:49% 58%;filter:contrast(1.04) saturate(1.02) brightness(1.03)}
 .stage[data-view="pdv"] img{transform:scale(1.22);transform-origin:81% 56%}
 .stage[data-view="balcao"] img{transform:scale(1.18);transform-origin:68% 53%}
 .stage[data-view="prateleiras"] img{transform:scale(1.16);transform-origin:38% 54%}
 .stage[data-view="rede"] img{transform:scale(1.08);transform-origin:78% 30%}
 .stage[data-view="apoio"] img{transform:scale(1.12);transform-origin:88% 68%}
+.stage[data-view="tirateima"] img{transform:scale(1.22);transform-origin:35% 50%}
 .hotspot{position:absolute;z-index:2;border:1px solid rgba(255,255,255,.26);background:rgba(12,20,30,.92);backdrop-filter:blur(7px);color:#fff;border-radius:999px;padding:6px 10px 6px 6px;display:flex;align-items:center;gap:8px;cursor:pointer;box-shadow:0 10px 22px rgba(0,0,0,.25);transition:.18s ease transform,.18s ease border-color,.18s ease background}
 .hotspot:hover,.hotspot.ativo{transform:translateY(-2px);border-color:var(--accent);background:rgba(14,31,47,.96)}
 .hotspot span{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;background:var(--accent);color:#07111b;font-family:var(--mono);font-size:10px;font-weight:800}
 .hotspot strong{font-size:10px;letter-spacing:.04em}.hotspot small{display:block;color:#bbcad9;font-size:9px;margin-top:2px}
 .hotspot.entrada{left:5%;bottom:8%}.hotspot.pdv{right:10%;bottom:28%}.hotspot.balcao{right:23%;top:52%}.hotspot.prateleiras{left:31%;top:52%}.hotspot.rede{right:18%;top:18%}.hotspot.apoio{right:7%;bottom:11%}
+.tira-teima-device{position:absolute;z-index:3;left:23%;top:49%;width:58px;height:92px;border:1px solid rgba(255,255,255,.35);border-radius:9px 9px 5px 5px;background:linear-gradient(180deg,#2d3a4d,#131c28);box-shadow:0 10px 24px rgba(0,0,0,.32);cursor:pointer;color:#fff;padding:6px 5px 8px;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:5px;transition:transform .18s,border-color .18s,box-shadow .18s}.tira-teima-device:hover,.tira-teima-device.ativo{transform:translateY(-3px) scale(1.04);border-color:var(--accent);box-shadow:0 0 0 3px rgba(62,166,255,.10),0 12px 26px rgba(0,0,0,.4)}.tt-screen{display:grid;place-items:center;width:44px;height:42px;border-radius:5px;background:linear-gradient(145deg,#0b1621,#13314b);border:1px solid #4f6074;color:var(--accent);font-family:var(--mono);font-size:18px;font-weight:900}.tira-teima-device strong{font-size:8px;line-height:1.1;text-transform:uppercase;letter-spacing:.04em;text-align:center}.tira-teima-device::after{content:'';width:7px;height:22px;background:#445167;border-radius:0 0 3px 3px;position:absolute;bottom:-21px;left:50%;transform:translateX(-50%)}
 .stage-badge{position:absolute;left:14px;top:14px;z-index:2;background:rgba(10,17,26,.9);border:1px solid rgba(255,255,255,.14);padding:10px 12px;border-radius:10px;max-width:320px}.stage-badge strong{display:block;font-size:11px}.stage-badge small{display:block;margin-top:3px;color:var(--muted);font-size:10px;line-height:1.4}
 .floating-panel{position:absolute;right:14px;bottom:14px;z-index:2;display:grid;grid-template-columns:repeat(2,minmax(100px,1fr));gap:8px;max-width:360px}
 .float-box{background:rgba(10,17,26,.9);border:1px solid rgba(255,255,255,.12);padding:10px;border-radius:10px}.float-box span{display:block;color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.05em}.float-box strong{display:block;margin-top:6px;font-size:20px;font-family:var(--mono)}.float-box.ok strong{color:var(--ok)}.float-box.danger strong{color:var(--danger)}
@@ -58,7 +61,7 @@ main{padding:24px 32px 48px;max-width:1560px;margin:0 auto}
 .missing-card,.legend-card{padding:14px}.missing-card h3,.legend-card h3{margin:0 0 10px;font-size:15px}.missing-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.missing-item{border:1px solid #364254;border-radius:10px;background:#111923;padding:10px}.missing-item strong{display:block;font-size:11px;line-height:1.4;margin-bottom:4px}.missing-item span{display:block;font-size:10px;color:var(--muted)}
 .legend-row{display:flex;gap:14px;flex-wrap:wrap;color:var(--muted);font-size:11px}.legend-dot{width:9px;height:9px;border-radius:50%;display:inline-block;margin-right:6px;vertical-align:middle}
 .empty{padding:16px;border:1px dashed #39485d;border-radius:10px;color:var(--muted);font-size:12px;text-align:center}
-footer{padding:0 32px 22px;text-align:center;color:var(--muted);font-size:12px}footer strong{color:var(--accent)}
+footer{text-align:center;color:var(--muted);font-size:12px;padding:0 0 12px}footer code{font-family:var(--mono);color:var(--accent2)}footer .credito{margin-top:18px;padding-top:16px;border-top:1px solid var(--line);font-size:11px;letter-spacing:.04em;color:var(--muted)}footer .credito strong{color:var(--accent);font-weight:600}
 @media(max-width:1220px){.viewer-layout{grid-template-columns:1fr}.stage{min-height:560px}.stage img{height:560px}.kpis{grid-template-columns:repeat(3,1fr)}}
 @media(max-width:760px){header,main,footer{padding-left:16px;padding-right:16px}.kpis{grid-template-columns:repeat(2,1fr)}.stage{min-height:400px}.stage img{height:400px}.floating-panel{position:static;margin:12px;grid-template-columns:1fr 1fr;max-width:none}.hotspot small{display:none}.missing-grid{grid-template-columns:1fr}}
 </style>
@@ -73,7 +76,7 @@ footer{padding:0 32px 22px;text-align:center;color:var(--muted);font-size:12px}f
     <div class="nav">
       <a href="{{ url_for('index') }}">← Voltar ao Estoque</a>
       <a href="{{ url_for('pagina_produtos') }}">Cadastro de Produtos</a>
-      <a class="primary" href="{{ url_for('pagina_loja_virtual') }}">Abrir apresentação</a>
+      <button class="primary" type="button" id="btn-entrar-loja">🚶 Entrar na loja</button>
       <a href="{{ url_for('logout') }}">Sair</a>
     </div>
   </header>
@@ -97,8 +100,10 @@ footer{padding:0 32px 22px;text-align:center;color:var(--muted);font-size:12px}f
             </div>
             <div class="view-tabs">
               <button type="button" class="view-tab ativo" data-view="entrada">Entrada</button>
+              <button type="button" class="view-tab" data-view="interior">Dentro da loja</button>
               <button type="button" class="view-tab" data-view="pdv">PDV</button>
               <button type="button" class="view-tab" data-view="balcao">Balcão</button>
+              <button type="button" class="view-tab" data-view="tirateima">Tira-teima</button>
               <button type="button" class="view-tab" data-view="prateleiras">Prateleiras</button>
               <button type="button" class="view-tab" data-view="rede">CPD / Rede</button>
               <button type="button" class="view-tab" data-view="apoio">Apoio</button>
@@ -115,6 +120,7 @@ footer{padding:0 32px 22px;text-align:center;color:var(--muted);font-size:12px}f
             <button type="button" class="hotspot pdv" data-view="pdv"><span>2</span><div><strong>PDV</strong><small>Pinpad · Monitor · TEC55 · Epson</small></div></button>
             <button type="button" class="hotspot balcao" data-view="balcao"><span>3</span><div><strong>Balcão</strong><small>Atendimento separado do PDV</small></div></button>
             <button type="button" class="hotspot prateleiras" data-view="prateleiras"><span>4</span><div><strong>Prateleiras</strong><small>Área de venda</small></div></button>
+            <button type="button" class="tira-teima-device" data-view="tirateima" title="Tira-teima / consulta de preço"><span class="tt-screen">$</span><strong>Tira-teima</strong></button>
             <button type="button" class="hotspot rede" data-view="rede"><span>5</span><div><strong>Rede / CPD</strong><small>Infraestrutura</small></div></button>
             <button type="button" class="hotspot apoio" data-view="apoio"><span>6</span><div><strong>Apoio</strong><small>Operação e suporte</small></div></button>
             <div class="floating-panel">
@@ -152,15 +158,17 @@ footer{padding:0 32px 22px;text-align:center;color:var(--muted);font-size:12px}f
   </main>
 
   <footer>
-    Arquivo de dados: <strong>estoque.xlsx</strong> — abra esse arquivo a qualquer momento no Excel para conferir ou fazer backup.<br>
-    © 2026 · Todos os direitos reservados · Developed by <strong>Alexandre Martins</strong>
+    Arquivo de dados: <code id="footer-path">estoque.xlsx</code> — abra esse arquivo a qualquer momento no Excel para conferir ou fazer backup.
+    <div class="credito">© 2026 · Todos os direitos reservados · Developed by <strong>Alexandre Martins</strong></div>
   </footer>
 
 <script>
 const zoneMeta = {
   entrada:{titulo:'Entrada da loja',descricao:'Visualização geral da entrada da loja e distribuição do ambiente.'},
+  interior:{titulo:'Dentro da loja',descricao:'A câmera entra no ambiente e aproxima a visão interna da área de vendas, balcão e PDVs.'},
   pdv:{titulo:'Frente de PDV',descricao:'Área lateral de caixa, contendo apenas pinpad, monitor, teclado TEC55 e impressora Epson.'},
   balcao:{titulo:'Balcão de atendimento',descricao:'Área de atendimento separada do PDV, com os demais equipamentos de apoio ao balcão.'},
+  tirateima:{titulo:'Tira-teima',descricao:'Terminal de consulta de preço posicionado na área de vendas, próximo às prateleiras.'},
   prateleiras:{titulo:'Prateleiras / área de vendas',descricao:'Itens ligados à exposição, consulta e operação na área de vendas.'},
   rede:{titulo:'CPD / rede',descricao:'Infraestrutura tecnológica da loja, como rack, firewall, switch, AP, VOIP e correlatos.'},
   apoio:{titulo:'Apoio / operação',descricao:'Itens de operação interna e apoio geral da loja.'}
@@ -292,7 +300,8 @@ function render(){
 function marcarViewAtual(view){
   document.querySelectorAll('.view-tab').forEach(b=>b.classList.toggle('ativo', b.dataset.view===view));
   document.querySelectorAll('.hotspot').forEach(b=>b.classList.toggle('ativo', b.dataset.view===view));
-  document.querySelectorAll('.zone-card').forEach(b=>b.classList.toggle('ativo', b.dataset.view===view));
+  document.querySelectorAll('.zone-card').forEach(b=>b.classList.toggle('ativo', b.dataset.view===view || (view==='tirateima' && b.dataset.view==='prateleiras')));
+  document.querySelectorAll('.tira-teima-device').forEach(b=>b.classList.toggle('ativo', view==='tirateima'));
   const meta = zoneMeta[view] || zoneMeta.entrada;
   document.getElementById('stage-title').textContent = meta.titulo;
   document.getElementById('stage-desc').textContent = meta.descricao;
@@ -302,7 +311,11 @@ function setView(view){
   marcarViewAtual(view);
 }
 
-document.querySelectorAll('.view-tab,.hotspot').forEach(el=>el.addEventListener('click',()=>setView(el.dataset.view)));
+document.querySelectorAll('.view-tab,.hotspot,.tira-teima-device').forEach(el=>el.addEventListener('click',()=>setView(el.dataset.view)));
+document.getElementById('btn-entrar-loja')?.addEventListener('click',()=>{
+  setView('interior');
+  document.getElementById('stage')?.scrollIntoView({behavior:'smooth',block:'center'});
+});
 
 Promise.all([
   fetch('/api/kit-padrao').then(r=>r.json()),
