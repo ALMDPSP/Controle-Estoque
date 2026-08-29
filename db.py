@@ -9,6 +9,7 @@ Postgres ao serviço web).
 """
 
 import os
+import re
 from datetime import datetime
 
 from werkzeug.security import generate_password_hash
@@ -379,10 +380,16 @@ def init_db():
 # Produtos (cadastro mestre)
 # ---------------------------------------------------------------------
 
+def _chave_codigo_natural(valor):
+    """Ordena códigos como 1, 2, 3, 10 (e também códigos alfanuméricos)."""
+    partes = re.split(r"(\d+)", str(valor or "").strip().lower())
+    return [int(p) if p.isdigit() else p for p in partes]
+
 def listar_produtos():
     conn = get_conn(); cur = get_cursor(conn)
-    cur.execute("SELECT * FROM produtos ORDER BY codigo")
+    cur.execute("SELECT * FROM produtos")
     rows = cur.fetchall(); result = [dict(r) for r in rows]
+    result.sort(key=lambda item: _chave_codigo_natural(item.get("codigo")))
     cur.close(); conn.close(); return result
 
 def buscar_produto_por_codigo(codigo):

@@ -930,16 +930,26 @@ function atualizarGrafico(){
 }
 
 let graficoCodigoItem = null;
+const PALETA_GRAFICO_CODIGO = ['#3ea6ff','#4cd792','#ffb648','#a78bfa','#ff6b6b','#56cfe1','#f78c6b','#82aaff','#c3e88d','#f07178','#89ddff','#ffc777'];
+function compararCodigosNaturais(a,b){return String(a||'').localeCompare(String(b||''),'pt-BR',{numeric:true,sensitivity:'base'});}
+function descricaoProdutoPorCodigo(codigo){
+  const p=(produtosCache||[]).find(x=>String(x.codigo||'').trim()===String(codigo||'').trim());
+  if(p&&p.descricao) return p.descricao;
+  const it=(itensCache||[]).find(x=>String(x.codigo||'').trim()===String(codigo||'').trim()&&x.descricao);
+  return it?it.descricao:'Descrição não cadastrada';
+}
 function atualizarGraficoCodigoItem(){
   try{
     if(typeof Chart === 'undefined') return;
     const contagem={};
-    itensCache.forEach(it=>{ const codigo=it.codigo || 'Sem código'; contagem[codigo]=(contagem[codigo]||0)+(Number(it.qtde)||1); });
-    const labels=Object.keys(contagem).sort((a,b)=>a.localeCompare(b,'pt-BR',{numeric:true}));
-    const valores=labels.map(c=>contagem[c]);
+    itensCache.forEach(it=>{ const codigo=String(it.codigo||'Sem código').trim()||'Sem código'; const q=Number(it.qtde)||0; if(q>0) contagem[codigo]=(contagem[codigo]||0)+q; });
+    const codigos=Object.keys(contagem).sort(compararCodigosNaturais);
+    const labels=codigos.map(c=>`${c} — ${descricaoProdutoPorCodigo(c)}`);
+    const valores=codigos.map(c=>contagem[c]);
+    const cores=labels.map((_,i)=>PALETA_GRAFICO_CODIGO[i%PALETA_GRAFICO_CODIGO.length]);
     const ctx=document.getElementById('grafico-codigo-item'); if(!ctx) return;
-    if(graficoCodigoItem){ graficoCodigoItem.data.labels=labels; graficoCodigoItem.data.datasets[0].data=valores; graficoCodigoItem.update(); return; }
-    graficoCodigoItem=new Chart(ctx,{type:'bar',data:{labels,datasets:[{label:'Quantidade',data:valores,borderWidth:1}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{precision:0,color:'#8b96a8'}},x:{ticks:{color:'#8b96a8',autoSkip:false,maxRotation:60,minRotation:30}}}}});
+    if(graficoCodigoItem){graficoCodigoItem.destroy();graficoCodigoItem=null;}
+    graficoCodigoItem=new Chart(ctx,{type:'bar',data:{labels,datasets:[{label:'Quantidade',data:valores,backgroundColor:cores,borderColor:cores,borderWidth:1,borderRadius:5}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:(ctx)=>` ${ctx.label}: ${ctx.raw} unidade(s)`}}},scales:{y:{beginAtZero:true,ticks:{precision:0,color:'#8b96a8'}},x:{ticks:{color:'#8b96a8',autoSkip:false,maxRotation:60,minRotation:30}}}}});
   }catch(err){console.error('Erro no gráfico por código:',err);}
 }
 
@@ -954,8 +964,9 @@ async function carregarProdutos(){
   try{
     const res = await fetch('/api/produtos');
     if(!res.ok) throw new Error('Falha ao carregar produtos');
-    produtosCache = await res.json();
+    produtosCache = (await res.json()).sort((a,b)=>compararCodigosNaturais(a.codigo,b.codigo));
     preencherSelectProdutos();
+    atualizarGraficoCodigoItem();
   }catch(err){ console.error(err); }
 }
 function preencherSelectProdutos(){

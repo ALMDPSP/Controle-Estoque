@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Controle de Estoque · Entrada e Saída</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <style>
   :root{
     --bg: #12181f;
@@ -82,6 +84,8 @@
   .grafico-controles select:focus{border-color:var(--accent);}
   .btn-simulador{background:linear-gradient(135deg,var(--accent),#67c0ff);color:#07131e;box-shadow:0 8px 20px rgba(62,166,255,.18);}
   .btn-simulador.ativo{background:var(--panel-2);color:var(--text);border:1px solid var(--line);box-shadow:none;}
+  .btn-download{background:rgba(76,215,146,.10);color:var(--ok);border:1px solid rgba(76,215,146,.35);}
+  .btn-download:hover{border-color:var(--ok);background:rgba(76,215,146,.16);}
   #btn-kit-padrao.ativo{background:var(--panel-2);color:var(--accent-2);border-color:var(--accent-2);}
   .grafico-area{height:300px;position:relative;padding:6px 0;}
   .simulador-resumo{height:300px;display:none;align-items:center;justify-content:center;flex-direction:column;text-align:center;border:1px solid var(--line);border-radius:12px;background:radial-gradient(circle at 50% 20%,rgba(62,166,255,.12),transparent 55%),var(--panel-2);padding:24px;}
@@ -526,6 +530,7 @@
             </select>
             <button type="button" class="btn-ghost" id="btn-kit-padrao">Kit padrão por loja</button>
             <button type="button" class="btn-simulador" id="btn-simular-lojas">Simular abertura de loja</button>
+            <button type="button" class="btn-download" id="btn-baixar-relatorio">Baixar gráfico + relatório</button>
           </div>
         </div>
         <div class="grafico-area" id="grafico-codigo-wrap">
@@ -1077,15 +1082,28 @@ const PALETA_GRAFICO_CODIGO = [
   '#f78c6b','#82aaff','#c3e88d','#f07178','#89ddff','#ffc777'
 ];
 
+function compararCodigosNaturais(a,b){
+  return String(a||'').localeCompare(String(b||''),'pt-BR',{numeric:true,sensitivity:'base'});
+}
+
+function descricaoProdutoPorCodigo(codigo){
+  const p=(produtosCache||[]).find(x=>String(x.codigo||'').trim()===String(codigo||'').trim());
+  if(p && p.descricao) return p.descricao;
+  const item=(itensCache||[]).find(x=>String(x.codigo||'').trim()===String(codigo||'').trim() && x.descricao);
+  return item ? item.descricao : (codigo==='Sem código' ? 'Produto sem código' : 'Descrição não cadastrada');
+}
+
 function dadosQuantidadePorCodigo(){
   const contagem = {};
   itensCache.forEach(it => {
-    const codigo = (it.codigo || 'Sem código').trim();
+    const codigo = String(it.codigo || 'Sem código').trim() || 'Sem código';
     const qtde = Number(it.qtde) || 0;
     if(qtde > 0) contagem[codigo] = (contagem[codigo] || 0) + qtde;
   });
-  const labels = Object.keys(contagem).sort((a,b)=>a.localeCompare(b,'pt-BR',{numeric:true}));
-  return { labels, valores: labels.map(c=>contagem[c]) };
+  const codigos = Object.keys(contagem).sort(compararCodigosNaturais);
+  const descricoes = codigos.map(c=>descricaoProdutoPorCodigo(c));
+  const labels = codigos.map((c,i)=>`${c} — ${descricoes[i]}`);
+  return { codigos, descricoes, labels, valores: codigos.map(c=>contagem[c]) };
 }
 
 function opcoesGraficoCodigo(tipo){
@@ -1139,8 +1157,8 @@ function atualizarGraficoCodigoItem(){
         datasets:[{
           label:'Quantidade em estoque',
           data:valores,
-          backgroundColor:circular ? cores : 'rgba(62,166,255,.72)',
-          borderColor:circular ? '#1a2029' : '#3ea6ff',
+          backgroundColor:cores,
+          borderColor:circular ? '#1a2029' : cores,
           borderWidth:circular ? 2 : 1,
           borderRadius:modeloGraficoCodigo==='bar' ? 6 : 0,
           hoverOffset:circular ? 7 : 0
@@ -1150,6 +1168,87 @@ function atualizarGraficoCodigoItem(){
     });
   }catch(err){console.error('Erro no gráfico por código:',err);}
 }
+
+
+function criarGraficoRelatorioBase64(){
+  if(typeof Chart==='undefined') return null;
+  const {labels,valores}=dadosQuantidadePorCodigo();
+  if(!labels.length) return null;
+  const canvas=document.createElement('canvas');
+  canvas.width=1400; canvas.height=620;
+  canvas.style.position='fixed'; canvas.style.left='-10000px'; canvas.style.top='-10000px';
+  document.body.appendChild(canvas);
+  const cores=labels.map((_,i)=>PALETA_GRAFICO_CODIGO[i % PALETA_GRAFICO_CODIGO.length]);
+  const chart=new Chart(canvas.getContext('2d'),{
+    type:'bar',
+    data:{labels,datasets:[{label:'Quantidade em estoque',data:valores,backgroundColor:cores,borderColor:cores,borderWidth:1,borderRadius:5}]},
+    options:{responsive:false,animation:false,plugins:{legend:{display:false},title:{display:true,text:'Estoque por produto',color:'#111',font:{size:18}}},scales:{y:{beginAtZero:true,ticks:{precision:0,color:'#333'},grid:{color:'rgba(0,0,0,.08)'}},x:{ticks:{color:'#333',autoSkip:false,maxRotation:55,minRotation:30,font:{size:9}},grid:{display:false}}}}
+  });
+  chart.update('none');
+  const img=chart.toBase64Image('image/png',1);
+  chart.destroy(); canvas.remove();
+  return img;
+}
+
+async function baixarRelatorioEstoque(){
+  try{
+    if(!window.jspdf || !window.jspdf.jsPDF){
+      alert('Não foi possível carregar o gerador de PDF. Verifique a conexão com a internet e tente novamente.');
+      return;
+    }
+    const btn=document.getElementById('btn-baixar-relatorio');
+    const textoOriginal=btn.textContent; btn.disabled=true; btn.textContent='Gerando relatório...';
+    const { jsPDF }=window.jspdf;
+    const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+    const largura=doc.internal.pageSize.getWidth();
+    const margem=14;
+    const agora=new Date();
+    const sim=calcularSimulacaoLojas();
+    const dados=dadosQuantidadePorCodigo();
+
+    doc.setFont('helvetica','bold'); doc.setFontSize(18); doc.text('Relatório de Estoque e Capacidade de Lojas',margem,16);
+    doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(90); doc.text(`Gerado em ${agora.toLocaleString('pt-BR')}`,margem,22);
+    doc.setTextColor(0); doc.setFont('helvetica','bold'); doc.setFontSize(13); doc.text(`Lojas completas possíveis: ${sim.lojas}`,margem,31);
+    doc.setFont('helvetica','normal'); doc.setFontSize(9);
+    const detalheTexto=document.createElement('div'); detalheTexto.innerHTML=sim.detalhe||'';
+    const linhasDetalhe=doc.splitTextToSize(detalheTexto.textContent||'',largura-(margem*2));
+    doc.text(linhasDetalhe,margem,37);
+
+    const imagem=criarGraficoRelatorioBase64();
+    let yGrafico=37+(linhasDetalhe.length*4)+3;
+    if(imagem){
+      doc.addImage(imagem,'PNG',margem,yGrafico,largura-(margem*2),72);
+      yGrafico+=78;
+    }
+
+    const estoqueRows=dados.codigos.map((codigo,i)=>[codigo,dados.descricoes[i],String(dados.valores[i])]);
+    doc.autoTable({startY:yGrafico,head:[['Código','Descrição do produto','Qtd. em estoque']],body:estoqueRows,theme:'grid',styles:{fontSize:8,cellPadding:2},headStyles:{fillColor:[33,41,52]},columnStyles:{0:{cellWidth:32},2:{cellWidth:30,halign:'center'}}});
+
+    const requisitos=sim.requisitos||[];
+    if(requisitos.length){
+      let start=doc.lastAutoTable.finalY+8;
+      doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.text('Kit padrão por loja',margem,start);
+      const kitRows=requisitos.map(r=>[r.codigo||'-',r.descricao,String(r.necessario),String(r.disponivel),String(r.lojas)]);
+      doc.autoTable({startY:start+3,head:[['Código','Item','Qtd./loja','Em estoque','Lojas suportadas']],body:kitRows,theme:'grid',styles:{fontSize:7.6,cellPadding:1.8},headStyles:{fillColor:[33,41,52]},columnStyles:{0:{cellWidth:24},2:{cellWidth:22,halign:'center'},3:{cellWidth:24,halign:'center'},4:{cellWidth:27,halign:'center'}}});
+    }
+
+    const paginas=doc.getNumberOfPages();
+    for(let i=1;i<=paginas;i++){
+      doc.setPage(i); doc.setFontSize(8); doc.setTextColor(120);
+      doc.text(`Página ${i} de ${paginas}`,largura-margem,291,{align:'right'});
+      doc.text('© 2026 · Developed by Alexandre Martins',margem,291);
+    }
+    const data=agora.toISOString().slice(0,10);
+    doc.save(`relatorio-estoque-lojas-${data}.pdf`);
+    btn.disabled=false; btn.textContent=textoOriginal;
+  }catch(err){
+    console.error('Erro ao gerar relatório:',err);
+    const btn=document.getElementById('btn-baixar-relatorio'); if(btn){btn.disabled=false;btn.textContent='Baixar gráfico + relatório';}
+    alert('Não foi possível gerar o relatório em PDF.');
+  }
+}
+
+document.getElementById('btn-baixar-relatorio')?.addEventListener('click',baixarRelatorioEstoque);
 
 function normalizarKitTexto(valor){
   return String(valor||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
@@ -1190,7 +1289,7 @@ function calcularSimulacaoLojas(){
   });
 
   if(!requisitos.length){
-    return {lojas:0, detalhe:'Cadastre pelo menos um item em “Kit padrão de loja” para iniciar a simulação.'};
+    return {lojas:0, detalhe:'Cadastre pelo menos um item em “Kit padrão de loja” para iniciar a simulação.', requisitos:[], limitantes:[]};
   }
 
   const lojas=Math.min(...requisitos.map(r=>r.lojas));
@@ -1201,7 +1300,7 @@ function calcularSimulacaoLojas(){
   let detalhe=`Item limitante: ${ident}${escapeHtml(primeiro.descricao)}. Em estoque: <strong>${primeiro.disponivel}</strong> · Necessário por loja: <strong>${primeiro.necessario}</strong>.`;
   if(limitantes.length>1) detalhe+=` Há ${limitantes.length} itens empatados como limitantes.`;
   if(faltantes>0) detalhe+=` ${faltantes} item(ns) do kit ainda não possuem quantidade suficiente para uma loja completa.`;
-  return {lojas,detalhe};
+  return {lojas,detalhe,requisitos,limitantes};
 }
 
 function renderizarSimuladorLojas(){
@@ -1361,8 +1460,9 @@ async function carregarProdutos(){
   try{
     const res = await fetch('/api/produtos');
     if(!res.ok) throw new Error('Falha ao carregar produtos');
-    produtosCache = await res.json();
+    produtosCache = (await res.json()).sort((a,b)=>compararCodigosNaturais(a.codigo,b.codigo));
     preencherSelectProdutos();
+    if(!modoSimuladorLojas && !modoKitPadrao) atualizarGraficoCodigoItem();
     if(modoSimuladorLojas) renderizarSimuladorLojas();
     if(modoKitPadrao) renderizarKitPadrao();
   }catch(err){ console.error(err); }
