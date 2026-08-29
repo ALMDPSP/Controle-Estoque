@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Acesso pelo celular · Controle de Estoque</title>
+{% include '_mobile_head.html' %}
+<style>
+:root{--bg:#12181f;--panel:#1a2029;--panel-2:#212934;--line:#2b3444;--text:#e7ebf1;--muted:#8b96a8;--accent:#3ea6ff;--accent-2:#ffb648;--ok:#4cd792;--danger:#ff6b6b;--mono:"SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:"Segoe UI",Inter,system-ui,sans-serif;min-height:100vh}header{padding:26px 32px 18px;border-bottom:1px solid var(--line)}.tag{display:inline-block;font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--accent-2);border:1px solid var(--accent-2);padding:3px 8px;border-radius:4px}h1{font-size:24px;margin:7px 0 4px}header p{margin:0;color:var(--muted);font-size:13px;line-height:1.55}main{max-width:1050px;margin:auto;padding:24px 32px 58px}.grid{display:grid;grid-template-columns:1.2fr .8fr;gap:16px}.card{background:var(--panel);border:1px solid var(--line);border-radius:15px;padding:20px;box-shadow:0 14px 30px rgba(0,0,0,.13)}.card h2{margin:0 0 7px;font-size:17px}.card p{margin:0 0 14px;color:var(--muted);font-size:12px;line-height:1.6}.phone-preview{min-height:390px;border:1px solid #344052;border-radius:22px;background:linear-gradient(180deg,#0e151e,#111923);padding:18px;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;position:relative;overflow:hidden}.phone-preview:before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 50% 10%,rgba(62,166,255,.13),transparent 42%);pointer-events:none}.phone-icon{width:94px;height:160px;border:3px solid #516176;border-radius:18px;padding:9px;background:#090e14;box-shadow:0 18px 38px rgba(0,0,0,.32);position:relative}.phone-icon:before{content:"";position:absolute;top:5px;left:50%;transform:translateX(-50%);width:28px;height:4px;border-radius:8px;background:#435166}.screen{height:100%;border-radius:10px;background:linear-gradient(145deg,#1a2029,#12181f);display:grid;place-items:center;color:var(--accent);font-weight:800;font-family:var(--mono);font-size:11px}.url-box{margin-top:20px;width:min(100%,620px);display:flex;gap:8px;align-items:stretch}.url{flex:1;min-width:0;background:#0e151e;border:1px solid var(--line);border-radius:10px;padding:11px 12px;color:var(--accent);font-family:var(--mono);font-size:12px;word-break:break-all;text-align:left}.btn{border:1px solid var(--line);background:var(--panel-2);color:var(--text);padding:10px 13px;border-radius:9px;text-decoration:none;cursor:pointer;font:inherit;font-size:12px;min-height:42px}.btn.primary{background:var(--accent);border-color:var(--accent);color:#08131f;font-weight:800}.btn.ok{border-color:rgba(76,215,146,.35);color:var(--ok)}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.step{display:grid;grid-template-columns:34px 1fr;gap:10px;margin:14px 0}.step-num{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:rgba(62,166,255,.12);border:1px solid rgba(62,166,255,.28);color:var(--accent);font-family:var(--mono);font-weight:800}.step strong{display:block;font-size:12px;margin:2px 0 3px}.step span{display:block;color:var(--muted);font-size:11px;line-height:1.55}.notice{padding:12px;border-radius:10px;border:1px solid rgba(255,182,72,.25);background:rgba(255,182,72,.055);color:#d9c49c;font-size:11px;line-height:1.55;margin-top:14px}.okbox{border-color:rgba(76,215,146,.27);background:rgba(76,215,146,.055);color:#b8e9d1}.install-note{font-size:10px!important;margin-top:10px!important}.hidden{display:none!important}@media(max-width:850px){header,main{padding-left:16px;padding-right:16px}.grid{grid-template-columns:1fr}.phone-preview{min-height:330px}.url-box{flex-direction:column}.url{text-align:center}.actions .btn{flex:1 1 150px}}@media(max-width:480px){h1{font-size:21px}.card{padding:15px}.phone-preview{padding:14px;min-height:300px}.actions{display:grid;grid-template-columns:1fr}.actions .btn{width:100%}}
+</style>
+</head>
+<body>
+<header><span class="tag">Celular</span><h1>Acesso pelo celular</h1><p>Use o mesmo sistema no computador e no telefone. Os dados continuam no mesmo banco; não existe uma base separada para o celular.</p></header>
+{% include '_menu.html' %}
+<main>
+  <div class="grid">
+    <section class="card">
+      <h2>Endereço para abrir no telefone</h2>
+      {% if modo_acesso == 'rede_local' %}
+      <p>Com o computador e o celular conectados à <strong>mesma rede Wi-Fi</strong>, digite o endereço abaixo no navegador do telefone.</p>
+      {% else %}
+      <p>Como o sistema está sendo acessado por um endereço de rede/Internet, use o mesmo endereço abaixo no navegador do celular.</p>
+      {% endif %}
+      <div class="phone-preview">
+        <div class="phone-icon"><div class="screen">ESTOQUE<br>MOBILE</div></div>
+        <div class="url-box"><div class="url" id="mobile-url">{{ url_celular }}</div><button class="btn primary" id="copiar-url" type="button">Copiar endereço</button></div>
+        <div class="actions">
+          <a class="btn" href="{{ url_for('dashboard') }}">Abrir Dashboard</a>
+          <button class="btn ok hidden" id="instalar-app" type="button">Instalar na tela inicial</button>
+        </div>
+      </div>
+      {% if modo_acesso == 'rede_local' %}
+      <div class="notice"><strong>Importante:</strong> para acesso local, mantenha o programa aberto no computador. Se o celular não abrir o endereço, verifique se ambos estão no mesmo Wi-Fi e se o Firewall do Windows permite a porta 5000.</div>
+      {% else %}
+      <div class="notice okbox"><strong>Acesso remoto:</strong> este endereço pode ser usado no celular de qualquer rede quando o servidor onde o sistema está publicado estiver disponível.</div>
+      {% endif %}
+    </section>
+    <section class="card">
+      <h2>Como usar como aplicativo</h2>
+      <div class="step"><div class="step-num">1</div><div><strong>Abra no navegador</strong><span>No Android, prefira Chrome ou Edge. No iPhone, abra pelo Safari.</span></div></div>
+      <div class="step"><div class="step-num">2</div><div><strong>Faça login normalmente</strong><span>O usuário, senha, permissões, estoque e relatórios são os mesmos do computador.</span></div></div>
+      <div class="step"><div class="step-num">3</div><div><strong>Adicione à tela inicial</strong><span>Android: menu do navegador → “Instalar app” ou “Adicionar à tela inicial”. iPhone: Compartilhar → “Adicionar à Tela de Início”.</span></div></div>
+      <div class="step"><div class="step-num">4</div><div><strong>Use em modo celular</strong><span>O menu vira compacto, os botões ficam maiores e tabelas podem ser arrastadas horizontalmente.</span></div></div>
+      <p class="install-note">A instalação na tela inicial não cria outra cópia dos dados; ela apenas abre este mesmo site em formato de aplicativo.</p>
+    </section>
+  </div>
+</main>
+{% include '_footer.html' %}
+<script>
+let deferredInstall=null;
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredInstall=e;document.getElementById('instalar-app')?.classList.remove('hidden')});
+document.getElementById('instalar-app')?.addEventListener('click',async()=>{if(!deferredInstall)return;deferredInstall.prompt();await deferredInstall.userChoice;deferredInstall=null;document.getElementById('instalar-app')?.classList.add('hidden')});
+document.getElementById('copiar-url')?.addEventListener('click',async()=>{const t=document.getElementById('mobile-url').textContent.trim();try{await navigator.clipboard.writeText(t);appToast('Endereço copiado.','ok')}catch(e){const r=document.createRange();r.selectNode(document.getElementById('mobile-url'));getSelection().removeAllRanges();getSelection().addRange(r);appToast('Selecione e copie o endereço.','info')}});
+</script>
+</body>
+</html>

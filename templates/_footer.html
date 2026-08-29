@@ -3,7 +3,7 @@
     text-align:center;
     color:var(--muted,#8b96a8);
     font-size:12px;
-    padding:0 0 12px;
+    padding:0 12px calc(12px + env(safe-area-inset-bottom));
   }
   .app-standard-footer code{
     font-family:var(--mono,"SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace);

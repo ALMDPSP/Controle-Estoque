@@ -13,3 +13,9 @@
   - `consulta`: somente leitura.
   - `user`: mantido por compatibilidade e tratado como operador.
 - Loja Virtual 3D integrada ao menu, com foco por área e modo para destacar faltantes.
+
+## Acesso pelo celular
+
+A interface é responsiva e o servidor local é iniciado em `0.0.0.0:5000`, permitindo acesso de dispositivos na mesma rede. Ao executar `python app.py`, o terminal informa o IP local. No celular, conectado ao mesmo Wi-Fi, abra `http://IP-DO-PC:5000`.
+
+O menu do sistema inclui a página **Celular**, que mostra o endereço de acesso e instruções para instalar o sistema na tela inicial como PWA. Em hospedagem pública (por exemplo, Render), basta usar no celular a mesma URL HTTPS do computador.

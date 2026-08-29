@@ -476,6 +476,38 @@ def pagina_produtos():
     return render_template("produtos.html", username=session.get("username"), role=session.get("role") or "user", is_admin=session.get("role") == "admin")
 
 
+@app.route("/acesso-celular")
+@login_required
+def pagina_acesso_celular():
+    host = (request.host or "").split(":")[0].lower()
+    porta = request.environ.get("SERVER_PORT") or "5000"
+    if host in ("localhost", "127.0.0.1", "0.0.0.0"):
+        ip = descobrir_ip_local()
+        url_celular = f"http://{ip}:{porta}"
+        modo = "rede_local"
+    else:
+        esquema = request.headers.get("X-Forwarded-Proto", request.scheme or "http").split(",")[0].strip()
+        url_celular = f"{esquema}://{request.host}"
+        modo = "publico"
+    return render_template(
+        "acesso_celular.html",
+        username=session.get("username"),
+        role=session.get("role") or "user",
+        is_admin=session.get("role") == "admin",
+        url_celular=url_celular,
+        modo_acesso=modo,
+    )
+
+
+@app.route("/service-worker.js")
+def service_worker():
+    return send_file(
+        os.path.join(app.static_folder, "service-worker.js"),
+        mimetype="application/javascript",
+        max_age=0,
+    )
+
+
 @app.route("/loja-virtual")
 @login_required
 def pagina_loja_virtual():

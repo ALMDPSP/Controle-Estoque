@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Loja Virtual 3D · Controle de Estoque</title>
 <style>
 :root{
@@ -65,6 +65,7 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:0 0 12px}foot
 @media(max-width:1220px){.viewer-layout{grid-template-columns:1fr}.stage{min-height:560px}.stage img{height:560px}.kpis{grid-template-columns:repeat(3,1fr)}}
 @media(max-width:760px){header,main,footer{padding-left:16px;padding-right:16px}.kpis{grid-template-columns:repeat(2,1fr)}.stage{min-height:400px}.stage img{height:400px}.floating-panel{position:static;margin:12px;grid-template-columns:1fr 1fr;max-width:none}.hotspot small{display:none}.missing-grid{grid-template-columns:1fr}}
 </style>
+{% include '_mobile_head.html' %}
 </head>
 <body>
   <header>

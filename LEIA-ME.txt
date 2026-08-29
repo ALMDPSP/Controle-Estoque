@@ -26,3 +26,20 @@ Loja Virtual 3D: /loja-virtual
 Backup completo: /backup
 
 Perfis: Administrador, Gestor, Operador e Consulta.
+
+ACESSO PELO CELULAR
+-------------------
+O sistema está preparado para celular e inicia ouvindo em 0.0.0.0:5000.
+
+No computador local:
+1. Rode normalmente: python app.py
+2. O terminal mostra o endereço da rede, por exemplo http://192.168.0.15:5000
+3. Conecte o celular na mesma rede Wi-Fi e abra esse endereço no navegador.
+4. Dentro do sistema, abra a opção "Celular" do menu para consultar/copiar o endereço.
+
+Se o sistema estiver publicado no Render ou outro servidor HTTPS, abra no celular o mesmo endereço público usado no computador.
+
+Android/Chrome ou Edge: use "Instalar app" / "Adicionar à tela inicial".
+iPhone/Safari: Compartilhar > Adicionar à Tela de Início.
+
+Se o acesso local não funcionar, permita o Python/porta 5000 no Firewall do Windows.
