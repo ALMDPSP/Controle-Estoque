@@ -332,6 +332,7 @@
 <nav style="padding:10px 32px; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:center; font-size:13px; flex-wrap:wrap; gap:10px;">
   <div style="display:flex; gap:8px; align-items:center;">
     <a href="{{ url_for('index') }}" class="nav-link" style="color:var(--muted);">Estoque</a>
+    <a href="{{ url_for('pagina_produtos') }}" class="nav-link" style="color:var(--muted);">Cadastro de Produtos</a>
     <a href="{{ url_for('pagina_imobilizados') }}" class="nav-link ativo">Imobilizados</a>
   </div>
   <div style="display:flex; gap:16px; align-items:center;">
@@ -1340,10 +1341,8 @@ document.getElementById('importar-enviar').addEventListener('click', async () =>
 });
 
 carregarItens();
+carregarProdutos();
 </script>
 
 </body>
 </html>
-
-
-carregarProdutos();
