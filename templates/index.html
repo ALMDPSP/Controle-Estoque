@@ -139,9 +139,52 @@
   .kit-title-line{display:flex;justify-content:space-between;gap:8px;align-items:center;margin-bottom:9px;}
   .kit-title-line strong{font-size:12px;}
   .kit-title-line span{font-size:10px;color:var(--muted);}
+  .kit-title-line .kit-title-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end;}
+  .btn-loja-virtual{appearance:none;border:1px solid rgba(76,215,146,.36);background:linear-gradient(135deg,rgba(76,215,146,.14),rgba(62,166,255,.10));color:#79e6ad;border-radius:8px;padding:7px 10px;font-size:11px;font-weight:800;cursor:pointer;transition:all .16s ease;white-space:nowrap;}
+  .btn-loja-virtual:hover{border-color:#79e6ad;transform:translateY(-1px);box-shadow:0 6px 18px rgba(76,215,146,.12);}
+  .loja-virtual-panel{display:none;border:1px solid var(--line);border-radius:14px;background:linear-gradient(180deg,rgba(255,255,255,.018),rgba(255,255,255,.004)),var(--panel-2);padding:14px;min-height:410px;}
+  .loja-virtual-panel.ativo{display:block;}
+  .loja-virtual-topo{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px;}
+  .loja-virtual-topo h3{margin:0 0 4px;font-size:14px;}
+  .loja-virtual-topo p{margin:0;color:var(--muted);font-size:10.5px;line-height:1.45;max-width:620px;}
+  .loja-virtual-resumo{display:grid;grid-template-columns:repeat(4,minmax(110px,1fr));gap:8px;margin-bottom:12px;}
+  .loja-resumo-card{border:1px solid var(--line);border-radius:10px;background:var(--panel);padding:9px 10px;min-width:0;}
+  .loja-resumo-card span{display:block;font-size:9px;text-transform:uppercase;letter-spacing:.065em;color:var(--muted);margin-bottom:4px;}
+  .loja-resumo-card strong{font-family:var(--mono);font-size:17px;color:var(--text);}
+  .loja-resumo-card.ok strong{color:var(--ok);}.loja-resumo-card.alerta strong{color:var(--accent-2);}.loja-resumo-card.erro strong{color:var(--danger);}
+  .loja-planta{display:grid;grid-template-columns:1.15fr 2.3fr 1.35fr;grid-template-rows:auto minmax(220px,1fr) minmax(150px,auto);gap:9px;padding:10px;border:1px solid rgba(82,99,123,.35);border-radius:14px;background:linear-gradient(90deg,rgba(255,255,255,.018) 1px,transparent 1px),linear-gradient(rgba(255,255,255,.018) 1px,transparent 1px),#0f161f;background-size:24px 24px;box-shadow:inset 0 0 0 4px #0b1118,inset 0 0 0 5px #344052;min-height:500px;position:relative;overflow:hidden;}
+  .loja-zona{position:relative;border:1px solid #344052;border-radius:10px;background:rgba(24,34,47,.92);padding:10px;min-width:0;overflow:hidden;box-shadow:inset 0 1px 0 rgba(255,255,255,.025);}
+  .loja-zona-titulo{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:#aeb9c8;font-weight:800;}
+  .loja-zona-titulo .zona-icone{font-size:15px;line-height:1;}
+  .loja-entrada{grid-column:2;grid-row:1;min-height:52px;display:flex;align-items:center;justify-content:center;background:linear-gradient(180deg,rgba(62,166,255,.10),rgba(24,34,47,.94));}
+  .loja-entrada::after{content:'ENTRADA / SAÍDA';font-family:var(--mono);font-size:10px;letter-spacing:.16em;color:var(--accent);font-weight:800;}
+  .loja-atendimento{grid-column:1;grid-row:1 / span 2;}
+  .loja-vendas{grid-column:2;grid-row:2;}
+  .loja-rede{grid-column:3;grid-row:1 / span 2;}
+  .loja-caixas{grid-column:1 / span 2;grid-row:3;}
+  .loja-apoio{grid-column:3;grid-row:3;}
+  .prateleiras-visual{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:8px 0 12px;min-height:92px;}
+  .prateleira{position:relative;border:1px solid #45536a;border-radius:5px;background:repeating-linear-gradient(180deg,#263244 0 12px,#111923 12px 18px);box-shadow:0 5px 12px rgba(0,0,0,.18);}
+  .prateleira::after{content:'PRATELEIRA';position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) rotate(-90deg);font-family:var(--mono);font-size:7px;letter-spacing:.12em;color:#7f8da1;}
+  .equipamentos-zona{display:flex;flex-wrap:wrap;gap:6px;align-content:flex-start;}
+  .equipamento-loja{display:flex;align-items:center;gap:7px;min-width:132px;max-width:230px;flex:1 1 150px;border:1px solid #354258;border-radius:8px;background:#121b26;padding:7px 8px;position:relative;transition:transform .15s,border-color .15s,background .15s;}
+  .equipamento-loja:hover{transform:translateY(-1px);border-color:#5d6f8d;background:#172231;z-index:2;}
+  .equipamento-loja.insuficiente{border-color:rgba(255,107,107,.48);background:rgba(255,107,107,.055);}
+  .equipamento-loja.suficiente{border-color:rgba(76,215,146,.28);}
+  .equipamento-icone{width:28px;height:28px;border-radius:7px;display:grid;place-items:center;background:#0c131c;border:1px solid #2e3a4d;font-size:15px;flex:0 0 28px;}
+  .equipamento-info{min-width:0;line-height:1.2;}
+  .equipamento-nome{font-size:10px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text);}
+  .equipamento-meta{font-family:var(--mono);font-size:8.5px;color:var(--muted);margin-top:3px;white-space:nowrap;}
+  .equipamento-qtd{position:absolute;right:5px;top:5px;min-width:21px;height:17px;padding:0 4px;border-radius:999px;display:grid;place-items:center;background:rgba(62,166,255,.13);border:1px solid rgba(62,166,255,.28);font-family:var(--mono);font-size:8px;font-weight:800;color:#8ed0ff;}
+  .equipamento-loja.insuficiente .equipamento-qtd{background:rgba(255,107,107,.10);border-color:rgba(255,107,107,.35);color:#ff9b9b;}
+  .loja-virtual-legenda{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:10px;color:var(--muted);font-size:9.5px;}
+  .loja-virtual-legenda span{display:inline-flex;align-items:center;gap:5px;}.loja-leg-dot{width:8px;height:8px;border-radius:50%;display:inline-block;}
+  .loja-vazia{padding:16px;border:1px dashed #3b485e;border-radius:8px;color:var(--muted);font-size:10px;text-align:center;width:100%;}
   @media(max-width:1100px){.tipo-grafico-grid{grid-template-columns:repeat(3,1fr);}}
   @media(max-width:900px){.graficos-duplos{grid-template-columns:1fr;}}
   @media(max-width:600px){.grafico-controles{width:100%;}.modelo-grafico-tabs{width:100%;}.modelo-grafico-btn{flex:1;}.grafico-controles>button{flex:1;}.tipo-grafico-grid{grid-template-columns:repeat(2,1fr);}.simulador-numero{font-size:52px;}.kit-form{grid-template-columns:1fr 1fr}.kit-form .kit-wide{grid-column:1/-1;}}
+  @media(max-width:900px){.loja-virtual-resumo{grid-template-columns:repeat(2,1fr)}.loja-planta{grid-template-columns:1fr 1fr;grid-template-rows:auto auto auto auto;min-height:0}.loja-entrada{grid-column:1 / -1;grid-row:1}.loja-atendimento{grid-column:1;grid-row:2}.loja-rede{grid-column:2;grid-row:2}.loja-vendas{grid-column:1 / -1;grid-row:3}.loja-caixas{grid-column:1;grid-row:4}.loja-apoio{grid-column:2;grid-row:4}}
+  @media(max-width:600px){.loja-virtual-topo{flex-direction:column}.loja-virtual-resumo{grid-template-columns:1fr 1fr}.loja-planta{display:flex;flex-direction:column}.prateleiras-visual{grid-template-columns:repeat(2,1fr)}.equipamento-loja{max-width:none;flex-basis:100%}}
 
   .panel{
     background:var(--panel);
@@ -579,7 +622,7 @@
           <div class="faltantes-loja" id="faltantes-loja-grafico"></div>
         </div>
         <div class="kit-padrao-panel" id="kit-padrao-panel">
-          <div class="kit-title-line"><strong>Kit padrão de uma loja</strong><span>Edite esta lista para alterar a regra da simulação.</span></div>
+          <div class="kit-title-line"><strong>Kit padrão de uma loja</strong><div class="kit-title-actions"><span>Edite esta lista para alterar a regra da simulação.</span><button type="button" class="btn-loja-virtual" id="btn-ver-loja-virtual">🏪 Ver loja montada</button></div></div>
           <form class="kit-form" id="kit-form">
             <input type="hidden" id="kit-id">
             <div class="kit-field"><label>Código do item</label><input id="kit-codigo" type="text" autocomplete="off" placeholder="Digite o código"></div>
@@ -589,6 +632,27 @@
             <button type="button" class="btn-ghost" id="kit-cancelar" style="display:none">Cancelar</button>
           </form>
           <table class="kit-table"><thead><tr><th>Código</th><th>Item</th><th>Qtd./loja</th><th>Em estoque</th><th>Lojas suportadas</th><th>Ações</th></tr></thead><tbody id="kit-tbody"></tbody></table>
+        </div>
+        <div class="loja-virtual-panel" id="loja-virtual-panel">
+          <div class="loja-virtual-topo">
+            <div><h3>Loja virtual — Kit padrão</h3><p>Representação visual do kit configurado. Os equipamentos são distribuídos por área e comparados com o estoque classificado como Expansão.</p></div>
+            <button type="button" class="btn-ghost" id="btn-voltar-kit-virtual">← Voltar ao Kit padrão</button>
+          </div>
+          <div class="loja-virtual-resumo">
+            <div class="loja-resumo-card"><span>Equipamentos diferentes</span><strong id="loja-virtual-tipos">0</strong></div>
+            <div class="loja-resumo-card"><span>Unidades no kit</span><strong id="loja-virtual-unidades">0</strong></div>
+            <div class="loja-resumo-card ok"><span>Itens atendidos</span><strong id="loja-virtual-atendidos">0</strong></div>
+            <div class="loja-resumo-card alerta" id="loja-card-faltantes"><span>Itens com falta</span><strong id="loja-virtual-faltantes">0</strong></div>
+          </div>
+          <div class="loja-planta">
+            <div class="loja-zona loja-entrada" aria-label="Entrada da loja"></div>
+            <div class="loja-zona loja-atendimento"><div class="loja-zona-titulo"><span>Atendimento / balcão</span><span class="zona-icone">🧑‍💼</span></div><div class="equipamentos-zona" id="zona-atendimento"></div></div>
+            <div class="loja-zona loja-vendas"><div class="loja-zona-titulo"><span>Área de vendas e exposição</span><span class="zona-icone">🛒</span></div><div class="prateleiras-visual" aria-label="Prateleiras da loja"><div class="prateleira"></div><div class="prateleira"></div><div class="prateleira"></div><div class="prateleira"></div></div><div class="equipamentos-zona" id="zona-vendas"></div></div>
+            <div class="loja-zona loja-rede"><div class="loja-zona-titulo"><span>CPD / Rede</span><span class="zona-icone">🌐</span></div><div class="equipamentos-zona" id="zona-rede"></div></div>
+            <div class="loja-zona loja-caixas"><div class="loja-zona-titulo"><span>Frente de caixa / PDVs</span><span class="zona-icone">🧾</span></div><div class="equipamentos-zona" id="zona-caixas"></div></div>
+            <div class="loja-zona loja-apoio"><div class="loja-zona-titulo"><span>Apoio / Operação</span><span class="zona-icone">📦</span></div><div class="equipamentos-zona" id="zona-apoio"></div></div>
+          </div>
+          <div class="loja-virtual-legenda"><span><i class="loja-leg-dot" style="background:var(--ok)"></i> estoque suficiente para 1 loja</span><span><i class="loja-leg-dot" style="background:var(--danger)"></i> quantidade insuficiente</span><span>As prateleiras representam o ambiente físico e não alteram o cálculo, salvo se forem cadastradas no Kit padrão.</span></div>
         </div>
         <div class="simulador-resumo" id="simulador-resumo">
           <div class="simulador-icone">🏪</div>
@@ -1122,6 +1186,7 @@ function atualizarGrafico(){
 let graficoCodigoItem = null;
 let modoSimuladorLojas = false;
 let modoKitPadrao = false;
+let modoLojaVirtual = false;
 let modeloGraficoCodigo = 'bar';
 let tipoGraficoCodigo = 'Expansão';
 let kitPadraoCache = [];
@@ -1676,10 +1741,98 @@ function renderizarSimuladorLojas(){
   if(faltantes) faltantes.innerHTML=htmlFaltantesProximaLoja(resultado);
 }
 
+function iconeEquipamentoLoja(descricao){
+  const d=normalizarTexto(descricao||'');
+  if(d.includes('monitor')||d.includes('display')) return '🖥️';
+  if(d.includes('micro')||d.includes('computador')||d.includes('pdv')) return '💻';
+  if(d.includes('scanner')||d.includes('tira-teima')||d.includes('tira teima')) return '🔎';
+  if(d.includes('impressora')) return '🖨️';
+  if(d.includes('teclado')) return '⌨️';
+  if(d.includes('mouse')) return '🖱️';
+  if(d.includes('gaveta')) return '💵';
+  if(d.includes('pinpad')) return '💳';
+  if(d.includes('coletor')) return '📱';
+  if(d.includes('firewall')) return '🛡️';
+  if(d.includes('switch')) return '🔀';
+  if(d.includes('rack')) return '🗄️';
+  if(d.includes('ap')||d.includes('poe')||d.includes('wifi')) return '📡';
+  if(d.includes('headset')) return '🎧';
+  if(d.includes('voip')||d.includes('telefone')||d.includes('tel sem fio')||d.includes('ata')) return '☎️';
+  if(d.includes('balcao')||d.includes('balcão')) return '🧰';
+  return '📦';
+}
+
+function zonaEquipamentoLoja(descricao){
+  const d=normalizarTexto(descricao||'');
+  if(['firewall','switch','rack','poe','wifi','access point'].some(x=>d.includes(x)) || /(^|\s)ap(\s|$)/.test(d)) return 'rede';
+  if(['pdv','monitor','scanner','impressora','teclado','mouse','gaveta','pinpad','display','micro dell','micro'].some(x=>d.includes(x))) return 'caixas';
+  if(['tira-teima','tira teima'].some(x=>d.includes(x))) return 'vendas';
+  if(['balcao','balcão','headset','voip','telefone','tel sem fio'].some(x=>d.includes(x))) return 'atendimento';
+  if(['coletor','bandoleira','capa','ata'].some(x=>d.includes(x))) return 'apoio';
+  return 'apoio';
+}
+
+function estoqueExpansaoDisponivelParaKit(k){
+  return itensCache.reduce((soma,it)=>{
+    const q=Number(it.qtde)||0;
+    const ehExpansao=normalizarTexto(it.tipo_estoque)===normalizarTexto('Expansão');
+    return soma+(q>0 && ehExpansao && itemEstoqueCombinaComKit(it,k)?q:0);
+  },0);
+}
+
+function htmlEquipamentoLoja(k){
+  const necessario=Math.max(1,Number(k.quantidade)||1);
+  const disponivel=estoqueExpansaoDisponivelParaKit(k);
+  const falta=Math.max(0,necessario-disponivel);
+  const classe=falta>0?'insuficiente':'suficiente';
+  const codigo=k.codigo?`Cód. ${escapeHtml(k.codigo)} · `:'';
+  const situacao=falta>0?`faltam ${falta}`:`estoque ${disponivel}`;
+  return `<div class="equipamento-loja ${classe}" title="${escapeHtml(k.descricao)} — necessário ${necessario}; em Expansão ${disponivel}${falta>0?`; faltam ${falta}`:''}"><div class="equipamento-icone">${iconeEquipamentoLoja(k.descricao)}</div><div class="equipamento-info"><div class="equipamento-nome">${escapeHtml(k.descricao)}</div><div class="equipamento-meta">${codigo}${situacao}</div></div><span class="equipamento-qtd">×${necessario}</span></div>`;
+}
+
+function renderizarLojaVirtual(){
+  const zonas={atendimento:[],vendas:[],rede:[],caixas:[],apoio:[]};
+  const kit=kitPadraoCache||[];
+  let unidades=0, atendidos=0, faltantes=0;
+  kit.forEach(k=>{
+    const necessario=Math.max(1,Number(k.quantidade)||1);
+    unidades+=necessario;
+    const disponivel=estoqueExpansaoDisponivelParaKit(k);
+    if(disponivel>=necessario) atendidos++; else faltantes++;
+    const zona=zonaEquipamentoLoja(k.descricao);
+    (zonas[zona]||zonas.apoio).push(k);
+  });
+  document.getElementById('loja-virtual-tipos').textContent=kit.length;
+  document.getElementById('loja-virtual-unidades').textContent=unidades;
+  document.getElementById('loja-virtual-atendidos').textContent=atendidos;
+  document.getElementById('loja-virtual-faltantes').textContent=faltantes;
+  const cardFaltantes=document.getElementById('loja-card-faltantes');
+  if(cardFaltantes){cardFaltantes.classList.toggle('erro',faltantes>0);cardFaltantes.classList.toggle('ok',faltantes===0);cardFaltantes.classList.toggle('alerta',false);}
+  Object.entries(zonas).forEach(([zona,itens])=>{
+    const el=document.getElementById('zona-'+zona); if(!el)return;
+    el.innerHTML=itens.length?itens.map(htmlEquipamentoLoja).join(''):'<div class="loja-vazia">Nenhum item do Kit padrão classificado nesta área.</div>';
+  });
+}
+
+function abrirLojaVirtual(){
+  modoLojaVirtual=true;
+  modoKitPadrao=false;
+  modoSimuladorLojas=false;
+  exibirModoGraficoCodigo();
+}
+
+function voltarAoKitDaLojaVirtual(){
+  modoLojaVirtual=false;
+  modoKitPadrao=true;
+  modoSimuladorLojas=false;
+  exibirModoGraficoCodigo();
+}
+
 function exibirModoGraficoCodigo(){
   const wrap=document.getElementById('grafico-codigo-wrap');
   const blocoGrafico=document.getElementById('grafico-codigo-bloco');
   const kitPanel=document.getElementById('kit-padrao-panel');
+  const lojaVirtualPanel=document.getElementById('loja-virtual-panel');
   const resumo=document.getElementById('simulador-resumo');
   const btnSimular=document.getElementById('btn-simular-lojas');
   const btnKit=document.getElementById('btn-kit-padrao');
@@ -1690,6 +1843,7 @@ function exibirModoGraficoCodigo(){
 
   resumo.classList.remove('ativo');
   kitPanel.classList.remove('ativo');
+  if(lojaVirtualPanel) lojaVirtualPanel.classList.remove('ativo');
   btnSimular.classList.remove('ativo');
   btnKit.classList.remove('ativo');
   btnSimular.textContent='Simular abertura de loja';
@@ -1705,6 +1859,18 @@ function exibirModoGraficoCodigo(){
     titulo.textContent='Capacidade para inauguração de lojas';
     subtitulo.textContent='Resultado cruzando somente o estoque de Expansão com o Kit padrão de loja.';
     renderizarSimuladorLojas();
+    return;
+  }
+
+  if(modoLojaVirtual){
+    blocoGrafico.style.display='none';
+    if(tipoGrid) tipoGrid.style.display='none';
+    if(modeloTabs) modeloTabs.style.display='none';
+    if(lojaVirtualPanel) lojaVirtualPanel.classList.add('ativo');
+    btnKit.classList.add('ativo');
+    titulo.textContent='Loja virtual — Kit padrão';
+    subtitulo.textContent='Veja os equipamentos do Kit padrão posicionados por área e confira se o estoque de Expansão atende 1 loja.';
+    renderizarLojaVirtual();
     return;
   }
 
@@ -1740,14 +1906,14 @@ function exibirModoGraficoCodigo(){
 function alternarSimuladorLojas(){
   const ativar=!modoSimuladorLojas;
   modoSimuladorLojas=ativar;
-  if(ativar) modoKitPadrao=false;
+  if(ativar){modoKitPadrao=false;modoLojaVirtual=false;}
   exibirModoGraficoCodigo();
 }
 
 function alternarKitPadrao(){
   const ativar=!modoKitPadrao;
   modoKitPadrao=ativar;
-  if(ativar) modoSimuladorLojas=false;
+  if(ativar){modoSimuladorLojas=false;modoLojaVirtual=false;}
   exibirModoGraficoCodigo();
 }
 
@@ -1757,6 +1923,7 @@ document.querySelectorAll('[data-tipo-grafico]').forEach(btn=>{
     document.querySelectorAll('[data-tipo-grafico]').forEach(b=>b.classList.toggle('ativo',b===btn));
     modoKitPadrao=false;
     modoSimuladorLojas=false;
+    modoLojaVirtual=false;
     exibirModoGraficoCodigo();
   });
 });
@@ -1766,12 +1933,15 @@ document.querySelectorAll('[data-modelo-grafico]').forEach(btn=>{
     modeloGraficoCodigo=btn.dataset.modeloGrafico;
     modoKitPadrao=false;
     modoSimuladorLojas=false;
+    modoLojaVirtual=false;
     document.querySelectorAll('[data-modelo-grafico]').forEach(b=>b.classList.toggle('ativo',b===btn));
     exibirModoGraficoCodigo();
   });
 });
 document.getElementById('btn-kit-padrao')?.addEventListener('click',alternarKitPadrao);
 document.getElementById('btn-simular-lojas')?.addEventListener('click',alternarSimuladorLojas);
+document.getElementById('btn-ver-loja-virtual')?.addEventListener('click',abrirLojaVirtual);
+document.getElementById('btn-voltar-kit-virtual')?.addEventListener('click',voltarAoKitDaLojaVirtual);
 
 function escapeHtml(str){
   return String(str).replace(/[&<>"']/g, s => ({
@@ -1787,7 +1957,8 @@ async function carregarKitPadrao(){
     renderizarKitPadrao();
     if(modoSimuladorLojas) renderizarSimuladorLojas();
     if(modoKitPadrao) renderizarKitPadrao();
-    if(!modoSimuladorLojas && !modoKitPadrao) atualizarGraficoCodigoItem();
+    if(modoLojaVirtual) renderizarLojaVirtual();
+    if(!modoSimuladorLojas && !modoKitPadrao && !modoLojaVirtual) atualizarGraficoCodigoItem();
   }catch(err){console.error(err);}
 }
 
@@ -1856,9 +2027,10 @@ async function carregarProdutos(){
     if(!res.ok) throw new Error('Falha ao carregar produtos');
     produtosCache = (await res.json()).sort((a,b)=>compararCodigosNaturais(a.codigo,b.codigo));
     preencherSelectProdutos();
-    if(!modoSimuladorLojas && !modoKitPadrao) atualizarGraficoCodigoItem();
+    if(!modoSimuladorLojas && !modoKitPadrao && !modoLojaVirtual) atualizarGraficoCodigoItem();
     if(modoSimuladorLojas) renderizarSimuladorLojas();
     if(modoKitPadrao) renderizarKitPadrao();
+    if(modoLojaVirtual) renderizarLojaVirtual();
   }catch(err){ console.error(err); }
 }
 function preencherSelectProdutos(){
