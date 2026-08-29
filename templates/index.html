@@ -72,6 +72,9 @@
 
   main{padding:26px 32px 60px; max-width:1400px; margin:0 auto;}
 
+  .graficos-duplos{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:24px; align-items:start;}
+  @media(max-width:900px){.graficos-duplos{grid-template-columns:1fr;}}
+
   .panel{
     background:var(--panel);
     border:1px solid var(--line);
@@ -331,6 +334,7 @@
 <nav style="padding:10px 32px; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:center; font-size:13px; flex-wrap:wrap; gap:10px;">
   <div style="display:flex; gap:8px; align-items:center;">
     <a href="{{ url_for('index') }}" class="nav-link ativo">Estoque</a>
+    <a href="{{ url_for('pagina_produtos') }}" class="nav-link" style="color:var(--muted);">Cadastro de Produtos</a>
     <a href="{{ url_for('pagina_imobilizados') }}" class="nav-link" style="color:var(--muted);">Imobilizados</a>
   </div>
   <div style="display:flex; gap:16px; align-items:center;">
@@ -352,11 +356,13 @@
     <form id="item-form">
       <div class="field">
         <label for="codigo">Código do item *</label>
-        <input id="codigo" name="codigo" required placeholder="EX: EQP-0231">
+        <select id="codigo" name="codigo" required>
+          <option value="">Selecione o código cadastrado...</option>
+        </select>
       </div>
       <div class="field wide">
         <label for="descricao">Descrição</label>
-        <input id="descricao" name="descricao" placeholder="Descrição do equipamento">
+        <input id="descricao" name="descricao" readonly placeholder="Preenchida automaticamente pelo cadastro de produtos">
       </div>
       <div class="field">
         <label for="qtde">Qtde</label>
@@ -461,9 +467,19 @@
   </section>
 
   <section class="panel">
-    <h2>Estoque por tipo</h2>
-    <div style="max-width:520px; margin:0 auto;">
-      <canvas id="grafico-tipo-estoque" height="220"></canvas>
+    <div class="graficos-duplos">
+      <div>
+        <h2>Estoque por tipo</h2>
+        <div style="max-width:520px; margin:0 auto;">
+          <canvas id="grafico-tipo-estoque" height="220"></canvas>
+        </div>
+      </div>
+      <div>
+        <h2>Quantidade por código do item</h2>
+        <div style="max-width:620px; margin:0 auto;">
+          <canvas id="grafico-codigo-item" height="220"></canvas>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -608,11 +624,11 @@
     <form id="full-edit-form" style="display:grid; grid-template-columns:repeat(3, 1fr); gap:12px 14px;">
       <div class="field">
         <label for="fe-codigo">Código do item</label>
-        <input id="fe-codigo" required>
+        <select id="fe-codigo" required><option value="">Selecione o código cadastrado...</option></select>
       </div>
       <div class="field" style="grid-column: span 2;">
         <label for="fe-descricao">Descrição</label>
-        <input id="fe-descricao">
+        <input id="fe-descricao" readonly>
       </div>
       <div class="field">
         <label for="fe-qtde">Qtde</label>
@@ -880,6 +896,7 @@ function renderizar(){
 
   atualizarStats();
   atualizarGrafico();
+  atualizarGraficoCodigoItem();
   atualizarSelecionados();
 }
 
@@ -976,11 +993,56 @@ function atualizarGrafico(){
   }
 }
 
+let graficoCodigoItem = null;
+function atualizarGraficoCodigoItem(){
+  try{
+    if(typeof Chart === 'undefined') return;
+    const contagem={};
+    itensCache.forEach(it=>{ const codigo=it.codigo || 'Sem código'; contagem[codigo]=(contagem[codigo]||0)+(Number(it.qtde)||1); });
+    const labels=Object.keys(contagem).sort((a,b)=>a.localeCompare(b,'pt-BR',{numeric:true}));
+    const valores=labels.map(c=>contagem[c]);
+    const ctx=document.getElementById('grafico-codigo-item'); if(!ctx) return;
+    if(graficoCodigoItem){ graficoCodigoItem.data.labels=labels; graficoCodigoItem.data.datasets[0].data=valores; graficoCodigoItem.update(); return; }
+    graficoCodigoItem=new Chart(ctx,{type:'bar',data:{labels,datasets:[{label:'Quantidade',data:valores,borderWidth:1}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{precision:0,color:'#8b96a8'}},x:{ticks:{color:'#8b96a8',autoSkip:false,maxRotation:60,minRotation:30}}}}});
+  }catch(err){console.error('Erro no gráfico por código:',err);}
+}
+
 function escapeHtml(str){
   return String(str).replace(/[&<>"']/g, s => ({
     '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'
   }[s]));
 }
+
+let produtosCache = [];
+async function carregarProdutos(){
+  try{
+    const res = await fetch('/api/produtos');
+    if(!res.ok) throw new Error('Falha ao carregar produtos');
+    produtosCache = await res.json();
+    preencherSelectProdutos();
+  }catch(err){ console.error(err); }
+}
+function preencherSelectProdutos(){
+  ['codigo','fe-codigo'].forEach(id => {
+    const el=document.getElementById(id);
+    if(!el || el.tagName !== 'SELECT') return;
+    const valor=el.value;
+    el.innerHTML='<option value="">Selecione o código cadastrado...</option>';
+    produtosCache.forEach(p=>{
+      const o=document.createElement('option'); o.value=p.codigo; o.textContent=`${p.codigo} — ${p.descricao}`; el.appendChild(o);
+    });
+    el.value=valor;
+  });
+}
+function sincronizarDescricaoProduto(prefix=''){
+  const codigo=document.getElementById(prefix+'codigo');
+  const descricao=document.getElementById(prefix+'descricao');
+  if(!codigo || !descricao) return;
+  const p=produtosCache.find(x=>x.codigo===codigo.value);
+  descricao.value=p ? p.descricao : '';
+}
+document.getElementById('codigo')?.addEventListener('change',()=>sincronizarDescricaoProduto(''));
+document.getElementById('fe-codigo')?.addEventListener('change',()=>sincronizarDescricaoProduto('fe-'));
 
 document.getElementById('item-form').addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -1424,3 +1486,6 @@ carregarItens();
 
 </body>
 </html>
+
+
+carregarProdutos();

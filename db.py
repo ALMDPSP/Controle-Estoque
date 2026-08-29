@@ -168,6 +168,28 @@ def init_db():
             )
         """)
 
+    # Cadastro mestre de produtos: código de cadastro + descrição.
+    if IS_PG:
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS produtos (
+                id SERIAL PRIMARY KEY,
+                codigo TEXT UNIQUE NOT NULL,
+                descricao TEXT NOT NULL,
+                criado_por TEXT,
+                criado_em TEXT
+            )
+        """)
+    else:
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS produtos (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                codigo TEXT UNIQUE NOT NULL,
+                descricao TEXT NOT NULL,
+                criado_por TEXT,
+                criado_em TEXT
+            )
+        """)
+
     conn.commit()
 
     # Migração: adiciona as colunas novas em bancos que já existiam antes
@@ -277,6 +299,51 @@ def init_db():
 
     cur.close()
     conn.close()
+
+
+# ---------------------------------------------------------------------
+# Produtos (cadastro mestre)
+# ---------------------------------------------------------------------
+
+def listar_produtos():
+    conn = get_conn(); cur = get_cursor(conn)
+    cur.execute("SELECT * FROM produtos ORDER BY codigo")
+    rows = cur.fetchall(); result = [dict(r) for r in rows]
+    cur.close(); conn.close(); return result
+
+def buscar_produto_por_codigo(codigo):
+    conn = get_conn(); cur = get_cursor(conn)
+    cur.execute(q("SELECT * FROM produtos WHERE codigo = ?"), (codigo,))
+    row = cur.fetchone(); result = dict(row) if row else None
+    cur.close(); conn.close(); return result
+
+def criar_produto(codigo, descricao, usuario):
+    conn = get_conn(); cur = get_cursor(conn)
+    agora = datetime.now().strftime("%Y-%m-%d %H:%M")
+    try:
+        if IS_PG:
+            cur.execute(q("INSERT INTO produtos (codigo, descricao, criado_por, criado_em) VALUES (?, ?, ?, ?) RETURNING id"),
+                        (codigo, descricao, usuario, agora))
+            new_id = cur.fetchone()["id"]
+        else:
+            cur.execute(q("INSERT INTO produtos (codigo, descricao, criado_por, criado_em) VALUES (?, ?, ?, ?)"),
+                        (codigo, descricao, usuario, agora))
+            new_id = cur.lastrowid
+        conn.commit(); return new_id
+    except Exception:
+        conn.rollback(); raise
+    finally:
+        cur.close(); conn.close()
+
+def atualizar_produto(produto_id, codigo, descricao):
+    conn = get_conn(); cur = get_cursor(conn)
+    cur.execute(q("UPDATE produtos SET codigo = ?, descricao = ? WHERE id = ?"), (codigo, descricao, produto_id))
+    ok = cur.rowcount > 0; conn.commit(); cur.close(); conn.close(); return ok
+
+def excluir_produto(produto_id):
+    conn = get_conn(); cur = get_cursor(conn)
+    cur.execute(q("DELETE FROM produtos WHERE id = ?"), (produto_id,))
+    ok = cur.rowcount > 0; conn.commit(); cur.close(); conn.close(); return ok
 
 
 # ---------------------------------------------------------------------

@@ -144,6 +144,55 @@ def pagina_usuarios():
     )
 
 
+@app.route("/produtos")
+@login_required
+def pagina_produtos():
+    return render_template("produtos.html", username=session.get("username"), is_admin=session.get("role") == "admin")
+
+
+@app.route("/api/produtos", methods=["GET"])
+@login_required
+def api_listar_produtos():
+    return jsonify(db.listar_produtos())
+
+
+@app.route("/api/produtos", methods=["POST"])
+@login_required
+def api_criar_produto():
+    dados = request.get_json(force=True)
+    codigo = (dados.get("codigo") or "").strip()
+    descricao = (dados.get("descricao") or "").strip()
+    if not codigo or not descricao:
+        return jsonify({"erro": "Código de cadastro e descrição são obrigatórios."}), 400
+    try:
+        novo_id = db.criar_produto(codigo, descricao, session.get("username"))
+    except Exception:
+        return jsonify({"erro": "Já existe um produto cadastrado com este código."}), 409
+    return jsonify({"ok": True, "id": novo_id}), 201
+
+
+@app.route("/api/produtos/<int:produto_id>", methods=["PUT"])
+@login_required
+def api_atualizar_produto(produto_id):
+    dados = request.get_json(force=True)
+    codigo = (dados.get("codigo") or "").strip()
+    descricao = (dados.get("descricao") or "").strip()
+    if not codigo or not descricao:
+        return jsonify({"erro": "Código de cadastro e descrição são obrigatórios."}), 400
+    try:
+        ok = db.atualizar_produto(produto_id, codigo, descricao)
+    except Exception:
+        return jsonify({"erro": "Já existe outro produto com este código."}), 409
+    return (jsonify({"ok": True}) if ok else (jsonify({"erro": "Produto não encontrado."}), 404))
+
+
+@app.route("/api/produtos/<int:produto_id>", methods=["DELETE"])
+@login_required
+def api_excluir_produto(produto_id):
+    ok = db.excluir_produto(produto_id)
+    return (jsonify({"ok": True}) if ok else (jsonify({"erro": "Produto não encontrado."}), 404))
+
+
 @app.route("/imobilizados")
 @login_required
 def pagina_imobilizados():
@@ -194,11 +243,14 @@ def api_criar_imobilizado():
         "chamado": (dados.get("chamado") or "").strip(),
         "criado_por": session.get("username"),
     }
-    novo_id = db.criar_imobilizado(novo)
-    novo["id"] = novo_id
-    db.registrar_movimentacao(novo_id, "entrada", novo["qtde"], session.get("username"),
-                               "Cadastro do imobilizado", tabela="imobilizados")
-    return jsonify(novo), 201
+    try:
+        qtde_informada = int(float(dados.get("qtde") or 1))
+    except (ValueError, TypeError):
+        qtde_informada = 1
+    qtde_informada = max(qtde_informada, 1)
+    linhas = [dict(novo, qtde="1") for _ in range(qtde_informada)]
+    total = db.criar_imobilizados_em_lote(linhas, session.get("username"), observacao="Cadastro manual do imobilizado")
+    return jsonify({"ok": True, "criados": total, "codigo": codigo}), 201
 
 
 @app.route("/api/imobilizados/<int:item_id>", methods=["PUT"])
