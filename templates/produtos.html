@@ -7,10 +7,7 @@
 {% include '_menu.html' %}
 <main><section class="panel"><h2>Novo produto</h2><form id="produto-form"><div class="field"><label>Código de cadastro do item *</label><input id="produto-codigo" required placeholder="Ex.: PDV-01"></div><div class="field"><label>Descrição *</label><input id="produto-descricao" required placeholder="Ex.: PDV completo"></div><button class="primary form-action" type="submit">Cadastrar produto</button></form><div class="hint"><strong>Simulador de lojas:</strong> a regra oficial agora fica em Estoque → Quantidade por código do item → Kit padrão de loja. Lá você pode cadastrar, editar e excluir os itens do kit.</div></section>
 <section class="panel"><h2>Produtos cadastrados</h2><div class="produtos-toolbar"><input id="pesquisa-produto" type="search" placeholder="Pesquisar por código ou descrição..." autocomplete="off"><span class="produtos-contador" id="produtos-contador"></span></div><table><thead><tr><th>Código</th><th>Descrição</th><th>Cadastrado por</th><th>Ações</th></tr></thead><tbody id="produtos-tbody"></tbody></table></section></main>
-<footer>
-  Arquivo de dados: <code id="footer-path">estoque.xlsx</code> — abra esse arquivo a qualquer momento no Excel para conferir ou fazer backup.
-  <div class="credito">© 2026 · Todos os direitos reservados · Developed by <strong>Alexandre Martins</strong></div>
-</footer>
+{% include '_footer.html' %}
 <script>
 const PERFIL_USUARIO={{ (role or "user")|tojson }};
 const PODE_GERENCIAR=["admin","gestor"].includes(PERFIL_USUARIO);
