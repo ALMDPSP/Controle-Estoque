@@ -1298,6 +1298,19 @@ function gradienteBarra(ctx,corTopo,corBase){
   return g;
 }
 
+function hexParaRgba(hex,alpha=1){
+  const cor=String(hex||'').replace('#','').trim();
+  if(cor.length!==6) return `rgba(62,166,255,${alpha})`;
+  const r=parseInt(cor.slice(0,2),16);
+  const g=parseInt(cor.slice(2,4),16);
+  const b=parseInt(cor.slice(4,6),16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+function paletaPorItem(total,alpha=1){
+  return Array.from({length:total},(_,i)=>hexParaRgba(PALETA_GRAFICO_CODIGO[i % PALETA_GRAFICO_CODIGO.length],alpha));
+}
+
 function opcoesGraficoCodigo(tipo,forcarLegenda=false,ehExpansao=false){
   const circular = tipo === 'doughnut' || tipo === 'polarArea';
   return {
@@ -1364,16 +1377,37 @@ function opcoesGraficoCodigo(tipo,forcarLegenda=false,ehExpansao=false){
   };
 }
 
-function datasetBarraProfissional(label,data,tema='azul'){
+function datasetBarraProfissional(label,data,tema='azul',coresItem=null){
   const azul=tema==='azul';
+  const usarCoresPorItem=Array.isArray(coresItem) && coresItem.length;
   return {
     label,
     data,
-    backgroundColor:(ctx)=>azul
-      ? gradienteBarra(ctx,'rgba(91,190,255,.98)','rgba(40,128,235,.72)')
-      : gradienteBarra(ctx,'rgba(255,197,96,.98)','rgba(232,139,37,.74)'),
-    hoverBackgroundColor:azul?'#73c8ff':'#ffd078',
-    borderColor:azul?'rgba(126,205,255,.95)':'rgba(255,210,123,.95)',
+    backgroundColor:(ctx)=>{
+      if(usarCoresPorItem){
+        const base=coresItem[ctx.dataIndex % coresItem.length] || PALETA_GRAFICO_CODIGO[0];
+        return azul
+          ? gradienteBarra(ctx,hexParaRgba(base,0.98),hexParaRgba(base,0.58))
+          : gradienteBarra(ctx,hexParaRgba(base,0.42),hexParaRgba(base,0.16));
+      }
+      return azul
+        ? gradienteBarra(ctx,'rgba(91,190,255,.98)','rgba(40,128,235,.72)')
+        : gradienteBarra(ctx,'rgba(255,197,96,.98)','rgba(232,139,37,.74)');
+    },
+    hoverBackgroundColor:(ctx)=>{
+      if(usarCoresPorItem){
+        const base=coresItem[ctx.dataIndex % coresItem.length] || PALETA_GRAFICO_CODIGO[0];
+        return hexParaRgba(base,azul?0.92:0.38);
+      }
+      return azul?'#73c8ff':'#ffd078';
+    },
+    borderColor:(ctx)=>{
+      if(usarCoresPorItem){
+        const base=coresItem[ctx.dataIndex % coresItem.length] || PALETA_GRAFICO_CODIGO[0];
+        return hexParaRgba(base,azul?0.98:0.75);
+      }
+      return azul?'rgba(126,205,255,.95)':'rgba(255,210,123,.95)';
+    },
     hoverBorderColor:'#ffffff',
     borderWidth:1,
     hoverBorderWidth:2,
@@ -1411,9 +1445,10 @@ function atualizarGraficoCodigoItem(){
       let datasets;
 
       if(modeloGraficoCodigo==='bar'){
+        const coresItem=dados.labels.map((_,i)=>PALETA_GRAFICO_CODIGO[i % PALETA_GRAFICO_CODIGO.length]);
         datasets=[
-          datasetBarraProfissional('Estoque de Expansão',dados.estoque,'azul'),
-          datasetBarraProfissional('Necessário para 1 loja',dados.necessario,'laranja')
+          datasetBarraProfissional('Estoque de Expansão',dados.estoque,'azul',coresItem),
+          datasetBarraProfissional('Necessário para 1 loja',dados.necessario,'laranja',coresItem)
         ];
       }else{
         const coresEstoque=dados.labels.map((_,i)=>PALETA_GRAFICO_CODIGO[i % PALETA_GRAFICO_CODIGO.length]);
@@ -1445,7 +1480,7 @@ function atualizarGraficoCodigoItem(){
     const circular = modeloGraficoCodigo === 'doughnut' || modeloGraficoCodigo === 'polarArea';
     const cores = labels.map((_,i)=>PALETA_GRAFICO_CODIGO[i % PALETA_GRAFICO_CODIGO.length]);
     const dataset=modeloGraficoCodigo==='bar'
-      ? datasetBarraProfissional(`Quantidade — ${tipoGraficoCodigo}`,valores,'azul')
+      ? datasetBarraProfissional(`Quantidade — ${tipoGraficoCodigo}`,valores,'azul',labels.map((_,i)=>PALETA_GRAFICO_CODIGO[i % PALETA_GRAFICO_CODIGO.length]))
       : {
           label:`Quantidade — ${tipoGraficoCodigo}`,
           data:valores,
