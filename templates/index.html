@@ -645,7 +645,7 @@
           <div class="faltantes-loja" id="faltantes-loja-grafico"></div>
         </div>
         <div class="kit-padrao-panel" id="kit-padrao-panel">
-          <div class="kit-title-line"><strong>Kit padrão de uma loja</strong><div class="kit-title-actions"><span>Edite esta lista para alterar a regra da simulação.</span><button type="button" class="btn-loja-virtual" id="btn-ver-loja-virtual">🏪 Ver loja montada</button></div></div>
+          <div class="kit-title-line"><strong>Kit padrão de uma loja</strong><div class="kit-title-actions"><span>Edite esta lista para alterar a regra da simulação.</span><button type="button" class="btn-loja-virtual" id="btn-ver-loja-virtual">🏪 Abrir apresentação 3D</button></div></div>
           <form class="kit-form" id="kit-form">
             <input type="hidden" id="kit-id">
             <div class="kit-field"><label>Código do item</label><input id="kit-codigo" type="text" autocomplete="off" placeholder="Digite o código"></div>
@@ -1871,10 +1871,7 @@ function focarZonaLojaVirtual(zona){
 document.querySelectorAll('.loja-hotspot').forEach(btn=>btn.addEventListener('click',()=>focarZonaLojaVirtual(btn.dataset.focoZona)));
 
 function abrirLojaVirtual(){
-  modoLojaVirtual=true;
-  modoKitPadrao=false;
-  modoSimuladorLojas=false;
-  exibirModoGraficoCodigo();
+  window.open('/loja-virtual','_blank');
 }
 
 function voltarAoKitDaLojaVirtual(){
@@ -1925,7 +1922,7 @@ function exibirModoGraficoCodigo(){
     if(lojaVirtualPanel) lojaVirtualPanel.classList.add('ativo');
     btnKit.classList.add('ativo');
     titulo.textContent='Loja virtual 3D — Kit padrão';
-    subtitulo.textContent='Veja uma loja montada em 3D, com os equipamentos do Kit separados por área e conferência do estoque de Expansão.';
+    subtitulo.textContent='Abra uma apresentação separada da loja 3D, com a visão de entrada e os equipamentos divididos por área.';
     renderizarLojaVirtual();
     return;
   }

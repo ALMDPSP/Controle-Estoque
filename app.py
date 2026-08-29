@@ -152,6 +152,12 @@ def pagina_produtos():
     return render_template("produtos.html", username=session.get("username"), is_admin=session.get("role") == "admin")
 
 
+@app.route("/loja-virtual")
+@login_required
+def pagina_loja_virtual():
+    return render_template("loja_virtual.html", username=session.get("username"), is_admin=session.get("role") == "admin")
+
+
 @app.route("/api/produtos", methods=["GET"])
 @login_required
 def api_listar_produtos():

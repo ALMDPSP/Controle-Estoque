@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Loja Virtual 3D · Controle de Estoque</title>
+<style>
+:root{
+  --bg:#12181f;--panel:#1a2029;--panel2:#212934;--line:#2b3444;--text:#e7ebf1;--muted:#8b96a8;
+  --accent:#3ea6ff;--accent2:#ffb648;--ok:#4cd792;--danger:#ff6b6b;--mono:"SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(circle at top,#182535,#11171f 45%,#0d1218 100%);color:var(--text);font-family:"Segoe UI",Inter,system-ui,sans-serif;min-height:100vh}
+header{padding:26px 32px 18px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:16px;align-items:flex-end;flex-wrap:wrap}
+header .brand{display:flex;align-items:baseline;gap:10px}
+header .tag{font-family:var(--mono);font-size:12px;letter-spacing:.12em;color:var(--accent2);text-transform:uppercase;border:1px solid var(--accent2);padding:2px 8px;border-radius:3px}
+h1{font-size:26px;margin:6px 0 4px;font-weight:700}.sub{margin:0;color:var(--muted);font-size:13px;max-width:820px;line-height:1.6}
+.nav{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.nav a,.nav button{text-decoration:none;border:1px solid var(--line);background:var(--panel2);color:var(--text);padding:10px 14px;border-radius:10px;font-size:13px;cursor:pointer}
+.nav a.primary,.nav button.primary{background:var(--accent);border-color:var(--accent);color:#08131f;font-weight:700}
+main{padding:24px 32px 48px;max-width:1560px;margin:0 auto}
+.kpis{display:grid;grid-template-columns:repeat(5,minmax(150px,1fr));gap:12px;margin-bottom:18px}
+.kpi{background:linear-gradient(180deg,rgba(255,255,255,.02),rgba(255,255,255,.01)),var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px 16px;box-shadow:0 12px 26px rgba(0,0,0,.16)}
+.kpi span{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:8px}.kpi strong{font-family:var(--mono);font-size:28px}.kpi.ok strong{color:var(--ok)}.kpi.danger strong{color:var(--danger)}.kpi.accent strong{color:var(--accent)}
+.viewer-layout{display:grid;grid-template-columns:minmax(0,2.2fr) minmax(340px,.9fr);gap:18px;align-items:start}
+.stage-card,.side-card,.zone-card,.legend-card,.missing-card{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:0 14px 28px rgba(0,0,0,.15)}
+.stage-card{padding:16px}
+.stage-toolbar{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+.stage-toolbar h2{margin:0;font-size:18px}.stage-toolbar p{margin:4px 0 0;color:var(--muted);font-size:12px}
+.view-tabs{display:flex;gap:8px;flex-wrap:wrap}.view-tab{border:1px solid var(--line);background:var(--panel2);color:var(--text);padding:9px 12px;border-radius:999px;cursor:pointer;font-size:12px}.view-tab.ativo{background:rgba(62,166,255,.12);border-color:rgba(62,166,255,.4);color:#cfe9ff}
+.stage{position:relative;min-height:680px;border:1px solid #334054;border-radius:18px;overflow:hidden;background:#0d1218;box-shadow:inset 0 0 0 1px rgba(255,255,255,.02),0 18px 42px rgba(0,0,0,.25)}
+.stage img{display:block;width:100%;height:680px;object-fit:cover;object-position:center center;filter:contrast(1.03) saturate(.98);transition:transform .6s ease, object-position .5s ease, filter .4s ease}
+.stage::after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(180deg,rgba(4,8,13,.08),transparent 18%,transparent 74%,rgba(4,8,13,.35)),linear-gradient(90deg,rgba(4,8,13,.05),transparent 14%,transparent 86%,rgba(4,8,13,.12))}
+.stage[data-view="entrada"] img{transform:scale(1)}
+.stage[data-view="pdv"] img{transform:scale(1.22);transform-origin:81% 56%}
+.stage[data-view="balcao"] img{transform:scale(1.18);transform-origin:68% 53%}
+.stage[data-view="prateleiras"] img{transform:scale(1.16);transform-origin:38% 54%}
+.stage[data-view="rede"] img{transform:scale(1.08);transform-origin:78% 30%}
+.stage[data-view="apoio"] img{transform:scale(1.12);transform-origin:88% 68%}
+.hotspot{position:absolute;z-index:2;border:1px solid rgba(255,255,255,.26);background:rgba(12,20,30,.92);backdrop-filter:blur(7px);color:#fff;border-radius:999px;padding:6px 10px 6px 6px;display:flex;align-items:center;gap:8px;cursor:pointer;box-shadow:0 10px 22px rgba(0,0,0,.25);transition:.18s ease transform,.18s ease border-color,.18s ease background}
+.hotspot:hover,.hotspot.ativo{transform:translateY(-2px);border-color:var(--accent);background:rgba(14,31,47,.96)}
+.hotspot span{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;background:var(--accent);color:#07111b;font-family:var(--mono);font-size:10px;font-weight:800}
+.hotspot strong{font-size:10px;letter-spacing:.04em}.hotspot small{display:block;color:#bbcad9;font-size:9px;margin-top:2px}
+.hotspot.entrada{left:5%;bottom:8%}.hotspot.pdv{right:10%;bottom:28%}.hotspot.balcao{right:23%;top:52%}.hotspot.prateleiras{left:31%;top:52%}.hotspot.rede{right:18%;top:18%}.hotspot.apoio{right:7%;bottom:11%}
+.stage-badge{position:absolute;left:14px;top:14px;z-index:2;background:rgba(10,17,26,.9);border:1px solid rgba(255,255,255,.14);padding:10px 12px;border-radius:10px;max-width:320px}.stage-badge strong{display:block;font-size:11px}.stage-badge small{display:block;margin-top:3px;color:var(--muted);font-size:10px;line-height:1.4}
+.floating-panel{position:absolute;right:14px;bottom:14px;z-index:2;display:grid;grid-template-columns:repeat(2,minmax(100px,1fr));gap:8px;max-width:360px}
+.float-box{background:rgba(10,17,26,.9);border:1px solid rgba(255,255,255,.12);padding:10px;border-radius:10px}.float-box span{display:block;color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.05em}.float-box strong{display:block;margin-top:6px;font-size:20px;font-family:var(--mono)}.float-box.ok strong{color:var(--ok)}.float-box.danger strong{color:var(--danger)}
+.side-stack{display:flex;flex-direction:column;gap:12px}
+.side-card{padding:14px 14px 12px}.side-card h3{margin:0 0 8px;font-size:15px}.side-card p{margin:0;color:var(--muted);font-size:12px;line-height:1.5}
+.zone-list{display:grid;gap:10px;margin-top:12px}
+.zone-card{padding:12px;cursor:pointer;transition:.18s ease border-color,.18s ease transform,.18s ease box-shadow}.zone-card:hover{transform:translateY(-1px)}.zone-card.ativo{border-color:rgba(62,166,255,.45);box-shadow:0 0 0 2px rgba(62,166,255,.08)}
+.zone-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px}.zone-head strong{font-size:13px}.zone-head .chip{font-family:var(--mono);font-size:11px;padding:4px 7px;border-radius:999px;background:rgba(62,166,255,.1);border:1px solid rgba(62,166,255,.18);color:#9fd8ff}
+.zone-desc{font-size:11px;color:var(--muted);line-height:1.5;margin-bottom:9px}
+.item-list{display:grid;gap:7px;max-height:240px;overflow:auto;padding-right:2px}
+.item{position:relative;border:1px solid #344152;border-radius:10px;background:#111923;padding:9px 10px 8px 42px;min-height:54px}.item.ok{border-color:rgba(76,215,146,.28)}.item.fail{border-color:rgba(255,107,107,.4);background:rgba(255,107,107,.05)}
+.item .icon{position:absolute;left:10px;top:10px;width:24px;height:24px;border-radius:8px;display:grid;place-items:center;background:#0b121a;border:1px solid #293445;font-size:14px}
+.item .name{font-size:11px;font-weight:700;line-height:1.35;padding-right:62px}.item .meta{margin-top:4px;font-size:10px;color:var(--muted);font-family:var(--mono)}.item .badge{position:absolute;right:8px;top:9px;min-width:52px;text-align:center;padding:4px 6px;border-radius:999px;font-size:10px;font-family:var(--mono);background:rgba(62,166,255,.11);border:1px solid rgba(62,166,255,.22);color:#9bd8ff}.item.fail .badge{background:rgba(255,107,107,.1);border-color:rgba(255,107,107,.24);color:#ffaaaa}
+.missing-card,.legend-card{padding:14px}.missing-card h3,.legend-card h3{margin:0 0 10px;font-size:15px}.missing-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.missing-item{border:1px solid #364254;border-radius:10px;background:#111923;padding:10px}.missing-item strong{display:block;font-size:11px;line-height:1.4;margin-bottom:4px}.missing-item span{display:block;font-size:10px;color:var(--muted)}
+.legend-row{display:flex;gap:14px;flex-wrap:wrap;color:var(--muted);font-size:11px}.legend-dot{width:9px;height:9px;border-radius:50%;display:inline-block;margin-right:6px;vertical-align:middle}
+.empty{padding:16px;border:1px dashed #39485d;border-radius:10px;color:var(--muted);font-size:12px;text-align:center}
+footer{padding:0 32px 22px;text-align:center;color:var(--muted);font-size:12px}footer strong{color:var(--accent)}
+@media(max-width:1220px){.viewer-layout{grid-template-columns:1fr}.stage{min-height:560px}.stage img{height:560px}.kpis{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:760px){header,main,footer{padding-left:16px;padding-right:16px}.kpis{grid-template-columns:repeat(2,1fr)}.stage{min-height:400px}.stage img{height:400px}.floating-panel{position:static;margin:12px;grid-template-columns:1fr 1fr;max-width:none}.hotspot small{display:none}.missing-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+  <header>
+    <div>
+      <div class="brand"><span class="tag">Loja 3D</span></div>
+      <h1>Apresentação da Loja Virtual</h1>
+      <p class="sub">Visualização separada para apresentar a loja como se estivesse entrando no ambiente. A frente de <strong>PDV</strong> foi separada do <strong>balcão de atendimento</strong>, mantendo a conferência do Kit padrão com o estoque de <strong>Expansão</strong>.</p>
+    </div>
+    <div class="nav">
+      <a href="{{ url_for('index') }}">← Voltar ao Estoque</a>
+      <a href="{{ url_for('pagina_produtos') }}">Cadastro de Produtos</a>
+      <a class="primary" href="{{ url_for('pagina_loja_virtual') }}">Abrir apresentação</a>
+      <a href="{{ url_for('logout') }}">Sair</a>
+    </div>
+  </header>
+
+  <main>
+    <section class="kpis">
+      <div class="kpi accent"><span>Itens diferentes no kit</span><strong id="kpi-tipos">0</strong></div>
+      <div class="kpi"><span>Unidades no kit</span><strong id="kpi-unidades">0</strong></div>
+      <div class="kpi ok"><span>Itens atendidos</span><strong id="kpi-atendidos">0</strong></div>
+      <div class="kpi danger"><span>Itens faltantes</span><strong id="kpi-faltantes">0</strong></div>
+      <div class="kpi"><span>Lojas possíveis</span><strong id="kpi-lojas">0</strong></div>
+    </section>
+
+    <section class="viewer-layout">
+      <div>
+        <div class="stage-card">
+          <div class="stage-toolbar">
+            <div>
+              <h2>Vista de entrada da loja</h2>
+              <p>A apresentação abre em tela separada e você pode focar em PDV, balcão, prateleiras, rede/CPD e apoio.</p>
+            </div>
+            <div class="view-tabs">
+              <button type="button" class="view-tab ativo" data-view="entrada">Entrada</button>
+              <button type="button" class="view-tab" data-view="pdv">PDV</button>
+              <button type="button" class="view-tab" data-view="balcao">Balcão</button>
+              <button type="button" class="view-tab" data-view="prateleiras">Prateleiras</button>
+              <button type="button" class="view-tab" data-view="rede">CPD / Rede</button>
+              <button type="button" class="view-tab" data-view="apoio">Apoio</button>
+            </div>
+          </div>
+
+          <div class="stage" id="stage" data-view="entrada">
+            <img src="{{ url_for('static', filename='loja_3d.png') }}" alt="Loja virtual 3D vista pela entrada">
+            <div class="stage-badge">
+              <strong id="stage-title">Entrada da loja</strong>
+              <small id="stage-desc">Veja a loja como se estivesse entrando. Use os focos para destacar a área de PDV, o balcão e as demais áreas.</small>
+            </div>
+            <button type="button" class="hotspot entrada ativo" data-view="entrada"><span>1</span><div><strong>Entrada</strong><small>Visão geral da loja</small></div></button>
+            <button type="button" class="hotspot pdv" data-view="pdv"><span>2</span><div><strong>PDV</strong><small>Pinpad · Monitor · TEC55 · Epson</small></div></button>
+            <button type="button" class="hotspot balcao" data-view="balcao"><span>3</span><div><strong>Balcão</strong><small>Atendimento separado do PDV</small></div></button>
+            <button type="button" class="hotspot prateleiras" data-view="prateleiras"><span>4</span><div><strong>Prateleiras</strong><small>Área de venda</small></div></button>
+            <button type="button" class="hotspot rede" data-view="rede"><span>5</span><div><strong>Rede / CPD</strong><small>Infraestrutura</small></div></button>
+            <button type="button" class="hotspot apoio" data-view="apoio"><span>6</span><div><strong>Apoio</strong><small>Operação e suporte</small></div></button>
+            <div class="floating-panel">
+              <div class="float-box ok"><span>Atendidos</span><strong id="float-atendidos">0</strong></div>
+              <div class="float-box danger"><span>Faltando</span><strong id="float-faltantes">0</strong></div>
+              <div class="float-box"><span>Expansão disponível</span><strong id="float-expansao">0</strong></div>
+              <div class="float-box"><span>1 loja</span><strong id="float-kit">0</strong></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="missing-card" style="margin-top:16px">
+          <h3>Itens faltantes para montar a próxima loja</h3>
+          <div id="missing-grid" class="missing-grid"></div>
+        </div>
+
+        <div class="legend-card" style="margin-top:16px">
+          <h3>Legenda</h3>
+          <div class="legend-row">
+            <span><i class="legend-dot" style="background:var(--ok)"></i> item com estoque suficiente em Expansão</span>
+            <span><i class="legend-dot" style="background:var(--danger)"></i> item faltando para montar 1 loja</span>
+            <span><i class="legend-dot" style="background:var(--accent)"></i> foco visual selecionado</span>
+          </div>
+        </div>
+      </div>
+
+      <aside class="side-stack">
+        <div class="side-card">
+          <h3>Separação das áreas</h3>
+          <p><strong>PDV</strong> mostra somente os itens citados: <strong>pinpad, monitor, teclado TEC55 e impressora Epson</strong>. O <strong>balcão</strong> fica separado e exibe os demais equipamentos de atendimento.</p>
+        </div>
+        <div class="zone-list" id="zone-list"></div>
+      </aside>
+    </section>
+  </main>
+
+  <footer>
+    Arquivo de dados: <strong>estoque.xlsx</strong> — abra esse arquivo a qualquer momento no Excel para conferir ou fazer backup.<br>
+    © 2026 · Todos os direitos reservados · Developed by <strong>Alexandre Martins</strong>
+  </footer>
+
+<script>
+const zoneMeta = {
+  entrada:{titulo:'Entrada da loja',descricao:'Visualização geral da entrada da loja e distribuição do ambiente.'},
+  pdv:{titulo:'Frente de PDV',descricao:'Área lateral de caixa, contendo apenas pinpad, monitor, teclado TEC55 e impressora Epson.'},
+  balcao:{titulo:'Balcão de atendimento',descricao:'Área de atendimento separada do PDV, com os demais equipamentos de apoio ao balcão.'},
+  prateleiras:{titulo:'Prateleiras / área de vendas',descricao:'Itens ligados à exposição, consulta e operação na área de vendas.'},
+  rede:{titulo:'CPD / rede',descricao:'Infraestrutura tecnológica da loja, como rack, firewall, switch, AP, VOIP e correlatos.'},
+  apoio:{titulo:'Apoio / operação',descricao:'Itens de operação interna e apoio geral da loja.'}
+};
+
+const zoneOrder = ['pdv','balcao','prateleiras','rede','apoio'];
+let kitPadrao = [];
+let itensEstoque = [];
+
+function normalizarTexto(v){
+  return String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
+}
+function compararCodigosNaturais(a,b){
+  return String(a||'').localeCompare(String(b||''),'pt-BR',{numeric:true,sensitivity:'base'});
+}
+function singularizarKitTexto(txt){
+  const t = normalizarTexto(txt);
+  return t.replace(/\b(com|sem|de|do|da|dos|das|e)\b/g,' ').replace(/[()/-]/g,' ').replace(/\s+/g,' ').trim();
+}
+function itemEstoqueCombinaComKit(item, kit){
+  if(kit.codigo && String(item.codigo||'').trim() === String(kit.codigo).trim()) return true;
+  const kd = singularizarKitTexto(kit.descricao);
+  const id = singularizarKitTexto(item.descricao);
+  return kd && id && (id.includes(kd) || kd.includes(id));
+}
+function estoqueExpansaoDisponivelParaKit(k){
+  return itensEstoque.reduce((soma,it)=>{
+    const q = Number(it.qtde)||0;
+    const ehExpansao = normalizarTexto(it.tipo_estoque) === 'expansao';
+    return soma + (q>0 && ehExpansao && itemEstoqueCombinaComKit(it,k) ? q : 0);
+  },0);
+}
+function iconeEquipamento(descricao){
+  const d=normalizarTexto(descricao);
+  if(d.includes('pinpad')) return '💳';
+  if(d.includes('monitor')||d.includes('display')) return '🖥️';
+  if(d.includes('impressora')) return '🖨️';
+  if(d.includes('tec55')||d.includes('teclado')) return '⌨️';
+  if(d.includes('mouse')) return '🖱️';
+  if(d.includes('scanner')||d.includes('tira teima')) return '🔎';
+  if(d.includes('micro')) return '💻';
+  if(d.includes('gaveta')) return '💵';
+  if(d.includes('rack')) return '🗄️';
+  if(d.includes('switch')) return '🔀';
+  if(d.includes('firewall')) return '🛡️';
+  if(d.includes('ap')||d.includes('poe')) return '📡';
+  if(d.includes('voip')||d.includes('ata')||d.includes('telefone')||d.includes('tel sem fio')) return '☎️';
+  if(d.includes('coletor')) return '📱';
+  if(d.includes('headset')) return '🎧';
+  if(d.includes('balcao')||d.includes('balcao')) return '🧰';
+  return '📦';
+}
+function zonaEquipamento(kit){
+  const d=normalizarTexto(kit.descricao);
+  if(d.includes('pinpad') || d.includes('monitor') || d.includes('tec55') || d.includes('teclado tec55') || (d.includes('impressora') && d.includes('epson'))) return 'pdv';
+  if(d.includes('rack') || d.includes('firewall') || d.includes('switch') || d.includes('poe') || d.includes('voip') || d.includes('ata') || /(^|\s)ap(\s|$)/.test(d) || d.includes('kit ap')) return 'rede';
+  if(d.includes('tira teima') || d.includes('tira-teima')) return 'prateleiras';
+  if(d.includes('coletor') || d.includes('bandoleira') || d.includes('capa') || d.includes('headset') || d.includes('tel sem fio') || d.includes('telefone sem fio')) return 'apoio';
+  if(d.includes('balcao') || d.includes('balcao') || d.includes('micro dell') || d.includes('scanner') || d.includes('mouse') || d.includes('gaveta') || d.includes('display tela cliente') || d.includes('impressora i9') || d.includes('impressora l42') || d.includes('impressora lexmark') || (d.includes('teclado') && !d.includes('tec55'))) return 'balcao';
+  return 'balcao';
+}
+function calcularSimulacao(){
+  const requisitos = kitPadrao.map(k=>{
+    const necessario = Math.max(1, Number(k.quantidade)||1);
+    const disponivel = estoqueExpansaoDisponivelParaKit(k);
+    return { ...k, necessario, disponivel, lojas: Math.floor(disponivel/necessario) };
+  });
+  const lojas = requisitos.length ? Math.min(...requisitos.map(r=>r.lojas)) : 0;
+  const proxima = lojas + 1;
+  const faltantes = requisitos.map(r=>({
+    ...r,
+    faltam: Math.max(0, r.necessario * proxima - r.disponivel)
+  })).filter(r=>r.faltam>0).sort((a,b)=> b.faltam-a.faltam || compararCodigosNaturais(a.codigo,b.codigo));
+  return { requisitos, lojas, proxima, faltantes };
+}
+function htmlItem(k){
+  const necessario = Math.max(1, Number(k.quantidade)||1);
+  const disponivel = estoqueExpansaoDisponivelParaKit(k);
+  const faltam = Math.max(0, necessario-disponivel);
+  const cls = faltam>0 ? 'fail' : 'ok';
+  const codigo = k.codigo ? `Cód. ${escapeHtml(k.codigo)} · ` : '';
+  return `<div class="item ${cls}"><div class="icon">${iconeEquipamento(k.descricao)}</div><div class="name">${escapeHtml(k.descricao)}</div><div class="meta">${codigo}kit ${necessario} · exp ${disponivel}${faltam>0 ? ` · faltam ${faltam}` : ''}</div><div class="badge">x${necessario}</div></div>`;
+}
+function escapeHtml(s){return String(s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
+
+function render(){
+  const sim = calcularSimulacao();
+  const zonas = {pdv:[],balcao:[],prateleiras:[],rede:[],apoio:[]};
+  let totalUnidades=0, atendidos=0, faltantes=0, expansaoTotal=0;
+  sim.requisitos.forEach(k=>{
+    totalUnidades += k.necessario;
+    expansaoTotal += k.disponivel;
+    if(k.disponivel >= k.necessario) atendidos++; else faltantes++;
+    const z = zonaEquipamento(k);
+    (zonas[z]||zonas.balcao).push(k);
+  });
+
+  document.getElementById('kpi-tipos').textContent = sim.requisitos.length;
+  document.getElementById('kpi-unidades').textContent = totalUnidades;
+  document.getElementById('kpi-atendidos').textContent = atendidos;
+  document.getElementById('kpi-faltantes').textContent = faltantes;
+  document.getElementById('kpi-lojas').textContent = sim.lojas;
+  document.getElementById('float-atendidos').textContent = atendidos;
+  document.getElementById('float-faltantes').textContent = faltantes;
+  document.getElementById('float-expansao').textContent = expansaoTotal;
+  document.getElementById('float-kit').textContent = totalUnidades;
+
+  const zoneList = document.getElementById('zone-list');
+  zoneList.innerHTML = '';
+  zoneOrder.forEach(z=>{
+    const card = document.createElement('section');
+    card.className='zone-card';
+    card.dataset.view = z;
+    const itens = (zonas[z]||[]).sort((a,b)=>compararCodigosNaturais(a.codigo,b.codigo) || normalizarTexto(a.descricao).localeCompare(normalizarTexto(b.descricao)));
+    card.innerHTML = `<div class="zone-head"><strong>${zoneMeta[z].titulo}</strong><span class="chip">${itens.length} item(ns)</span></div><div class="zone-desc">${zoneMeta[z].descricao}</div><div class="item-list">${itens.length ? itens.map(htmlItem).join('') : '<div class="empty">Nenhum item do kit nesta área.</div>'}</div>`;
+    card.addEventListener('click', ()=>setView(z));
+    zoneList.appendChild(card);
+  });
+
+  const missingGrid = document.getElementById('missing-grid');
+  if(!sim.faltantes.length){
+    missingGrid.innerHTML = '<div class="empty" style="grid-column:1/-1">Nenhum item faltante para a próxima loja.</div>';
+  } else {
+    missingGrid.innerHTML = sim.faltantes.map(f=>`<div class="missing-item"><strong>${f.codigo ? escapeHtml(f.codigo)+' — ' : ''}${escapeHtml(f.descricao)}</strong><span>Necessário p/ loja ${sim.proxima}: ${f.necessario * sim.proxima}</span><span>Disponível em Expansão: ${f.disponivel}</span><span><strong style="color:var(--danger)">Faltam ${f.faltam}</strong></span></div>`).join('');
+  }
+  marcarViewAtual(document.getElementById('stage').dataset.view || 'entrada');
+}
+
+function marcarViewAtual(view){
+  document.querySelectorAll('.view-tab').forEach(b=>b.classList.toggle('ativo', b.dataset.view===view));
+  document.querySelectorAll('.hotspot').forEach(b=>b.classList.toggle('ativo', b.dataset.view===view));
+  document.querySelectorAll('.zone-card').forEach(b=>b.classList.toggle('ativo', b.dataset.view===view));
+  const meta = zoneMeta[view] || zoneMeta.entrada;
+  document.getElementById('stage-title').textContent = meta.titulo;
+  document.getElementById('stage-desc').textContent = meta.descricao;
+}
+function setView(view){
+  document.getElementById('stage').dataset.view = view;
+  marcarViewAtual(view);
+}
+
+document.querySelectorAll('.view-tab,.hotspot').forEach(el=>el.addEventListener('click',()=>setView(el.dataset.view)));
+
+Promise.all([
+  fetch('/api/kit-padrao').then(r=>r.json()),
+  fetch('/api/itens').then(r=>r.json())
+]).then(([kit,itens])=>{
+  kitPadrao = Array.isArray(kit) ? kit : [];
+  itensEstoque = Array.isArray(itens) ? itens : [];
+  render();
+}).catch(err=>{
+  console.error(err);
+  document.getElementById('zone-list').innerHTML = '<div class="empty">Não foi possível carregar os dados da loja virtual.</div>';
+  document.getElementById('missing-grid').innerHTML = '<div class="empty" style="grid-column:1/-1">Erro ao carregar informações.</div>';
+});
+</script>
+</body>
+</html>
