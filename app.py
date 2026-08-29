@@ -23,6 +23,7 @@ Depois abra no navegador:
 import io
 import os
 import unicodedata
+import zipfile
 from datetime import datetime
 from functools import wraps
 
@@ -69,6 +70,33 @@ def admin_required(view):
     return wrapped
 
 
+def role_required(*roles):
+    permitidos=set(roles)
+    def decorator(view):
+        @wraps(view)
+        def wrapped(*args, **kwargs):
+            if not session.get("user_id"):
+                return redirect(url_for("login", proximo=request.path))
+            if session.get("precisa_trocar_senha"):
+                return redirect(url_for("trocar_senha"))
+            role=session.get("role") or "user"
+            # compatibilidade: perfis antigos 'user' funcionam como operador
+            if role == "user": role = "operador"
+            if role not in permitidos:
+                return jsonify({"erro": "Seu perfil não possui permissão para esta operação."}), 403
+            return view(*args, **kwargs)
+        return wrapped
+    return decorator
+
+
+def edit_required(view):
+    return role_required("admin", "gestor", "operador")(view)
+
+
+def manager_required(view):
+    return role_required("admin", "gestor")(view)
+
+
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "GET":
@@ -88,7 +116,7 @@ def login():
 
     if session["precisa_trocar_senha"]:
         return redirect(url_for("trocar_senha"))
-    proximo = request.args.get("proximo") or url_for("index")
+    proximo = request.args.get("proximo") or url_for("dashboard")
     return redirect(proximo)
 
 
@@ -96,7 +124,7 @@ def login():
 @login_required
 def trocar_senha():
     if not session.get("precisa_trocar_senha"):
-        return redirect(url_for("index"))
+        return redirect(url_for("dashboard"))
 
     if request.method == "GET":
         return render_template("trocar_senha.html", username=session.get("username"), erro=None)
@@ -113,7 +141,7 @@ def trocar_senha():
 
     db.trocar_senha(session["user_id"], nova)
     session["precisa_trocar_senha"] = False
-    return redirect(url_for("index"))
+    return redirect(url_for("dashboard"))
 
 
 @app.route("/logout")
@@ -132,6 +160,40 @@ def index():
     return render_template(
         "index.html",
         username=session.get("username"),
+        role=session.get("role") or "user",
+        is_admin=session.get("role") == "admin",
+    )
+
+
+@app.route("/dashboard")
+@login_required
+def dashboard():
+    return render_template(
+        "dashboard.html",
+        username=session.get("username"),
+        role=session.get("role") or "user",
+        is_admin=session.get("role") == "admin",
+    )
+
+
+@app.route("/historico")
+@login_required
+def pagina_historico():
+    return render_template(
+        "historico.html",
+        username=session.get("username"),
+        role=session.get("role") or "user",
+        is_admin=session.get("role") == "admin",
+    )
+
+
+@app.route("/relatorios")
+@login_required
+def pagina_relatorios():
+    return render_template(
+        "relatorios.html",
+        username=session.get("username"),
+        role=session.get("role") or "user",
         is_admin=session.get("role") == "admin",
     )
 
@@ -142,20 +204,178 @@ def pagina_usuarios():
     return render_template(
         "usuarios.html",
         username=session.get("username"),
+        role=session.get("role") or "admin",
+        is_admin=True,
         usuarios=db.listar_usuarios(),
     )
+
+
+@app.route("/api/movimentacoes-recentes")
+@login_required
+def api_movimentacoes_recentes():
+    try:
+        limite=max(1,min(int(request.args.get("limite", 80)),500))
+    except (TypeError,ValueError):
+        limite=80
+    movs=db.listar_movimentacoes_recentes(limite)
+    itens={str(x.get("id")):x for x in db.listar_itens()}
+    imobs={str(x.get("id")):x for x in db.listar_imobilizados()}
+    for m in movs:
+        tabela=m.get("tabela") or "itens"
+        ref=(imobs if tabela=="imobilizados" else itens).get(str(m.get("item_id")), {})
+        m["codigo"]=ref.get("codigo","")
+        m["descricao"]=ref.get("descricao","")
+    return jsonify(movs)
+
+
+@app.route("/api/busca-global")
+@login_required
+def api_busca_global():
+    termo=unicodedata.normalize("NFD", (request.args.get("q") or "").strip().lower())
+    termo="".join(c for c in termo if unicodedata.category(c)!="Mn")
+    if len(termo)<1:
+        return jsonify([])
+    resultados=[]
+    campos=("codigo","descricao","nro_serie","nro_patrimonio","nro_imobilizado","localizacao","local","armazenagem","vd_loja","pedido","chamado")
+    def combina(obj):
+        alvo=" ".join(str(obj.get(c) or "") for c in campos).lower()
+        alvo=unicodedata.normalize("NFD",alvo)
+        alvo="".join(c for c in alvo if unicodedata.category(c)!="Mn")
+        return termo in alvo
+    for nome,lista in (("Estoque",db.listar_itens()),("Imobilizados",db.listar_imobilizados())):
+        for obj in lista:
+            if combina(obj):
+                resultados.append({
+                    "origem":nome,"id":obj.get("id"),"codigo":obj.get("codigo","") or "",
+                    "descricao":obj.get("descricao","") or "","quantidade":obj.get("qtde","") or "",
+                    "tipo_estoque":obj.get("tipo_estoque","") or "","status":obj.get("status","") or "",
+                    "localizacao":obj.get("localizacao","") or "","nro_serie":obj.get("nro_serie","") or "",
+                    "nro_patrimonio":obj.get("nro_patrimonio","") or ""
+                })
+            if len(resultados)>=80: break
+        if len(resultados)>=80: break
+    for prod in db.listar_produtos():
+        alvo=f"{prod.get('codigo','')} {prod.get('descricao','')}".lower()
+        alvo=unicodedata.normalize("NFD",alvo)
+        alvo="".join(c for c in alvo if unicodedata.category(c)!="Mn")
+        if termo in alvo:
+            resultados.append({"origem":"Cadastro de Produtos","id":prod.get("id"),"codigo":prod.get("codigo","") or "","descricao":prod.get("descricao","") or "","quantidade":"","tipo_estoque":"","status":"","localizacao":"","nro_serie":"","nro_patrimonio":""})
+        if len(resultados)>=100: break
+    return jsonify(resultados)
+
+
+@app.route("/api/status-sistema")
+@login_required
+def api_status_sistema():
+    return jsonify({
+        "ultimo_backup":session.get("ultimo_backup"),
+        "perfil":session.get("role") or "user",
+        "usuario":session.get("username")
+    })
+
+
+def _preencher_planilha_dict(ws, dados, titulo=None):
+    if titulo:
+        ws.append([titulo])
+        ws.merge_cells(start_row=1,start_column=1,end_row=1,end_column=max(1,len(dados[0]) if dados else 1))
+        ws["A1"].font=Font(bold=True,size=14)
+    if not dados:
+        ws.append(["Sem dados"])
+        return
+    colunas=[]
+    for obj in dados:
+        for chave in obj.keys():
+            if chave not in colunas: colunas.append(chave)
+    ws.append(colunas)
+    cab_row=ws.max_row
+    fill=PatternFill("solid", fgColor="1F4E78")
+    for c in ws[cab_row]:
+        c.font=Font(bold=True,color="FFFFFF")
+        c.fill=fill
+        c.alignment=Alignment(horizontal="center")
+    for obj in dados:
+        ws.append([obj.get(c,"") for c in colunas])
+    ws.freeze_panes=f"A{cab_row+1}"
+    ws.auto_filter.ref=f"A{cab_row}:{get_column_letter(len(colunas))}{ws.max_row}"
+    for idx,col in enumerate(colunas,1):
+        largura=max(len(str(col)),12)
+        for row in ws.iter_rows(min_row=cab_row+1,min_col=idx,max_col=idx):
+            largura=max(largura,min(len(str(row[0].value or "")),45))
+        ws.column_dimensions[get_column_letter(idx)].width=min(largura+2,48)
+
+
+def _workbook_consolidado():
+    wb=Workbook()
+    wb.remove(wb.active)
+    fontes=[
+        ("Estoque",db.listar_itens()),
+        ("Imobilizados",db.listar_imobilizados()),
+        ("Produtos",db.listar_produtos()),
+        ("Kit padrão",db.listar_kit_padrao_loja()),
+        ("Movimentações",db.listar_todas_movimentacoes()),
+    ]
+    for nome,dados in fontes:
+        ws=wb.create_sheet(nome[:31])
+        _preencher_planilha_dict(ws,dados)
+    return wb
+
+
+@app.route("/export-consolidado")
+@login_required
+def exportar_consolidado():
+    wb=_workbook_consolidado()
+    buf=io.BytesIO(); wb.save(buf); buf.seek(0)
+    return send_file(buf,as_attachment=True,download_name=f"relatorio_consolidado_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx",mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+
+@app.route("/export-movimentacoes")
+@login_required
+def exportar_movimentacoes():
+    inicio=(request.args.get("inicio") or "").strip()
+    fim=(request.args.get("fim") or "").strip()
+    movs=db.listar_todas_movimentacoes()
+    if inicio:
+        movs=[m for m in movs if str(m.get("data_hora") or "")[:10] >= inicio]
+    if fim:
+        movs=[m for m in movs if str(m.get("data_hora") or "")[:10] <= fim]
+    itens={str(x.get("id")):x for x in db.listar_itens()}
+    imobs={str(x.get("id")):x for x in db.listar_imobilizados()}
+    for m in movs:
+        ref=(imobs if (m.get("tabela") or "itens")=="imobilizados" else itens).get(str(m.get("item_id")),{})
+        m["codigo"]=ref.get("codigo","")
+        m["descricao"]=ref.get("descricao","")
+    wb=Workbook(); ws=wb.active; ws.title="Movimentações"; _preencher_planilha_dict(ws,movs)
+    buf=io.BytesIO(); wb.save(buf); buf.seek(0)
+    faixa=f"_{inicio or 'inicio'}_{fim or 'hoje'}"
+    return send_file(buf,as_attachment=True,download_name=f"movimentacoes{faixa}.xlsx",mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+
+@app.route("/backup")
+@login_required
+def gerar_backup():
+    mem=io.BytesIO()
+    with zipfile.ZipFile(mem,"w",zipfile.ZIP_DEFLATED) as z:
+        wb=_workbook_consolidado()
+        x=io.BytesIO(); wb.save(x); x.seek(0)
+        z.writestr("estoque_backup.xlsx",x.read())
+        if not db.IS_PG and os.path.exists(db.SQLITE_PATH):
+            z.write(db.SQLITE_PATH,arcname="estoque.db")
+        z.writestr("LEIA-ME.txt",f"Backup gerado em {datetime.now().strftime('%d/%m/%Y %H:%M')} por {session.get('username')}.\nContém Estoque, Imobilizados, Produtos, Kit padrão e Histórico de movimentações.\n")
+    session["ultimo_backup"]=datetime.now().strftime("%d/%m/%Y %H:%M")
+    mem.seek(0)
+    return send_file(mem,as_attachment=True,download_name=f"backup_controle_estoque_{datetime.now().strftime('%Y%m%d_%H%M')}.zip",mimetype="application/zip")
 
 
 @app.route("/produtos")
 @login_required
 def pagina_produtos():
-    return render_template("produtos.html", username=session.get("username"), is_admin=session.get("role") == "admin")
+    return render_template("produtos.html", username=session.get("username"), role=session.get("role") or "user", is_admin=session.get("role") == "admin")
 
 
 @app.route("/loja-virtual")
 @login_required
 def pagina_loja_virtual():
-    return render_template("loja_virtual.html", username=session.get("username"), is_admin=session.get("role") == "admin")
+    return render_template("loja_virtual.html", username=session.get("username"), role=session.get("role") or "user", is_admin=session.get("role") == "admin")
 
 
 @app.route("/api/produtos", methods=["GET"])
@@ -165,7 +385,7 @@ def api_listar_produtos():
 
 
 @app.route("/api/produtos", methods=["POST"])
-@login_required
+@manager_required
 def api_criar_produto():
     dados = request.get_json(force=True)
     codigo = (dados.get("codigo") or "").strip()
@@ -186,7 +406,7 @@ def api_criar_produto():
 
 
 @app.route("/api/produtos/<int:produto_id>", methods=["PUT"])
-@login_required
+@manager_required
 def api_atualizar_produto(produto_id):
     dados = request.get_json(force=True)
     codigo = (dados.get("codigo") or "").strip()
@@ -207,7 +427,7 @@ def api_atualizar_produto(produto_id):
 
 
 @app.route("/api/produtos/<int:produto_id>", methods=["DELETE"])
-@login_required
+@manager_required
 def api_excluir_produto(produto_id):
     ok = db.excluir_produto(produto_id)
     return (jsonify({"ok": True}) if ok else (jsonify({"erro": "Produto não encontrado."}), 404))
@@ -223,7 +443,7 @@ def api_listar_kit_padrao():
     return jsonify(db.listar_kit_padrao_loja())
 
 @app.route("/api/kit-padrao", methods=["POST"])
-@login_required
+@manager_required
 def api_criar_item_kit_padrao():
     dados = request.get_json(force=True)
     codigo = (dados.get("codigo") or "").strip() or None
@@ -240,7 +460,7 @@ def api_criar_item_kit_padrao():
     return jsonify({"ok": True, "id": novo_id}), 201
 
 @app.route("/api/kit-padrao/<int:item_id>", methods=["PUT"])
-@login_required
+@manager_required
 def api_atualizar_item_kit_padrao(item_id):
     dados = request.get_json(force=True)
     codigo = (dados.get("codigo") or "").strip() or None
@@ -257,7 +477,7 @@ def api_atualizar_item_kit_padrao(item_id):
     return (jsonify({"ok": True}) if ok else (jsonify({"erro": "Item do kit não encontrado."}), 404))
 
 @app.route("/api/kit-padrao/<int:item_id>", methods=["DELETE"])
-@login_required
+@manager_required
 def api_excluir_item_kit_padrao(item_id):
     ok = db.excluir_item_kit(item_id)
     return (jsonify({"ok": True}) if ok else (jsonify({"erro": "Item do kit não encontrado."}), 404))
@@ -269,6 +489,7 @@ def pagina_imobilizados():
     return render_template(
         "imobilizados.html",
         username=session.get("username"),
+        role=session.get("role") or "user",
         is_admin=session.get("role") == "admin",
     )
 
@@ -284,7 +505,7 @@ def api_listar_imobilizados():
 
 
 @app.route("/api/imobilizados", methods=["POST"])
-@login_required
+@edit_required
 def api_criar_imobilizado():
     dados = request.get_json(force=True)
     codigo = (dados.get("codigo") or "").strip()
@@ -324,7 +545,7 @@ def api_criar_imobilizado():
 
 
 @app.route("/api/imobilizados/<int:item_id>", methods=["PUT"])
-@login_required
+@edit_required
 def api_atualizar_imobilizado(item_id):
     dados = request.get_json(force=True)
     item_antes = db.buscar_imobilizado_por_id(item_id)
@@ -343,7 +564,7 @@ def api_atualizar_imobilizado(item_id):
 
 
 @app.route("/api/imobilizados/<int:item_id>", methods=["DELETE"])
-@login_required
+@edit_required
 def api_excluir_imobilizado(item_id):
     item = db.buscar_imobilizado_por_id(item_id)
     if not item:
@@ -355,7 +576,7 @@ def api_excluir_imobilizado(item_id):
 
 
 @app.route("/api/imobilizados/restaurar", methods=["POST"])
-@login_required
+@edit_required
 def api_restaurar_imobilizado():
     dados = request.get_json(force=True)
     if not dados or not dados.get("id"):
@@ -369,7 +590,7 @@ def api_restaurar_imobilizado():
 
 
 @app.route("/api/imobilizados/excluir-em-lote", methods=["POST"])
-@login_required
+@edit_required
 def api_excluir_imobilizados_em_lote():
     dados = request.get_json(force=True)
     ids = dados.get("ids") or []
@@ -392,7 +613,7 @@ def api_movimentacoes_imobilizado(item_id):
 
 
 @app.route("/api/imobilizados/<int:item_id>/enviar-estoque", methods=["POST"])
-@login_required
+@edit_required
 def api_enviar_estoque(item_id):
     total = db.enviar_imobilizado_para_estoque(item_id, session.get("username"))
     if total is None:
@@ -401,7 +622,7 @@ def api_enviar_estoque(item_id):
 
 
 @app.route("/api/imobilizados/enviar-estoque-em-lote", methods=["POST"])
-@login_required
+@edit_required
 def api_enviar_estoque_em_lote():
     dados = request.get_json(force=True)
     ids = dados.get("ids") or []
@@ -639,7 +860,7 @@ def api_listar():
 
 
 @app.route("/api/itens", methods=["POST"])
-@login_required
+@edit_required
 def api_criar():
     dados = request.get_json(force=True)
     codigo = (dados.get("codigo") or "").strip()
@@ -684,7 +905,7 @@ def api_criar():
 
 
 @app.route("/api/itens/<int:item_id>", methods=["PUT"])
-@login_required
+@edit_required
 def api_atualizar(item_id):
     dados = request.get_json(force=True)
     item_antes = db.buscar_item_por_id(item_id)
@@ -725,7 +946,7 @@ def api_atualizar(item_id):
 
 
 @app.route("/api/itens/<int:item_id>", methods=["DELETE"])
-@login_required
+@edit_required
 def api_excluir(item_id):
     item = db.buscar_item_por_id(item_id)
     if not item:
@@ -737,7 +958,7 @@ def api_excluir(item_id):
 
 
 @app.route("/api/itens/restaurar", methods=["POST"])
-@login_required
+@edit_required
 def api_restaurar():
     dados = request.get_json(force=True)
     if not dados or not dados.get("id"):
@@ -751,7 +972,7 @@ def api_restaurar():
 
 
 @app.route("/api/itens/excluir-em-lote", methods=["POST"])
-@login_required
+@edit_required
 def api_excluir_em_lote():
     dados = request.get_json(force=True)
     ids = dados.get("ids") or []
@@ -892,7 +1113,7 @@ def _valor_para_texto(valor):
 
 
 @app.route("/api/itens/importar", methods=["POST"])
-@login_required
+@edit_required
 def api_importar():
     senha = request.form.get("senha", "")
     usuario_atual = db.buscar_usuario_por_id(session["user_id"])
@@ -997,7 +1218,7 @@ def api_criar_usuario():
     dados = request.get_json(force=True)
     username = (dados.get("username") or "").strip()
     password = dados.get("password") or ""
-    role = dados.get("role") if dados.get("role") in ("admin", "user") else "user"
+    role = dados.get("role") if dados.get("role") in ("admin", "gestor", "operador", "consulta", "user") else "operador"
 
     if not username or not password:
         return jsonify({"erro": "Usuário e senha são obrigatórios."}), 400

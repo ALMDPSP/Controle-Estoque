@@ -1,0 +1,40 @@
+<style>
+.app-menu{padding:10px 32px;border-bottom:1px solid var(--line,#2b3444);display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;background:rgba(18,24,31,.96);position:relative;z-index:50}
+.app-menu-left,.app-menu-right{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.app-menu a{padding:7px 12px;border:1px solid var(--line,#2b3444);border-radius:20px;color:var(--muted,#8b96a8);text-decoration:none;font-size:12px}.app-menu a:hover{color:var(--text,#e7ebf1);border-color:#526079}.app-menu a.ativo{background:var(--accent,#3ea6ff);border-color:var(--accent,#3ea6ff);color:#08131f;font-weight:700}.app-user{font-size:12px;color:var(--muted,#8b96a8)}
+.global-search-wrap{position:relative}.global-search{width:260px;max-width:42vw;background:var(--panel-2,#212934);border:1px solid var(--line,#2b3444);border-radius:20px;padding:8px 12px;color:var(--text,#e7ebf1);outline:none;font-size:12px}.global-search:focus{border-color:var(--accent,#3ea6ff);box-shadow:0 0 0 2px rgba(62,166,255,.08)}.global-search-results{display:none;position:absolute;right:0;top:42px;width:min(560px,88vw);max-height:390px;overflow:auto;background:var(--panel,#1a2029);border:1px solid var(--line,#2b3444);border-radius:12px;box-shadow:0 18px 46px rgba(0,0,0,.42);padding:8px;z-index:200}.global-search-results.ativo{display:block}.gs-item{display:block;padding:10px;border-radius:9px;border:1px solid transparent;text-decoration:none!important;color:var(--text,#e7ebf1)!important}.gs-item:hover{background:var(--panel-2,#212934);border-color:var(--line,#2b3444)}.gs-top{display:flex;justify-content:space-between;gap:10px}.gs-origin{font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:var(--accent,#3ea6ff)}.gs-code{font-family:Consolas,monospace;font-size:11px;color:var(--accent-2,#ffb648)}.gs-name{font-size:12px;font-weight:700;margin-top:3px}.gs-meta{font-size:10px;color:var(--muted,#8b96a8);margin-top:4px}.gs-empty{padding:18px;text-align:center;color:var(--muted,#8b96a8);font-size:12px}.app-role-note{font-size:10px;padding:5px 8px;border-radius:999px;border:1px solid rgba(255,182,72,.28);color:var(--accent-2,#ffb648);background:rgba(255,182,72,.07)}.app-toasts{position:fixed;right:18px;bottom:18px;z-index:9999;display:grid;gap:8px;max-width:min(430px,90vw)}.app-toast{background:var(--panel,#1a2029);border:1px solid var(--line,#2b3444);border-left:4px solid var(--accent,#3ea6ff);border-radius:10px;padding:11px 13px;box-shadow:0 15px 38px rgba(0,0,0,.38);font-size:12px;color:var(--text,#e7ebf1);animation:appToastIn .18s ease}.app-toast.erro{border-left-color:var(--danger,#ff6b6b)}.app-toast.ok{border-left-color:var(--ok,#4cd792)}@keyframes appToastIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@media(max-width:850px){.app-menu{padding:10px 16px}.global-search{width:100%;max-width:none}.global-search-wrap{width:100%;order:3}.app-menu-left,.app-menu-right{width:100%}.app-menu-right{justify-content:space-between}}
+</style>
+<nav class="app-menu">
+  <div class="app-menu-left">
+    <a href="{{ url_for('dashboard') }}" class="{{ 'ativo' if request.endpoint == 'dashboard' else '' }}">Dashboard</a>
+    <a href="{{ url_for('index') }}" class="{{ 'ativo' if request.endpoint == 'index' else '' }}">Estoque</a>
+    <a href="{{ url_for('pagina_produtos') }}" class="{{ 'ativo' if request.endpoint == 'pagina_produtos' else '' }}">Cadastro de Produtos</a>
+    <a href="{{ url_for('pagina_imobilizados') }}" class="{{ 'ativo' if request.endpoint == 'pagina_imobilizados' else '' }}">Imobilizados</a>
+    <a href="{{ url_for('pagina_loja_virtual') }}" class="{{ 'ativo' if request.endpoint == 'pagina_loja_virtual' else '' }}">Loja Virtual 3D</a>
+    <a href="{{ url_for('pagina_historico') }}" class="{{ 'ativo' if request.endpoint == 'pagina_historico' else '' }}">Histórico</a>
+    <a href="{{ url_for('pagina_relatorios') }}" class="{{ 'ativo' if request.endpoint == 'pagina_relatorios' else '' }}">Relatórios</a>
+    {% if is_admin %}<a href="{{ url_for('pagina_usuarios') }}" class="{{ 'ativo' if request.endpoint == 'pagina_usuarios' else '' }}">Usuários</a>{% endif %}
+    {% if request.endpoint == 'index' %}<a href="/export">⭳ Excel</a>{% if role != 'consulta' %}<a href="#" id="abrir-importar">⭱ Importar</a>{% endif %}{% endif %}
+    {% if request.endpoint == 'pagina_imobilizados' %}<a href="/export-imobilizados">⭳ Excel</a>{% if role != 'consulta' %}<a href="#" id="abrir-importar">⭱ Importar</a>{% endif %}{% endif %}
+  </div>
+  <div class="app-menu-right">
+    <div class="global-search-wrap">
+      <input class="global-search" data-global-search placeholder="Pesquisar código, serial, patrimônio..." autocomplete="off">
+      <div class="global-search-results" data-global-results></div>
+    </div>
+    <span class="app-user">{{ username }} · {{ {'admin':'Administrador','gestor':'Gestor','operador':'Operador','consulta':'Consulta','user':'Operador'}.get(role or 'user','Operador') }}</span>{% if role == 'consulta' %}<span class="app-role-note">somente leitura</span>{% endif %}
+    <a href="{{ url_for('logout') }}">Sair</a>
+  </div>
+</nav>
+<div class="app-toasts" id="app-toasts"></div>
+<script>
+(function(){
+  window.appToast=function(msg,tipo='info'){const wrap=document.getElementById('app-toasts');if(!wrap)return;const el=document.createElement('div');el.className='app-toast '+(tipo==='erro'?'erro':tipo==='ok'?'ok':'');el.textContent=String(msg);wrap.appendChild(el);setTimeout(()=>el.remove(),4200)};
+  window.alert=function(msg){window.appToast(msg,'info')};
+  const inp=document.querySelector('[data-global-search]'), box=document.querySelector('[data-global-results]'); if(!inp||!box)return;
+  let timer;
+  const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  inp.addEventListener('input',()=>{clearTimeout(timer);const q=inp.value.trim();if(!q){box.classList.remove('ativo');box.innerHTML='';return;}timer=setTimeout(async()=>{box.classList.add('ativo');box.innerHTML='<div class="gs-empty">Pesquisando...</div>';try{const r=await fetch('/api/busca-global?q='+encodeURIComponent(q));const arr=await r.json();if(!arr.length){box.innerHTML='<div class="gs-empty">Nenhum resultado encontrado.</div>';return;}box.innerHTML=arr.slice(0,30).map(x=>{const base=x.origem==='Imobilizados'?'/imobilizados':(x.origem==='Cadastro de Produtos'?'/produtos':'/');const href=base+'?buscar='+encodeURIComponent(x.codigo||x.descricao||'');return `<a class="gs-item" href="${href}"><div class="gs-top"><span class="gs-origin">${esc(x.origem)}</span><span class="gs-code">${esc(x.codigo||'-')}</span></div><div class="gs-name">${esc(x.descricao||'Sem descrição')}</div><div class="gs-meta">${esc([x.tipo_estoque,x.status,x.localizacao,x.nro_serie?('S/N '+x.nro_serie):'',x.nro_patrimonio?('Pat. '+x.nro_patrimonio):''].filter(Boolean).join(' · '))}</div></a>`}).join('');}catch(e){box.innerHTML='<div class="gs-empty">Erro ao pesquisar.</div>';};},250)});
+  document.addEventListener('click',e=>{if(!e.target.closest('.global-search-wrap'))box.classList.remove('ativo')});
+})();
+</script>

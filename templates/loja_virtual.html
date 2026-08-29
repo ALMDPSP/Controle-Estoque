@@ -27,7 +27,7 @@ main{padding:24px 32px 48px;max-width:1560px;margin:0 auto}
 .stage-card{padding:16px}
 .stage-toolbar{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
 .stage-toolbar h2{margin:0;font-size:18px}.stage-toolbar p{margin:4px 0 0;color:var(--muted);font-size:12px}
-.view-tabs{display:flex;gap:8px;flex-wrap:wrap}.view-tab{border:1px solid var(--line);background:var(--panel2);color:var(--text);padding:9px 12px;border-radius:999px;cursor:pointer;font-size:12px}.view-tab.ativo{background:rgba(62,166,255,.12);border-color:rgba(62,166,255,.4);color:#cfe9ff}
+.view-tabs{display:flex;gap:8px;flex-wrap:wrap}.view-tab{border:1px solid var(--line);background:var(--panel2);color:var(--text);padding:9px 12px;border-radius:999px;cursor:pointer;font-size:12px}.view-tab.ativo{background:rgba(62,166,255,.12);border-color:rgba(62,166,255,.4);color:#cfe9ff}.presentation-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.presentation-actions button{border:1px solid var(--line);background:var(--panel2);color:var(--text);padding:9px 12px;border-radius:9px;cursor:pointer;font-size:12px}.presentation-actions .enter{background:var(--accent);border-color:var(--accent);color:#08131f;font-weight:800}.presentation-actions .missing.ativo{border-color:var(--danger);color:#ffb1b1;background:rgba(255,107,107,.08)}
 .stage{position:relative;min-height:680px;border:1px solid #334054;border-radius:18px;overflow:hidden;background:#0d1218;box-shadow:inset 0 0 0 1px rgba(255,255,255,.02),0 18px 42px rgba(0,0,0,.25)}
 .stage img{display:block;width:100%;height:680px;object-fit:cover;object-position:center center;filter:contrast(1.03) saturate(.98);transition:transform .6s ease, object-position .5s ease, filter .4s ease}
 .stage::after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(180deg,rgba(4,8,13,.08),transparent 18%,transparent 74%,rgba(4,8,13,.35)),linear-gradient(90deg,rgba(4,8,13,.05),transparent 14%,transparent 86%,rgba(4,8,13,.12))}
@@ -44,14 +44,14 @@ main{padding:24px 32px 48px;max-width:1560px;margin:0 auto}
 .hotspot span{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;background:var(--accent);color:#07111b;font-family:var(--mono);font-size:10px;font-weight:800}
 .hotspot strong{font-size:10px;letter-spacing:.04em}.hotspot small{display:block;color:#bbcad9;font-size:9px;margin-top:2px}
 .hotspot.entrada{left:5%;bottom:8%}.hotspot.pdv{right:10%;bottom:28%}.hotspot.balcao{right:23%;top:52%}.hotspot.prateleiras{left:31%;top:52%}.hotspot.rede{right:18%;top:18%}.hotspot.apoio{right:7%;bottom:11%}
-.tira-teima-device{position:absolute;z-index:3;left:23%;top:49%;width:58px;height:92px;border:1px solid rgba(255,255,255,.35);border-radius:9px 9px 5px 5px;background:linear-gradient(180deg,#2d3a4d,#131c28);box-shadow:0 10px 24px rgba(0,0,0,.32);cursor:pointer;color:#fff;padding:6px 5px 8px;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:5px;transition:transform .18s,border-color .18s,box-shadow .18s}.tira-teima-device:hover,.tira-teima-device.ativo{transform:translateY(-3px) scale(1.04);border-color:var(--accent);box-shadow:0 0 0 3px rgba(62,166,255,.10),0 12px 26px rgba(0,0,0,.4)}.tt-screen{display:grid;place-items:center;width:44px;height:42px;border-radius:5px;background:linear-gradient(145deg,#0b1621,#13314b);border:1px solid #4f6074;color:var(--accent);font-family:var(--mono);font-size:18px;font-weight:900}.tira-teima-device strong{font-size:8px;line-height:1.1;text-transform:uppercase;letter-spacing:.04em;text-align:center}.tira-teima-device::after{content:'';width:7px;height:22px;background:#445167;border-radius:0 0 3px 3px;position:absolute;bottom:-21px;left:50%;transform:translateX(-50%)}
+.tira-teima-device{position:absolute;z-index:3;left:23%;top:49%;width:58px;height:92px;border:1px solid rgba(255,255,255,.35);border-radius:9px 9px 5px 5px;background:linear-gradient(180deg,#2d3a4d,#131c28);box-shadow:0 10px 24px rgba(0,0,0,.32);cursor:pointer;color:#fff;padding:6px 5px 8px;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:5px;transition:transform .18s,border-color .18s,box-shadow .18s}.tira-teima-device:hover,.tira-teima-device.ativo{transform:translateY(-3px) scale(1.04);border-color:var(--accent);box-shadow:0 0 0 3px rgba(62,166,255,.10),0 12px 26px rgba(0,0,0,.4)}.tt-screen{display:grid;place-items:center;width:44px;height:42px;border-radius:5px;background:linear-gradient(145deg,#0b1621,#13314b);border:1px solid #4f6074;color:var(--accent);font-family:var(--mono);font-size:18px;font-weight:900}.tira-teima-device strong{font-size:8px;line-height:1.1;text-transform:uppercase;letter-spacing:.04em;text-align:center}.tira-teima-device::after{content:'';width:7px;height:22px;background:#445167;border-radius:0 0 3px 3px;position:absolute;bottom:-21px;left:50%;transform:translateX(-50%)}.tira-teima-device.tem-falta{border-color:var(--danger);box-shadow:0 0 0 3px rgba(255,107,107,.12),0 12px 26px rgba(0,0,0,.4)}
 .stage-badge{position:absolute;left:14px;top:14px;z-index:2;background:rgba(10,17,26,.9);border:1px solid rgba(255,255,255,.14);padding:10px 12px;border-radius:10px;max-width:320px}.stage-badge strong{display:block;font-size:11px}.stage-badge small{display:block;margin-top:3px;color:var(--muted);font-size:10px;line-height:1.4}
 .floating-panel{position:absolute;right:14px;bottom:14px;z-index:2;display:grid;grid-template-columns:repeat(2,minmax(100px,1fr));gap:8px;max-width:360px}
 .float-box{background:rgba(10,17,26,.9);border:1px solid rgba(255,255,255,.12);padding:10px;border-radius:10px}.float-box span{display:block;color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.05em}.float-box strong{display:block;margin-top:6px;font-size:20px;font-family:var(--mono)}.float-box.ok strong{color:var(--ok)}.float-box.danger strong{color:var(--danger)}
 .side-stack{display:flex;flex-direction:column;gap:12px}
 .side-card{padding:14px 14px 12px}.side-card h3{margin:0 0 8px;font-size:15px}.side-card p{margin:0;color:var(--muted);font-size:12px;line-height:1.5}
 .zone-list{display:grid;gap:10px;margin-top:12px}
-.zone-card{padding:12px;cursor:pointer;transition:.18s ease border-color,.18s ease transform,.18s ease box-shadow}.zone-card:hover{transform:translateY(-1px)}.zone-card.ativo{border-color:rgba(62,166,255,.45);box-shadow:0 0 0 2px rgba(62,166,255,.08)}
+.zone-card{padding:12px;cursor:pointer;transition:.18s ease border-color,.18s ease transform,.18s ease box-shadow}.zone-card:hover{transform:translateY(-1px)}.zone-card.ativo{border-color:rgba(62,166,255,.45);box-shadow:0 0 0 2px rgba(62,166,255,.08)}.zone-card.oculto{display:none}.mostrar-faltantes .item.ok{display:none}.hotspot.tem-falta{border-color:rgba(255,107,107,.62)}.hotspot.tem-falta::after{content:attr(data-faltas);position:absolute;right:-6px;top:-8px;min-width:20px;height:20px;padding:0 4px;border-radius:999px;display:grid;place-items:center;background:var(--danger);color:white;font:800 9px var(--mono);box-shadow:0 4px 12px rgba(0,0,0,.3)}
 .zone-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px}.zone-head strong{font-size:13px}.zone-head .chip{font-family:var(--mono);font-size:11px;padding:4px 7px;border-radius:999px;background:rgba(62,166,255,.1);border:1px solid rgba(62,166,255,.18);color:#9fd8ff}
 .zone-desc{font-size:11px;color:var(--muted);line-height:1.5;margin-bottom:9px}
 .item-list{display:grid;gap:7px;max-height:240px;overflow:auto;padding-right:2px}
@@ -71,15 +71,10 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:0 0 12px}foot
     <div>
       <div class="brand"><span class="tag">Loja 3D</span></div>
       <h1>Apresentação da Loja Virtual</h1>
-      <p class="sub">Visualização separada para apresentar a loja como se estivesse entrando no ambiente. A frente de <strong>PDV</strong> foi separada do <strong>balcão de atendimento</strong>, mantendo a conferência do Kit padrão com o estoque de <strong>Expansão</strong>.</p>
-    </div>
-    <div class="nav">
-      <a href="{{ url_for('index') }}">← Voltar ao Estoque</a>
-      <a href="{{ url_for('pagina_produtos') }}">Cadastro de Produtos</a>
-      <button class="primary" type="button" id="btn-entrar-loja">🚶 Entrar na loja</button>
-      <a href="{{ url_for('logout') }}">Sair</a>
+      <p class="sub">Apresentação integrada ao sistema para visualizar a loja como se estivesse entrando no ambiente. A frente de <strong>PDV</strong> foi separada do <strong>balcão de atendimento</strong>, mantendo a conferência do Kit padrão com o estoque de <strong>Expansão</strong>.</p>
     </div>
   </header>
+  {% include '_menu.html' %}
 
   <main>
     <section class="kpis">
@@ -96,7 +91,8 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:0 0 12px}foot
           <div class="stage-toolbar">
             <div>
               <h2>Vista de entrada da loja</h2>
-              <p>A apresentação abre em tela separada e você pode focar em PDV, balcão, prateleiras, rede/CPD e apoio.</p>
+              <p>Navegue dentro do próprio sistema e foque em PDV, balcão, tira-teima, prateleiras, rede/CPD e apoio.</p>
+              <div class="presentation-actions"><button type="button" class="enter" id="btn-entrar-loja">🚶 Entrar na loja</button><button type="button" class="missing" id="btn-modo-faltantes">⚠ Mostrar faltantes</button></div>
             </div>
             <div class="view-tabs">
               <button type="button" class="view-tab ativo" data-view="entrada">Entrada</button>
@@ -276,6 +272,12 @@ function render(){
   document.getElementById('float-expansao').textContent = expansaoTotal;
   document.getElementById('float-kit').textContent = totalUnidades;
 
+  const faltasPorZona={pdv:0,balcao:0,prateleiras:0,rede:0,apoio:0};
+  sim.requisitos.forEach(k=>{if(k.disponivel<k.necessario){const z=zonaEquipamento(k);faltasPorZona[z]=(faltasPorZona[z]||0)+1;}});
+  document.querySelectorAll('.hotspot').forEach(h=>{const z=h.dataset.view;const n=faltasPorZona[z]||0;h.classList.toggle('tem-falta',n>0);if(n>0)h.dataset.faltas=n;else h.removeAttribute('data-faltas');});
+  const ttFalta=sim.requisitos.some(k=>(normalizarTexto(k.descricao).includes('tira teima')||normalizarTexto(k.descricao).includes('tira-teima'))&&k.disponivel<k.necessario);
+  document.querySelectorAll('.tira-teima-device').forEach(h=>{h.classList.toggle('tem-falta',ttFalta);if(ttFalta)h.dataset.faltas='1';else h.removeAttribute('data-faltas');});
+
   const zoneList = document.getElementById('zone-list');
   zoneList.innerHTML = '';
   zoneOrder.forEach(z=>{
@@ -300,7 +302,7 @@ function render(){
 function marcarViewAtual(view){
   document.querySelectorAll('.view-tab').forEach(b=>b.classList.toggle('ativo', b.dataset.view===view));
   document.querySelectorAll('.hotspot').forEach(b=>b.classList.toggle('ativo', b.dataset.view===view));
-  document.querySelectorAll('.zone-card').forEach(b=>b.classList.toggle('ativo', b.dataset.view===view || (view==='tirateima' && b.dataset.view==='prateleiras')));
+  document.querySelectorAll('.zone-card').forEach(b=>{const ativo=b.dataset.view===view || (view==='tirateima' && b.dataset.view==='prateleiras');b.classList.toggle('ativo',ativo);const focoEspecifico=!['entrada','interior'].includes(view);b.classList.toggle('oculto',focoEspecifico&&!ativo);});
   document.querySelectorAll('.tira-teima-device').forEach(b=>b.classList.toggle('ativo', view==='tirateima'));
   const meta = zoneMeta[view] || zoneMeta.entrada;
   document.getElementById('stage-title').textContent = meta.titulo;
@@ -315,6 +317,13 @@ document.querySelectorAll('.view-tab,.hotspot,.tira-teima-device').forEach(el=>e
 document.getElementById('btn-entrar-loja')?.addEventListener('click',()=>{
   setView('interior');
   document.getElementById('stage')?.scrollIntoView({behavior:'smooth',block:'center'});
+});
+document.getElementById('btn-modo-faltantes')?.addEventListener('click',()=>{
+  const ativo=document.body.classList.toggle('mostrar-faltantes');
+  const btn=document.getElementById('btn-modo-faltantes');
+  btn.classList.toggle('ativo',ativo);
+  btn.textContent=ativo?'✓ Mostrar loja completa':'⚠ Mostrar faltantes';
+  if(ativo) setView('interior');
 });
 
 Promise.all([

@@ -350,20 +350,7 @@
     <div class="stat-box"><span class="num" id="stat-reversa" style="color:#8b96a8;">0</span><span class="lbl">Reversa</span></div>
   </div>
 </header>
-<nav style="padding:10px 32px; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:center; font-size:13px; flex-wrap:wrap; gap:10px;">
-  <div style="display:flex; gap:8px; align-items:center;">
-    <a href="{{ url_for('index') }}" class="nav-link" style="color:var(--muted);">Estoque</a>
-    <a href="{{ url_for('pagina_produtos') }}" class="nav-link" style="color:var(--muted);">Cadastro de Produtos</a>
-    <a href="{{ url_for('pagina_imobilizados') }}" class="nav-link ativo">Imobilizados</a>
-  </div>
-  <div style="display:flex; gap:16px; align-items:center;">
-    <span style="color:var(--muted);">Logado como <strong style="color:var(--text);">{{ username }}</strong></span>
-    <a href="/export-imobilizados" style="color:var(--accent); text-decoration:none;">⭳ Exportar para Excel</a>
-    <a href="#" id="abrir-importar" style="color:var(--accent-2); text-decoration:none;">⭱ Importar Excel</a>
-    {% if is_admin %}<a href="{{ url_for('pagina_usuarios') }}" style="color:var(--muted); text-decoration:none;">Gerenciar usuários</a>{% endif %}
-    <a href="{{ url_for('logout') }}" style="color:var(--muted); text-decoration:none;">Sair</a>
-  </div>
-</nav>
+{% include '_menu.html' %}
 <div id="sync-bar" style="text-align:center; font-size:11px; color:var(--muted); padding:6px 0; font-family:var(--mono); background:var(--panel-2); border-bottom:1px solid var(--line);">
   <span id="sync-status">conectado — dados compartilhados em tempo real</span>
 </div>
@@ -764,6 +751,9 @@
 <div id="toast-container" style="position:fixed; bottom:20px; left:50%; transform:translateX(-50%); z-index:9999; display:flex; flex-direction:column; gap:8px; align-items:center;"></div>
 
 <script>
+const PERFIL_USUARIO={{ (role or "user")|tojson }};
+const PODE_EDITAR=["admin","gestor","operador","user"].includes(PERFIL_USUARIO);
+const PODE_GERENCIAR=["admin","gestor"].includes(PERFIL_USUARIO);
 function normalizarTexto(str){
   return (str || '').toString().trim().toLowerCase()
     .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
@@ -779,6 +769,7 @@ function canonicalizarTipo(valor){
 const tbody = document.getElementById('tbody');
 const emptyMsg = document.getElementById('empty-msg');
 const buscaInput = document.getElementById('busca');
+const buscaInicial=new URLSearchParams(window.location.search).get('buscar');if(buscaInicial)buscaInput.value=buscaInicial;
 const filtroTipo = document.getElementById('filtro-tipo');
 const filtroStatus = document.getElementById('filtro-status');
 const filtroLocal = document.getElementById('filtro-local');
@@ -856,10 +847,10 @@ function renderizar(){
       <td data-label="Enviado ao Estoque">${it.enviado_estoque_por ? `<span class="alteracao-destaque"><span class="quem">${escapeHtml(it.enviado_estoque_por)}</span><span class="quando">${escapeHtml(it.enviado_estoque_em || '')}</span></span>` : '<span style="color:var(--muted);">—</span>'}</td>
       <td class="linha-acoes">
         <div class="row-actions">
-          <button class="btn-primary" onclick="enviarParaEstoque(${it.id})">Enviar para Estoque</button>
-          <button class="btn-ghost" onclick="abrirEdicaoCompleta(${it.id})">Editar</button>
+          ${PODE_EDITAR ? `<button class="btn-primary" onclick="enviarParaEstoque(${it.id})">Enviar para Estoque</button>` : ''}
+          ${PODE_EDITAR ? `<button class="btn-ghost" onclick="abrirEdicaoCompleta(${it.id})">Editar</button>` : ''}
           <button class="btn-ghost" onclick="abrirHistorico(${it.id})">Histórico</button>
-          <button class="btn-ghost" onclick="excluirItem(${it.id})">Excluir</button>
+          ${PODE_EDITAR ? `<button class="btn-ghost" onclick="excluirItem(${it.id})">Excluir</button>` : ''}
         </div>
       </td>
     `;
@@ -1140,6 +1131,8 @@ function sincronizarDescricaoProduto(prefix=''){
 }
 document.getElementById('codigo')?.addEventListener('change',()=>sincronizarDescricaoProduto(''));
 document.getElementById('fe-codigo')?.addEventListener('change',()=>sincronizarDescricaoProduto('fe-'));
+
+if(!PODE_EDITAR){const f=document.getElementById('item-form');if(f){f.querySelectorAll('input,select,button').forEach(el=>el.disabled=true);f.insertAdjacentHTML('beforebegin','<div class="hint" style="margin-bottom:12px">Seu perfil está em modo consulta. Cadastro e movimentação estão bloqueados.</div>');}document.getElementById('abrir-importar')?.remove();}
 
 document.getElementById('item-form').addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -1444,7 +1437,7 @@ document.getElementById('historico-fechar').addEventListener('click', () => hist
 const importarDialog = document.getElementById('importar-dialog');
 const importarMsg = document.getElementById('importar-msg');
 
-document.getElementById('abrir-importar').addEventListener('click', (e) => {
+document.getElementById('abrir-importar')?.addEventListener('click', (e) => {
   e.preventDefault();
   document.getElementById('importar-form').reset();
   importarMsg.style.display = 'none';

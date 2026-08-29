@@ -465,20 +465,7 @@
     <div class="stat-box"><span class="num" id="stat-reversa" style="color:#8b96a8;">0</span><span class="lbl">Reversa</span></div>
   </div>
 </header>
-<nav style="padding:10px 32px; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:center; font-size:13px; flex-wrap:wrap; gap:10px;">
-  <div style="display:flex; gap:8px; align-items:center;">
-    <a href="{{ url_for('index') }}" class="nav-link ativo">Estoque</a>
-    <a href="{{ url_for('pagina_produtos') }}" class="nav-link" style="color:var(--muted);">Cadastro de Produtos</a>
-    <a href="{{ url_for('pagina_imobilizados') }}" class="nav-link" style="color:var(--muted);">Imobilizados</a>
-  </div>
-  <div style="display:flex; gap:16px; align-items:center;">
-    <span style="color:var(--muted);">Logado como <strong style="color:var(--text);">{{ username }}</strong></span>
-    <a href="/export" style="color:var(--accent); text-decoration:none;">⭳ Exportar para Excel</a>
-    <a href="#" id="abrir-importar" style="color:var(--accent-2); text-decoration:none;">⭱ Importar Excel</a>
-    {% if is_admin %}<a href="{{ url_for('pagina_usuarios') }}" style="color:var(--muted); text-decoration:none;">Gerenciar usuários</a>{% endif %}
-    <a href="{{ url_for('logout') }}" style="color:var(--muted); text-decoration:none;">Sair</a>
-  </div>
-</nav>
+{% include '_menu.html' %}
 <div id="sync-bar" style="text-align:center; font-size:11px; color:var(--muted); padding:6px 0; font-family:var(--mono); background:var(--panel-2); border-bottom:1px solid var(--line);">
   <span id="sync-status">conectado — dados compartilhados em tempo real</span>
 </div>
@@ -1004,6 +991,9 @@
 <div id="toast-container" style="position:fixed; bottom:20px; left:50%; transform:translateX(-50%); z-index:9999; display:flex; flex-direction:column; gap:8px; align-items:center;"></div>
 
 <script>
+const PERFIL_USUARIO={{ (role or "user")|tojson }};
+const PODE_EDITAR=["admin","gestor","operador","user"].includes(PERFIL_USUARIO);
+const PODE_GERENCIAR=["admin","gestor"].includes(PERFIL_USUARIO);
 function normalizarTexto(str){
   return (str || '').toString().trim().toLowerCase()
     .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
@@ -1019,6 +1009,7 @@ function canonicalizarTipo(valor){
 const tbody = document.getElementById('tbody');
 const emptyMsg = document.getElementById('empty-msg');
 const buscaInput = document.getElementById('busca');
+const buscaInicial=new URLSearchParams(window.location.search).get('buscar');if(buscaInicial)buscaInput.value=buscaInicial;
 const filtroTipo = document.getElementById('filtro-tipo');
 const filtroStatus = document.getElementById('filtro-status');
 const filtroLocal = document.getElementById('filtro-local');
@@ -1098,11 +1089,11 @@ function renderizar(){
       <td data-label="Situação">${saiu ? '<span class="badge saida">Saiu</span>' : '<span class="badge entrada">Em estoque</span>'}</td>
       <td class="linha-acoes">
         <div class="row-actions">
-          ${saiu ? '' : `<button class="btn-ghost" onclick="abrirQtde(${it.id}, ${qtdeAtual})">Retirar do estoque</button>`}
-          ${saiu ? '' : `<button class="btn-ghost" onclick="abrirSaida(${it.id}, ${qtdeAtual})">Registrar saída</button>`}
-          <button class="btn-ghost" onclick="abrirEdicaoCompleta(${it.id})">Editar</button>
+          ${PODE_EDITAR && !saiu ? `<button class="btn-ghost" onclick="abrirQtde(${it.id}, ${qtdeAtual})">Retirar do estoque</button>` : ''}
+          ${PODE_EDITAR && !saiu ? `<button class="btn-ghost" onclick="abrirSaida(${it.id}, ${qtdeAtual})">Registrar saída</button>` : ''}
+          ${PODE_EDITAR ? `<button class="btn-ghost" onclick="abrirEdicaoCompleta(${it.id})">Editar</button>` : ''}
           <button class="btn-ghost" onclick="abrirHistorico(${it.id})">Histórico</button>
-          <button class="btn-ghost" onclick="excluirItem(${it.id})">Excluir</button>
+          ${PODE_EDITAR ? `<button class="btn-ghost" onclick="excluirItem(${it.id})">Excluir</button>` : ''}
         </div>
       </td>
     `;
@@ -2059,7 +2050,7 @@ function renderizarKitPadrao(){
     const necessario=Math.max(1,Number(k.quantidade)||1);
     const disponivel=itensCache.reduce((soma,it)=>{const q=Number(it.qtde)||0;const ehExpansao=normalizarTexto(it.tipo_estoque)===normalizarTexto('Expansão');return soma+(q>0 && ehExpansao && itemEstoqueCombinaComKit(it,k)?q:0)},0);
     const suporta=Math.floor(disponivel/necessario);
-    tr.innerHTML=`<td>${k.codigo ? `<span class="kit-code">${escapeHtml(k.codigo)}</span>` : '<span class="kit-sem-vinculo">por descrição</span>'}</td><td>${escapeHtml(k.descricao)}</td><td><span class="kit-qtd">${necessario}</span></td><td>${disponivel}</td><td><span class="kit-qtd">${suporta}</span></td><td><div class="kit-actions"><button type="button" class="btn-ghost" onclick="editarItemKit(${k.id})">Editar</button><button type="button" class="btn-ghost" style="color:var(--danger)" onclick="excluirItemKit(${k.id})">Excluir</button></div></td>`;
+    tr.innerHTML=`<td>${k.codigo ? `<span class="kit-code">${escapeHtml(k.codigo)}</span>` : '<span class="kit-sem-vinculo">por descrição</span>'}</td><td>${escapeHtml(k.descricao)}</td><td><span class="kit-qtd">${necessario}</span></td><td>${disponivel}</td><td><span class="kit-qtd">${suporta}</span></td><td><div class="kit-actions">${PODE_GERENCIAR?`<button type="button" class="btn-ghost" onclick="editarItemKit(${k.id})">Editar</button><button type="button" class="btn-ghost" style="color:var(--danger)" onclick="excluirItemKit(${k.id})">Excluir</button>`:'<span style="color:var(--muted);font-size:10px">somente leitura</span>'}</div></td>`;
     tbody.appendChild(tr);
   });
 }
@@ -2142,6 +2133,9 @@ function sincronizarDescricaoProduto(prefix=''){
 }
 document.getElementById('codigo')?.addEventListener('change',()=>sincronizarDescricaoProduto(''));
 document.getElementById('fe-codigo')?.addEventListener('change',()=>sincronizarDescricaoProduto('fe-'));
+
+if(!PODE_EDITAR){const f=document.getElementById('item-form');if(f){f.querySelectorAll('input,select,button').forEach(el=>el.disabled=true);f.insertAdjacentHTML('beforebegin','<div class="hint" style="margin-bottom:12px">Seu perfil está em modo consulta. Cadastro e movimentação estão bloqueados.</div>');}document.getElementById('abrir-importar')?.remove();}
+if(!PODE_GERENCIAR){const kf=document.getElementById('kit-form');if(kf)kf.style.display='none';}
 
 document.getElementById('item-form').addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -2523,7 +2517,7 @@ document.getElementById('historico-fechar').addEventListener('click', () => hist
 const importarDialog = document.getElementById('importar-dialog');
 const importarMsg = document.getElementById('importar-msg');
 
-document.getElementById('abrir-importar').addEventListener('click', (e) => {
+document.getElementById('abrir-importar')?.addEventListener('click', (e) => {
   e.preventDefault();
   document.getElementById('importar-form').reset();
   importarMsg.style.display = 'none';

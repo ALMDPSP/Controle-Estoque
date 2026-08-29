@@ -651,6 +651,26 @@ def listar_movimentacoes(item_id, tabela="itens"):
     return movs
 
 
+def listar_movimentacoes_recentes(limite=100):
+    conn = get_conn()
+    cur = get_cursor(conn)
+    cur.execute(q("SELECT * FROM movimentacoes ORDER BY id DESC LIMIT ?"), (int(limite),))
+    linhas = [dict(r) for r in cur.fetchall()]
+    cur.close()
+    conn.close()
+    return linhas
+
+
+def listar_todas_movimentacoes():
+    conn = get_conn()
+    cur = get_cursor(conn)
+    cur.execute("SELECT * FROM movimentacoes ORDER BY id DESC")
+    linhas = [dict(r) for r in cur.fetchall()]
+    cur.close()
+    conn.close()
+    return linhas
+
+
 def excluir_itens_em_lote(ids):
     if not ids:
         return 0
