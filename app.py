@@ -162,10 +162,16 @@ def api_criar_produto():
     dados = request.get_json(force=True)
     codigo = (dados.get("codigo") or "").strip()
     descricao = (dados.get("descricao") or "").strip()
+    try:
+        qtde_por_loja = int(dados.get("qtde_por_loja") or 1)
+    except (TypeError, ValueError):
+        qtde_por_loja = 0
     if not codigo or not descricao:
         return jsonify({"erro": "Código de cadastro e descrição são obrigatórios."}), 400
+    if qtde_por_loja < 1:
+        return jsonify({"erro": "A quantidade necessária por loja deve ser no mínimo 1."}), 400
     try:
-        novo_id = db.criar_produto(codigo, descricao, session.get("username"))
+        novo_id = db.criar_produto(codigo, descricao, qtde_por_loja, session.get("username"))
     except Exception:
         return jsonify({"erro": "Já existe um produto cadastrado com este código."}), 409
     return jsonify({"ok": True, "id": novo_id}), 201
@@ -177,10 +183,16 @@ def api_atualizar_produto(produto_id):
     dados = request.get_json(force=True)
     codigo = (dados.get("codigo") or "").strip()
     descricao = (dados.get("descricao") or "").strip()
+    try:
+        qtde_por_loja = int(dados.get("qtde_por_loja") or 1)
+    except (TypeError, ValueError):
+        qtde_por_loja = 0
     if not codigo or not descricao:
         return jsonify({"erro": "Código de cadastro e descrição são obrigatórios."}), 400
+    if qtde_por_loja < 1:
+        return jsonify({"erro": "A quantidade necessária por loja deve ser no mínimo 1."}), 400
     try:
-        ok = db.atualizar_produto(produto_id, codigo, descricao)
+        ok = db.atualizar_produto(produto_id, codigo, descricao, qtde_por_loja)
     except Exception:
         return jsonify({"erro": "Já existe outro produto com este código."}), 409
     return (jsonify({"ok": True}) if ok else (jsonify({"erro": "Produto não encontrado."}), 404))
