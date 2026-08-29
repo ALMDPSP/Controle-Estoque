@@ -1906,7 +1906,7 @@ function focarZonaLojaVirtual(zona){
 document.querySelectorAll('.loja-hotspot').forEach(btn=>btn.addEventListener('click',()=>focarZonaLojaVirtual(btn.dataset.focoZona)));
 
 function abrirLojaVirtual(){
-  window.open('/loja-virtual','_blank');
+  window.location.href='/loja-virtual';
 }
 
 function voltarAoKitDaLojaVirtual(){
