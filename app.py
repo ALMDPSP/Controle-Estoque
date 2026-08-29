@@ -32,6 +32,8 @@ from flask import (
 )
 from werkzeug.security import check_password_hash
 from openpyxl import Workbook, load_workbook
+from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+from openpyxl.utils import get_column_letter
 
 import db
 
@@ -442,6 +444,176 @@ def exportar_imobilizados_excel():
     wb.save(buffer)
     buffer.seek(0)
     nome_arquivo = f"imobilizados_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx"
+    return send_file(
+        buffer,
+        as_attachment=True,
+        download_name=nome_arquivo,
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+
+
+
+
+@app.route("/export-relatorio-lojas", methods=["POST"])
+@login_required
+def exportar_relatorio_lojas_excel():
+    """Gera um relatório gerencial em Excel com o mesmo resumo usado no PDF."""
+    dados = request.get_json(force=True) or {}
+    estoque = dados.get("estoque") or []
+    faltantes = dados.get("faltantes") or []
+    kit = dados.get("kit") or []
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Resumo"
+
+    # Paleta e estilos
+    cor_escura = "1A2029"
+    cor_azul = "2876BE"
+    cor_verde = "2B915D"
+    cor_laranja = "CD8018"
+    cor_clara = "F5F7FA"
+    cor_cinza = "66707D"
+    borda = Border(
+        left=Side(style="thin", color="E1E5EA"),
+        right=Side(style="thin", color="E1E5EA"),
+        top=Side(style="thin", color="E1E5EA"),
+        bottom=Side(style="thin", color="E1E5EA"),
+    )
+
+    def titulo_planilha(sheet, titulo, subtitulo=None, col_final=5):
+        sheet.merge_cells(start_row=1, start_column=1, end_row=1, end_column=col_final)
+        c = sheet.cell(1, 1, titulo)
+        c.font = Font(name="Aptos Display", size=18, bold=True, color="FFFFFF")
+        c.fill = PatternFill("solid", fgColor=cor_escura)
+        c.alignment = Alignment(vertical="center")
+        sheet.row_dimensions[1].height = 30
+        if subtitulo:
+            sheet.merge_cells(start_row=2, start_column=1, end_row=2, end_column=col_final)
+            c2 = sheet.cell(2, 1, subtitulo)
+            c2.font = Font(name="Aptos", size=9, color=cor_cinza)
+            c2.alignment = Alignment(vertical="center")
+            sheet.row_dimensions[2].height = 20
+
+    def cabecalho(sheet, row, titulos, fill=cor_escura):
+        for col, value in enumerate(titulos, start=1):
+            cell = sheet.cell(row, col, value)
+            cell.font = Font(name="Aptos", size=10, bold=True, color="FFFFFF")
+            cell.fill = PatternFill("solid", fgColor=fill)
+            cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+            cell.border = borda
+        sheet.row_dimensions[row].height = 24
+
+    def ajustar_larguras(sheet, larguras):
+        for idx, largura in enumerate(larguras, start=1):
+            sheet.column_dimensions[get_column_letter(idx)].width = largura
+
+    gerado = dados.get("gerado_em") or datetime.now().isoformat()
+    titulo_planilha(ws, "Relatório de Estoque e Capacidade de Lojas", f"Gerado em: {gerado}", 5)
+    ajustar_larguras(ws, [26, 28, 25, 25, 36])
+
+    resumo = [
+        ("Lojas completas possíveis", dados.get("lojas_possiveis", 0), cor_verde),
+        ("Próxima loja", dados.get("proxima_loja", 1), cor_azul),
+        ("Unidades em estoque", dados.get("total_unidades", 0), cor_escura),
+        ("Produtos no estoque", dados.get("total_produtos", 0), cor_escura),
+        ("Categorias com falta", dados.get("categorias_faltantes", 0), cor_laranja),
+    ]
+    linha = 4
+    for rotulo, valor, cor in resumo:
+        ws.cell(linha, 1, rotulo).font = Font(name="Aptos", size=10, bold=True, color=cor_cinza)
+        ws.cell(linha, 2, valor).font = Font(name="Aptos Display", size=15, bold=True, color=cor)
+        ws.cell(linha, 1).fill = PatternFill("solid", fgColor=cor_clara)
+        ws.cell(linha, 2).fill = PatternFill("solid", fgColor=cor_clara)
+        ws.cell(linha, 1).border = ws.cell(linha, 2).border = borda
+        linha += 1
+
+    linha += 1
+    ws.cell(linha, 1, "Item(ns) limitante(s)").font = Font(bold=True, color=cor_laranja)
+    ws.merge_cells(start_row=linha, start_column=2, end_row=linha, end_column=5)
+    ws.cell(linha, 2, dados.get("item_limitante") or "-").alignment = Alignment(wrap_text=True)
+    linha += 2
+    ws.cell(linha, 1, "Resumo da simulação").font = Font(bold=True, color=cor_escura)
+    ws.merge_cells(start_row=linha+1, start_column=1, end_row=linha+3, end_column=5)
+    ws.cell(linha+1, 1, dados.get("detalhe") or "-").alignment = Alignment(wrap_text=True, vertical="top")
+    ws.cell(linha+1, 1).fill = PatternFill("solid", fgColor=cor_clara)
+    ws.cell(linha+1, 1).border = borda
+    ws.freeze_panes = "A4"
+
+    # Estoque detalhado
+    ws_e = wb.create_sheet("Estoque detalhado")
+    titulo_planilha(ws_e, "Estoque detalhado", "Quantidade consolidada por código e descrição", 3)
+    cabecalho(ws_e, 4, ["Código", "Descrição do produto", "Qtd. em estoque"], cor_escura)
+    for r_idx, item in enumerate(estoque, start=5):
+        valores = [item.get("codigo") or "-", item.get("descricao") or "", item.get("quantidade") or 0]
+        for c_idx, valor in enumerate(valores, start=1):
+            c = ws_e.cell(r_idx, c_idx, valor)
+            c.border = borda
+            c.alignment = Alignment(vertical="center", wrap_text=(c_idx == 2), horizontal="center" if c_idx == 3 else "left")
+            if r_idx % 2 == 0:
+                c.fill = PatternFill("solid", fgColor="F8FAFC")
+    ajustar_larguras(ws_e, [22, 52, 20])
+    ws_e.freeze_panes = "A5"
+    ws_e.auto_filter.ref = f"A4:C{max(4, ws_e.max_row)}"
+
+    # Faltantes
+    ws_f = wb.create_sheet("Faltantes proxima loja")
+    titulo_planilha(ws_f, f"Itens faltantes para abrir a loja nº {dados.get('proxima_loja', 1)}", "Priorize esta aba para preparação da próxima inauguração", 5)
+    cabecalho(ws_f, 4, ["Código", "Item", "Em estoque", "Necessário total", "Faltam"], cor_laranja)
+    if faltantes:
+        for r_idx, item in enumerate(faltantes, start=5):
+            valores = [item.get("codigo") or "-", item.get("descricao") or "", item.get("em_estoque") or 0, item.get("necessario_total") or 0, item.get("faltam") or 0]
+            for c_idx, valor in enumerate(valores, start=1):
+                c = ws_f.cell(r_idx, c_idx, valor)
+                c.border = borda
+                c.alignment = Alignment(vertical="center", wrap_text=(c_idx == 2), horizontal="center" if c_idx >= 3 else "left")
+                if c_idx == 5:
+                    c.font = Font(bold=True, color="B43C2D")
+                if r_idx % 2 == 0:
+                    c.fill = PatternFill("solid", fgColor="FFF8ED")
+    else:
+        ws_f.merge_cells("A5:E6")
+        ws_f["A5"] = "Nenhum item faltante para a próxima loja."
+        ws_f["A5"].font = Font(bold=True, color=cor_verde)
+        ws_f["A5"].alignment = Alignment(horizontal="center", vertical="center")
+    ajustar_larguras(ws_f, [22, 48, 18, 20, 16])
+    ws_f.freeze_panes = "A5"
+    if faltantes:
+        ws_f.auto_filter.ref = f"A4:E{ws_f.max_row}"
+
+    # Kit padrão
+    ws_k = wb.create_sheet("Kit padrao por loja")
+    titulo_planilha(ws_k, "Kit padrão por loja", "Base utilizada no cálculo da capacidade de inauguração", 5)
+    cabecalho(ws_k, 4, ["Código", "Item", "Qtd./loja", "Em estoque", "Lojas suportadas"], cor_azul)
+    for r_idx, item in enumerate(kit, start=5):
+        valores = [item.get("codigo") or "-", item.get("descricao") or "", item.get("qtd_por_loja") or 0, item.get("em_estoque") or 0, item.get("lojas_suportadas") or 0]
+        for c_idx, valor in enumerate(valores, start=1):
+            c = ws_k.cell(r_idx, c_idx, valor)
+            c.border = borda
+            c.alignment = Alignment(vertical="center", wrap_text=(c_idx == 2), horizontal="center" if c_idx >= 3 else "left")
+            if c_idx == 5:
+                c.font = Font(bold=True, color=cor_azul)
+            if r_idx % 2 == 0:
+                c.fill = PatternFill("solid", fgColor="F5F9FD")
+    ajustar_larguras(ws_k, [22, 48, 16, 18, 20])
+    ws_k.freeze_panes = "A5"
+    if kit:
+        ws_k.auto_filter.ref = f"A4:E{ws_k.max_row}"
+
+    # Configurações de impressão
+    for sheet in wb.worksheets:
+        sheet.sheet_view.showGridLines = False
+        sheet.page_setup.orientation = "landscape"
+        sheet.page_setup.fitToWidth = 1
+        sheet.page_setup.fitToHeight = 0
+        sheet.sheet_properties.pageSetUpPr.fitToPage = True
+        sheet.oddFooter.center.text = "© 2026 · Developed by Alexandre Martins"
+        sheet.oddFooter.right.text = "Página &P de &N"
+
+    buffer = io.BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+    nome_arquivo = f"relatorio-estoque-lojas-{datetime.now().strftime('%Y-%m-%d')}.xlsx"
     return send_file(
         buffer,
         as_attachment=True,

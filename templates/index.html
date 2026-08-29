@@ -86,6 +86,8 @@
   .btn-simulador.ativo{background:var(--panel-2);color:var(--text);border:1px solid var(--line);box-shadow:none;}
   .btn-download{background:rgba(76,215,146,.10);color:var(--ok);border:1px solid rgba(76,215,146,.35);}
   .btn-download:hover{border-color:var(--ok);background:rgba(76,215,146,.16);}
+  .btn-excel{background:rgba(62,166,255,.10);color:var(--accent);border:1px solid rgba(62,166,255,.35);}
+  .btn-excel:hover{border-color:var(--accent);background:rgba(62,166,255,.16);}
   #btn-kit-padrao.ativo{background:var(--panel-2);color:var(--accent-2);border-color:var(--accent-2);}
   .grafico-area{height:300px;position:relative;padding:6px 0;}
   .simulador-resumo{min-height:300px;max-height:430px;overflow:auto;display:none;align-items:center;justify-content:center;flex-direction:column;text-align:center;border:1px solid var(--line);border-radius:12px;background:radial-gradient(circle at 50% 20%,rgba(62,166,255,.12),transparent 55%),var(--panel-2);padding:24px;}
@@ -540,7 +542,8 @@
             </select>
             <button type="button" class="btn-ghost" id="btn-kit-padrao">Kit padrão por loja</button>
             <button type="button" class="btn-simulador" id="btn-simular-lojas">Simular abertura de loja</button>
-            <button type="button" class="btn-download" id="btn-baixar-relatorio">Baixar gráfico + relatório</button>
+            <button type="button" class="btn-download" id="btn-baixar-relatorio">Baixar relatório PDF</button>
+            <button type="button" class="btn-excel" id="btn-baixar-relatorio-excel">Baixar relatório Excel</button>
           </div>
         </div>
         <div id="grafico-codigo-bloco">
@@ -1212,75 +1215,218 @@ function criarGraficoRelatorioBase64(){
   return img;
 }
 
+function textoSemHtml(html){
+  const el=document.createElement('div');
+  el.innerHTML=html||'';
+  return (el.textContent||el.innerText||'').trim();
+}
+
+function payloadRelatorioEstoque(){
+  const sim=calcularSimulacaoLojas();
+  const dados=dadosQuantidadePorCodigo();
+  const estoque=dados.codigos.map((codigo,i)=>(
+    {codigo,descricao:dados.descricoes[i],quantidade:Number(dados.valores[i])||0}
+  ));
+  const faltantes=(sim.faltantesProximaLoja||[]).map(r=>(
+    {codigo:r.codigo||'',descricao:r.descricao||'',em_estoque:Number(r.disponivel)||0,necessario_total:Number(r.alvo)||0,faltam:Number(r.faltam)||0}
+  ));
+  const kit=(sim.requisitos||[]).map(r=>(
+    {codigo:r.codigo||'',descricao:r.descricao||'',qtd_por_loja:Number(r.necessario)||0,em_estoque:Number(r.disponivel)||0,lojas_suportadas:Number(r.lojas)||0}
+  ));
+  const limitantes=(sim.limitantes||[]).map(r=>`${r.codigo ? r.codigo+' — ' : ''}${r.descricao}`);
+  return {
+    gerado_em:new Date().toISOString(),
+    lojas_possiveis:Number(sim.lojas)||0,
+    proxima_loja:(Number(sim.lojas)||0)+1,
+    total_unidades:estoque.reduce((s,r)=>s+r.quantidade,0),
+    total_produtos:estoque.length,
+    categorias_faltantes:faltantes.length,
+    item_limitante:limitantes.join('; '),
+    detalhe:textoSemHtml(sim.detalhe||''),
+    estoque,faltantes,kit
+  };
+}
+
 async function baixarRelatorioEstoque(){
+  const btn=document.getElementById('btn-baixar-relatorio');
+  const textoOriginal=btn?.textContent||'Baixar relatório PDF';
   try{
     if(!window.jspdf || !window.jspdf.jsPDF){
       alert('Não foi possível carregar o gerador de PDF. Verifique a conexão com a internet e tente novamente.');
       return;
     }
-    const btn=document.getElementById('btn-baixar-relatorio');
-    const textoOriginal=btn.textContent; btn.disabled=true; btn.textContent='Gerando relatório...';
+    if(btn){btn.disabled=true;btn.textContent='Gerando PDF...';}
+
     const { jsPDF }=window.jspdf;
     const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
     const largura=doc.internal.pageSize.getWidth();
+    const altura=doc.internal.pageSize.getHeight();
     const margem=14;
+    const conteudo=largura-(margem*2);
     const agora=new Date();
+    const payload=payloadRelatorioEstoque();
     const sim=calcularSimulacaoLojas();
     const dados=dadosQuantidadePorCodigo();
 
-    doc.setFont('helvetica','bold'); doc.setFontSize(18); doc.text('Relatório de Estoque e Capacidade de Lojas',margem,16);
-    doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(90); doc.text(`Gerado em ${agora.toLocaleString('pt-BR')}`,margem,22);
-    doc.setTextColor(0); doc.setFont('helvetica','bold'); doc.setFontSize(13); doc.text(`Lojas completas possíveis: ${sim.lojas}`,margem,31);
-    doc.setFont('helvetica','normal'); doc.setFontSize(9);
-    const detalheTexto=document.createElement('div'); detalheTexto.innerHTML=sim.detalhe||'';
-    const linhasDetalhe=doc.splitTextToSize(detalheTexto.textContent||'',largura-(margem*2));
-    doc.text(linhasDetalhe,margem,37);
+    const azul=[40,118,190], escuro=[26,32,41], verde=[43,145,93], laranja=[205,128,24], cinza=[95,105,118], claro=[245,247,250];
 
+    // Cabeçalho principal
+    doc.setFillColor(...escuro); doc.rect(0,0,largura,34,'F');
+    doc.setFillColor(...azul); doc.rect(0,0,5,34,'F');
+    doc.setTextColor(255); doc.setFont('helvetica','bold'); doc.setFontSize(18);
+    doc.text('Relatório de Estoque e Capacidade de Lojas',margem,15);
+    doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(210);
+    doc.text(`Gerado em ${agora.toLocaleString('pt-BR')}`,margem,22);
+    doc.text('Controle de Estoque',largura-margem,22,{align:'right'});
+
+    // Cards de resumo executivo
+    const cardY=42, gap=4, cardW=(conteudo-(gap*3))/4, cardH=25;
+    const cards=[
+      ['LOJAS POSSÍVEIS',String(payload.lojas_possiveis),verde],
+      ['PRÓXIMA LOJA',`Nº ${payload.proxima_loja}`,azul],
+      ['UNIDADES EM ESTOQUE',String(payload.total_unidades),escuro],
+      ['ITENS EM FALTA',String(payload.categorias_faltantes),payload.categorias_faltantes?laranja:verde]
+    ];
+    cards.forEach((c,i)=>{
+      const x=margem+i*(cardW+gap);
+      doc.setFillColor(...claro); doc.roundedRect(x,cardY,cardW,cardH,2,2,'F');
+      doc.setDrawColor(225); doc.roundedRect(x,cardY,cardW,cardH,2,2,'S');
+      doc.setTextColor(...cinza); doc.setFont('helvetica','bold'); doc.setFontSize(6.8); doc.text(c[0],x+3,cardY+6);
+      doc.setTextColor(...c[2]); doc.setFontSize(17); doc.text(c[1],x+3,cardY+18);
+    });
+
+    let y=75;
+    doc.setTextColor(...escuro); doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.text('Resumo executivo',margem,y);
+    doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(...cinza);
+    const resumo=payload.detalhe || 'Sem informações adicionais de simulação.';
+    const resumoLinhas=doc.splitTextToSize(resumo,conteudo);
+    doc.text(resumoLinhas,margem,y+5);
+    y += 8 + resumoLinhas.length*3.7;
+
+    if(payload.item_limitante){
+      doc.setFillColor(255,248,235); doc.setDrawColor(238,194,123);
+      const limLinhas=doc.splitTextToSize(`Item(ns) limitante(s): ${payload.item_limitante}`,conteudo-8);
+      const boxH=8+limLinhas.length*3.5;
+      doc.roundedRect(margem,y,conteudo,boxH,2,2,'FD');
+      doc.setTextColor(...laranja); doc.setFont('helvetica','bold'); doc.setFontSize(8.3); doc.text(limLinhas,margem+4,y+5);
+      y+=boxH+5;
+    }
+
+    // Faltantes primeiro, pois é a informação mais acionável
+    if(payload.faltantes.length){
+      doc.setTextColor(...laranja); doc.setFont('helvetica','bold'); doc.setFontSize(11);
+      doc.text(`Itens faltantes para abrir a loja nº ${payload.proxima_loja}`,margem,y);
+      const faltRows=payload.faltantes.map(r=>[r.codigo||'-',r.descricao,String(r.em_estoque),String(r.necessario_total),String(r.faltam)]);
+      doc.autoTable({
+        startY:y+3,
+        head:[['Código','Item','Em estoque','Necessário','Faltam']],body:faltRows,
+        theme:'grid',margin:{left:margem,right:margem},
+        styles:{fontSize:7.8,cellPadding:2.2,textColor:escuro,lineColor:[225,228,232],lineWidth:.15},
+        headStyles:{fillColor:laranja,textColor:255,fontStyle:'bold'},
+        alternateRowStyles:{fillColor:[252,249,243]},
+        columnStyles:{0:{cellWidth:24},2:{cellWidth:23,halign:'center'},3:{cellWidth:25,halign:'center'},4:{cellWidth:19,halign:'center',fontStyle:'bold',textColor:[180,60,45]}},
+        showHead:'everyPage'
+      });
+      y=doc.lastAutoTable.finalY+7;
+    }
+
+    // Gráfico em área própria e menor para não esmagar tabelas
     const imagem=criarGraficoRelatorioBase64();
-    let yGrafico=37+(linhasDetalhe.length*4)+3;
     if(imagem){
-      doc.addImage(imagem,'PNG',margem,yGrafico,largura-(margem*2),72);
-      yGrafico+=78;
+      if(y>190){doc.addPage();y=18;}
+      doc.setTextColor(...escuro); doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.text('Distribuição do estoque por produto',margem,y);
+      doc.addImage(imagem,'PNG',margem,y+4,conteudo,64);
+      y+=72;
     }
 
+    // Estoque detalhado: força nova página quando não há espaço suficiente
+    if(y>210){doc.addPage();y=18;}
+    doc.setTextColor(...escuro); doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.text('Estoque detalhado',margem,y);
+    doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(...cinza);
+    doc.text(`${payload.total_produtos} produto(s) · ${payload.total_unidades} unidade(s)`,margem,y+4.5);
     const estoqueRows=dados.codigos.map((codigo,i)=>[codigo,dados.descricoes[i],String(dados.valores[i])]);
-    doc.autoTable({startY:yGrafico,head:[['Código','Descrição do produto','Qtd. em estoque']],body:estoqueRows,theme:'grid',styles:{fontSize:8,cellPadding:2},headStyles:{fillColor:[33,41,52]},columnStyles:{0:{cellWidth:32},2:{cellWidth:30,halign:'center'}}});
+    doc.autoTable({
+      startY:y+8,head:[['Código','Descrição do produto','Qtd. em estoque']],body:estoqueRows,
+      theme:'grid',margin:{left:margem,right:margem},
+      styles:{fontSize:7.6,cellPadding:2.1,textColor:escuro,lineColor:[226,229,234],lineWidth:.15},
+      headStyles:{fillColor:escuro,textColor:255,fontStyle:'bold'},
+      alternateRowStyles:{fillColor:[247,249,251]},
+      columnStyles:{0:{cellWidth:31},2:{cellWidth:30,halign:'center',fontStyle:'bold'}},
+      showHead:'everyPage'
+    });
 
-    const faltantesProxima=sim.faltantesProximaLoja||[];
-    if(faltantesProxima.length){
-      let start=doc.lastAutoTable.finalY+8;
-      doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.setTextColor(185,105,15);
-      doc.text(`Itens faltantes para abrir a loja nº ${sim.lojas+1}`,margem,start);
-      doc.setTextColor(0);
-      const faltRows=faltantesProxima.map(r=>[r.codigo||'-',r.descricao,String(r.disponivel),String(r.alvo),String(r.faltam)]);
-      doc.autoTable({startY:start+3,head:[['Código','Item','Em estoque','Necessário total','Faltam']],body:faltRows,theme:'grid',styles:{fontSize:8,cellPadding:2},headStyles:{fillColor:[185,105,15]},columnStyles:{0:{cellWidth:24},2:{cellWidth:24,halign:'center'},3:{cellWidth:30,halign:'center'},4:{cellWidth:20,halign:'center',fontStyle:'bold'}}});
+    if(payload.kit.length){
+      let startKit=doc.lastAutoTable.finalY+8;
+      if(startKit>235){doc.addPage();startKit=18;}
+      doc.setTextColor(...escuro); doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.text('Kit padrão por loja',margem,startKit);
+      doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(...cinza);
+      doc.text('Base usada para calcular a quantidade de lojas completas.',margem,startKit+4.5);
+      const kitRows=payload.kit.map(r=>[r.codigo||'-',r.descricao,String(r.qtd_por_loja),String(r.em_estoque),String(r.lojas_suportadas)]);
+      doc.autoTable({
+        startY:startKit+8,head:[['Código','Item','Qtd./loja','Em estoque','Lojas suportadas']],body:kitRows,
+        theme:'grid',margin:{left:margem,right:margem,bottom:16},
+        styles:{fontSize:7.3,cellPadding:2,textColor:escuro,lineColor:[226,229,234],lineWidth:.15},
+        headStyles:{fillColor:azul,textColor:255,fontStyle:'bold'},
+        alternateRowStyles:{fillColor:[246,249,253]},
+        columnStyles:{0:{cellWidth:24},2:{cellWidth:22,halign:'center'},3:{cellWidth:25,halign:'center'},4:{cellWidth:28,halign:'center',fontStyle:'bold'}},
+        showHead:'everyPage'
+      });
     }
 
-    const requisitos=sim.requisitos||[];
-    if(requisitos.length){
-      let start=doc.lastAutoTable.finalY+8;
-      doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.setTextColor(0); doc.text('Kit padrão por loja',margem,start);
-      const kitRows=requisitos.map(r=>[r.codigo||'-',r.descricao,String(r.necessario),String(r.disponivel),String(r.lojas)]);
-      doc.autoTable({startY:start+3,head:[['Código','Item','Qtd./loja','Em estoque','Lojas suportadas']],body:kitRows,theme:'grid',styles:{fontSize:7.6,cellPadding:1.8},headStyles:{fillColor:[33,41,52]},columnStyles:{0:{cellWidth:24},2:{cellWidth:22,halign:'center'},3:{cellWidth:24,halign:'center'},4:{cellWidth:27,halign:'center'}}});
-    }
-
+    // Rodapé em todas as páginas
     const paginas=doc.getNumberOfPages();
     for(let i=1;i<=paginas;i++){
-      doc.setPage(i); doc.setFontSize(8); doc.setTextColor(120);
-      doc.text(`Página ${i} de ${paginas}`,largura-margem,291,{align:'right'});
-      doc.text('© 2026 · Developed by Alexandre Martins',margem,291);
+      doc.setPage(i);
+      doc.setDrawColor(225); doc.line(margem,altura-12,largura-margem,altura-12);
+      doc.setFontSize(7.5); doc.setTextColor(125); doc.setFont('helvetica','normal');
+      doc.text('© 2026 · Todos os direitos reservados · Developed by Alexandre Martins',margem,altura-7);
+      doc.text(`Página ${i} de ${paginas}`,largura-margem,altura-7,{align:'right'});
     }
+
     const data=agora.toISOString().slice(0,10);
     doc.save(`relatorio-estoque-lojas-${data}.pdf`);
-    btn.disabled=false; btn.textContent=textoOriginal;
   }catch(err){
     console.error('Erro ao gerar relatório:',err);
-    const btn=document.getElementById('btn-baixar-relatorio'); if(btn){btn.disabled=false;btn.textContent='Baixar gráfico + relatório';}
     alert('Não foi possível gerar o relatório em PDF.');
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent=textoOriginal;}
+  }
+}
+
+async function baixarRelatorioExcel(){
+  const btn=document.getElementById('btn-baixar-relatorio-excel');
+  const textoOriginal=btn?.textContent||'Baixar relatório Excel';
+  try{
+    if(btn){btn.disabled=true;btn.textContent='Gerando Excel...';}
+    const resposta=await fetch('/export-relatorio-lojas',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(payloadRelatorioEstoque())
+    });
+    if(!resposta.ok){
+      let msg='Não foi possível gerar o relatório em Excel.';
+      try{const j=await resposta.json(); if(j.erro) msg=j.erro;}catch(_){ }
+      throw new Error(msg);
+    }
+    const blob=await resposta.blob();
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url;
+    const disp=resposta.headers.get('Content-Disposition')||'';
+    const match=disp.match(/filename\*?=(?:UTF-8''|\")?([^\";]+)/i);
+    a.download=match ? decodeURIComponent(match[1].replace(/\"/g,'')) : `relatorio-estoque-lojas-${new Date().toISOString().slice(0,10)}.xlsx`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),1000);
+  }catch(err){
+    console.error('Erro ao gerar Excel:',err);
+    alert(err.message||'Não foi possível gerar o relatório em Excel.');
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent=textoOriginal;}
   }
 }
 
 document.getElementById('btn-baixar-relatorio')?.addEventListener('click',baixarRelatorioEstoque);
+document.getElementById('btn-baixar-relatorio-excel')?.addEventListener('click',baixarRelatorioExcel);
 
 function normalizarKitTexto(valor){
   return String(valor||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
