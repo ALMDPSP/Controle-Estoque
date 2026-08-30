@@ -1,7 +1,7 @@
 {
   "name": "Controle de Estoque e Imobilizados",
   "short_name": "Estoque TI",
-  "description": "Controle de estoque, imobilizados, expansão, relatórios e loja virtual.",
+  "description": "Controle de estoque, imobilizados, filiais, leitor de códigos, expansão, relatórios e loja virtual.",
   "start_url": "/dashboard",
   "scope": "/",
   "display": "standalone",

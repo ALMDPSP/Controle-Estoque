@@ -245,6 +245,35 @@ def init_db():
         """)
     conn.commit()
 
+    # Cadastro de filiais / destinos de equipamentos.
+    if IS_PG:
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS filiais (
+                id SERIAL PRIMARY KEY,
+                codigo TEXT UNIQUE NOT NULL,
+                nome TEXT,
+                cidade TEXT,
+                uf TEXT,
+                ativo TEXT NOT NULL DEFAULT '1',
+                criado_por TEXT,
+                criado_em TEXT
+            )
+        """)
+    else:
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS filiais (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                codigo TEXT UNIQUE NOT NULL,
+                nome TEXT,
+                cidade TEXT,
+                uf TEXT,
+                ativo TEXT NOT NULL DEFAULT '1',
+                criado_por TEXT,
+                criado_em TEXT
+            )
+        """)
+    conn.commit()
+
     # Na primeira execução, carrega o kit padrão informado para uma loja.
     cur.execute("SELECT COUNT(*) FROM kit_padrao_loja")
     if cur.fetchone()[0] == 0:
@@ -308,6 +337,7 @@ def init_db():
         ("pedido", "TEXT"),
         ("val_aquis", "TEXT"),
         ("chamado", "TEXT"),
+        ("filial_destino", "TEXT"),
     ]
     for coluna, tipo in novas_colunas:
         try:
@@ -366,7 +396,8 @@ def init_db():
                              "data_entrada", "nf_saida", "data_saida", "vd_loja",
                              "local", "armazenagem", "status", "nro_imobilizado",
                              "nro_serie", "nro_patrimonio", "tipo_estoque", "criado_por",
-                             "atualizado_por", "atualizado_em", "pedido", "val_aquis", "chamado"]
+                             "atualizado_por", "atualizado_em", "pedido", "val_aquis", "chamado",
+                             "filial_destino"]
             colunas_str = ", ".join(campos_copia)
             if IS_PG:
                 cur.execute(f"INSERT INTO imobilizados ({colunas_str}) SELECT {colunas_str} FROM itens")
@@ -516,7 +547,7 @@ def criar_item(dados):
               "data_entrada", "nf_saida", "data_saida", "vd_loja",
               "local", "armazenagem", "status", "nro_imobilizado",
               "nro_serie", "nro_patrimonio", "tipo_estoque", "criado_por",
-              "pedido", "val_aquis", "chamado"]
+              "pedido", "val_aquis", "chamado", "filial_destino"]
     valores = [dados.get(c, "") for c in campos]
 
     if IS_PG:
@@ -545,7 +576,7 @@ def criar_itens_em_lote(lista_dados, usuario, observacao="Importado via planilha
               "data_entrada", "nf_saida", "data_saida", "vd_loja",
               "local", "armazenagem", "status", "nro_imobilizado",
               "nro_serie", "nro_patrimonio", "tipo_estoque", "criado_por",
-              "pedido", "val_aquis", "chamado"]
+              "pedido", "val_aquis", "chamado", "filial_destino"]
 
     conn = get_conn()
     cur = get_cursor(conn)
@@ -589,7 +620,7 @@ def atualizar_item(item_id, novos_dados):
                           "local", "armazenagem", "status", "nro_imobilizado",
                           "nro_serie", "nro_patrimonio", "tipo_estoque",
                           "atualizado_por", "atualizado_em",
-                          "pedido", "val_aquis", "chamado"]
+                          "pedido", "val_aquis", "chamado", "filial_destino"]
     sets = [c for c in campos_permitidos if c in novos_dados]
     if not sets:
         return False
@@ -636,7 +667,8 @@ def recriar_item(dados):
               "data_entrada", "nf_saida", "data_saida", "vd_loja",
               "local", "armazenagem", "status", "nro_imobilizado",
               "nro_serie", "nro_patrimonio", "tipo_estoque", "criado_por",
-              "atualizado_por", "atualizado_em", "pedido", "val_aquis", "chamado"]
+              "atualizado_por", "atualizado_em", "pedido", "val_aquis", "chamado",
+              "filial_destino"]
     valores = [dados.get(c) for c in campos]
     cur.execute(
         q(f"INSERT INTO itens ({', '.join(campos)}) VALUES ({', '.join(['?'] * len(campos))})"),
@@ -743,7 +775,7 @@ CAMPOS_IMOBILIZADO = ["codigo", "descricao", "qtde", "localizacao", "nf_entrada"
                        "data_entrada", "nf_saida", "data_saida", "vd_loja",
                        "local", "armazenagem", "status", "nro_imobilizado",
                        "nro_serie", "nro_patrimonio", "tipo_estoque", "criado_por",
-                       "pedido", "val_aquis", "chamado"]
+                       "pedido", "val_aquis", "chamado", "filial_destino"]
 
 
 def listar_imobilizados():
@@ -822,7 +854,7 @@ def criar_imobilizados_em_lote(lista_dados, usuario, observacao="Importado via p
 
 def atualizar_imobilizado(item_id, novos_dados):
     campos_permitidos = CAMPOS_IMOBILIZADO + ["atualizado_por", "atualizado_em",
-                                               "enviado_estoque_por", "enviado_estoque_em"]
+                                               "filial_destino", "enviado_estoque_por", "enviado_estoque_em"]
     sets = [c for c in campos_permitidos if c in novos_dados]
     if not sets:
         return False
@@ -883,7 +915,7 @@ def recriar_imobilizado(dados):
               "local", "armazenagem", "status", "nro_imobilizado",
               "nro_serie", "nro_patrimonio", "tipo_estoque", "criado_por",
               "atualizado_por", "atualizado_em", "pedido", "val_aquis", "chamado",
-              "enviado_estoque_por", "enviado_estoque_em"]
+              "filial_destino", "enviado_estoque_por", "enviado_estoque_em"]
     valores = [dados.get(c) for c in campos]
     cur.execute(
         q(f"INSERT INTO imobilizados ({', '.join(campos)}) VALUES ({', '.join(['?'] * len(campos))})"),
@@ -928,6 +960,89 @@ def enviar_imobilizado_para_estoque(imobilizado_id, usuario):
     conn.close()
 
     return total
+
+
+# ---------------------------------------------------------------------
+# Filiais / destinos
+# ---------------------------------------------------------------------
+
+def listar_filiais(incluir_inativas=True):
+    conn = get_conn(); cur = get_cursor(conn)
+    if incluir_inativas:
+        cur.execute("SELECT * FROM filiais ORDER BY codigo")
+    else:
+        cur.execute(q("SELECT * FROM filiais WHERE ativo = ? ORDER BY codigo"), ("1",))
+    rows = [dict(r) for r in cur.fetchall()]
+    rows.sort(key=lambda f: _chave_codigo_natural(f.get("codigo")))
+    cur.close(); conn.close(); return rows
+
+def buscar_filial_por_id(filial_id):
+    conn = get_conn(); cur = get_cursor(conn)
+    cur.execute(q("SELECT * FROM filiais WHERE id = ?"), (filial_id,))
+    row = cur.fetchone(); result = dict(row) if row else None
+    cur.close(); conn.close(); return result
+
+def buscar_filial_por_codigo(codigo):
+    conn = get_conn(); cur = get_cursor(conn)
+    cur.execute(q("SELECT * FROM filiais WHERE codigo = ?"), (str(codigo or "").strip(),))
+    row = cur.fetchone(); result = dict(row) if row else None
+    cur.close(); conn.close(); return result
+
+def criar_filial(codigo, nome, cidade, uf, ativo, usuario):
+    conn = get_conn(); cur = get_cursor(conn)
+    agora = datetime.now().strftime("%Y-%m-%d %H:%M")
+    try:
+        if IS_PG:
+            cur.execute(q("INSERT INTO filiais (codigo,nome,cidade,uf,ativo,criado_por,criado_em) VALUES (?,?,?,?,?,?,?) RETURNING id"),
+                        (codigo,nome,cidade,uf,ativo,usuario,agora))
+            novo_id = cur.fetchone()["id"]
+        else:
+            cur.execute(q("INSERT INTO filiais (codigo,nome,cidade,uf,ativo,criado_por,criado_em) VALUES (?,?,?,?,?,?,?)"),
+                        (codigo,nome,cidade,uf,ativo,usuario,agora))
+            novo_id = cur.lastrowid
+        conn.commit(); return novo_id
+    except Exception:
+        conn.rollback(); raise
+    finally:
+        cur.close(); conn.close()
+
+def atualizar_filial(filial_id, codigo, nome, cidade, uf, ativo):
+    conn = get_conn(); cur = get_cursor(conn)
+    try:
+        cur.execute(q("SELECT codigo FROM filiais WHERE id = ?"), (filial_id,))
+        row = cur.fetchone()
+        if not row:
+            return False
+        codigo_antigo = row["codigo"] if isinstance(row, dict) else row[0]
+        cur.execute(q("UPDATE filiais SET codigo=?, nome=?, cidade=?, uf=?, ativo=? WHERE id=?"),
+                    (codigo,nome,cidade,uf,ativo,filial_id))
+        if str(codigo_antigo) != str(codigo):
+            cur.execute(q("UPDATE itens SET filial_destino = ? WHERE filial_destino = ?"), (codigo, codigo_antigo))
+            cur.execute(q("UPDATE imobilizados SET filial_destino = ? WHERE filial_destino = ?"), (codigo, codigo_antigo))
+        conn.commit(); return True
+    except Exception:
+        conn.rollback(); raise
+    finally:
+        cur.close(); conn.close()
+
+def contar_referencias_filial(codigo):
+    conn = get_conn(); cur = get_cursor(conn)
+    cur.execute(q("SELECT COUNT(*) FROM itens WHERE filial_destino = ?"), (codigo,))
+    a = cur.fetchone()[0]
+    cur.execute(q("SELECT COUNT(*) FROM imobilizados WHERE filial_destino = ?"), (codigo,))
+    b = cur.fetchone()[0]
+    cur.close(); conn.close(); return int(a or 0) + int(b or 0)
+
+def excluir_filial(filial_id):
+    filial = buscar_filial_por_id(filial_id)
+    if not filial:
+        return False, 0
+    refs = contar_referencias_filial(filial.get("codigo"))
+    if refs:
+        return False, refs
+    conn = get_conn(); cur = get_cursor(conn)
+    cur.execute(q("DELETE FROM filiais WHERE id = ?"), (filial_id,))
+    ok = cur.rowcount > 0; conn.commit(); cur.close(); conn.close(); return ok, 0
 
 
 # ---------------------------------------------------------------------

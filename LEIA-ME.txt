@@ -43,3 +43,15 @@ Android/Chrome ou Edge: use "Instalar app" / "Adicionar à tela inicial".
 iPhone/Safari: Compartilhar > Adicionar à Tela de Início.
 
 Se o acesso local não funcionar, permita o Python/porta 5000 no Firewall do Windows.
+
+NOVOS RECURSOS — FILIAIS E LEITOR DE CÓDIGO
+--------------------------------------------
+- Menu Filiais: cadastre código, nome, cidade, UF e situação da loja/destino.
+- Estoque e Imobilizados agora possuem campo e filtro "Filial / destino".
+- Ao registrar uma saída, selecione a filial que receberá o equipamento.
+- A pesquisa global também localiza equipamentos pelo código da filial.
+- Menu Leitor: permite ler códigos de barras pela câmera do celular e pesquisar
+  por código do item, número de série ou patrimônio.
+- Para câmera ao vivo, navegadores normalmente exigem HTTPS. Em acesso local
+  pelo endereço IP do computador via HTTP, use a opção "Fotografar código" ou
+  digite o código manualmente caso o navegador bloqueie a câmera ao vivo.

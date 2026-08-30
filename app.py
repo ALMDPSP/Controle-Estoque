@@ -340,7 +340,7 @@ def api_busca_global():
     if len(termo)<1:
         return jsonify([])
     resultados=[]
-    campos=("codigo","descricao","nro_serie","nro_patrimonio","nro_imobilizado","localizacao","local","armazenagem","vd_loja","pedido","chamado")
+    campos=("codigo","descricao","nro_serie","nro_patrimonio","nro_imobilizado","localizacao","local","armazenagem","vd_loja","filial_destino","pedido","chamado")
     def combina(obj):
         alvo=" ".join(str(obj.get(c) or "") for c in campos).lower()
         alvo=unicodedata.normalize("NFD",alvo)
@@ -354,7 +354,8 @@ def api_busca_global():
                     "descricao":obj.get("descricao","") or "","quantidade":obj.get("qtde","") or "",
                     "tipo_estoque":obj.get("tipo_estoque","") or "","status":obj.get("status","") or "",
                     "localizacao":obj.get("localizacao","") or "","nro_serie":obj.get("nro_serie","") or "",
-                    "nro_patrimonio":obj.get("nro_patrimonio","") or ""
+                    "nro_patrimonio":obj.get("nro_patrimonio","") or "",
+                    "filial_destino":obj.get("filial_destino","") or ""
                 })
             if len(resultados)>=80: break
         if len(resultados)>=80: break
@@ -363,7 +364,7 @@ def api_busca_global():
         alvo=unicodedata.normalize("NFD",alvo)
         alvo="".join(c for c in alvo if unicodedata.category(c)!="Mn")
         if termo in alvo:
-            resultados.append({"origem":"Cadastro de Produtos","id":prod.get("id"),"codigo":prod.get("codigo","") or "","descricao":prod.get("descricao","") or "","quantidade":"","tipo_estoque":"","status":"","localizacao":"","nro_serie":"","nro_patrimonio":""})
+            resultados.append({"origem":"Cadastro de Produtos","id":prod.get("id"),"codigo":prod.get("codigo","") or "","descricao":prod.get("descricao","") or "","quantidade":"","tipo_estoque":"","status":"","localizacao":"","nro_serie":"","nro_patrimonio":"","filial_destino":""})
         if len(resultados)>=100: break
     return jsonify(resultados)
 
@@ -476,6 +477,18 @@ def pagina_produtos():
     return render_template("produtos.html", username=session.get("username"), role=session.get("role") or "user", is_admin=session.get("role") == "admin")
 
 
+@app.route("/filiais")
+@login_required
+def pagina_filiais():
+    return render_template("filiais.html", username=session.get("username"), role=session.get("role") or "user", is_admin=session.get("role") == "admin")
+
+
+@app.route("/leitor-codigo")
+@login_required
+def pagina_leitor_codigo():
+    return render_template("leitor_codigo.html", username=session.get("username"), role=session.get("role") or "user", is_admin=session.get("role") == "admin")
+
+
 @app.route("/acesso-celular")
 @login_required
 def pagina_acesso_celular():
@@ -512,6 +525,58 @@ def service_worker():
 @login_required
 def pagina_loja_virtual():
     return render_template("loja_virtual.html", username=session.get("username"), role=session.get("role") or "user", is_admin=session.get("role") == "admin")
+
+
+@app.route("/api/filiais", methods=["GET"])
+@login_required
+def api_listar_filiais():
+    incluir_inativas = request.args.get("inativas", "1") != "0"
+    return jsonify(db.listar_filiais(incluir_inativas=incluir_inativas))
+
+
+@app.route("/api/filiais", methods=["POST"])
+@manager_required
+def api_criar_filial():
+    dados = request.get_json(force=True)
+    codigo = (dados.get("codigo") or "").strip()
+    nome = (dados.get("nome") or "").strip()
+    cidade = (dados.get("cidade") or "").strip()
+    uf = (dados.get("uf") or "").strip().upper()[:2]
+    ativo = "1" if str(dados.get("ativo", "1")) not in ("0", "false", "False") else "0"
+    if not codigo:
+        return jsonify({"erro": "Código da filial é obrigatório."}), 400
+    try:
+        novo_id = db.criar_filial(codigo, nome, cidade, uf, ativo, session.get("username"))
+    except Exception:
+        return jsonify({"erro": "Já existe uma filial cadastrada com este código."}), 409
+    return jsonify({"ok": True, "id": novo_id}), 201
+
+
+@app.route("/api/filiais/<int:filial_id>", methods=["PUT"])
+@manager_required
+def api_atualizar_filial(filial_id):
+    dados = request.get_json(force=True)
+    codigo = (dados.get("codigo") or "").strip()
+    nome = (dados.get("nome") or "").strip()
+    cidade = (dados.get("cidade") or "").strip()
+    uf = (dados.get("uf") or "").strip().upper()[:2]
+    ativo = "1" if str(dados.get("ativo", "1")) not in ("0", "false", "False") else "0"
+    if not codigo:
+        return jsonify({"erro": "Código da filial é obrigatório."}), 400
+    try:
+        ok = db.atualizar_filial(filial_id, codigo, nome, cidade, uf, ativo)
+    except Exception:
+        return jsonify({"erro": "Já existe outra filial com este código."}), 409
+    return (jsonify({"ok": True}) if ok else (jsonify({"erro": "Filial não encontrada."}), 404))
+
+
+@app.route("/api/filiais/<int:filial_id>", methods=["DELETE"])
+@manager_required
+def api_excluir_filial(filial_id):
+    ok, referencias = db.excluir_filial(filial_id)
+    if referencias:
+        return jsonify({"erro": f"Esta filial está vinculada a {referencias} equipamento(s). Inative a filial em vez de excluir."}), 409
+    return (jsonify({"ok": True}) if ok else (jsonify({"erro": "Filial não encontrada."}), 404))
 
 
 @app.route("/api/produtos", methods=["GET"])
@@ -658,6 +723,7 @@ def api_criar_imobilizado():
         "nf_saida": (dados.get("nf_saida") or "").strip(),
         "data_saida": (dados.get("data_saida") or "").strip(),
         "vd_loja": (dados.get("vd_loja") or "").strip(),
+        "filial_destino": (dados.get("filial_destino") or "").strip(),
         "local": (dados.get("local") or "").strip(),
         "armazenagem": (dados.get("armazenagem") or "").strip(),
         "status": (dados.get("status") or "").strip(),
@@ -783,7 +849,7 @@ def exportar_imobilizados_excel():
     ws.title = "Imobilizados"
     colunas = ["ID", "Codigo do item", "Descricao", "Qtde", "Localizacao",
                "NF de entrada", "Data de entrada", "NF de saida",
-               "Data de saida", "VD da loja (destino)", "Local",
+               "Data de saida", "VD / referencia", "Filial destino", "Local",
                "Armazenagem", "Status", "Nro Imobilizado", "Nro Serie",
                "Nro Patrimonio", "Tipo de Estoque", "Criado por",
                "Ultima alteracao por", "Ultima alteracao em",
@@ -793,13 +859,13 @@ def exportar_imobilizados_excel():
         ws.append([
             it["id"], it["codigo"], it["descricao"], it["qtde"], it["localizacao"],
             it["nf_entrada"], it["data_entrada"], it["nf_saida"],
-            it["data_saida"], it["vd_loja"], it.get("local"),
+            it["data_saida"], it["vd_loja"], it.get("filial_destino"), it.get("local"),
             it.get("armazenagem"), it.get("status"), it.get("nro_imobilizado"),
             it.get("nro_serie"), it.get("nro_patrimonio"), it.get("tipo_estoque"),
             it.get("criado_por"), it.get("atualizado_por"), it.get("atualizado_em"),
             it.get("pedido"), it.get("val_aquis"), it.get("chamado"),
         ])
-    larguras = [8, 18, 32, 8, 18, 18, 16, 18, 16, 22, 12, 14, 12, 16, 16, 16, 18, 14, 16, 16, 14, 12, 14]
+    larguras = [8, 18, 32, 8, 18, 18, 16, 18, 16, 18, 22, 12, 14, 12, 16, 16, 16, 18, 14, 16, 16, 14, 12, 14]
     for i, largura in enumerate(larguras, start=1):
         ws.column_dimensions[chr(64 + i)].width = largura
 
@@ -1013,6 +1079,7 @@ def api_criar():
         "nf_saida": (dados.get("nf_saida") or "").strip(),
         "data_saida": (dados.get("data_saida") or "").strip(),
         "vd_loja": (dados.get("vd_loja") or "").strip(),
+        "filial_destino": (dados.get("filial_destino") or "").strip(),
         "local": (dados.get("local") or "").strip(),
         "armazenagem": (dados.get("armazenagem") or "").strip(),
         "status": (dados.get("status") or "").strip(),
@@ -1064,7 +1131,7 @@ def api_atualizar(item_id):
         if qtde_antes is not None and qtde_depois < qtde_antes:
             diferenca = qtde_antes - qtde_depois
             if dados.get("nf_saida"):
-                obs = f"Saída registrada (NF {dados.get('nf_saida')}, destino: {dados.get('vd_loja') or '-'})"
+                obs = f"Saída registrada (NF {dados.get('nf_saida')}, destino: {dados.get('filial_destino') or dados.get('vd_loja') or '-'})"
                 tipo_mov = "saida"
             else:
                 obs = "Retirada de estoque"
@@ -1138,7 +1205,7 @@ def exportar_excel():
     ws.title = "Estoque"
     colunas = ["ID", "Codigo do item", "Descricao", "Qtde", "Localizacao",
                "NF de entrada", "Data de entrada", "NF de saida",
-               "Data de saida", "VD da loja (destino)", "Local",
+               "Data de saida", "VD / referencia", "Filial destino", "Local",
                "Armazenagem", "Status", "Nro Imobilizado", "Nro Serie",
                "Nro Patrimonio", "Tipo de Estoque", "Criado por",
                "Ultima alteracao por", "Ultima alteracao em",
@@ -1148,13 +1215,13 @@ def exportar_excel():
         ws.append([
             it["id"], it["codigo"], it["descricao"], it["qtde"], it["localizacao"],
             it["nf_entrada"], it["data_entrada"], it["nf_saida"],
-            it["data_saida"], it["vd_loja"], it.get("local"),
+            it["data_saida"], it["vd_loja"], it.get("filial_destino"), it.get("local"),
             it.get("armazenagem"), it.get("status"), it.get("nro_imobilizado"),
             it.get("nro_serie"), it.get("nro_patrimonio"), it.get("tipo_estoque"),
             it.get("criado_por"), it.get("atualizado_por"), it.get("atualizado_em"),
             it.get("pedido"), it.get("val_aquis"), it.get("chamado"),
         ])
-    larguras = [8, 18, 32, 8, 18, 18, 16, 18, 16, 22, 12, 14, 12, 16, 16, 16, 18, 14, 16, 16, 14, 12, 14]
+    larguras = [8, 18, 32, 8, 18, 18, 16, 18, 16, 18, 22, 12, 14, 12, 16, 16, 16, 18, 14, 16, 16, 14, 12, 14]
     for i, largura in enumerate(larguras, start=1):
         ws.column_dimensions[chr(64 + i)].width = largura
 
@@ -1212,6 +1279,7 @@ ALIASES_COLUNAS = {
     "nf_saida": ["nfdesaida", "nfsaida", "notafiscaldesaida"],
     "data_saida": ["datadesaida", "datasaida"],
     "vd_loja": ["vddalojadestino", "vddaloja", "vdloja", "vd", "lojadestino"],
+    "filial_destino": ["filialdestino", "filial", "codigofilial", "lojafilial", "destinofilial"],
     "local": ["local"],
     "armazenagem": ["armazenagem", "localarmazenagem"],
     "status": ["status"],

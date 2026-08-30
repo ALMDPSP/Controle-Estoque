@@ -481,6 +481,7 @@
         <select id="codigo" name="codigo" required>
           <option value="">Selecione o código cadastrado...</option>
         </select>
+        <a href="{{ url_for('pagina_leitor_codigo') }}" style="margin-top:5px;font-size:10px;color:var(--accent);text-decoration:none">▣ Ler código pela câmera</a>
       </div>
       <div class="field wide">
         <label for="descricao">Descrição</label>
@@ -512,8 +513,12 @@
         <input id="data_saida" name="data_saida" type="date">
       </div>
       <div class="field">
-        <label for="vd_loja">VD / loja de destino</label>
-        <input id="vd_loja" name="vd_loja" placeholder="Vendedor / loja que vai receber">
+        <label for="vd_loja">VD / referência de saída</label>
+        <input id="vd_loja" name="vd_loja" placeholder="VD / responsável / observação">
+      </div>
+      <div class="field">
+        <label for="filial_destino">Filial / destino</label>
+        <select id="filial_destino" name="filial_destino"><option value="">Selecione a filial...</option></select>
       </div>
 
       <div class="field">
@@ -724,7 +729,8 @@
           <option value="Engemon">Engemon</option>
           <option value="Loja">Loja</option>
         </select>
-        <input type="search" id="busca" placeholder="Buscar por código, descrição, loja...">
+        <select id="filtro-filial" class="filtro-select"><option value="">Todas as filiais</option></select>
+        <input type="search" id="busca" placeholder="Buscar por código, descrição, filial, serial...">
       </div>
     </div>
     <div style="display:flex; align-items:center; gap:12px; margin-bottom:10px; min-height:32px;">
@@ -744,7 +750,8 @@
             <th>Data entrada</th>
             <th>NF saída</th>
             <th>Data saída</th>
-            <th>VD / loja</th>
+            <th>VD / referência</th>
+            <th>Filial / destino</th>
             <th>Local</th>
             <th>Armazenagem</th>
             <th>Status</th>
@@ -820,8 +827,12 @@
       <input id="edit-data_saida" type="date">
     </div>
     <div class="field">
-      <label for="edit-vd_loja">VD / loja de destino</label>
-      <input id="edit-vd_loja" placeholder="Vendedor / loja que vai receber">
+      <label for="edit-vd_loja">VD / referência de saída</label>
+      <input id="edit-vd_loja" placeholder="VD / responsável / observação">
+    </div>
+    <div class="field">
+      <label for="edit-filial_destino">Filial / destino</label>
+      <select id="edit-filial_destino"><option value="">Selecione a filial...</option></select>
     </div>
     <div class="dlg-actions">
       <button type="button" class="btn-ghost" id="edit-cancel">Cancelar</button>
@@ -908,8 +919,12 @@
         <input id="fe-data_saida" type="date">
       </div>
       <div class="field">
-        <label for="fe-vd_loja">VD / loja de destino</label>
+        <label for="fe-vd_loja">VD / referência de saída</label>
         <input id="fe-vd_loja">
+      </div>
+      <div class="field">
+        <label for="fe-filial_destino">Filial / destino</label>
+        <select id="fe-filial_destino"><option value="">Selecione a filial...</option></select>
       </div>
       <div class="field">
         <label for="fe-nro_imobilizado">Nº imobilizado</label>
@@ -1011,6 +1026,7 @@ const buscaInicial=new URLSearchParams(window.location.search).get('buscar');if(
 const filtroTipo = document.getElementById('filtro-tipo');
 const filtroStatus = document.getElementById('filtro-status');
 const filtroLocal = document.getElementById('filtro-local');
+const filtroFilial = document.getElementById('filtro-filial');
 let itensCache = [];
 let itensExibidos = 50; // paginação: quantos itens mostrar por vez
 const PAGINA_TAMANHO = 50;
@@ -1042,12 +1058,14 @@ function renderizar(){
   const tipoSel = filtroTipo.value;
   const statusSel = filtroStatus.value;
   const localSel = filtroLocal.value;
+  const filialSel = filtroFilial.value;
 
   const filtrados = itensCache.filter(it => {
     if(termo && !Object.values(it).join(' ').toLowerCase().includes(termo)) return false;
     if(tipoSel && normalizarTexto(it.tipo_estoque) !== normalizarTexto(tipoSel)) return false;
     if(statusSel && (it.status || '') !== statusSel) return false;
     if(localSel && (it.local || '') !== localSel) return false;
+    if(filialSel && String(it.filial_destino || '') !== String(filialSel)) return false;
     return true;
   });
 
@@ -1071,7 +1089,8 @@ function renderizar(){
       <td data-label="Data entrada">${it.data_entrada ? `<span class="data-pill entrada">${escapeHtml(it.data_entrada)}</span>` : ''}</td>
       <td data-label="NF saída">${escapeHtml(it.nf_saida || '')}</td>
       <td data-label="Data saída">${it.data_saida ? `<span class="data-pill saida">${escapeHtml(it.data_saida)}</span>` : ''}</td>
-      <td data-label="VD / loja">${escapeHtml(it.vd_loja || '')}</td>
+      <td data-label="VD / referência">${escapeHtml(it.vd_loja || '')}</td>
+      <td data-label="Filial / destino">${escapeHtml(formatarFilialDestino(it.filial_destino))}</td>
       <td data-label="Local">${escapeHtml(it.local || '')}</td>
       <td data-label="Armazenagem">${escapeHtml(it.armazenagem || '')}</td>
       <td data-label="Status">${it.status ? `<span class="status-pill ${escapeHtml((it.status||'').toLowerCase())}">${escapeHtml(it.status)}</span>` : ''}</td>
@@ -1126,6 +1145,7 @@ document.getElementById('btn-carregar-mais').addEventListener('click', () => {
 filtroTipo.addEventListener('change', () => { itensExibidos = PAGINA_TAMANHO; renderizar(); });
 filtroStatus.addEventListener('change', () => { itensExibidos = PAGINA_TAMANHO; renderizar(); });
 filtroLocal.addEventListener('change', () => { itensExibidos = PAGINA_TAMANHO; renderizar(); });
+filtroFilial.addEventListener('change', () => { itensExibidos = PAGINA_TAMANHO; renderizar(); });
 
 function atualizarStats(){
   const total = itensCache.length;
@@ -2097,6 +2117,34 @@ document.getElementById('kit-form')?.addEventListener('submit',async e=>{
   await carregarKitPadrao();
 });
 
+let filiaisCache = [];
+async function carregarFiliais(){
+  try{
+    const res=await fetch('/api/filiais?inativas=1');
+    if(!res.ok) throw new Error('Falha ao carregar filiais');
+    filiaisCache=await res.json();
+    preencherSelectFiliais();
+  }catch(err){console.error(err);}
+}
+function formatarFilialDestino(codigo){
+  if(!codigo) return '';
+  const f=filiaisCache.find(x=>String(x.codigo)===String(codigo));
+  if(!f) return String(codigo);
+  return `${f.codigo}${f.nome ? ' — '+f.nome : ''}${f.cidade ? ' · '+f.cidade+(f.uf?'/'+f.uf:'') : ''}`;
+}
+function preencherSelectFiliais(){
+  ['filial_destino','edit-filial_destino','fe-filial_destino'].forEach(id=>{
+    const el=document.getElementById(id);if(!el)return;const valor=el.value;
+    el.innerHTML='<option value="">Selecione a filial...</option>';
+    (filiaisCache||[]).filter(f=>f.ativo==='1'||String(f.codigo)===String(valor)).forEach(f=>{
+      const o=document.createElement('option');o.value=f.codigo;o.textContent=`${f.codigo}${f.nome?' — '+f.nome:''}${f.cidade?' · '+f.cidade+(f.uf?'/'+f.uf:''):''}${f.ativo==='0'?' (inativa)':''}`;el.appendChild(o);
+    });
+    el.value=valor;
+  });
+  const filtro=document.getElementById('filtro-filial');
+  if(filtro){const valor=filtro.value;filtro.innerHTML='<option value="">Todas as filiais</option>';filiaisCache.forEach(f=>{const o=document.createElement('option');o.value=f.codigo;o.textContent=`${f.codigo}${f.nome?' — '+f.nome:''}${f.ativo==='0'?' (inativa)':''}`;filtro.appendChild(o)});filtro.value=valor;}
+}
+
 let produtosCache = [];
 async function carregarProdutos(){
   try{
@@ -2148,6 +2196,7 @@ document.getElementById('item-form').addEventListener('submit', async (e) => {
     nf_saida: form.nf_saida.value,
     data_saida: form.data_saida.value,
     vd_loja: form.vd_loja.value,
+    filial_destino: form.filial_destino.value,
     local: form.local.value,
     armazenagem: form.armazenagem.value,
     status: form.status.value,
@@ -2186,6 +2235,7 @@ function abrirSaida(id, qtdeAtual){
   document.getElementById('edit-nf_saida').value = '';
   document.getElementById('edit-data_saida').value = new Date().toISOString().slice(0,10);
   document.getElementById('edit-vd_loja').value = '';
+  document.getElementById('edit-filial_destino').value = '';
   dialog.showModal();
   document.getElementById('edit-qtde_saida').focus();
 }
@@ -2209,7 +2259,7 @@ document.getElementById('edit-save').addEventListener('click', async () => {
   const itemAntes = itensCache.find(i => i.id === Number(id));
   const valoresAnteriores = itemAntes ? {
     qtde: itemAntes.qtde, nf_saida: itemAntes.nf_saida,
-    data_saida: itemAntes.data_saida, vd_loja: itemAntes.vd_loja,
+    data_saida: itemAntes.data_saida, vd_loja: itemAntes.vd_loja, filial_destino: itemAntes.filial_destino,
   } : null;
   const novaQtde = qtdeAtualSaida - qtdeSaida;
   const dados = {
@@ -2217,6 +2267,7 @@ document.getElementById('edit-save').addEventListener('click', async () => {
     nf_saida: document.getElementById('edit-nf_saida').value,
     data_saida: document.getElementById('edit-data_saida').value,
     vd_loja: document.getElementById('edit-vd_loja').value,
+    filial_destino: document.getElementById('edit-filial_destino').value,
   };
   const res = await fetch(`/api/itens/${id}`, {
     method: 'PUT',
@@ -2423,6 +2474,7 @@ function abrirEdicaoCompleta(id){
   document.getElementById('fe-nf_saida').value = it.nf_saida || '';
   document.getElementById('fe-data_saida').value = it.data_saida || '';
   document.getElementById('fe-vd_loja').value = it.vd_loja || '';
+  document.getElementById('fe-filial_destino').value = it.filial_destino || '';
   document.getElementById('fe-nro_imobilizado').value = it.nro_imobilizado || '';
   document.getElementById('fe-nro_serie').value = it.nro_serie || '';
   document.getElementById('fe-nro_patrimonio').value = it.nro_patrimonio || '';
@@ -2453,6 +2505,7 @@ document.getElementById('fe-save').addEventListener('click', async () => {
     nf_saida: document.getElementById('fe-nf_saida').value,
     data_saida: document.getElementById('fe-data_saida').value,
     vd_loja: document.getElementById('fe-vd_loja').value,
+    filial_destino: document.getElementById('fe-filial_destino').value,
     nro_imobilizado: document.getElementById('fe-nro_imobilizado').value,
     nro_serie: document.getElementById('fe-nro_serie').value,
     nro_patrimonio: document.getElementById('fe-nro_patrimonio').value,
@@ -2572,7 +2625,7 @@ document.getElementById('importar-enviar').addEventListener('click', async () =>
   }
 });
 
-carregarItens();
+carregarFiliais().then(()=>carregarItens());
 carregarProdutos();
 carregarKitPadrao();
 </script>
