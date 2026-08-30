@@ -1045,6 +1045,73 @@ def excluir_filial(filial_id):
     ok = cur.rowcount > 0; conn.commit(); cur.close(); conn.close(); return ok, 0
 
 
+def importar_filiais_em_lote(registros, usuario):
+    """Insere ou atualiza filiais em uma única transação.
+
+    O código da filial é a chave de comparação. Registros já existentes são
+    atualizados; novos códigos são cadastrados. Retorna um resumo com as
+    quantidades processadas.
+    """
+    conn = get_conn(); cur = get_cursor(conn)
+    agora = datetime.now().strftime("%Y-%m-%d %H:%M")
+    criadas = atualizadas = sem_alteracao = 0
+    try:
+        cur.execute("SELECT id,codigo,nome,cidade,uf,ativo FROM filiais")
+        existentes = {str(dict(r).get("codigo") or "").strip(): dict(r) for r in cur.fetchall()}
+
+        for reg in registros:
+            codigo = str(reg.get("codigo") or "").strip()
+            if not codigo:
+                continue
+            nome = str(reg.get("nome") or "").strip()
+            cidade = str(reg.get("cidade") or "").strip()
+            uf = str(reg.get("uf") or "").strip().upper()[:2]
+            ativo = "1" if str(reg.get("ativo", "1")) not in ("0", "false", "False") else "0"
+            atual = existentes.get(codigo)
+
+            if atual:
+                valores_atuais = (
+                    str(atual.get("nome") or "").strip(),
+                    str(atual.get("cidade") or "").strip(),
+                    str(atual.get("uf") or "").strip().upper()[:2],
+                    str(atual.get("ativo") or "1"),
+                )
+                novos_valores = (nome, cidade, uf, ativo)
+                if valores_atuais == novos_valores:
+                    sem_alteracao += 1
+                    continue
+                cur.execute(
+                    q("UPDATE filiais SET nome=?, cidade=?, uf=?, ativo=? WHERE id=?"),
+                    (nome, cidade, uf, ativo, atual["id"]),
+                )
+                atualizadas += 1
+            else:
+                if IS_PG:
+                    cur.execute(
+                        q("INSERT INTO filiais (codigo,nome,cidade,uf,ativo,criado_por,criado_em) VALUES (?,?,?,?,?,?,?) RETURNING id"),
+                        (codigo, nome, cidade, uf, ativo, usuario, agora),
+                    )
+                    novo_id = cur.fetchone()["id"]
+                else:
+                    cur.execute(
+                        q("INSERT INTO filiais (codigo,nome,cidade,uf,ativo,criado_por,criado_em) VALUES (?,?,?,?,?,?,?)"),
+                        (codigo, nome, cidade, uf, ativo, usuario, agora),
+                    )
+                    novo_id = cur.lastrowid
+                existentes[codigo] = {
+                    "id": novo_id, "codigo": codigo, "nome": nome, "cidade": cidade, "uf": uf, "ativo": ativo
+                }
+                criadas += 1
+
+        conn.commit()
+        return {"criadas": criadas, "atualizadas": atualizadas, "sem_alteracao": sem_alteracao}
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        cur.close(); conn.close()
+
+
 # ---------------------------------------------------------------------
 # Usuários
 # ---------------------------------------------------------------------

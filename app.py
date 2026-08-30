@@ -579,6 +579,181 @@ def api_excluir_filial(filial_id):
     return (jsonify({"ok": True}) if ok else (jsonify({"erro": "Filial não encontrada."}), 404))
 
 
+ALIASES_FILIAIS_EXCEL = {
+    "codigo": [
+        "codigo", "codigodafilial", "codigofilial", "codigodaloja", "codigoloja",
+        "codfilial", "codloja", "filial", "numerodafilial", "numerodaloja",
+        "nrofilial", "nroloja", "numfilial", "numloja",
+    ],
+    "nome": [
+        "nome", "nomedafilial", "nomedaloja", "identificacao", "identificacaodafilial",
+        "nomefantasia", "descricao", "descricaodafilial", "descricaodaloja",
+    ],
+    "cidade": ["cidade", "municipio", "localidade", "cidadedafilial", "cidadedaloja"],
+    "uf": ["uf", "estado", "siglaestado", "estadouf"],
+    "ativo": ["ativo", "status", "situacao", "situacaodafilial", "situacaodaloja"],
+}
+
+
+def _mapear_colunas_filiais(cabecalho):
+    mapa = {}
+    for indice, titulo in enumerate(cabecalho):
+        normalizado = _normalizar(titulo)
+        for campo, aliases in ALIASES_FILIAIS_EXCEL.items():
+            if normalizado in aliases:
+                mapa[indice] = campo
+                break
+    return mapa
+
+
+def _codigo_excel_para_texto(celula):
+    valor = celula.value
+    if valor is None:
+        return ""
+    if isinstance(valor, bool):
+        return str(valor)
+    if isinstance(valor, int):
+        texto = str(valor)
+    elif isinstance(valor, float) and valor.is_integer():
+        texto = str(int(valor))
+    else:
+        return str(valor).strip()
+
+    # Preserva zeros à esquerda quando a planilha usa formato como 0000/000000.
+    formato = str(getattr(celula, "number_format", "") or "").strip()
+    if formato and set(formato) <= {"0"}:
+        texto = texto.zfill(len(formato))
+    return texto
+
+
+def _status_filial_excel(valor):
+    norm = _normalizar(valor)
+    if not norm:
+        return "1"
+    if norm in {"0", "nao", "n", "inativo", "inativa", "fechado", "fechada", "desativado", "desativada"}:
+        return "0"
+    return "1"
+
+
+@app.route("/filiais/modelo.xlsx")
+@login_required
+def baixar_modelo_filiais():
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Filiais"
+    headers = ["Código da filial", "Nome / identificação", "Cidade", "UF", "Situação"]
+    ws.append(headers)
+    ws.append(["0123", "Filial Exemplo", "São Paulo", "SP", "Ativa"])
+    ws.append(["0456", "Loja Centro", "Santos", "SP", "Ativa"])
+    fill = PatternFill("solid", fgColor="1F4E78")
+    for c in ws[1]:
+        c.font = Font(color="FFFFFF", bold=True)
+        c.fill = fill
+        c.alignment = Alignment(horizontal="center")
+    larguras = [20, 34, 24, 10, 14]
+    for i, largura in enumerate(larguras, 1):
+        ws.column_dimensions[get_column_letter(i)].width = largura
+    ws.freeze_panes = "A2"
+    buf = io.BytesIO()
+    wb.save(buf); buf.seek(0)
+    return send_file(
+        buf, as_attachment=True, download_name="modelo_importacao_filiais.xlsx",
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+
+
+@app.route("/api/filiais/importar", methods=["POST"])
+@manager_required
+def api_importar_filiais():
+    arquivo = request.files.get("arquivo")
+    if not arquivo or not arquivo.filename:
+        return jsonify({"erro": "Selecione uma planilha Excel."}), 400
+    if not arquivo.filename.lower().endswith((".xlsx", ".xlsm")):
+        return jsonify({"erro": "Envie um arquivo Excel no formato .xlsx ou .xlsm."}), 400
+
+    try:
+        try:
+            wb = load_workbook(arquivo, read_only=True, data_only=True)
+            ws = wb.active
+        except Exception:
+            return jsonify({"erro": "Não consegui abrir a planilha. Confirme se o arquivo é um Excel válido (.xlsx)."}), 400
+
+        if ws is None:
+            return jsonify({"erro": "A planilha não possui uma aba com dados."}), 400
+
+        linhas = ws.iter_rows()
+        cabecalho = None
+        linha_cabecalho = 0
+        # Procura o cabeçalho nas primeiras 10 linhas para aceitar planilhas com título no topo.
+        for numero, linha in enumerate(linhas, start=1):
+            valores = [c.value for c in linha]
+            if any(v is not None and str(v).strip() for v in valores):
+                mapa_teste = _mapear_colunas_filiais(valores)
+                if "codigo" in mapa_teste.values():
+                    cabecalho = linha
+                    linha_cabecalho = numero
+                    mapa = mapa_teste
+                    break
+            if numero >= 10:
+                break
+
+        if cabecalho is None:
+            return jsonify({
+                "erro": "Não encontrei a coluna de código da filial. Use títulos como 'Código da filial', 'Código da loja', 'Filial' ou 'Loja'."
+            }), 400
+
+        registros_por_codigo = {}
+        vazias = 0
+        duplicadas = 0
+        linhas_invalidas = 0
+
+        for linha in linhas:
+            if not linha or all(c.value is None or not str(c.value).strip() for c in linha):
+                vazias += 1
+                continue
+            dados = {}
+            for indice, campo in mapa.items():
+                if indice >= len(linha):
+                    continue
+                celula = linha[indice]
+                if campo == "codigo":
+                    dados[campo] = _codigo_excel_para_texto(celula)
+                else:
+                    dados[campo] = _valor_para_texto(celula.value)
+
+            codigo = str(dados.get("codigo") or "").strip()
+            if not codigo:
+                linhas_invalidas += 1
+                continue
+            dados["codigo"] = codigo
+            dados["nome"] = str(dados.get("nome") or "").strip()
+            dados["cidade"] = str(dados.get("cidade") or "").strip()
+            dados["uf"] = str(dados.get("uf") or "").strip().upper()[:2]
+            dados["ativo"] = _status_filial_excel(dados.get("ativo"))
+
+            if codigo in registros_por_codigo:
+                duplicadas += 1
+            registros_por_codigo[codigo] = dados
+
+        registros = list(registros_por_codigo.values())
+        if not registros:
+            return jsonify({"erro": "Nenhuma filial válida foi encontrada na planilha."}), 400
+
+        resumo = db.importar_filiais_em_lote(registros, session.get("username"))
+        return jsonify({
+            "ok": True,
+            **resumo,
+            "processadas": len(registros),
+            "duplicadas": duplicadas,
+            "ignoradas": linhas_invalidas,
+            "linha_cabecalho": linha_cabecalho,
+            "arquivo": arquivo.filename,
+        })
+    except Exception as e:
+        print(f"[erro] Falha ao importar filiais: {e}")
+        return jsonify({"erro": f"Erro ao processar a planilha de filiais: {e}"}), 500
+
+
 @app.route("/api/produtos", methods=["GET"])
 @login_required
 def api_listar_produtos():
