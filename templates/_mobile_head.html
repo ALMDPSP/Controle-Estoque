@@ -12,3 +12,139 @@ if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => navigator.serviceWorker.register('/service-worker.js?v=4').catch(() => {}));
 }
 </script>
+<style>
+/* Correções responsivas globais: evita campos espremidos/quebrados no celular */
+html,body{max-width:100%;overflow-x:hidden}
+img,video,canvas{max-width:100%}
+input,select,textarea,button{max-width:100%}
+.field,.kit-field,.toolbar>* ,.controls>* ,.actions>* ,.head-actions>* ,.periodo>* ,.manual>* ,form>*{min-width:0}
+
+@media(max-width:850px){
+  /* Formulários administrativos e de movimentação */
+  form#item-form,
+  form#user-form,
+  form#kit-form,
+  form#full-edit-form,
+  .form,
+  .kit-form{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    width:100%!important;
+  }
+  .field,.kit-field{width:100%;min-width:0!important}
+  .field.wide,.kit-wide{grid-column:1/-1!important}
+  .field input,.field select,.field textarea,
+  .kit-field input,.kit-field select,.kit-field textarea,
+  form input,form select,form textarea{
+    width:100%!important;
+    min-width:0!important;
+    max-width:100%!important;
+  }
+
+  /* Filtros e barras de ferramentas */
+  .toolbar{
+    align-items:stretch!important;
+    gap:8px!important;
+  }
+  .toolbar input,
+  .toolbar select,
+  .toolbar .filtro-select{
+    flex:1 1 180px!important;
+    width:100%!important;
+    min-width:0!important;
+  }
+
+  /* Modais/diálogos */
+  dialog{
+    width:calc(100vw - 24px)!important;
+    max-width:calc(100vw - 24px)!important;
+    max-height:88vh!important;
+    overflow:auto!important;
+    margin:auto!important;
+  }
+  dialog .dlg-body{padding:16px!important}
+  dialog form#full-edit-form{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+
+  /* Tabelas não estouram a página; rolam só dentro do painel */
+  .table-wrap,.tabela-scroll,.panel{overscroll-behavior-x:contain}
+  table{min-width:680px}
+
+  /* Ações em cabeçalhos e filtros */
+  .head-actions,.controls,.actions{max-width:100%}
+  .head-actions>a,.head-actions>button{flex:1 1 150px;text-align:center}
+}
+
+@media(max-width:600px){
+  header{align-items:flex-start!important}
+  h1{overflow-wrap:anywhere}
+
+  /* No telefone, cada campo ocupa uma linha inteira */
+  form#item-form,
+  form#user-form,
+  form#kit-form,
+  form#full-edit-form,
+  .form,
+  .kit-form,
+  .periodo,
+  .manual{
+    grid-template-columns:minmax(0,1fr)!important;
+  }
+  .field.wide,.kit-wide,.form-action{
+    grid-column:1!important;
+  }
+  dialog form#full-edit-form{grid-template-columns:minmax(0,1fr)!important}
+
+  /* Botões de formulário ficam confortáveis para toque */
+  form#item-form>button,
+  form#user-form>button,
+  form#kit-form>button,
+  .form>button,
+  .manual>button{
+    width:100%!important;
+  }
+
+  /* Filtros empilhados sem cortar campos */
+  .toolbar{
+    display:flex!important;
+    flex-direction:column!important;
+    align-items:stretch!important;
+    width:100%!important;
+  }
+  .toolbar input,.toolbar select,.toolbar button,.toolbar .filtro-select{
+    width:100%!important;
+    min-width:0!important;
+    max-width:none!important;
+    flex:none!important;
+  }
+
+  /* Menu: pesquisa ganha espaço real, sem esmagar os campos */
+  .app-menu{
+    display:grid!important;
+    grid-template-columns:auto minmax(0,1fr)!important;
+    align-items:center!important;
+  }
+  .app-mobile-toggle{grid-column:1}
+  .app-menu-right{
+    grid-column:2;
+    display:grid!important;
+    grid-template-columns:minmax(0,1fr) auto!important;
+    width:100%!important;
+    min-width:0!important;
+  }
+  .global-search-wrap{width:100%!important;min-width:0!important}
+  .app-menu-left{grid-column:1/-1!important;width:100%!important}
+
+  /* Cartões e gráficos */
+  .kpis,.tipos,.loja-virtual-resumo{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  .grid,.viewer-layout,.loja-3d-layout,.loja-3d-lateral,.loja-3d-areas-secundarias{grid-template-columns:minmax(0,1fr)!important}
+
+  /* Tabelas continuam legíveis com rolagem horizontal */
+  table{min-width:640px}
+}
+
+@media(max-width:390px){
+  .kpis,.tipos,.loja-virtual-resumo{grid-template-columns:minmax(0,1fr)!important}
+  .app-menu-left{grid-template-columns:minmax(0,1fr)!important}
+  main{padding-left:10px!important;padding-right:10px!important}
+  .panel,.card{padding-left:12px!important;padding-right:12px!important}
+}
+</style>
