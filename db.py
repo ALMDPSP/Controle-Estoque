@@ -254,6 +254,7 @@ def init_db():
                 nome TEXT,
                 cidade TEXT,
                 uf TEXT,
+                bandeira TEXT,
                 ativo TEXT NOT NULL DEFAULT '1',
                 criado_por TEXT,
                 criado_em TEXT
@@ -267,12 +268,24 @@ def init_db():
                 nome TEXT,
                 cidade TEXT,
                 uf TEXT,
+                bandeira TEXT,
                 ativo TEXT NOT NULL DEFAULT '1',
                 criado_por TEXT,
                 criado_em TEXT
             )
         """)
     conn.commit()
+
+    # Migração: identifica a bandeira da filial (DSP ou DPA).
+    # O campo fica vazio nos registros antigos até que sejam classificados no cadastro.
+    try:
+        if IS_PG:
+            cur.execute("ALTER TABLE filiais ADD COLUMN IF NOT EXISTS bandeira TEXT")
+        else:
+            cur.execute("ALTER TABLE filiais ADD COLUMN bandeira TEXT")
+        conn.commit()
+    except Exception:
+        conn.rollback()
 
     # Configurações persistentes do sistema. A meta de lojas usada na simulação
     # fica aqui para que Dashboard, relatórios e Loja 3D usem o mesmo valor.
@@ -1062,17 +1075,20 @@ def buscar_filial_por_codigo(codigo):
     row = cur.fetchone(); result = dict(row) if row else None
     cur.close(); conn.close(); return result
 
-def criar_filial(codigo, nome, cidade, uf, ativo, usuario):
+def criar_filial(codigo, nome, cidade, uf, ativo, usuario, bandeira=None):
     conn = get_conn(); cur = get_cursor(conn)
     agora = datetime.now().strftime("%Y-%m-%d %H:%M")
+    bandeira = (str(bandeira or "").strip().upper() if bandeira else "")
+    if bandeira not in ("DSP", "DPA"):
+        bandeira = ""
     try:
         if IS_PG:
-            cur.execute(q("INSERT INTO filiais (codigo,nome,cidade,uf,ativo,criado_por,criado_em) VALUES (?,?,?,?,?,?,?) RETURNING id"),
-                        (codigo,nome,cidade,uf,ativo,usuario,agora))
+            cur.execute(q("INSERT INTO filiais (codigo,nome,cidade,uf,bandeira,ativo,criado_por,criado_em) VALUES (?,?,?,?,?,?,?,?) RETURNING id"),
+                        (codigo,nome,cidade,uf,bandeira,ativo,usuario,agora))
             novo_id = cur.fetchone()["id"]
         else:
-            cur.execute(q("INSERT INTO filiais (codigo,nome,cidade,uf,ativo,criado_por,criado_em) VALUES (?,?,?,?,?,?,?)"),
-                        (codigo,nome,cidade,uf,ativo,usuario,agora))
+            cur.execute(q("INSERT INTO filiais (codigo,nome,cidade,uf,bandeira,ativo,criado_por,criado_em) VALUES (?,?,?,?,?,?,?,?)"),
+                        (codigo,nome,cidade,uf,bandeira,ativo,usuario,agora))
             novo_id = cur.lastrowid
         conn.commit(); return novo_id
     except Exception:
@@ -1080,16 +1096,19 @@ def criar_filial(codigo, nome, cidade, uf, ativo, usuario):
     finally:
         cur.close(); conn.close()
 
-def atualizar_filial(filial_id, codigo, nome, cidade, uf, ativo):
+def atualizar_filial(filial_id, codigo, nome, cidade, uf, ativo, bandeira=None):
     conn = get_conn(); cur = get_cursor(conn)
+    bandeira = (str(bandeira or "").strip().upper() if bandeira else "")
+    if bandeira not in ("DSP", "DPA"):
+        bandeira = ""
     try:
         cur.execute(q("SELECT codigo FROM filiais WHERE id = ?"), (filial_id,))
         row = cur.fetchone()
         if not row:
             return False
         codigo_antigo = row["codigo"] if isinstance(row, dict) else row[0]
-        cur.execute(q("UPDATE filiais SET codigo=?, nome=?, cidade=?, uf=?, ativo=? WHERE id=?"),
-                    (codigo,nome,cidade,uf,ativo,filial_id))
+        cur.execute(q("UPDATE filiais SET codigo=?, nome=?, cidade=?, uf=?, bandeira=?, ativo=? WHERE id=?"),
+                    (codigo,nome,cidade,uf,bandeira,ativo,filial_id))
         if str(codigo_antigo) != str(codigo):
             cur.execute(q("UPDATE itens SET filial_destino = ? WHERE filial_destino = ?"), (codigo, codigo_antigo))
             cur.execute(q("UPDATE imobilizados SET filial_destino = ? WHERE filial_destino = ?"), (codigo, codigo_antigo))

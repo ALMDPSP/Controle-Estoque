@@ -318,9 +318,13 @@ def api_movimentacoes_recentes():
     imobs={str(x.get("id")):x for x in db.listar_imobilizados()}
     for m in movs:
         tabela=m.get("tabela") or "itens"
-        ref=(imobs if tabela=="imobilizados" else itens).get(str(m.get("item_id")), {})
-        m["codigo"]=ref.get("codigo","")
-        m["descricao"]=ref.get("descricao","")
+        if tabela == "sistema":
+            m["codigo"] = "META LOJAS"
+            m["descricao"] = "Meta do lote de inauguração"
+        else:
+            ref=(imobs if tabela=="imobilizados" else itens).get(str(m.get("item_id")), {})
+            m["codigo"]=ref.get("codigo","")
+            m["descricao"]=ref.get("descricao","")
     return jsonify(movs)
 
 
@@ -385,6 +389,79 @@ def api_status_sistema():
     })
 
 
+UF_NOMES = {
+    "AC":"Acre","AL":"Alagoas","AP":"Amapá","AM":"Amazonas","BA":"Bahia",
+    "CE":"Ceará","DF":"Distrito Federal","ES":"Espírito Santo","GO":"Goiás",
+    "MA":"Maranhão","MT":"Mato Grosso","MS":"Mato Grosso do Sul","MG":"Minas Gerais",
+    "PA":"Pará","PB":"Paraíba","PR":"Paraná","PE":"Pernambuco","PI":"Piauí",
+    "RJ":"Rio de Janeiro","RN":"Rio Grande do Norte","RS":"Rio Grande do Sul",
+    "RO":"Rondônia","RR":"Roraima","SC":"Santa Catarina","SP":"São Paulo",
+    "SE":"Sergipe","TO":"Tocantins",
+}
+
+def _status_filial_normalizado(valor):
+    valor = str(valor or "").strip().lower()
+    if valor in ("1", "ativa", "ativo", "true"):
+        return "ativa"
+    if valor == "inaugurar":
+        return "inaugurar"
+    if valor == "pendente":
+        return "pendente"
+    return "inativa"
+
+def _dados_projecao_lojas():
+    filiais = db.listar_filiais(incluir_inativas=True)
+    por_uf = {}
+    totais = {
+        "ativa": 0, "inaugurar": 0, "pendente": 0, "inativa": 0,
+        "dsp": 0, "dpa": 0, "sem_bandeira": 0, "total_geral": 0,
+    }
+    for f in filiais:
+        status = _status_filial_normalizado(f.get("ativo"))
+        bandeira = str(f.get("bandeira") or "").strip().upper()
+        uf = str(f.get("uf") or "").strip().upper()[:2]
+        totais[status] += 1
+        if status != "inativa":
+            totais["total_geral"] += 1
+            if bandeira == "DSP":
+                totais["dsp"] += 1
+            elif bandeira == "DPA":
+                totais["dpa"] += 1
+            else:
+                totais["sem_bandeira"] += 1
+        if uf not in UF_NOMES:
+            continue
+        linha = por_uf.setdefault(uf, {
+            "uf": uf, "estado": UF_NOMES[uf],
+            "ativa": 0, "inaugurar": 0, "pendente": 0, "inativa": 0,
+            "dsp": 0, "dpa": 0, "sem_bandeira": 0, "total": 0,
+        })
+        linha[status] += 1
+        if status != "inativa":
+            linha["total"] += 1
+            if bandeira == "DSP":
+                linha["dsp"] += 1
+            elif bandeira == "DPA":
+                linha["dpa"] += 1
+            else:
+                linha["sem_bandeira"] += 1
+    estados = []
+    for uf, nome in UF_NOMES.items():
+        estados.append(por_uf.get(uf, {
+            "uf": uf, "estado": nome,
+            "ativa": 0, "inaugurar": 0, "pendente": 0, "inativa": 0,
+            "dsp": 0, "dpa": 0, "sem_bandeira": 0, "total": 0,
+        }))
+    estados.sort(key=lambda x: (-x["total"], x["estado"]))
+    return {"totais": totais, "estados": estados, "filiais": filiais}
+
+@app.route("/api/projecao-lojas")
+@login_required
+def api_projecao_lojas():
+    dados = _dados_projecao_lojas()
+    return jsonify({"totais": dados["totais"], "estados": dados["estados"]})
+
+
 def _preencher_planilha_dict(ws, dados, titulo=None):
     if titulo:
         ws.append([titulo])
@@ -418,16 +495,31 @@ def _preencher_planilha_dict(ws, dados, titulo=None):
 def _workbook_consolidado():
     wb=Workbook()
     wb.remove(wb.active)
+    projecao = _dados_projecao_lojas()
     fontes=[
         ("Estoque",db.listar_itens()),
         ("Imobilizados",db.listar_imobilizados()),
         ("Produtos",db.listar_produtos()),
+        ("Filiais",projecao["filiais"]),
+        ("Projeção por UF",projecao["estados"]),
         ("Kit padrão",db.listar_kit_padrao_loja()),
         ("Movimentações",db.listar_todas_movimentacoes()),
     ]
     for nome,dados in fontes:
         ws=wb.create_sheet(nome[:31])
         _preencher_planilha_dict(ws,dados)
+    ws_resumo=wb.create_sheet("Resumo Lojas")
+    totais=projecao["totais"]
+    _preencher_planilha_dict(ws_resumo,[{
+        "Lojas ativas":totais["ativa"],
+        "A inaugurar":totais["inaugurar"],
+        "Pendentes":totais["pendente"],
+        "Inativas":totais["inativa"],
+        "Total geral":totais["total_geral"],
+        "DSP":totais["dsp"],
+        "DPA":totais["dpa"],
+        "Sem bandeira":totais["sem_bandeira"],
+    }])
     return wb
 
 
@@ -437,6 +529,51 @@ def exportar_consolidado():
     wb=_workbook_consolidado()
     buf=io.BytesIO(); wb.save(buf); buf.seek(0)
     return send_file(buf,as_attachment=True,download_name=f"relatorio_consolidado_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx",mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+
+@app.route("/export-projecao-lojas")
+@login_required
+def exportar_projecao_lojas():
+    dados = _dados_projecao_lojas()
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Resumo Geral"
+    t = dados["totais"]
+    resumo = [
+        ("Indicador", "Quantidade"),
+        ("Lojas ativas", t["ativa"]),
+        ("Lojas a inaugurar", t["inaugurar"]),
+        ("Lojas pendentes", t["pendente"]),
+        ("Lojas inativas", t["inativa"]),
+        ("Total geral", t["total_geral"]),
+        ("DSP", t["dsp"]),
+        ("DPA", t["dpa"]),
+        ("Sem bandeira definida", t["sem_bandeira"]),
+    ]
+    for row in resumo:
+        ws.append(row)
+    for c in ws[1]:
+        c.font=Font(bold=True,color="FFFFFF"); c.fill=PatternFill("solid",fgColor="1F4E78")
+    ws.column_dimensions["A"].width=30; ws.column_dimensions["B"].width=18
+
+    ws_uf = wb.create_sheet("Por UF")
+    _preencher_planilha_dict(ws_uf, dados["estados"], "Projeção de abertura e lojas por estado")
+
+    ws_filiais = wb.create_sheet("Filiais")
+    linhas=[]
+    rotulos={"1":"Ativa","0":"Inativa","inaugurar":"Inaugurar","pendente":"Pendente"}
+    for f in dados["filiais"]:
+        x=dict(f)
+        x["status"] = rotulos.get(str(f.get("ativo") or ""), str(f.get("ativo") or ""))
+        linhas.append(x)
+    _preencher_planilha_dict(ws_filiais, linhas, "Cadastro de filiais usado na projeção")
+
+    buf=io.BytesIO(); wb.save(buf); buf.seek(0)
+    return send_file(
+        buf, as_attachment=True,
+        download_name=f"projecao_abertura_lojas_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx",
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
 
 
 @app.route("/export-movimentacoes")
@@ -452,9 +589,14 @@ def exportar_movimentacoes():
     itens={str(x.get("id")):x for x in db.listar_itens()}
     imobs={str(x.get("id")):x for x in db.listar_imobilizados()}
     for m in movs:
-        ref=(imobs if (m.get("tabela") or "itens")=="imobilizados" else itens).get(str(m.get("item_id")),{})
-        m["codigo"]=ref.get("codigo","")
-        m["descricao"]=ref.get("descricao","")
+        tabela=m.get("tabela") or "itens"
+        if tabela == "sistema":
+            m["codigo"]="META LOJAS"
+            m["descricao"]="Meta do lote de inauguração"
+        else:
+            ref=(imobs if tabela=="imobilizados" else itens).get(str(m.get("item_id")),{})
+            m["codigo"]=ref.get("codigo","")
+            m["descricao"]=ref.get("descricao","")
     wb=Workbook(); ws=wb.active; ws.title="Movimentações"; _preencher_planilha_dict(ws,movs)
     buf=io.BytesIO(); wb.save(buf); buf.seek(0)
     faixa=f"_{inicio or 'inicio'}_{fim or 'hoje'}"
@@ -471,7 +613,7 @@ def gerar_backup():
         z.writestr("estoque_backup.xlsx",x.read())
         if not db.IS_PG and os.path.exists(db.SQLITE_PATH):
             z.write(db.SQLITE_PATH,arcname="estoque.db")
-        z.writestr("LEIA-ME.txt",f"Backup gerado em {datetime.now().strftime('%d/%m/%Y %H:%M')} por {session.get('username')}.\nContém Estoque, Imobilizados, Produtos, Kit padrão e Histórico de movimentações.\n")
+        z.writestr("LEIA-ME.txt",f"Backup gerado em {datetime.now().strftime('%d/%m/%Y %H:%M')} por {session.get('username')}.\nContém Estoque, Imobilizados, Produtos, Filiais, Projeção por UF, Kit padrão e Histórico de movimentações.\n")
     session["ultimo_backup"]=datetime.now().strftime("%d/%m/%Y %H:%M")
     mem.seek(0)
     return send_file(mem,as_attachment=True,download_name=f"backup_controle_estoque_{datetime.now().strftime('%Y%m%d_%H%M')}.zip",mimetype="application/zip")
@@ -487,6 +629,17 @@ def pagina_produtos():
 @login_required
 def pagina_filiais():
     return render_template("filiais.html", username=session.get("username"), role=session.get("role") or "user", is_admin=session.get("role") == "admin")
+
+
+@app.route("/projecao-lojas")
+@login_required
+def pagina_projecao_lojas():
+    return render_template(
+        "projecao_lojas.html",
+        username=session.get("username"),
+        role=session.get("role") or "user",
+        is_admin=session.get("role") == "admin",
+    )
 
 
 @app.route("/leitor-codigo")
@@ -548,11 +701,16 @@ def api_criar_filial():
     nome = (dados.get("nome") or "").strip()
     cidade = (dados.get("cidade") or "").strip()
     uf = (dados.get("uf") or "").strip().upper()[:2]
-    ativo = "1" if str(dados.get("ativo", "1")) not in ("0", "false", "False") else "0"
+    bandeira = (dados.get("bandeira") or "").strip().upper()
+    if bandeira not in ("", "DSP", "DPA"):
+        return jsonify({"erro": "Bandeira inválida. Use DSP ou DPA."}), 400
+    ativo = str(dados.get("ativo", "1") or "1").strip().lower()
+    mapa_status = {"ativa":"1","ativo":"1","1":"1","inativa":"0","inativo":"0","0":"0","inaugurar":"inaugurar","pendente":"pendente"}
+    ativo = mapa_status.get(ativo, "1")
     if not codigo:
         return jsonify({"erro": "Código da filial é obrigatório."}), 400
     try:
-        novo_id = db.criar_filial(codigo, nome, cidade, uf, ativo, session.get("username"))
+        novo_id = db.criar_filial(codigo, nome, cidade, uf, ativo, session.get("username"), bandeira=bandeira)
     except Exception:
         return jsonify({"erro": "Já existe uma filial cadastrada com este código."}), 409
     return jsonify({"ok": True, "id": novo_id}), 201
@@ -566,11 +724,16 @@ def api_atualizar_filial(filial_id):
     nome = (dados.get("nome") or "").strip()
     cidade = (dados.get("cidade") or "").strip()
     uf = (dados.get("uf") or "").strip().upper()[:2]
-    ativo = "1" if str(dados.get("ativo", "1")) not in ("0", "false", "False") else "0"
+    bandeira = (dados.get("bandeira") or "").strip().upper()
+    if bandeira not in ("", "DSP", "DPA"):
+        return jsonify({"erro": "Bandeira inválida. Use DSP ou DPA."}), 400
+    ativo = str(dados.get("ativo", "1") or "1").strip().lower()
+    mapa_status = {"ativa":"1","ativo":"1","1":"1","inativa":"0","inativo":"0","0":"0","inaugurar":"inaugurar","pendente":"pendente"}
+    ativo = mapa_status.get(ativo, "1")
     if not codigo:
         return jsonify({"erro": "Código da filial é obrigatório."}), 400
     try:
-        ok = db.atualizar_filial(filial_id, codigo, nome, cidade, uf, ativo)
+        ok = db.atualizar_filial(filial_id, codigo, nome, cidade, uf, ativo, bandeira=bandeira)
     except Exception:
         return jsonify({"erro": "Já existe outra filial com este código."}), 409
     return (jsonify({"ok": True}) if ok else (jsonify({"erro": "Filial não encontrada."}), 404))
@@ -660,7 +823,17 @@ def api_salvar_configuracao_expansao():
         return jsonify({"erro": "Informe uma quantidade válida de lojas."}), 400
     if meta_lojas < 1 or meta_lojas > 999:
         return jsonify({"erro": "A quantidade de lojas deve ficar entre 1 e 999."}), 400
+    meta_anterior = db.obter_meta_lojas_expansao()
     meta_lojas = db.salvar_meta_lojas_expansao(meta_lojas, session.get("username"))
+    if int(meta_anterior) != int(meta_lojas):
+        db.registrar_movimentacao(
+            0,
+            "meta_lojas",
+            str(meta_lojas),
+            session.get("username"),
+            f"Meta do lote de inauguração alterada de {meta_anterior} para {meta_lojas} loja(s).",
+            tabela="sistema",
+        )
     return jsonify({"ok": True, "meta_lojas": meta_lojas})
 
 

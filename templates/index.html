@@ -2211,13 +2211,13 @@ function preencherSelectFiliais(){
   ['filial_destino','edit-filial_destino','fe-filial_destino'].forEach(id=>{
     const el=document.getElementById(id);if(!el)return;const valor=el.value;
     el.innerHTML='<option value="">Selecione a filial...</option>';
-    (filiaisCache||[]).filter(f=>f.ativo==='1'||String(f.codigo)===String(valor)).forEach(f=>{
-      const o=document.createElement('option');o.value=f.codigo;o.textContent=`${f.codigo}${f.nome?' — '+f.nome:''}${f.cidade?' · '+f.cidade+(f.uf?'/'+f.uf:''):''}${f.ativo==='0'?' (inativa)':''}`;el.appendChild(o);
+    (filiaisCache||[]).filter(f=>(f.ativo==='1'||f.ativo==='inaugurar')||String(f.codigo)===String(valor)).forEach(f=>{
+      const o=document.createElement('option');o.value=f.codigo;o.textContent=`${f.codigo}${f.nome?' — '+f.nome:''}${f.cidade?' · '+f.cidade+(f.uf?'/'+f.uf:''):''}${f.ativo==='0'?' (inativa)':f.ativo==='inaugurar'?' (a inaugurar)':f.ativo==='pendente'?' (pendente)':''}`;el.appendChild(o);
     });
     el.value=valor;
   });
   const filtro=document.getElementById('filtro-filial');
-  if(filtro){const valor=filtro.value;filtro.innerHTML='<option value="">Todas as filiais</option>';filiaisCache.forEach(f=>{const o=document.createElement('option');o.value=f.codigo;o.textContent=`${f.codigo}${f.nome?' — '+f.nome:''}${f.ativo==='0'?' (inativa)':''}`;filtro.appendChild(o)});filtro.value=valor;}
+  if(filtro){const valor=filtro.value;filtro.innerHTML='<option value="">Todas as filiais</option>';filiaisCache.forEach(f=>{const o=document.createElement('option');o.value=f.codigo;o.textContent=`${f.codigo}${f.nome?' — '+f.nome:''}${f.ativo==='0'?' (inativa)':f.ativo==='inaugurar'?' (a inaugurar)':f.ativo==='pendente'?' (pendente)':''}`;filtro.appendChild(o)});filtro.value=valor;}
 }
 
 let produtosCache = [];
