@@ -118,6 +118,9 @@
   .simulador-config input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(62,166,255,.1);}
   .simulador-config button{min-height:42px;}
   .simulador-config small{flex-basis:100%;color:var(--muted);font-size:10px;line-height:1.45;text-align:center;}
+  .meta-lote-destaque{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:center;margin:12px 0 16px;padding:14px 15px;border:1px solid rgba(62,166,255,.34);border-radius:12px;background:linear-gradient(135deg,rgba(62,166,255,.09),rgba(255,182,72,.035));box-shadow:inset 0 1px 0 rgba(255,255,255,.025);scroll-margin-top:90px;}
+  .meta-lote-info{display:flex;gap:12px;align-items:center;min-width:0}.meta-lote-icone{width:42px;height:42px;display:grid;place-items:center;flex:0 0 42px;border-radius:11px;background:rgba(62,166,255,.12);border:1px solid rgba(62,166,255,.28);font-size:21px}.meta-lote-info strong{display:block;font-size:13px;color:var(--text)}.meta-lote-info span{display:block;margin-top:3px;color:var(--muted);font-size:10.5px;line-height:1.45}.meta-lote-editor{display:flex;gap:8px;align-items:end;flex-wrap:wrap;justify-content:flex-end}.meta-lote-editor .meta-field{display:grid;gap:4px;min-width:150px}.meta-lote-editor label{font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:var(--accent-2);font-weight:700}.meta-lote-editor input{width:150px;min-height:42px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 11px;color:var(--text);font:800 18px var(--mono);outline:none}.meta-lote-editor input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(62,166,255,.1)}.meta-lote-editor button{min-height:42px;white-space:nowrap}.meta-lote-status{grid-column:1/-1;margin-top:-4px;color:var(--muted);font-size:10px;line-height:1.4}.meta-lote-status.ok{color:var(--ok)}.meta-lote-status.erro{color:var(--danger)}
+  @media(max-width:700px){.meta-lote-destaque{grid-template-columns:1fr}.meta-lote-editor{justify-content:stretch}.meta-lote-editor .meta-field,.meta-lote-editor input,.meta-lote-editor button{width:100%}.meta-lote-status{margin-top:0}}
   @media(max-width:600px){.simulador-config{align-items:stretch}.simulador-config .meta-field,.simulador-config button{width:100%;}.simulador-config button{min-height:46px;}}
   .faltantes-loja{margin-top:12px;border:1px solid rgba(255,182,72,.28);border-radius:10px;background:rgba(255,182,72,.055);padding:12px 14px;}
   .faltantes-loja[hidden]{display:none!important;}
@@ -627,6 +630,17 @@
             <button type="button" class="btn-excel" id="btn-baixar-relatorio-excel">Baixar relatório Excel</button>
           </div>
         </div>
+        <div class="meta-lote-destaque" id="config-meta-lojas">
+          <div class="meta-lote-info">
+            <div class="meta-lote-icone">🏪</div>
+            <div><strong>Meta do lote de inauguração</strong><span>Edite aqui quantas lojas devem ser consideradas na simulação. O valor salvo alimenta o Dashboard, faltantes, gráficos, Loja 3D e relatórios.</span></div>
+          </div>
+          <div class="meta-lote-editor">
+            <div class="meta-field"><label for="simulador-meta-lojas">Quantidade de lojas</label><input id="simulador-meta-lojas" type="number" min="1" max="999" step="1" value="10" inputmode="numeric"></div>
+            <button type="button" class="btn-primary" id="btn-salvar-meta-lojas">Salvar meta</button>
+          </div>
+          <div class="meta-lote-status" id="simulador-meta-status">Meta atual sendo carregada...</div>
+        </div>
         <div class="tipo-grafico-grid" id="tipo-grafico-grid" aria-label="Separar gráfico por tipo de estoque">
           <button type="button" class="tipo-grafico-card ativo" data-tipo-grafico="Expansão" style="--tipo-cor:#3ea6ff"><span class="tipo-num" id="graf-stat-expansao">0</span><span class="tipo-lbl">Expansão</span></button>
           <button type="button" class="tipo-grafico-card" data-tipo-grafico="Sustentação" style="--tipo-cor:#ffb648"><span class="tipo-num" id="graf-stat-sustentacao">0</span><span class="tipo-lbl">Sustentação</span></button>
@@ -701,11 +715,7 @@
           <div class="loja-virtual-legenda"><span><i class="loja-leg-dot" style="background:var(--ok)"></i> estoque suficiente para a meta salva</span><span><i class="loja-leg-dot" style="background:var(--danger)"></i> quantidade insuficiente</span><span>As prateleiras representam o ambiente físico e não alteram o cálculo, salvo se forem cadastradas no Kit padrão.</span></div>
         </div>
         <div class="simulador-resumo" id="simulador-resumo">
-          <div class="simulador-config">
-            <div class="meta-field"><label for="simulador-meta-lojas">Quantidade de lojas no lote</label><input id="simulador-meta-lojas" type="number" min="1" max="999" step="1" value="10" inputmode="numeric"></div>
-            <button type="button" class="btn-primary" id="btn-salvar-meta-lojas">Salvar quantidade</button>
-            <small id="simulador-meta-status">O valor salvo aqui será usado no Dashboard, gráficos, faltantes, Loja 3D e relatórios.</small>
-          </div>
+          <div style="width:100%;max-width:560px;margin:0 auto 14px;padding:10px 12px;border:1px solid rgba(62,166,255,.25);border-radius:9px;background:rgba(62,166,255,.055);font-size:11px;color:var(--muted)">Meta usada nesta simulação: <strong id="simulador-meta-em-uso" style="color:var(--accent)">10 lojas</strong>. Para alterar, use o quadro <strong>Meta do lote de inauguração</strong> acima.</div>
           <div class="simulador-icone">🏪</div>
           <div class="simulador-numero" id="simulador-numero">0</div>
           <div class="simulador-label" id="simulador-label-meta">lojas completas possíveis</div>
@@ -1268,6 +1278,8 @@ function atualizarTextosMetaLojas(){
   if(label) label.textContent=`lojas completas possíveis · meta do lote: ${META_LOJAS_EXPANSAO}`;
   const aviso=document.getElementById('simulador-aviso-meta');
   if(aviso) aviso.textContent=`Cálculo feito somente com o estoque classificado como Expansão e o Kit padrão. A meta salva é ${META_LOJAS_EXPANSAO} loja(s).`;
+  const metaEmUso=document.getElementById('simulador-meta-em-uso');
+  if(metaEmUso) metaEmUso.textContent=`${META_LOJAS_EXPANSAO} loja(s)`;
   const btn=document.getElementById('btn-simular-lojas');
   if(btn && !modoSimuladorLojas) btn.textContent=`Simular lote de ${META_LOJAS_EXPANSAO} lojas`;
 }
@@ -1281,6 +1293,8 @@ async function carregarMetaLojasExpansao(){
     if(Number.isFinite(valor)&&valor>0) META_LOJAS_EXPANSAO=valor;
   }catch(err){console.error(err);}
   atualizarTextosMetaLojas();
+  const status=document.getElementById('simulador-meta-status');
+  if(status){status.textContent=`Meta atual: ${META_LOJAS_EXPANSAO} loja(s). Altere o número e clique em Salvar meta.`;status.className='meta-lote-status';status.style.color='';}
 }
 
 async function salvarMetaLojasExpansao(){
@@ -1297,14 +1311,14 @@ async function salvarMetaLojasExpansao(){
     if(!res.ok) throw new Error(dados.erro||'Não foi possível salvar a quantidade de lojas.');
     META_LOJAS_EXPANSAO=parseInt(dados.meta_lojas,10)||valor;
     atualizarTextosMetaLojas();
-    if(status){status.textContent=`Meta salva: ${META_LOJAS_EXPANSAO} loja(s). O Dashboard passará a usar este valor.`;status.style.color='var(--ok)';}
+    if(status){status.textContent=`Meta salva com sucesso: ${META_LOJAS_EXPANSAO} loja(s). Dashboard, gráficos e relatórios já usarão este valor.`;status.className='meta-lote-status ok';status.style.color='';}
     renderizarSimuladorLojas();
     renderizarFaltantesProximaLoja('faltantes-loja-grafico');
     atualizarGraficoCodigoItem();
     if(modoLojaVirtual) renderizarLojaVirtual();
     mostrarToast(`Meta de inauguração atualizada para ${META_LOJAS_EXPANSAO} loja(s).`);
   }catch(err){
-    if(status){status.textContent=err.message||'Erro ao salvar meta.';status.style.color='var(--danger)';}
+    if(status){status.textContent=err.message||'Erro ao salvar meta.';status.className='meta-lote-status erro';status.style.color='';}
     else alert(err.message||'Erro ao salvar meta.');
   }finally{if(btn){btn.disabled=false;btn.textContent=texto;}}
 }
