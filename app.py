@@ -638,6 +638,26 @@ def api_excluir_produto(produto_id):
 # API - Kit padrão de loja
 # ---------------------------------------------------------------------
 
+@app.route("/api/configuracao-expansao", methods=["GET"])
+@login_required
+def api_configuracao_expansao():
+    return jsonify({"meta_lojas": db.obter_meta_lojas_expansao()})
+
+
+@app.route("/api/configuracao-expansao", methods=["PUT"])
+@edit_required
+def api_salvar_configuracao_expansao():
+    dados = request.get_json(force=True) or {}
+    try:
+        meta_lojas = int(dados.get("meta_lojas"))
+    except (TypeError, ValueError):
+        return jsonify({"erro": "Informe uma quantidade válida de lojas."}), 400
+    if meta_lojas < 1 or meta_lojas > 999:
+        return jsonify({"erro": "A quantidade de lojas deve ficar entre 1 e 999."}), 400
+    meta_lojas = db.salvar_meta_lojas_expansao(meta_lojas, session.get("username"))
+    return jsonify({"ok": True, "meta_lojas": meta_lojas})
+
+
 @app.route("/api/kit-padrao", methods=["GET"])
 @login_required
 def api_listar_kit_padrao():
@@ -988,7 +1008,7 @@ def exportar_relatorio_lojas_excel():
     ws_e.auto_filter.ref = f"A4:C{max(4, ws_e.max_row)}"
 
     # Faltantes
-    ws_f = wb.create_sheet("Faltantes meta 10 lojas")
+    ws_f = wb.create_sheet(f"Faltantes meta {meta_lojas} lojas")
     titulo_planilha(ws_f, f"Itens faltantes para completar a premissa de {meta_lojas} lojas", "Premissa padrão usada na preparação das inaugurações", 5)
     cabecalho(ws_f, 4, ["Código", "Item", "Em estoque", "Necessário total", "Faltam"], cor_laranja)
     if faltantes:

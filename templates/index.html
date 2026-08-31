@@ -111,6 +111,14 @@
   .simulador-detalhe{max-width:500px;margin-top:16px;color:var(--text);font-size:13px;line-height:1.55;}
   .simulador-detalhe strong{color:var(--accent-2);}
   .simulador-aviso{margin-top:9px;color:var(--muted);font-size:11px;}
+  .simulador-config{width:100%;max-width:560px;display:flex;align-items:end;justify-content:center;gap:9px;flex-wrap:wrap;margin:0 auto 18px;padding:13px;border:1px solid var(--line);border-radius:11px;background:rgba(255,255,255,.018);text-align:left;}
+  .simulador-config .meta-field{display:grid;gap:5px;min-width:160px;flex:1;}
+  .simulador-config label{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);}
+  .simulador-config input{width:100%;min-height:42px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:9px 11px;color:var(--text);font:700 17px var(--mono);outline:none;}
+  .simulador-config input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(62,166,255,.1);}
+  .simulador-config button{min-height:42px;}
+  .simulador-config small{flex-basis:100%;color:var(--muted);font-size:10px;line-height:1.45;text-align:center;}
+  @media(max-width:600px){.simulador-config{align-items:stretch}.simulador-config .meta-field,.simulador-config button{width:100%;}.simulador-config button{min-height:46px;}}
   .faltantes-loja{margin-top:12px;border:1px solid rgba(255,182,72,.28);border-radius:10px;background:rgba(255,182,72,.055);padding:12px 14px;}
   .faltantes-loja[hidden]{display:none!important;}
   .faltantes-loja-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:9px;}
@@ -614,7 +622,7 @@
               <button type="button" class="modelo-grafico-btn" data-modelo-grafico="polarArea">Polar</button>
             </div>
             <button type="button" class="btn-ghost" id="btn-kit-padrao">Kit padrão por loja</button>
-            <button type="button" class="btn-simulador" id="btn-simular-lojas">Simular lote de 10 lojas</button>
+            <button type="button" class="btn-simulador" id="btn-simular-lojas">Simular lote</button>
             <button type="button" class="btn-download" id="btn-baixar-relatorio">Baixar relatório PDF</button>
             <button type="button" class="btn-excel" id="btn-baixar-relatorio-excel">Baixar relatório Excel</button>
           </div>
@@ -630,7 +638,7 @@
         <div id="grafico-codigo-bloco">
           <div class="grafico-series-legenda" id="grafico-series-legenda">
             <span class="serie"><span class="bolinha" style="color:#3ea6ff;background:#3ea6ff"></span>Estoque de Expansão</span>
-            <span class="serie"><span class="bolinha" style="color:#ffb648;background:#ffb648"></span>Necessário para 10 lojas</span>
+            <span class="serie"><span class="bolinha" style="color:#ffb648;background:#ffb648"></span><span id="legenda-meta-lojas">Necessário para a meta salva</span></span>
           </div>
           <div class="grafico-area" id="grafico-codigo-wrap">
             <canvas id="grafico-codigo-item"></canvas>
@@ -657,8 +665,8 @@
           <div class="loja-virtual-resumo">
             <div class="loja-resumo-card"><span>Equipamentos diferentes</span><strong id="loja-virtual-tipos">0</strong></div>
             <div class="loja-resumo-card"><span>Unidades no kit</span><strong id="loja-virtual-unidades">0</strong></div>
-            <div class="loja-resumo-card ok"><span>Itens atendidos · meta 10</span><strong id="loja-virtual-atendidos">0</strong></div>
-            <div class="loja-resumo-card alerta" id="loja-card-faltantes"><span>Itens com falta · meta 10</span><strong id="loja-virtual-faltantes">0</strong></div>
+            <div class="loja-resumo-card ok"><span>Itens atendidos · meta do lote</span><strong id="loja-virtual-atendidos">0</strong></div>
+            <div class="loja-resumo-card alerta" id="loja-card-faltantes"><span>Itens com falta · meta do lote</span><strong id="loja-virtual-faltantes">0</strong></div>
           </div>
           <div class="loja-3d-layout">
             <div class="loja-3d-stage" id="loja-3d-stage">
@@ -690,15 +698,20 @@
             <div class="loja-equip-grupo" id="grupo-zona-rede"><div class="loja-zona-titulo"><span>CPD / Rede</span><span class="zona-icone">🌐</span></div><div class="equipamentos-zona" id="zona-rede"></div></div>
             <div class="loja-equip-grupo" id="grupo-zona-apoio"><div class="loja-zona-titulo"><span>Apoio / Operação</span><span class="zona-icone">📦</span></div><div class="equipamentos-zona" id="zona-apoio"></div></div>
           </div>
-          <div class="loja-virtual-legenda"><span><i class="loja-leg-dot" style="background:var(--ok)"></i> estoque suficiente para a meta de 10 lojas</span><span><i class="loja-leg-dot" style="background:var(--danger)"></i> quantidade insuficiente</span><span>As prateleiras representam o ambiente físico e não alteram o cálculo, salvo se forem cadastradas no Kit padrão.</span></div>
+          <div class="loja-virtual-legenda"><span><i class="loja-leg-dot" style="background:var(--ok)"></i> estoque suficiente para a meta salva</span><span><i class="loja-leg-dot" style="background:var(--danger)"></i> quantidade insuficiente</span><span>As prateleiras representam o ambiente físico e não alteram o cálculo, salvo se forem cadastradas no Kit padrão.</span></div>
         </div>
         <div class="simulador-resumo" id="simulador-resumo">
+          <div class="simulador-config">
+            <div class="meta-field"><label for="simulador-meta-lojas">Quantidade de lojas no lote</label><input id="simulador-meta-lojas" type="number" min="1" max="999" step="1" value="10" inputmode="numeric"></div>
+            <button type="button" class="btn-primary" id="btn-salvar-meta-lojas">Salvar quantidade</button>
+            <small id="simulador-meta-status">O valor salvo aqui será usado no Dashboard, gráficos, faltantes, Loja 3D e relatórios.</small>
+          </div>
           <div class="simulador-icone">🏪</div>
           <div class="simulador-numero" id="simulador-numero">0</div>
-          <div class="simulador-label">lojas completas possíveis · premissa mínima: 10</div>
+          <div class="simulador-label" id="simulador-label-meta">lojas completas possíveis</div>
           <div class="simulador-detalhe" id="simulador-detalhe"></div>
           <div class="simulador-faltantes" id="simulador-faltantes"></div>
-          <div class="simulador-aviso">Cálculo feito somente com o estoque classificado como Expansão e o “Kit padrão de loja”. A premissa de inauguração é possuir estoque completo para 10 lojas.</div>
+          <div class="simulador-aviso" id="simulador-aviso-meta">Cálculo feito somente com o estoque classificado como Expansão e o “Kit padrão de loja”.</div>
         </div>
       </div>
     </div>
@@ -1244,7 +1257,57 @@ let modoLojaVirtual = false;
 let modeloGraficoCodigo = 'bar';
 let tipoGraficoCodigo = 'Expansão';
 let kitPadraoCache = [];
-const META_LOJAS_EXPANSAO=10;
+let META_LOJAS_EXPANSAO=10;
+
+function atualizarTextosMetaLojas(){
+  const input=document.getElementById('simulador-meta-lojas');
+  if(input) input.value=String(META_LOJAS_EXPANSAO);
+  const legenda=document.getElementById('legenda-meta-lojas');
+  if(legenda) legenda.textContent=`Necessário para ${META_LOJAS_EXPANSAO} lojas`;
+  const label=document.getElementById('simulador-label-meta');
+  if(label) label.textContent=`lojas completas possíveis · meta do lote: ${META_LOJAS_EXPANSAO}`;
+  const aviso=document.getElementById('simulador-aviso-meta');
+  if(aviso) aviso.textContent=`Cálculo feito somente com o estoque classificado como Expansão e o Kit padrão. A meta salva é ${META_LOJAS_EXPANSAO} loja(s).`;
+  const btn=document.getElementById('btn-simular-lojas');
+  if(btn && !modoSimuladorLojas) btn.textContent=`Simular lote de ${META_LOJAS_EXPANSAO} lojas`;
+}
+
+async function carregarMetaLojasExpansao(){
+  try{
+    const res=await fetch('/api/configuracao-expansao');
+    if(!res.ok) throw new Error('Falha ao carregar meta de lojas');
+    const dados=await res.json();
+    const valor=parseInt(dados.meta_lojas,10);
+    if(Number.isFinite(valor)&&valor>0) META_LOJAS_EXPANSAO=valor;
+  }catch(err){console.error(err);}
+  atualizarTextosMetaLojas();
+}
+
+async function salvarMetaLojasExpansao(){
+  const input=document.getElementById('simulador-meta-lojas');
+  const btn=document.getElementById('btn-salvar-meta-lojas');
+  const status=document.getElementById('simulador-meta-status');
+  const valor=parseInt(input?.value,10);
+  if(!Number.isFinite(valor)||valor<1||valor>999){alert('Informe uma quantidade de lojas entre 1 e 999.');return;}
+  const texto=btn?.textContent||'Salvar quantidade';
+  try{
+    if(btn){btn.disabled=true;btn.textContent='Salvando...';}
+    const res=await fetch('/api/configuracao-expansao',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({meta_lojas:valor})});
+    const dados=await res.json().catch(()=>({}));
+    if(!res.ok) throw new Error(dados.erro||'Não foi possível salvar a quantidade de lojas.');
+    META_LOJAS_EXPANSAO=parseInt(dados.meta_lojas,10)||valor;
+    atualizarTextosMetaLojas();
+    if(status){status.textContent=`Meta salva: ${META_LOJAS_EXPANSAO} loja(s). O Dashboard passará a usar este valor.`;status.style.color='var(--ok)';}
+    renderizarSimuladorLojas();
+    renderizarFaltantesProximaLoja('faltantes-loja-grafico');
+    atualizarGraficoCodigoItem();
+    if(modoLojaVirtual) renderizarLojaVirtual();
+    mostrarToast(`Meta de inauguração atualizada para ${META_LOJAS_EXPANSAO} loja(s).`);
+  }catch(err){
+    if(status){status.textContent=err.message||'Erro ao salvar meta.';status.style.color='var(--danger)';}
+    else alert(err.message||'Erro ao salvar meta.');
+  }finally{if(btn){btn.disabled=false;btn.textContent=texto;}}
+}
 
 const PALETA_GRAFICO_CODIGO = [
   '#3ea6ff','#4cd792','#ffb648','#a78bfa','#ff6b6b','#56cfe1',
@@ -1460,7 +1523,7 @@ function atualizarGraficoCodigoItem(){
         const coresItem=dados.labels.map((_,i)=>PALETA_GRAFICO_CODIGO[i % PALETA_GRAFICO_CODIGO.length]);
         datasets=[
           datasetBarraProfissional('Estoque de Expansão',dados.estoque,'azul',coresItem),
-          datasetBarraProfissional('Necessário para 10 lojas',dados.necessario,'laranja',coresItem)
+          datasetBarraProfissional(`Necessário para ${META_LOJAS_EXPANSAO} lojas`,dados.necessario,'laranja',coresItem)
         ];
       }else{
         const coresEstoque=dados.labels.map((_,i)=>PALETA_GRAFICO_CODIGO[i % PALETA_GRAFICO_CODIGO.length]);
@@ -1472,7 +1535,7 @@ function atualizarGraficoCodigoItem(){
             weight:modeloGraficoCodigo==='doughnut'?1.2:1
           },
           {
-            label:'Necessário para 10 lojas',data:dados.necessario,backgroundColor:coresKit,
+            label:`Necessário para ${META_LOJAS_EXPANSAO} lojas`,data:dados.necessario,backgroundColor:coresKit,
             borderColor:'#121923',borderWidth:2,hoverOffset:modeloGraficoCodigo==='doughnut'?5:1,
             weight:modeloGraficoCodigo==='doughnut'?.8:1
           }
@@ -1940,7 +2003,7 @@ function exibirModoGraficoCodigo(){
   if(lojaVirtualPanel) lojaVirtualPanel.classList.remove('ativo');
   btnSimular.classList.remove('ativo');
   btnKit.classList.remove('ativo');
-  btnSimular.textContent='Simular lote de 10 lojas';
+  btnSimular.textContent=`Simular lote de ${META_LOJAS_EXPANSAO} lojas`;
   btnKit.textContent='Kit padrão por loja';
 
   if(modoSimuladorLojas){
@@ -1950,8 +2013,8 @@ function exibirModoGraficoCodigo(){
     if(modeloTabs) modeloTabs.style.display='none';
     btnSimular.classList.add('ativo');
     btnSimular.textContent='Voltar ao gráfico';
-    titulo.textContent='Capacidade para inauguração · premissa de 10 lojas';
-    subtitulo.textContent='Resultado cruzando o estoque de Expansão com o Kit padrão. A inauguração exige um lote completo de 10 lojas.';
+    titulo.textContent=`Capacidade para inauguração · lote de ${META_LOJAS_EXPANSAO} lojas`;
+    subtitulo.textContent=`Resultado cruzando o estoque de Expansão com o Kit padrão. A meta salva na simulação é ${META_LOJAS_EXPANSAO} loja(s).`;
     renderizarSimuladorLojas();
     return;
   }
@@ -1989,7 +2052,7 @@ function exibirModoGraficoCodigo(){
   const ehExpansao=normalizarTexto(tipoGraficoCodigo)===normalizarTexto('Expansão');
   if(ehExpansao){
     titulo.textContent='Expansão — estoque x kit padrão de loja';
-    subtitulo.textContent='Compare o estoque de Expansão com o necessário para a premissa de 10 lojas e alterne entre Barras, Rosca e Polar.';
+    subtitulo.textContent=`Compare o estoque de Expansão com o necessário para a meta salva de ${META_LOJAS_EXPANSAO} loja(s) e alterne entre Barras, Rosca e Polar.`;
   }else{
     titulo.textContent=`${tipoGraficoCodigo} — quantidade por código do item`;
     subtitulo.textContent=`Exibe somente os itens classificados como ${tipoGraficoCodigo}. Alterne entre Barras, Rosca e Polar.`;
@@ -2034,6 +2097,7 @@ document.querySelectorAll('[data-modelo-grafico]').forEach(btn=>{
 });
 document.getElementById('btn-kit-padrao')?.addEventListener('click',alternarKitPadrao);
 document.getElementById('btn-simular-lojas')?.addEventListener('click',alternarSimuladorLojas);
+document.getElementById('btn-salvar-meta-lojas')?.addEventListener('click',salvarMetaLojasExpansao);
 document.getElementById('btn-ver-loja-virtual')?.addEventListener('click',abrirLojaVirtual);
 document.getElementById('btn-voltar-kit-virtual')?.addEventListener('click',voltarAoKitDaLojaVirtual);
 
@@ -2622,9 +2686,11 @@ document.getElementById('importar-enviar').addEventListener('click', async () =>
   }
 });
 
-carregarFiliais().then(()=>carregarItens());
-carregarProdutos();
-carregarKitPadrao();
+carregarMetaLojasExpansao().finally(()=>{
+  carregarFiliais().then(()=>carregarItens());
+  carregarProdutos();
+  carregarKitPadrao();
+});
 </script>
 
 </body>

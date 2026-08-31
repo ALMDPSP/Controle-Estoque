@@ -274,6 +274,35 @@ def init_db():
         """)
     conn.commit()
 
+    # Configurações persistentes do sistema. A meta de lojas usada na simulação
+    # fica aqui para que Dashboard, relatórios e Loja 3D usem o mesmo valor.
+    if IS_PG:
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS configuracoes (
+                chave TEXT PRIMARY KEY,
+                valor TEXT NOT NULL,
+                atualizado_por TEXT,
+                atualizado_em TEXT
+            )
+        """)
+    else:
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS configuracoes (
+                chave TEXT PRIMARY KEY,
+                valor TEXT NOT NULL,
+                atualizado_por TEXT,
+                atualizado_em TEXT
+            )
+        """)
+    conn.commit()
+    cur.execute(q("SELECT valor FROM configuracoes WHERE chave = ?"), ("meta_lojas_expansao",))
+    if cur.fetchone() is None:
+        cur.execute(
+            q("INSERT INTO configuracoes (chave, valor, atualizado_por, atualizado_em) VALUES (?, ?, ?, ?)"),
+            ("meta_lojas_expansao", "10", "sistema", datetime.now().strftime("%Y-%m-%d %H:%M")),
+        )
+        conn.commit()
+
     # Na primeira execução, carrega o kit padrão informado para uma loja.
     cur.execute("SELECT COUNT(*) FROM kit_padrao_loja")
     if cur.fetchone()[0] == 0:
@@ -482,6 +511,51 @@ def excluir_produto(produto_id):
     conn = get_conn(); cur = get_cursor(conn)
     cur.execute(q("DELETE FROM produtos WHERE id = ?"), (produto_id,))
     ok = cur.rowcount > 0; conn.commit(); cur.close(); conn.close(); return ok
+
+
+# ---------------------------------------------------------------------
+# Configurações do sistema
+# ---------------------------------------------------------------------
+
+def obter_configuracao(chave, padrao=None):
+    conn = get_conn(); cur = get_cursor(conn)
+    cur.execute(q("SELECT valor FROM configuracoes WHERE chave = ?"), (chave,))
+    row = cur.fetchone()
+    if row is None:
+        valor = padrao
+    elif isinstance(row, dict):
+        valor = row.get("valor", padrao)
+    else:
+        try:
+            valor = row["valor"]
+        except Exception:
+            valor = row[0]
+    cur.close(); conn.close(); return valor
+
+def salvar_configuracao(chave, valor, usuario=None):
+    conn = get_conn(); cur = get_cursor(conn)
+    agora = datetime.now().strftime("%Y-%m-%d %H:%M")
+    cur.execute(q("SELECT chave FROM configuracoes WHERE chave = ?"), (chave,))
+    existe = cur.fetchone() is not None
+    if existe:
+        cur.execute(q("UPDATE configuracoes SET valor = ?, atualizado_por = ?, atualizado_em = ? WHERE chave = ?"),
+                    (str(valor), usuario, agora, chave))
+    else:
+        cur.execute(q("INSERT INTO configuracoes (chave, valor, atualizado_por, atualizado_em) VALUES (?, ?, ?, ?)"),
+                    (chave, str(valor), usuario, agora))
+    conn.commit(); cur.close(); conn.close(); return True
+
+def obter_meta_lojas_expansao():
+    try:
+        valor = int(obter_configuracao("meta_lojas_expansao", "10") or 10)
+    except (TypeError, ValueError):
+        valor = 10
+    return max(1, min(valor, 999))
+
+def salvar_meta_lojas_expansao(valor, usuario=None):
+    valor = max(1, min(int(valor), 999))
+    salvar_configuracao("meta_lojas_expansao", valor, usuario)
+    return valor
 
 
 # ---------------------------------------------------------------------

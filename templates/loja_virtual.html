@@ -81,8 +81,8 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:0 0 12px}foot
     <section class="kpis">
       <div class="kpi accent"><span>Itens diferentes no kit</span><strong id="kpi-tipos">0</strong></div>
       <div class="kpi"><span>Unidades no kit</span><strong id="kpi-unidades">0</strong></div>
-      <div class="kpi ok"><span>Itens atendidos · meta 10</span><strong id="kpi-atendidos">0</strong></div>
-      <div class="kpi danger"><span>Itens faltantes · meta 10</span><strong id="kpi-faltantes">0</strong></div>
+      <div class="kpi ok"><span>Itens atendidos · meta do lote</span><strong id="kpi-atendidos">0</strong></div>
+      <div class="kpi danger"><span>Itens faltantes · meta do lote</span><strong id="kpi-faltantes">0</strong></div>
       <div class="kpi"><span>Lojas possíveis</span><strong id="kpi-lojas">0</strong></div>
     </section>
 
@@ -130,7 +130,7 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:0 0 12px}foot
         </div>
 
         <div class="missing-card" style="margin-top:16px">
-          <h3>Itens faltantes para completar a premissa de 10 lojas</h3>
+          <h3>Itens faltantes para completar a meta salva</h3>
           <div id="missing-grid" class="missing-grid"></div>
         </div>
 
@@ -138,7 +138,7 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:0 0 12px}foot
           <h3>Legenda</h3>
           <div class="legend-row">
             <span><i class="legend-dot" style="background:var(--ok)"></i> item com estoque suficiente em Expansão</span>
-            <span><i class="legend-dot" style="background:var(--danger)"></i> item faltando para completar a meta de 10 lojas</span>
+            <span><i class="legend-dot" style="background:var(--danger)"></i> item faltando para completar a meta salva</span>
             <span><i class="legend-dot" style="background:var(--accent)"></i> foco visual selecionado</span>
           </div>
         </div>
@@ -169,7 +169,7 @@ const zoneMeta = {
 };
 
 const zoneOrder = ['pdv','balcao','prateleiras','rede','apoio'];
-const META_LOJAS_EXPANSAO = 10;
+let META_LOJAS_EXPANSAO = 10;
 let kitPadrao = [];
 let itensEstoque = [];
 
@@ -325,10 +325,13 @@ document.getElementById('btn-modo-faltantes')?.addEventListener('click',()=>{
 
 Promise.all([
   fetch('/api/kit-padrao').then(r=>r.json()),
-  fetch('/api/itens').then(r=>r.json())
-]).then(([kit,itens])=>{
+  fetch('/api/itens').then(r=>r.json()),
+  fetch('/api/configuracao-expansao').then(r=>r.json())
+]).then(([kit,itens,configExp])=>{
   kitPadrao = Array.isArray(kit) ? kit : [];
   itensEstoque = Array.isArray(itens) ? itens : [];
+  const metaSalva=parseInt(configExp?.meta_lojas,10);
+  if(Number.isFinite(metaSalva)&&metaSalva>0) META_LOJAS_EXPANSAO=metaSalva;
   render();
 }).catch(err=>{
   console.error(err);
