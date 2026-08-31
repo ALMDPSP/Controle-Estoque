@@ -246,6 +246,12 @@ def logout():
 
 @app.route("/")
 @login_required
+def pagina_inicial():
+    return redirect(url_for("dashboard"))
+
+
+@app.route("/estoque")
+@login_required
 def index():
     return render_template(
         "index.html",
