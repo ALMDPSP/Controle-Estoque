@@ -614,7 +614,7 @@
               <button type="button" class="modelo-grafico-btn" data-modelo-grafico="polarArea">Polar</button>
             </div>
             <button type="button" class="btn-ghost" id="btn-kit-padrao">Kit padrão por loja</button>
-            <button type="button" class="btn-simulador" id="btn-simular-lojas">Simular abertura de loja</button>
+            <button type="button" class="btn-simulador" id="btn-simular-lojas">Simular lote de 10 lojas</button>
             <button type="button" class="btn-download" id="btn-baixar-relatorio">Baixar relatório PDF</button>
             <button type="button" class="btn-excel" id="btn-baixar-relatorio-excel">Baixar relatório Excel</button>
           </div>
@@ -630,7 +630,7 @@
         <div id="grafico-codigo-bloco">
           <div class="grafico-series-legenda" id="grafico-series-legenda">
             <span class="serie"><span class="bolinha" style="color:#3ea6ff;background:#3ea6ff"></span>Estoque de Expansão</span>
-            <span class="serie"><span class="bolinha" style="color:#ffb648;background:#ffb648"></span>Necessário para 1 loja</span>
+            <span class="serie"><span class="bolinha" style="color:#ffb648;background:#ffb648"></span>Necessário para 10 lojas</span>
           </div>
           <div class="grafico-area" id="grafico-codigo-wrap">
             <canvas id="grafico-codigo-item"></canvas>
@@ -657,8 +657,8 @@
           <div class="loja-virtual-resumo">
             <div class="loja-resumo-card"><span>Equipamentos diferentes</span><strong id="loja-virtual-tipos">0</strong></div>
             <div class="loja-resumo-card"><span>Unidades no kit</span><strong id="loja-virtual-unidades">0</strong></div>
-            <div class="loja-resumo-card ok"><span>Itens atendidos</span><strong id="loja-virtual-atendidos">0</strong></div>
-            <div class="loja-resumo-card alerta" id="loja-card-faltantes"><span>Itens com falta</span><strong id="loja-virtual-faltantes">0</strong></div>
+            <div class="loja-resumo-card ok"><span>Itens atendidos · meta 10</span><strong id="loja-virtual-atendidos">0</strong></div>
+            <div class="loja-resumo-card alerta" id="loja-card-faltantes"><span>Itens com falta · meta 10</span><strong id="loja-virtual-faltantes">0</strong></div>
           </div>
           <div class="loja-3d-layout">
             <div class="loja-3d-stage" id="loja-3d-stage">
@@ -690,15 +690,15 @@
             <div class="loja-equip-grupo" id="grupo-zona-rede"><div class="loja-zona-titulo"><span>CPD / Rede</span><span class="zona-icone">🌐</span></div><div class="equipamentos-zona" id="zona-rede"></div></div>
             <div class="loja-equip-grupo" id="grupo-zona-apoio"><div class="loja-zona-titulo"><span>Apoio / Operação</span><span class="zona-icone">📦</span></div><div class="equipamentos-zona" id="zona-apoio"></div></div>
           </div>
-          <div class="loja-virtual-legenda"><span><i class="loja-leg-dot" style="background:var(--ok)"></i> estoque suficiente para 1 loja</span><span><i class="loja-leg-dot" style="background:var(--danger)"></i> quantidade insuficiente</span><span>As prateleiras representam o ambiente físico e não alteram o cálculo, salvo se forem cadastradas no Kit padrão.</span></div>
+          <div class="loja-virtual-legenda"><span><i class="loja-leg-dot" style="background:var(--ok)"></i> estoque suficiente para a meta de 10 lojas</span><span><i class="loja-leg-dot" style="background:var(--danger)"></i> quantidade insuficiente</span><span>As prateleiras representam o ambiente físico e não alteram o cálculo, salvo se forem cadastradas no Kit padrão.</span></div>
         </div>
         <div class="simulador-resumo" id="simulador-resumo">
           <div class="simulador-icone">🏪</div>
           <div class="simulador-numero" id="simulador-numero">0</div>
-          <div class="simulador-label">lojas completas possíveis</div>
+          <div class="simulador-label">lojas completas possíveis · premissa mínima: 10</div>
           <div class="simulador-detalhe" id="simulador-detalhe"></div>
           <div class="simulador-faltantes" id="simulador-faltantes"></div>
-          <div class="simulador-aviso">Cálculo feito somente com o estoque classificado como Expansão e o “Kit padrão de loja” configurado neste painel.</div>
+          <div class="simulador-aviso">Cálculo feito somente com o estoque classificado como Expansão e o “Kit padrão de loja”. A premissa de inauguração é possuir estoque completo para 10 lojas.</div>
         </div>
       </div>
     </div>
@@ -1244,6 +1244,7 @@ let modoLojaVirtual = false;
 let modeloGraficoCodigo = 'bar';
 let tipoGraficoCodigo = 'Expansão';
 let kitPadraoCache = [];
+const META_LOJAS_EXPANSAO=10;
 
 const PALETA_GRAFICO_CODIGO = [
   '#3ea6ff','#4cd792','#ffb648','#a78bfa','#ff6b6b','#56cfe1',
@@ -1282,11 +1283,13 @@ function dadosExpansaoVsKit(){
       const ehExpansao=normalizarTexto(it.tipo_estoque)===normalizarTexto('Expansão');
       return soma + (qtde>0 && ehExpansao && itemEstoqueCombinaComKit(it,k) ? qtde : 0);
     },0);
+    const necessarioPorLoja=Math.max(1,parseInt(k.quantidade,10)||1);
     return {
       codigo:k.codigo||'',
       descricao:k.descricao||'',
       disponivel,
-      necessario:Math.max(1,parseInt(k.quantidade,10)||1)
+      necessarioPorLoja,
+      necessario:necessarioPorLoja*META_LOJAS_EXPANSAO
     };
   });
   requisitos.sort((a,b)=>compararCodigosNaturais(a.codigo,b.codigo) || a.descricao.localeCompare(b.descricao,'pt-BR'));
@@ -1368,7 +1371,7 @@ function opcoesGraficoCodigo(tipo,forcarLegenda=false,ehExpansao=false){
             const estoque=Number(dados.estoque[i])||0;
             const necessario=Number(dados.necessario[i])||0;
             const saldo=estoque-necessario;
-            return saldo>=0 ? `Saldo para 1 loja: +${saldo}` : `Faltam para 1 loja: ${Math.abs(saldo)}`;
+            return saldo>=0 ? `Saldo após meta de ${META_LOJAS_EXPANSAO} lojas: +${saldo}` : `Faltam para ${META_LOJAS_EXPANSAO} lojas: ${Math.abs(saldo)}`;
           }
         }
       }
@@ -1457,7 +1460,7 @@ function atualizarGraficoCodigoItem(){
         const coresItem=dados.labels.map((_,i)=>PALETA_GRAFICO_CODIGO[i % PALETA_GRAFICO_CODIGO.length]);
         datasets=[
           datasetBarraProfissional('Estoque de Expansão',dados.estoque,'azul',coresItem),
-          datasetBarraProfissional('Necessário para 1 loja',dados.necessario,'laranja',coresItem)
+          datasetBarraProfissional('Necessário para 10 lojas',dados.necessario,'laranja',coresItem)
         ];
       }else{
         const coresEstoque=dados.labels.map((_,i)=>PALETA_GRAFICO_CODIGO[i % PALETA_GRAFICO_CODIGO.length]);
@@ -1469,7 +1472,7 @@ function atualizarGraficoCodigoItem(){
             weight:modeloGraficoCodigo==='doughnut'?1.2:1
           },
           {
-            label:'Necessário para 1 loja',data:dados.necessario,backgroundColor:coresKit,
+            label:'Necessário para 10 lojas',data:dados.necessario,backgroundColor:coresKit,
             borderColor:'#121923',borderWidth:2,hoverOffset:modeloGraficoCodigo==='doughnut'?5:1,
             weight:modeloGraficoCodigo==='doughnut'?.8:1
           }
@@ -1544,13 +1547,15 @@ function payloadRelatorioEstoque(){
     {codigo:r.codigo||'',descricao:r.descricao||'',em_estoque:Number(r.disponivel)||0,necessario_total:Number(r.alvo)||0,faltam:Number(r.faltam)||0}
   ));
   const kit=(sim.requisitos||[]).map(r=>(
-    {codigo:r.codigo||'',descricao:r.descricao||'',qtd_por_loja:Number(r.necessario)||0,em_estoque:Number(r.disponivel)||0,lojas_suportadas:Number(r.lojas)||0}
+    {codigo:r.codigo||'',descricao:r.descricao||'',qtd_por_loja:Number(r.necessario)||0,em_estoque:Number(r.disponivel)||0,lojas_suportadas:Number(r.lojas)||0,necessario_meta:Number(r.alvo)||0}
   ));
   const limitantes=(sim.limitantes||[]).map(r=>`${r.codigo ? r.codigo+' — ' : ''}${r.descricao}`);
   return {
     gerado_em:new Date().toISOString(),
     lojas_possiveis:Number(sim.lojas)||0,
-    proxima_loja:(Number(sim.lojas)||0)+1,
+    meta_lojas:META_LOJAS_EXPANSAO,
+    lote_pronto:Boolean(sim.lotePronto),
+    proxima_loja:META_LOJAS_EXPANSAO,
     total_unidades:estoque.reduce((s,r)=>s+r.quantidade,0),
     total_produtos:estoque.length,
     categorias_faltantes:faltantes.length,
@@ -1596,7 +1601,7 @@ async function baixarRelatorioEstoque(){
     const cardY=42, gap=4, cardW=(conteudo-(gap*3))/4, cardH=25;
     const cards=[
       ['LOJAS POSSÍVEIS',String(payload.lojas_possiveis),verde],
-      ['PRÓXIMA LOJA',`Nº ${payload.proxima_loja}`,azul],
+      ['META INAUGURAÇÃO',`${payload.meta_lojas} LOJAS`,payload.lote_pronto?verde:laranja],
       ['UNIDADES EM ESTOQUE',String(payload.total_unidades),escuro],
       ['ITENS EM FALTA',String(payload.categorias_faltantes),payload.categorias_faltantes?laranja:verde]
     ];
@@ -1628,7 +1633,7 @@ async function baixarRelatorioEstoque(){
     // Faltantes primeiro, pois é a informação mais acionável
     if(payload.faltantes.length){
       doc.setTextColor(...laranja); doc.setFont('helvetica','bold'); doc.setFontSize(11);
-      doc.text(`Itens faltantes para abrir a loja nº ${payload.proxima_loja}`,margem,y);
+      doc.text(`Itens faltantes para completar a premissa de ${payload.meta_lojas} lojas`,margem,y);
       const faltRows=payload.faltantes.map(r=>[r.codigo||'-',r.descricao,String(r.em_estoque),String(r.necessario_total),String(r.faltam)]);
       doc.autoTable({
         startY:y+3,
@@ -1673,7 +1678,7 @@ async function baixarRelatorioEstoque(){
       if(startKit>235){doc.addPage();startKit=18;}
       doc.setTextColor(...escuro); doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.text('Kit padrão por loja',margem,startKit);
       doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(...cinza);
-      doc.text('Base usada para calcular a quantidade de lojas completas.',margem,startKit+4.5);
+      doc.text(`Base por loja usada na premissa de inauguração de ${payload.meta_lojas} lojas.`,margem,startKit+4.5);
       const kitRows=payload.kit.map(r=>[r.codigo||'-',r.descricao,String(r.qtd_por_loja),String(r.em_estoque),String(r.lojas_suportadas)]);
       doc.autoTable({
         startY:startKit+8,head:[['Código','Item','Qtd./loja','Em estoque','Lojas suportadas']],body:kitRows,
@@ -1771,49 +1776,40 @@ function calcularSimulacaoLojas(){
       const ehExpansao=normalizarTexto(it.tipo_estoque)===normalizarTexto('Expansão');
       return soma + (qtde>0 && ehExpansao && itemEstoqueCombinaComKit(it,k) ? qtde : 0);
     },0);
-    return {
-      codigo:k.codigo||'',
-      descricao:k.descricao||'',
-      necessario,
-      disponivel,
-      lojas:Math.floor(disponivel/necessario)
-    };
+    const alvo=necessario*META_LOJAS_EXPANSAO;
+    return {codigo:k.codigo||'',descricao:k.descricao||'',necessario,disponivel,alvo,lojas:Math.floor(disponivel/necessario),faltam:Math.max(0,alvo-disponivel)};
   });
 
   if(!requisitos.length){
-    return {lojas:0, detalhe:'Cadastre pelo menos um item em “Kit padrão de loja” para iniciar a simulação.', requisitos:[], limitantes:[], faltantesProximaLoja:[]};
+    return {lojas:0,metaLojas:META_LOJAS_EXPANSAO,lotePronto:false,detalhe:`Cadastre pelo menos um item em “Kit padrão de loja” para calcular a premissa de ${META_LOJAS_EXPANSAO} lojas.`,requisitos:[],limitantes:[],faltantesProximaLoja:[]};
   }
 
   const lojas=Math.min(...requisitos.map(r=>r.lojas));
   const limitantes=requisitos.filter(r=>r.lojas===lojas);
-  const proximaLoja=lojas+1;
-  const faltantesProximaLoja=requisitos.map(r=>{
-    const alvo=r.necessario*proximaLoja;
-    return {...r,alvo,faltam:Math.max(0,alvo-r.disponivel)};
-  }).filter(r=>r.faltam>0).sort((a,b)=>b.faltam-a.faltam || compararCodigosNaturais(a.codigo,b.codigo));
-
+  const faltantesProximaLoja=requisitos.filter(r=>r.faltam>0).sort((a,b)=>b.faltam-a.faltam || compararCodigosNaturais(a.codigo,b.codigo));
+  const lotePronto=faltantesProximaLoja.length===0;
   const primeiro=limitantes[0];
   const ident=primeiro.codigo ? `<strong>${escapeHtml(primeiro.codigo)}</strong> — ` : '';
-  let detalhe=`Item limitante: ${ident}${escapeHtml(primeiro.descricao)}. Em estoque: <strong>${primeiro.disponivel}</strong> · Necessário por loja: <strong>${primeiro.necessario}</strong>.`;
+  let detalhe=`Item limitante: ${ident}${escapeHtml(primeiro.descricao)}. Em estoque: <strong>${primeiro.disponivel}</strong> · Necessário por loja: <strong>${primeiro.necessario}</strong>. Capacidade atual: <strong>${lojas}</strong> loja(s).`;
   if(limitantes.length>1) detalhe+=` Há ${limitantes.length} itens empatados como limitantes.`;
-  detalhe+=` Para abrir a loja nº <strong>${proximaLoja}</strong>, faltam itens em <strong>${faltantesProximaLoja.length}</strong> categoria(s).`;
-  return {lojas,detalhe,requisitos,limitantes,faltantesProximaLoja};
+  if(lotePronto) detalhe+=` <strong>Premissa atendida:</strong> há estoque completo para o lote padrão de <strong>${META_LOJAS_EXPANSAO} lojas</strong>.`;
+  else detalhe+=` <strong>Premissa não atendida:</strong> faltam itens em <strong>${faltantesProximaLoja.length}</strong> categoria(s) para completar o lote padrão de <strong>${META_LOJAS_EXPANSAO} lojas</strong>.`;
+  return {lojas,metaLojas:META_LOJAS_EXPANSAO,lotePronto,detalhe,requisitos,limitantes,faltantesProximaLoja};
 }
 
 function htmlFaltantesProximaLoja(resultado){
   if(!resultado.requisitos || !resultado.requisitos.length){
-    return `<div class="faltantes-loja-head"><strong>Itens faltantes para abertura de loja</strong></div><span style="font-size:11px;color:var(--muted)">Configure o Kit padrão por loja para calcular os itens faltantes.</span>`;
+    return `<div class="faltantes-loja-head"><strong>Itens faltantes para a premissa de ${META_LOJAS_EXPANSAO} lojas</strong></div><span style="font-size:11px;color:var(--muted)">Configure o Kit padrão por loja para calcular os itens faltantes.</span>`;
   }
-  const alvo=resultado.lojas+1;
   const faltantes=resultado.faltantesProximaLoja||[];
   if(!faltantes.length){
-    return `<div class="faltantes-loja-head"><strong>Itens faltantes para abrir a loja nº ${alvo}</strong></div><span style="font-size:11px;color:var(--ok)">Nenhum item faltante.</span>`;
+    return `<div class="faltantes-loja-head"><strong>Premissa de ${META_LOJAS_EXPANSAO} lojas</strong></div><span style="font-size:11px;color:var(--ok)">Premissa atendida. Nenhum item faltante para o lote padrão.</span>`;
   }
   const cards=faltantes.map(r=>{
     const cod=r.codigo ? `${escapeHtml(r.codigo)} · ` : '';
-    return `<div class="faltante-item" title="${cod}${escapeHtml(r.descricao)}"><span class="nome">${cod}${escapeHtml(r.descricao)}</span><span class="qtd">faltam ${r.faltam}</span></div>`;
+    return `<div class="faltante-item" title="${cod}${escapeHtml(r.descricao)}"><span class="nome">${cod}${escapeHtml(r.descricao)}</span><span class="qtd">faltam ${r.faltam} · alvo ${r.alvo}</span></div>`;
   }).join('');
-  return `<div class="faltantes-loja-head"><strong>Itens faltantes para abrir a loja nº ${alvo}</strong><span>${faltantes.length} item(ns) abaixo do necessário</span></div><div class="faltantes-loja-grid">${cards}</div>`;
+  return `<div class="faltantes-loja-head"><strong>Itens faltantes para completar ${META_LOJAS_EXPANSAO} lojas</strong><span>${faltantes.length} item(ns) abaixo da premissa</span></div><div class="faltantes-loja-grid">${cards}</div>`;
 }
 
 function renderizarFaltantesProximaLoja(elementId){
@@ -1871,12 +1867,13 @@ function estoqueExpansaoDisponivelParaKit(k){
 
 function htmlEquipamentoLoja(k){
   const necessario=Math.max(1,Number(k.quantidade)||1);
+  const necessarioMeta=necessario*META_LOJAS_EXPANSAO;
   const disponivel=estoqueExpansaoDisponivelParaKit(k);
-  const falta=Math.max(0,necessario-disponivel);
+  const falta=Math.max(0,necessarioMeta-disponivel);
   const classe=falta>0?'insuficiente':'suficiente';
   const codigo=k.codigo?`Cód. ${escapeHtml(k.codigo)} · `:'';
-  const situacao=falta>0?`faltam ${falta}`:`estoque ${disponivel}`;
-  return `<div class="equipamento-loja ${classe}" title="${escapeHtml(k.descricao)} — necessário ${necessario}; em Expansão ${disponivel}${falta>0?`; faltam ${falta}`:''}"><div class="equipamento-icone">${iconeEquipamentoLoja(k.descricao)}</div><div class="equipamento-info"><div class="equipamento-nome">${escapeHtml(k.descricao)}</div><div class="equipamento-meta">${codigo}${situacao}</div></div><span class="equipamento-qtd">×${necessario}</span></div>`;
+  const situacao=falta>0?`faltam ${falta} p/ ${META_LOJAS_EXPANSAO} lojas`:`meta ${META_LOJAS_EXPANSAO} atendida`;
+  return `<div class="equipamento-loja ${classe}" title="${escapeHtml(k.descricao)} — ${necessario}/loja; meta ${META_LOJAS_EXPANSAO}: ${necessarioMeta}; Expansão ${disponivel}${falta>0?`; faltam ${falta}`:''}"><div class="equipamento-icone">${iconeEquipamentoLoja(k.descricao)}</div><div class="equipamento-info"><div class="equipamento-nome">${escapeHtml(k.descricao)}</div><div class="equipamento-meta">${codigo}${situacao}</div></div><span class="equipamento-qtd">×${necessario}/loja</span></div>`;
 }
 
 function renderizarLojaVirtual(){
@@ -1887,7 +1884,7 @@ function renderizarLojaVirtual(){
     const necessario=Math.max(1,Number(k.quantidade)||1);
     unidades+=necessario;
     const disponivel=estoqueExpansaoDisponivelParaKit(k);
-    if(disponivel>=necessario) atendidos++; else faltantes++;
+    if(disponivel>=necessario*META_LOJAS_EXPANSAO) atendidos++; else faltantes++;
     const zona=zonaEquipamentoLoja(k.descricao);
     (zonas[zona]||zonas.apoio).push(k);
   });
@@ -1943,7 +1940,7 @@ function exibirModoGraficoCodigo(){
   if(lojaVirtualPanel) lojaVirtualPanel.classList.remove('ativo');
   btnSimular.classList.remove('ativo');
   btnKit.classList.remove('ativo');
-  btnSimular.textContent='Simular abertura de loja';
+  btnSimular.textContent='Simular lote de 10 lojas';
   btnKit.textContent='Kit padrão por loja';
 
   if(modoSimuladorLojas){
@@ -1953,8 +1950,8 @@ function exibirModoGraficoCodigo(){
     if(modeloTabs) modeloTabs.style.display='none';
     btnSimular.classList.add('ativo');
     btnSimular.textContent='Voltar ao gráfico';
-    titulo.textContent='Capacidade para inauguração de lojas';
-    subtitulo.textContent='Resultado cruzando somente o estoque de Expansão com o Kit padrão de loja.';
+    titulo.textContent='Capacidade para inauguração · premissa de 10 lojas';
+    subtitulo.textContent='Resultado cruzando o estoque de Expansão com o Kit padrão. A inauguração exige um lote completo de 10 lojas.';
     renderizarSimuladorLojas();
     return;
   }
@@ -1992,7 +1989,7 @@ function exibirModoGraficoCodigo(){
   const ehExpansao=normalizarTexto(tipoGraficoCodigo)===normalizarTexto('Expansão');
   if(ehExpansao){
     titulo.textContent='Expansão — estoque x kit padrão de loja';
-    subtitulo.textContent='Compare o estoque de Expansão com o necessário para 1 loja e alterne entre Barras, Rosca e Polar.';
+    subtitulo.textContent='Compare o estoque de Expansão com o necessário para a premissa de 10 lojas e alterne entre Barras, Rosca e Polar.';
   }else{
     titulo.textContent=`${tipoGraficoCodigo} — quantidade por código do item`;
     subtitulo.textContent=`Exibe somente os itens classificados como ${tipoGraficoCodigo}. Alterne entre Barras, Rosca e Polar.`;

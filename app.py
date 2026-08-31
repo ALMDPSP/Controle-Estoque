@@ -891,6 +891,8 @@ def exportar_relatorio_lojas_excel():
     estoque = dados.get("estoque") or []
     faltantes = dados.get("faltantes") or []
     kit = dados.get("kit") or []
+    meta_lojas = int(dados.get("meta_lojas") or 10)
+    lote_pronto = bool(dados.get("lote_pronto"))
 
     wb = Workbook()
     ws = wb.active
@@ -943,7 +945,7 @@ def exportar_relatorio_lojas_excel():
 
     resumo = [
         ("Lojas completas possíveis", dados.get("lojas_possiveis", 0), cor_verde),
-        ("Próxima loja", dados.get("proxima_loja", 1), cor_azul),
+        ("Meta de inauguração", f"{meta_lojas} lojas", cor_verde if lote_pronto else cor_laranja),
         ("Unidades em estoque", dados.get("total_unidades", 0), cor_escura),
         ("Produtos no estoque", dados.get("total_produtos", 0), cor_escura),
         ("Categorias com falta", dados.get("categorias_faltantes", 0), cor_laranja),
@@ -986,8 +988,8 @@ def exportar_relatorio_lojas_excel():
     ws_e.auto_filter.ref = f"A4:C{max(4, ws_e.max_row)}"
 
     # Faltantes
-    ws_f = wb.create_sheet("Faltantes proxima loja")
-    titulo_planilha(ws_f, f"Itens faltantes para abrir a loja nº {dados.get('proxima_loja', 1)}", "Priorize esta aba para preparação da próxima inauguração", 5)
+    ws_f = wb.create_sheet("Faltantes meta 10 lojas")
+    titulo_planilha(ws_f, f"Itens faltantes para completar a premissa de {meta_lojas} lojas", "Premissa padrão usada na preparação das inaugurações", 5)
     cabecalho(ws_f, 4, ["Código", "Item", "Em estoque", "Necessário total", "Faltam"], cor_laranja)
     if faltantes:
         for r_idx, item in enumerate(faltantes, start=5):
@@ -1002,7 +1004,7 @@ def exportar_relatorio_lojas_excel():
                     c.fill = PatternFill("solid", fgColor="FFF8ED")
     else:
         ws_f.merge_cells("A5:E6")
-        ws_f["A5"] = "Nenhum item faltante para a próxima loja."
+        ws_f["A5"] = f"Premissa atendida: nenhum item faltante para o lote padrão de {meta_lojas} lojas."
         ws_f["A5"].font = Font(bold=True, color=cor_verde)
         ws_f["A5"].alignment = Alignment(horizontal="center", vertical="center")
     ajustar_larguras(ws_f, [22, 48, 18, 20, 16])
@@ -1012,7 +1014,7 @@ def exportar_relatorio_lojas_excel():
 
     # Kit padrão
     ws_k = wb.create_sheet("Kit padrao por loja")
-    titulo_planilha(ws_k, "Kit padrão por loja", "Base utilizada no cálculo da capacidade de inauguração", 5)
+    titulo_planilha(ws_k, "Kit padrão por loja", f"Base por loja utilizada na premissa de inauguração de {meta_lojas} lojas", 5)
     cabecalho(ws_k, 4, ["Código", "Item", "Qtd./loja", "Em estoque", "Lojas suportadas"], cor_azul)
     for r_idx, item in enumerate(kit, start=5):
         valores = [item.get("codigo") or "-", item.get("descricao") or "", item.get("qtd_por_loja") or 0, item.get("em_estoque") or 0, item.get("lojas_suportadas") or 0]

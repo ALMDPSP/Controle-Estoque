@@ -81,8 +81,8 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:0 0 12px}foot
     <section class="kpis">
       <div class="kpi accent"><span>Itens diferentes no kit</span><strong id="kpi-tipos">0</strong></div>
       <div class="kpi"><span>Unidades no kit</span><strong id="kpi-unidades">0</strong></div>
-      <div class="kpi ok"><span>Itens atendidos</span><strong id="kpi-atendidos">0</strong></div>
-      <div class="kpi danger"><span>Itens faltantes</span><strong id="kpi-faltantes">0</strong></div>
+      <div class="kpi ok"><span>Itens atendidos · meta 10</span><strong id="kpi-atendidos">0</strong></div>
+      <div class="kpi danger"><span>Itens faltantes · meta 10</span><strong id="kpi-faltantes">0</strong></div>
       <div class="kpi"><span>Lojas possíveis</span><strong id="kpi-lojas">0</strong></div>
     </section>
 
@@ -124,13 +124,13 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:0 0 12px}foot
               <div class="float-box ok"><span>Atendidos</span><strong id="float-atendidos">0</strong></div>
               <div class="float-box danger"><span>Faltando</span><strong id="float-faltantes">0</strong></div>
               <div class="float-box"><span>Expansão disponível</span><strong id="float-expansao">0</strong></div>
-              <div class="float-box"><span>1 loja</span><strong id="float-kit">0</strong></div>
+              <div class="float-box"><span>Kit / 1 loja</span><strong id="float-kit">0</strong></div>
             </div>
           </div>
         </div>
 
         <div class="missing-card" style="margin-top:16px">
-          <h3>Itens faltantes para montar a próxima loja</h3>
+          <h3>Itens faltantes para completar a premissa de 10 lojas</h3>
           <div id="missing-grid" class="missing-grid"></div>
         </div>
 
@@ -138,7 +138,7 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:0 0 12px}foot
           <h3>Legenda</h3>
           <div class="legend-row">
             <span><i class="legend-dot" style="background:var(--ok)"></i> item com estoque suficiente em Expansão</span>
-            <span><i class="legend-dot" style="background:var(--danger)"></i> item faltando para montar 1 loja</span>
+            <span><i class="legend-dot" style="background:var(--danger)"></i> item faltando para completar a meta de 10 lojas</span>
             <span><i class="legend-dot" style="background:var(--accent)"></i> foco visual selecionado</span>
           </div>
         </div>
@@ -169,6 +169,7 @@ const zoneMeta = {
 };
 
 const zoneOrder = ['pdv','balcao','prateleiras','rede','apoio'];
+const META_LOJAS_EXPANSAO = 10;
 let kitPadrao = [];
 let itensEstoque = [];
 
@@ -228,23 +229,21 @@ function calcularSimulacao(){
   const requisitos = kitPadrao.map(k=>{
     const necessario = Math.max(1, Number(k.quantidade)||1);
     const disponivel = estoqueExpansaoDisponivelParaKit(k);
-    return { ...k, necessario, disponivel, lojas: Math.floor(disponivel/necessario) };
+    const alvo = necessario * META_LOJAS_EXPANSAO;
+    return { ...k, necessario, disponivel, alvo, lojas: Math.floor(disponivel/necessario), faltam: Math.max(0, alvo-disponivel) };
   });
   const lojas = requisitos.length ? Math.min(...requisitos.map(r=>r.lojas)) : 0;
-  const proxima = lojas + 1;
-  const faltantes = requisitos.map(r=>({
-    ...r,
-    faltam: Math.max(0, r.necessario * proxima - r.disponivel)
-  })).filter(r=>r.faltam>0).sort((a,b)=> b.faltam-a.faltam || compararCodigosNaturais(a.codigo,b.codigo));
-  return { requisitos, lojas, proxima, faltantes };
+  const faltantes = requisitos.filter(r=>r.faltam>0).sort((a,b)=> b.faltam-a.faltam || compararCodigosNaturais(a.codigo,b.codigo));
+  return { requisitos, lojas, meta:META_LOJAS_EXPANSAO, lotePronto:requisitos.length>0&&faltantes.length===0, faltantes };
 }
 function htmlItem(k){
   const necessario = Math.max(1, Number(k.quantidade)||1);
+  const alvo = necessario * META_LOJAS_EXPANSAO;
   const disponivel = estoqueExpansaoDisponivelParaKit(k);
-  const faltam = Math.max(0, necessario-disponivel);
+  const faltam = Math.max(0, alvo-disponivel);
   const cls = faltam>0 ? 'fail' : 'ok';
   const codigo = k.codigo ? `Cód. ${escapeHtml(k.codigo)} · ` : '';
-  return `<div class="item ${cls}"><div class="icon">${iconeEquipamento(k.descricao)}</div><div class="name">${escapeHtml(k.descricao)}</div><div class="meta">${codigo}kit ${necessario} · exp ${disponivel}${faltam>0 ? ` · faltam ${faltam}` : ''}</div><div class="badge">x${necessario}</div></div>`;
+  return `<div class="item ${cls}"><div class="icon">${iconeEquipamento(k.descricao)}</div><div class="name">${escapeHtml(k.descricao)}</div><div class="meta">${codigo}${necessario}/loja · meta ${META_LOJAS_EXPANSAO}: ${alvo} · exp ${disponivel}${faltam>0 ? ` · faltam ${faltam}` : ' · meta atendida'}</div><div class="badge">x${necessario}/loja</div></div>`;
 }
 function escapeHtml(s){return String(s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
 
@@ -255,7 +254,7 @@ function render(){
   sim.requisitos.forEach(k=>{
     totalUnidades += k.necessario;
     expansaoTotal += k.disponivel;
-    if(k.disponivel >= k.necessario) atendidos++; else faltantes++;
+    if(k.disponivel >= k.alvo) atendidos++; else faltantes++;
     const z = zonaEquipamento(k);
     (zonas[z]||zonas.balcao).push(k);
   });
@@ -271,9 +270,9 @@ function render(){
   document.getElementById('float-kit').textContent = totalUnidades;
 
   const faltasPorZona={pdv:0,balcao:0,prateleiras:0,rede:0,apoio:0};
-  sim.requisitos.forEach(k=>{if(k.disponivel<k.necessario){const z=zonaEquipamento(k);faltasPorZona[z]=(faltasPorZona[z]||0)+1;}});
+  sim.requisitos.forEach(k=>{if(k.disponivel<k.alvo){const z=zonaEquipamento(k);faltasPorZona[z]=(faltasPorZona[z]||0)+1;}});
   document.querySelectorAll('.hotspot').forEach(h=>{const z=h.dataset.view;const n=faltasPorZona[z]||0;h.classList.toggle('tem-falta',n>0);if(n>0)h.dataset.faltas=n;else h.removeAttribute('data-faltas');});
-  const ttFalta=sim.requisitos.some(k=>(normalizarTexto(k.descricao).includes('tira teima')||normalizarTexto(k.descricao).includes('tira-teima'))&&k.disponivel<k.necessario);
+  const ttFalta=sim.requisitos.some(k=>(normalizarTexto(k.descricao).includes('tira teima')||normalizarTexto(k.descricao).includes('tira-teima'))&&k.disponivel<k.alvo);
   document.querySelectorAll('.tira-teima-device').forEach(h=>{h.classList.toggle('tem-falta',ttFalta);if(ttFalta)h.dataset.faltas='1';else h.removeAttribute('data-faltas');});
 
   const zoneList = document.getElementById('zone-list');
@@ -290,9 +289,9 @@ function render(){
 
   const missingGrid = document.getElementById('missing-grid');
   if(!sim.faltantes.length){
-    missingGrid.innerHTML = '<div class="empty" style="grid-column:1/-1">Nenhum item faltante para a próxima loja.</div>';
+    missingGrid.innerHTML = `<div class="empty" style="grid-column:1/-1">Premissa atendida: nenhum item faltante para o lote padrão de ${META_LOJAS_EXPANSAO} lojas.</div>`;
   } else {
-    missingGrid.innerHTML = sim.faltantes.map(f=>`<div class="missing-item"><strong>${f.codigo ? escapeHtml(f.codigo)+' — ' : ''}${escapeHtml(f.descricao)}</strong><span>Necessário p/ loja ${sim.proxima}: ${f.necessario * sim.proxima}</span><span>Disponível em Expansão: ${f.disponivel}</span><span><strong style="color:var(--danger)">Faltam ${f.faltam}</strong></span></div>`).join('');
+    missingGrid.innerHTML = sim.faltantes.map(f=>`<div class="missing-item"><strong>${f.codigo ? escapeHtml(f.codigo)+' — ' : ''}${escapeHtml(f.descricao)}</strong><span>Necessário p/ ${META_LOJAS_EXPANSAO} lojas: ${f.alvo}</span><span>Disponível em Expansão: ${f.disponivel}</span><span><strong style="color:var(--danger)">Faltam ${f.faltam}</strong></span></div>`).join('');
   }
   marcarViewAtual(document.getElementById('stage').dataset.view || 'entrada');
 }
