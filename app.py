@@ -1293,19 +1293,23 @@ def api_atualizar_filial(filial_id):
 @manager_required
 def api_excluir_filial(filial_id):
     filial = db.buscar_filial_por_id(filial_id)
-    ok, referencias = db.excluir_filial(filial_id)
-    if referencias:
-        return jsonify({"erro": f"Esta filial está vinculada a {referencias} equipamento(s). Inative a filial em vez de excluir."}), 409
-    if ok and filial:
+    if not filial:
+        return jsonify({"erro": "Filial não encontrada."}), 404
+    ok, referencias = db.excluir_filial(filial_id, desvincular_equipamentos=True)
+    if ok:
+        detalhe = f"Filial {filial.get('codigo') or filial_id} excluída do cadastro."
+        if referencias:
+            detalhe += f" {referencias} equipamento(s) foram preservados e tiveram apenas o vínculo de filial removido."
         db.registrar_movimentacao(
             0,
             "exclusao_filial",
             "1",
             session.get("username"),
-            f"Filial {filial.get('codigo') or filial_id} excluída do cadastro.",
+            detalhe,
             tabela="sistema",
         )
-    return (jsonify({"ok": True}) if ok else (jsonify({"erro": "Filial não encontrada."}), 404))
+        return jsonify({"ok": True, "desvinculados": referencias})
+    return jsonify({"erro": "Não foi possível excluir a filial."}), 500
 
 
 @app.route("/api/filiais/excluir-em-lote", methods=["POST"])
@@ -1337,16 +1341,13 @@ def api_excluir_filiais_em_lote():
         if not filial:
             nao_encontradas.append(filial_id)
             continue
-        ok, referencias = db.excluir_filial(filial_id)
-        if referencias:
-            bloqueadas.append({
+        ok, referencias = db.excluir_filial(filial_id, desvincular_equipamentos=True)
+        if ok:
+            excluidas.append({
                 "id": filial_id,
                 "codigo": filial.get("codigo") or str(filial_id),
-                "referencias": referencias,
+                "desvinculados": referencias,
             })
-            continue
-        if ok:
-            excluidas.append({"id": filial_id, "codigo": filial.get("codigo") or str(filial_id)})
 
     if excluidas:
         codigos = ", ".join(str(x["codigo"]) for x in excluidas[:20])
@@ -1356,7 +1357,8 @@ def api_excluir_filiais_em_lote():
             "exclusao_filiais_lote",
             str(len(excluidas)),
             session.get("username"),
-            f"Exclusão em lote de {len(excluidas)} filial(is): {codigos}{complemento}.",
+            f"Exclusão em lote de {len(excluidas)} filial(is): {codigos}{complemento}. "
+            f"Equipamentos preservados/desvinculados: {sum(int(x.get('desvinculados') or 0) for x in excluidas)}.",
             tabela="sistema",
         )
 

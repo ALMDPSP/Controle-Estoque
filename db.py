@@ -1126,16 +1126,36 @@ def contar_referencias_filial(codigo):
     b = cur.fetchone()[0]
     cur.close(); conn.close(); return int(a or 0) + int(b or 0)
 
-def excluir_filial(filial_id):
+def excluir_filial(filial_id, desvincular_equipamentos=False):
+    """Exclui uma filial sem apagar equipamentos.
+
+    Quando ``desvincular_equipamentos`` for True, equipamentos de Estoque e
+    Imobilizados que apontam para o código da filial permanecem cadastrados,
+    mas o campo ``filial_destino`` é limpo antes da exclusão. A operação é
+    feita na mesma transação para evitar ficar pela metade.
+    """
     filial = buscar_filial_por_id(filial_id)
     if not filial:
         return False, 0
-    refs = contar_referencias_filial(filial.get("codigo"))
-    if refs:
+    codigo = str(filial.get("codigo") or "").strip()
+    refs = contar_referencias_filial(codigo)
+    if refs and not desvincular_equipamentos:
         return False, refs
+
     conn = get_conn(); cur = get_cursor(conn)
-    cur.execute(q("DELETE FROM filiais WHERE id = ?"), (filial_id,))
-    ok = cur.rowcount > 0; conn.commit(); cur.close(); conn.close(); return ok, 0
+    try:
+        if refs and desvincular_equipamentos:
+            cur.execute(q("UPDATE itens SET filial_destino = NULL WHERE filial_destino = ?"), (codigo,))
+            cur.execute(q("UPDATE imobilizados SET filial_destino = NULL WHERE filial_destino = ?"), (codigo,))
+        cur.execute(q("DELETE FROM filiais WHERE id = ?"), (filial_id,))
+        ok = cur.rowcount > 0
+        conn.commit()
+        return ok, refs if ok else 0
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        cur.close(); conn.close()
 
 
 # ---------------------------------------------------------------------
