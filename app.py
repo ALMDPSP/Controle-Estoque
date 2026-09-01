@@ -1036,16 +1036,13 @@ def _texto_celula_excel_filial(celula):
 def _cabecalho_filial_normalizado(valor):
     s = unicodedata.normalize("NFD", str(valor or ""))
     s = "".join(ch for ch in s if unicodedata.category(ch) != "Mn")
-    # Remove pontuação e separadores para aceitar cabeçalhos como
-    # "Nome / identificação", exatamente como no Excel exportado pelo sistema.
-    s = "".join(ch if ch.isalnum() else " " for ch in s.lower())
-    s = " ".join(s.split())
+    s = " ".join(s.lower().replace("_", " ").replace("-", " ").split())
     aliases = {
         "codigo": {
             "codigo", "codigo filial", "codigo da filial", "codigo loja", "codigo da loja",
-            "numero loja", "numero da loja", "n loja", "loja", "filial",
+            "numero loja", "numero da loja", "n loja", "nº loja", "loja", "filial",
         },
-        "nome": {"nome", "nome identificacao", "nome filial", "nome da filial", "identificacao", "descricao", "descricao filial"},
+        "nome": {"nome", "nome filial", "nome da filial", "identificacao", "descricao", "descricao filial"},
         "cidade": {"cidade", "municipio"},
         "uf": {"uf", "estado", "sigla uf"},
         "bandeira": {"bandeira", "marca", "rede"},
@@ -1292,80 +1289,10 @@ def api_atualizar_filial(filial_id):
 @app.route("/api/filiais/<int:filial_id>", methods=["DELETE"])
 @manager_required
 def api_excluir_filial(filial_id):
-    filial = db.buscar_filial_por_id(filial_id)
-    if not filial:
-        return jsonify({"erro": "Filial não encontrada."}), 404
-    try:
-        ok, referencias = db.excluir_filial(filial_id, desvincular_equipamentos=True)
-    except Exception as exc:
-        app.logger.exception("Erro ao excluir filial %s", filial_id)
-        return jsonify({"erro": "Não foi possível excluir a filial no banco de dados.", "detalhe": str(exc) if app.debug else None}), 500
-    if ok:
-        detalhe = f"Filial {filial.get('codigo') or filial_id} excluída do cadastro."
-        if referencias:
-            detalhe += f" {referencias} equipamento(s) foram preservados e tiveram apenas o vínculo de filial removido."
-        db.registrar_movimentacao(
-            0,
-            "exclusao_filial",
-            "1",
-            session.get("username"),
-            detalhe,
-            tabela="sistema",
-        )
-        return jsonify({"ok": True, "desvinculados": referencias})
-    return jsonify({"erro": "Não foi possível excluir a filial."}), 500
-
-
-@app.route("/api/filiais/excluir-em-lote", methods=["POST"])
-@manager_required
-def api_excluir_filiais_em_lote():
-    dados = request.get_json(silent=True) or {}
-    ids_recebidos = dados.get("ids") or []
-    if not isinstance(ids_recebidos, list) or not ids_recebidos:
-        return jsonify({"erro": "Selecione ao menos uma filial para excluir."}), 400
-
-    ids = []
-    for valor in ids_recebidos:
-        try:
-            filial_id = int(valor)
-        except (TypeError, ValueError):
-            continue
-        if filial_id > 0 and filial_id not in ids:
-            ids.append(filial_id)
-    if not ids:
-        return jsonify({"erro": "Nenhuma filial válida foi selecionada."}), 400
-    if len(ids) > 1000:
-        return jsonify({"erro": "Selecione no máximo 1000 filiais por operação."}), 400
-
-    try:
-        excluidas, nao_encontradas = db.excluir_filiais_em_lote(ids, desvincular_equipamentos=True)
-    except Exception as exc:
-        app.logger.exception("Erro ao excluir filiais em lote")
-        return jsonify({
-            "erro": "Não foi possível concluir a exclusão das filiais no banco de dados.",
-            "detalhe": str(exc) if app.debug else None,
-        }), 500
-
-    bloqueadas = []
-    if excluidas:
-        codigos = ", ".join(str(x["codigo"]) for x in excluidas[:20])
-        complemento = "" if len(excluidas) <= 20 else f" e mais {len(excluidas) - 20} filial(is)"
-        db.registrar_movimentacao(
-            0,
-            "exclusao_filiais_lote",
-            str(len(excluidas)),
-            session.get("username"),
-            f"Exclusão em lote de {len(excluidas)} filial(is): {codigos}{complemento}. "
-            f"Equipamentos preservados/desvinculados: {sum(int(x.get('desvinculados') or 0) for x in excluidas)}.",
-            tabela="sistema",
-        )
-
-    return jsonify({
-        "ok": True,
-        "excluidas": excluidas,
-        "bloqueadas": bloqueadas,
-        "nao_encontradas": nao_encontradas,
-    })
+    ok, referencias = db.excluir_filial(filial_id)
+    if referencias:
+        return jsonify({"erro": f"Esta filial está vinculada a {referencias} equipamento(s). Inative a filial em vez de excluir."}), 409
+    return (jsonify({"ok": True}) if ok else (jsonify({"erro": "Filial não encontrada."}), 404))
 
 
 @app.route("/api/produtos", methods=["GET"])
