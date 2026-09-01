@@ -46,7 +46,7 @@ from reportlab.pdfgen import canvas
 import db
 
 app = Flask(__name__)
-APP_BUILD = "2026-09-01-footer-projecao-v9"
+APP_BUILD = "2026-09-01-mapa-brasil-fundo-v10"
 app.secret_key = os.environ.get("SECRET_KEY", "troque-esta-chave-em-producao")
 app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
@@ -423,19 +423,16 @@ STATUS_FILIAL_ROTULOS = {
 
 
 def _cor_estado_pdf(estado):
-    total = int(estado.get("total") or 0)
-    dsp = int(estado.get("dsp") or 0)
-    dpa = int(estado.get("dpa") or 0)
-    if total <= 0:
-        return colors.HexColor("#252D38"), None
-    conhecidos = dsp + dpa
-    if conhecidos <= 0:
-        return colors.HexColor("#657083"), None
-    if dsp > 0 and dpa == 0:
-        return colors.HexColor("#3EA6FF"), None
-    if dpa > 0 and dsp == 0:
-        return colors.HexColor("#EF5260"), None
-    return colors.HexColor("#3EA6FF"), colors.HexColor("#EF5260")
+    ativa = int(estado.get("ativa") or 0)
+    inaugurar = int(estado.get("inaugurar") or 0)
+    total_visivel = ativa + inaugurar
+    if total_visivel <= 0:
+        return colors.HexColor("#3B4653"), None
+    if ativa > 0 and inaugurar == 0:
+        return colors.HexColor("#33C27F"), None
+    if inaugurar > 0 and ativa == 0:
+        return colors.HexColor("#2A8DFF"), None
+    return colors.HexColor("#33C27F"), colors.HexColor("#2A8DFF")
 
 
 def _draw_round_label(pdf, x, y, w, h, title, value, fill="#1A2029", value_color="#FFFFFF"):
@@ -586,7 +583,7 @@ def _gerar_pdf_projecao_lojas(dados):
     direita_x = esquerda_x + mapa_w + 10
     direita_w = larg - margem - direita_x
 
-    _draw_pdf_panel(pdf, esquerda_x, mapa_y, mapa_w, mapa_h, "Mapa executivo do Brasil", "Distribuição visual das lojas por estado e bandeira")
+    _draw_pdf_panel(pdf, esquerda_x, mapa_y, mapa_w, mapa_h, "Mapa executivo do Brasil", "Mapa do Brasil com lojas ativas e a inaugurar")
     _draw_pdf_panel(pdf, direita_x, mapa_y + mapa_h - 74, direita_w, 74, "Resumo executivo", "Principais números nacionais")
     _draw_pdf_panel(pdf, direita_x, mapa_y + 108, direita_w, mapa_h - 188, "Top estados", "Ranking por total de lojas")
     _draw_pdf_panel(pdf, direita_x, mapa_y, direita_w, 98, "Composição nacional", "Participação por status e bandeira")
@@ -637,7 +634,7 @@ def _gerar_pdf_projecao_lojas(dados):
     # map legend
     leg_y = inner_y + 10
     leg_x = inner_x + 10
-    legend = [("DSP", "#3EA6FF"), ("DPA", "#EF5260"), ("Misto", "#8F63FF"), ("Sem lojas", "#657083")]
+    legend = [("Ativas", "#33C27F"), ("A inaugurar", "#2A8DFF"), ("Ativas + inaugurar", "#8F63FF"), ("Sem operação", "#657083")]
     for i,(txt,cor) in enumerate(legend):
         yy = leg_y + i * 14
         pdf.setFillColor(colors.HexColor(cor))
@@ -651,8 +648,8 @@ def _gerar_pdf_projecao_lojas(dados):
     resumo_y = mapa_y + mapa_h - 92
     resumo = [
         ("Estados com lojas", total_estados),
-        ("Lojas em operação", int(totais.get("ativa",0)) + int(totais.get("inaugurar",0))),
-        ("Sem bandeira", totais.get("sem_bandeira",0)),
+        ("Lojas ativas", totais.get("ativa",0)),
+        ("A inaugurar", totais.get("inaugurar",0)),
         ("Lojas inativas", totais.get("inativa",0)),
     ]
     row_y = resumo_y
@@ -714,7 +711,7 @@ def _gerar_pdf_projecao_lojas(dados):
     pdf.roundRect(margem, note_y - 18, largura_util, 14, 7, stroke=0, fill=1)
     pdf.setFillColor(colors.HexColor("#DDEBFA"))
     pdf.setFont("Helvetica-Bold", 8)
-    insight = f"Destaque: {top_estado.get('estado')} ({top_estado.get('uf')}) lidera com {int(top_estado.get('total') or 0)} loja(s)." if top_estado else "Destaque: sem dados suficientes para gerar insights."
+    insight = f"Destaque: {top_estado.get('estado')} ({top_estado.get('uf')}) lidera com A {int(top_estado.get('ativa') or 0)} e I {int(top_estado.get('inaugurar') or 0)}." if top_estado else "Destaque: sem dados suficientes para gerar insights."
     pdf.drawString(margem + 10, note_y - 8, insight)
 
     pdf.setFillColor(colors.HexColor("#8694A6"))
@@ -730,7 +727,7 @@ def _gerar_pdf_projecao_lojas(dados):
     pdf.drawString(margem, alt - margem, "Projeção detalhada por estado")
     pdf.setFillColor(colors.HexColor("#A8B5C3"))
     pdf.setFont("Helvetica", 9)
-    pdf.drawString(margem, alt - margem - 14, "Base consolidada para análise operacional e planejamento de abertura.")
+    pdf.drawString(margem, alt - margem - 14, "Base consolidada para análise das lojas ativas e inaugurações planejadas por estado.")
     pdf.drawRightString(larg - margem, alt - margem - 14, f"Gerado em {hoje}")
 
     # summary strip page 2
