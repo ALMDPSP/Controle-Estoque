@@ -1014,6 +1014,232 @@ def api_listar_filiais():
     return jsonify(db.listar_filiais(incluir_inativas=incluir_inativas))
 
 
+def _texto_celula_excel_filial(celula):
+    """Converte a célula para texto, preservando zeros à esquerda quando possível."""
+    valor = celula.value
+    if valor is None:
+        return ""
+    if isinstance(valor, bool):
+        return "1" if valor else "0"
+    if isinstance(valor, (int, float)) and not isinstance(valor, bool):
+        fmt = str(celula.number_format or "")
+        # Formatos como 0000 / 000000 preservam o código visual da loja.
+        if isinstance(valor, int) or (isinstance(valor, float) and valor.is_integer()):
+            inteiro = int(valor)
+            apenas_zeros = fmt.replace(";", "").replace("@", "").strip()
+            if apenas_zeros and set(apenas_zeros) <= {"0"}:
+                return str(inteiro).zfill(len(apenas_zeros))
+            return str(inteiro)
+    return str(valor).strip()
+
+
+def _cabecalho_filial_normalizado(valor):
+    s = unicodedata.normalize("NFD", str(valor or ""))
+    s = "".join(ch for ch in s if unicodedata.category(ch) != "Mn")
+    s = " ".join(s.lower().replace("_", " ").replace("-", " ").split())
+    aliases = {
+        "codigo": {
+            "codigo", "codigo filial", "codigo da filial", "codigo loja", "codigo da loja",
+            "numero loja", "numero da loja", "n loja", "nº loja", "loja", "filial",
+        },
+        "nome": {"nome", "nome filial", "nome da filial", "identificacao", "descricao", "descricao filial"},
+        "cidade": {"cidade", "municipio"},
+        "uf": {"uf", "estado", "sigla uf"},
+        "bandeira": {"bandeira", "marca", "rede"},
+        "status": {"status", "situacao", "situacao da loja", "ativo"},
+    }
+    for campo, nomes in aliases.items():
+        if s in nomes:
+            return campo
+    return None
+
+
+def _status_filial_importacao(valor, atual=None):
+    s = unicodedata.normalize("NFD", str(valor or "")).encode("ascii", "ignore").decode("ascii").strip().lower()
+    if not s:
+        return str(atual if atual is not None else "1")
+    mapa = {
+        "1": "1", "ativa": "1", "ativo": "1", "sim": "1", "true": "1",
+        "0": "0", "inativa": "0", "inativo": "0", "nao": "0", "false": "0",
+        "inaugurar": "inaugurar", "a inaugurar": "inaugurar", "inauguracao": "inaugurar",
+        "pendente": "pendente", "pendencia": "pendente",
+    }
+    return mapa.get(s)
+
+
+@app.route("/export-filiais")
+@login_required
+def exportar_filiais_excel():
+    filiais = db.listar_filiais(incluir_inativas=True)
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Filiais"
+    headers = ["Código da filial", "Nome / identificação", "Cidade", "UF", "Bandeira", "Status"]
+    ws.append(headers)
+    status_rotulos = {"1": "Ativa", "0": "Inativa", "inaugurar": "Inaugurar", "pendente": "Pendente"}
+    for f in filiais:
+        ws.append([
+            str(f.get("codigo") or ""), f.get("nome") or "", f.get("cidade") or "",
+            str(f.get("uf") or "").upper(), str(f.get("bandeira") or "").upper(),
+            status_rotulos.get(str(f.get("ativo") or ""), str(f.get("ativo") or "")),
+        ])
+
+    cor_header = PatternFill("solid", fgColor="1F4E78")
+    for c in ws[1]:
+        c.font = Font(bold=True, color="FFFFFF")
+        c.fill = cor_header
+        c.alignment = Alignment(horizontal="center", vertical="center")
+    ws.freeze_panes = "A2"
+    ws.auto_filter.ref = f"A1:F{max(1, ws.max_row)}"
+    larguras = [20, 34, 24, 10, 14, 16]
+    for idx, largura in enumerate(larguras, start=1):
+        ws.column_dimensions[get_column_letter(idx)].width = largura
+    for row in ws.iter_rows(min_row=2, max_col=6):
+        row[0].number_format = "@"
+        row[3].alignment = Alignment(horizontal="center")
+        row[4].alignment = Alignment(horizontal="center")
+        row[5].alignment = Alignment(horizontal="center")
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    return send_file(
+        buf,
+        as_attachment=True,
+        download_name=f"filiais_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx",
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+
+
+@app.route("/api/filiais/importar", methods=["POST"])
+@manager_required
+def api_importar_filiais_excel():
+    arquivo = request.files.get("arquivo")
+    if not arquivo or not arquivo.filename:
+        return jsonify({"erro": "Selecione uma planilha Excel."}), 400
+    nome = arquivo.filename.lower()
+    if not (nome.endswith(".xlsx") or nome.endswith(".xlsm")):
+        return jsonify({"erro": "Use um arquivo .xlsx ou .xlsm."}), 400
+
+    try:
+        wb = load_workbook(arquivo, data_only=True, read_only=False)
+        ws = wb.active
+        if ws.max_row < 2:
+            return jsonify({"erro": "A planilha não possui dados para importar."}), 400
+
+        # Localiza o cabeçalho nas primeiras 10 linhas.
+        cab_row = None
+        mapa_colunas = {}
+        for r in range(1, min(ws.max_row, 10) + 1):
+            candidato = {}
+            for c in range(1, ws.max_column + 1):
+                campo = _cabecalho_filial_normalizado(ws.cell(r, c).value)
+                if campo and campo not in candidato:
+                    candidato[campo] = c
+            if "codigo" in candidato:
+                cab_row = r
+                mapa_colunas = candidato
+                break
+        if not cab_row:
+            return jsonify({
+                "erro": "Não encontrei a coluna de código da filial. Use a planilha baixada pela própria aba Filiais."
+            }), 400
+
+        criadas = atualizadas = sem_alteracao = ignoradas = 0
+        erros = []
+        vistos = set()
+        usuario = session.get("username")
+
+        for r in range(cab_row + 1, ws.max_row + 1):
+            def ler(campo):
+                col = mapa_colunas.get(campo)
+                return _texto_celula_excel_filial(ws.cell(r, col)) if col else ""
+
+            codigo = ler("codigo").strip()
+            if not codigo:
+                # Linha totalmente vazia não entra como erro.
+                conteudo = [ler(c) for c in ("nome", "cidade", "uf", "bandeira", "status")]
+                if any(conteudo):
+                    ignoradas += 1
+                    if len(erros) < 12:
+                        erros.append(f"Linha {r}: código da filial não informado.")
+                continue
+            if codigo in vistos:
+                ignoradas += 1
+                if len(erros) < 12:
+                    erros.append(f"Linha {r}: código {codigo} repetido na planilha.")
+                continue
+            vistos.add(codigo)
+
+            existente = db.buscar_filial_por_codigo(codigo)
+            nome_filial = ler("nome")
+            cidade = ler("cidade")
+            uf = ler("uf").upper().strip()
+            bandeira = ler("bandeira").upper().strip()
+            status_txt = ler("status")
+
+            if uf and (len(uf) != 2 or uf not in UF_NOMES):
+                ignoradas += 1
+                if len(erros) < 12:
+                    erros.append(f"Linha {r}: UF '{uf}' inválida para a filial {codigo}.")
+                continue
+            if bandeira and bandeira not in ("DSP", "DPA"):
+                ignoradas += 1
+                if len(erros) < 12:
+                    erros.append(f"Linha {r}: bandeira '{bandeira}' inválida para a filial {codigo}.")
+                continue
+
+            status = _status_filial_importacao(status_txt, existente.get("ativo") if existente else None)
+            if status is None:
+                ignoradas += 1
+                if len(erros) < 12:
+                    erros.append(f"Linha {r}: status '{status_txt}' inválido para a filial {codigo}.")
+                continue
+
+            if existente:
+                # Células vazias preservam o cadastro atual para evitar apagamento acidental.
+                novo_nome = nome_filial if nome_filial != "" else (existente.get("nome") or "")
+                nova_cidade = cidade if cidade != "" else (existente.get("cidade") or "")
+                nova_uf = uf if uf != "" else (existente.get("uf") or "")
+                nova_bandeira = bandeira if bandeira != "" else (existente.get("bandeira") or "")
+                mudou = any([
+                    str(existente.get("nome") or "") != novo_nome,
+                    str(existente.get("cidade") or "") != nova_cidade,
+                    str(existente.get("uf") or "").upper() != str(nova_uf).upper(),
+                    str(existente.get("bandeira") or "").upper() != str(nova_bandeira).upper(),
+                    str(existente.get("ativo") or "") != str(status),
+                ])
+                if mudou:
+                    db.atualizar_filial(existente["id"], codigo, novo_nome, nova_cidade, nova_uf, status, bandeira=nova_bandeira)
+                    atualizadas += 1
+                else:
+                    sem_alteracao += 1
+            else:
+                db.criar_filial(codigo, nome_filial, cidade, uf, status, usuario, bandeira=bandeira)
+                criadas += 1
+
+        if criadas or atualizadas:
+            db.registrar_movimentacao(
+                0,
+                "importacao_filiais",
+                str(criadas + atualizadas),
+                usuario,
+                f"Upload de filiais: {criadas} criada(s), {atualizadas} atualizada(s), {sem_alteracao} sem alteração e {ignoradas} ignorada(s).",
+                tabela="sistema",
+            )
+        return jsonify({
+            "ok": True,
+            "criadas": criadas,
+            "atualizadas": atualizadas,
+            "sem_alteracao": sem_alteracao,
+            "ignoradas": ignoradas,
+            "erros": erros,
+        })
+    except Exception as e:
+        print(f"[erro] Falha ao importar filiais: {e}")
+        return jsonify({"erro": "Não foi possível ler a planilha. Confirme se o arquivo é um Excel válido."}), 400
+
+
 @app.route("/api/filiais", methods=["POST"])
 @manager_required
 def api_criar_filial():
