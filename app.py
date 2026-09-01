@@ -46,7 +46,7 @@ from reportlab.pdfgen import canvas
 import db
 
 app = Flask(__name__)
-APP_BUILD = "2026-09-01-filiais-delete-stock-v4"
+APP_BUILD = "2026-09-01-projecao-map-pdf-v8"
 app.secret_key = os.environ.get("SECRET_KEY", "troque-esta-chave-em-producao")
 app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
@@ -501,210 +501,321 @@ def _draw_state_tile_pdf(pdf, x, y, estado, scale_x=1.0, scale_y=1.0):
     pdf.drawRightString(x + w - 5, y + 8, f"I {int(estado.get('inaugurar') or 0)}")
 
 
+def _draw_pdf_progress(pdf, x, y, w, h, value, max_value, color_hex, label, right_text):
+    pdf.setFillColor(colors.HexColor("#1C2734"))
+    pdf.roundRect(x, y, w, h, h/2.0, stroke=0, fill=1)
+    frac = 0 if max_value <= 0 else max(0, min(1, float(value) / float(max_value)))
+    fill_w = max(h, w * frac) if value > 0 else 0
+    if fill_w:
+        pdf.setFillColor(colors.HexColor(color_hex))
+        pdf.roundRect(x, y, fill_w, h, h/2.0, stroke=0, fill=1)
+    pdf.setFillColor(colors.HexColor("#B7C7D7"))
+    pdf.setFont("Helvetica", 8)
+    pdf.drawString(x, y + h + 4, label)
+    pdf.setFillColor(colors.white)
+    pdf.setFont("Helvetica-Bold", 8.5)
+    pdf.drawRightString(x + w, y + h + 4, right_text)
+
+
+def _draw_pdf_panel(pdf, x, y, w, h, title, subtitle=None):
+    pdf.setFillColor(colors.HexColor("#161F2A"))
+    pdf.setStrokeColor(colors.HexColor("#2C3746"))
+    pdf.roundRect(x, y, w, h, 12, stroke=1, fill=1)
+    pdf.setFillColor(colors.white)
+    pdf.setFont("Helvetica-Bold", 12)
+    pdf.drawString(x + 12, y + h - 18, title)
+    if subtitle:
+        pdf.setFillColor(colors.HexColor("#95A4B8"))
+        pdf.setFont("Helvetica", 8)
+        pdf.drawString(x + 12, y + h - 31, subtitle)
+
+
 def _gerar_pdf_projecao_lojas(dados):
-    estados = dados.get("estados") or []
+    estados = list(dados.get("estados") or [])
     totais = dados.get("totais") or {}
     buf = io.BytesIO()
     pdf = canvas.Canvas(buf, pagesize=landscape(A4))
     larg, alt = landscape(A4)
-    margem = 16 * mm
+    margem = 15 * mm
+    largura_util = larg - 2 * margem
+    hoje = datetime.now().strftime("%d/%m/%Y às %H:%M")
 
-    # Página 1
+    estados_com_lojas = [e for e in estados if int(e.get("total") or 0) > 0]
+    total_estados = len(estados_com_lojas)
+    top = sorted(estados_com_lojas, key=lambda e: (-int(e.get("total") or 0), e.get("estado") or ""))
+    top_estado = top[0] if top else None
+    max_total = max([int(e.get("total") or 0) for e in top] + [1])
+
     pdf.setTitle("Projecao de abertura e lojas")
-    pdf.setFillColor(colors.HexColor("#12181F"))
+    pdf.setFillColor(colors.HexColor("#101720"))
     pdf.rect(0, 0, larg, alt, stroke=0, fill=1)
+
+    # Header
+    pdf.setFillColor(colors.HexColor("#16314B"))
+    pdf.roundRect(margem, alt - margem - 18, 112, 16, 8, stroke=0, fill=1)
+    pdf.setFillColor(colors.HexColor("#7BC4FF"))
+    pdf.setFont("Helvetica-Bold", 8.5)
+    pdf.drawString(margem + 10, alt - margem - 12, "PROJECAO DE ABERTURA")
     pdf.setFillColor(colors.white)
-    pdf.setFont("Helvetica-Bold", 20)
-    pdf.drawString(margem, alt - margem, "Projeção de abertura e lojas")
+    pdf.setFont("Helvetica-Bold", 22)
+    pdf.drawString(margem, alt - margem - 38, "Projeção de abertura e lojas")
+    pdf.setFillColor(colors.HexColor("#A8B5C3"))
     pdf.setFont("Helvetica", 9)
-    pdf.setFillColor(colors.HexColor("#A9B3C0"))
-    pdf.drawString(margem, alt - margem - 14, "Resumo executivo com mapa por estado, bandeiras DSP/DPA e status das lojas.")
-    pdf.drawRightString(larg - margem, alt - margem - 14, datetime.now().strftime("Gerado em %d/%m/%Y às %H:%M"))
+    pdf.drawString(margem, alt - margem - 52, "Relatório executivo por estado com mapa, indicadores nacionais, ranking e tabela consolidada.")
+    pdf.drawRightString(larg - margem, alt - margem - 52, f"Gerado em {hoje}")
 
-    card_y = alt - margem - 62
-    card_w = (larg - 2 * margem - 5 * 8) / 6.0
-    labels = [
-        ("Total geral", totais.get("total_geral", 0), "#1A2029", "#FFFFFF"),
-        ("Lojas ativas", totais.get("ativa", 0), "#1A2029", "#4CD792"),
-        ("A inaugurar", totais.get("inaugurar", 0), "#1A2029", "#3EA6FF"),
-        ("Pendentes", totais.get("pendente", 0), "#1A2029", "#FFB648"),
-        ("DSP", totais.get("dsp", 0), "#1A2029", "#5EC0FF"),
-        ("DPA", totais.get("dpa", 0), "#1A2029", "#FF7C87"),
+    # KPI row
+    card_y = alt - margem - 100
+    gap = 7
+    card_w = (largura_util - gap * 5) / 6.0
+    kpis = [
+        ("Total geral", totais.get("total_geral", 0), "#FFFFFF"),
+        ("Lojas ativas", totais.get("ativa", 0), "#4CD792"),
+        ("A inaugurar", totais.get("inaugurar", 0), "#62C7FF"),
+        ("Pendentes", totais.get("pendente", 0), "#FFBE4C"),
+        ("DSP", totais.get("dsp", 0), "#62C7FF"),
+        ("DPA", totais.get("dpa", 0), "#FF7C87"),
     ]
-    for i, (t, v, fill, vc) in enumerate(labels):
-        _draw_round_label(pdf, margem + i * (card_w + 8), card_y, card_w, 42, t, v, fill, vc)
+    for i, (titulo, valor, cor) in enumerate(kpis):
+        _draw_round_label(pdf, margem + i * (card_w + gap), card_y, card_w, 43, titulo, valor, "#18222E", cor)
 
-    map_x = margem
-    map_y = margem + 12
-    map_w = 177 * mm
-    map_h = 110 * mm
-    side_x = map_x + map_w + 10
-    side_w = larg - margem - side_x
+    esquerda_x = margem
+    mapa_y = margem + 8
+    mapa_w = 182 * mm
+    mapa_h = 112 * mm
+    direita_x = esquerda_x + mapa_w + 10
+    direita_w = larg - margem - direita_x
 
-    pdf.setFillColor(colors.HexColor("#1A2029"))
-    pdf.setStrokeColor(colors.HexColor("#2B3444"))
-    pdf.roundRect(map_x, map_y, map_w, map_h, 12, stroke=1, fill=1)
-    pdf.setFillColor(colors.white)
-    pdf.setFont("Helvetica-Bold", 13)
-    pdf.drawString(map_x + 12, map_y + map_h - 20, "Mapa de presença por estado")
-    pdf.setFont("Helvetica", 8.5)
-    pdf.setFillColor(colors.HexColor("#96A1B2"))
-    pdf.drawString(map_x + 12, map_y + map_h - 33, "Cada UF mostra lojas ativas (A) e a inaugurar (I). DSP em azul e DPA em vermelho.")
+    _draw_pdf_panel(pdf, esquerda_x, mapa_y, mapa_w, mapa_h, "Mapa executivo do Brasil", "Distribuição visual das lojas por estado e bandeira")
+    _draw_pdf_panel(pdf, direita_x, mapa_y + mapa_h - 74, direita_w, 74, "Resumo executivo", "Principais números nacionais")
+    _draw_pdf_panel(pdf, direita_x, mapa_y + 108, direita_w, mapa_h - 188, "Top estados", "Ranking por total de lojas")
+    _draw_pdf_panel(pdf, direita_x, mapa_y, direita_w, 98, "Composição nacional", "Participação por status e bandeira")
 
-    # Silhueta decorativa do Brasil
-    pdf.setStrokeColor(colors.HexColor("#223245"))
-    pdf.setFillColor(colors.HexColor("#10161D"))
+    # Map background / decorative silhouette
+    inner_x = esquerda_x + 10
+    inner_y = mapa_y + 12
+    inner_w = mapa_w - 20
+    inner_h = mapa_h - 24
+    pdf.setFillColor(colors.HexColor("#0E1620"))
+    pdf.roundRect(inner_x, inner_y, inner_w, inner_h, 10, stroke=0, fill=1)
+    pdf.setStrokeColor(colors.HexColor("#25364A"))
+    pdf.setFillColor(colors.HexColor("#111B26"))
     p = pdf.beginPath()
     pts = [
-        (map_x + 55, map_y + 250), (map_x + 110, map_y + 305), (map_x + 205, map_y + 320),
-        (map_x + 260, map_y + 292), (map_x + 332, map_y + 300), (map_x + 388, map_y + 272),
-        (map_x + 417, map_y + 228), (map_x + 445, map_y + 212), (map_x + 470, map_y + 165),
-        (map_x + 447, map_y + 120), (map_x + 413, map_y + 102), (map_x + 390, map_y + 62),
-        (map_x + 337, map_y + 45), (map_x + 280, map_y + 28), (map_x + 242, map_y + 38),
-        (map_x + 208, map_y + 25), (map_x + 178, map_y + 55), (map_x + 142, map_y + 57),
-        (map_x + 118, map_y + 90), (map_x + 83, map_y + 104), (map_x + 72, map_y + 152),
-        (map_x + 55, map_y + 170),
+        (inner_x + 46, inner_y + 227), (inner_x + 102, inner_y + 280), (inner_x + 196, inner_y + 295),
+        (inner_x + 248, inner_y + 268), (inner_x + 321, inner_y + 279), (inner_x + 376, inner_y + 248),
+        (inner_x + 409, inner_y + 206), (inner_x + 437, inner_y + 189), (inner_x + 461, inner_y + 144),
+        (inner_x + 445, inner_y + 99), (inner_x + 410, inner_y + 79), (inner_x + 389, inner_y + 42),
+        (inner_x + 335, inner_y + 27), (inner_x + 282, inner_y + 13), (inner_x + 245, inner_y + 23),
+        (inner_x + 207, inner_y + 13), (inner_x + 176, inner_y + 43), (inner_x + 144, inner_y + 45),
+        (inner_x + 116, inner_y + 76), (inner_x + 77, inner_y + 90), (inner_x + 63, inner_y + 137),
+        (inner_x + 47, inner_y + 153),
     ]
     p.moveTo(*pts[0])
-    for pt in pts[1:]: p.lineTo(*pt)
+    for pt in pts[1:]:
+        p.lineTo(*pt)
     p.close()
     pdf.drawPath(p, stroke=1, fill=1)
+    pdf.setFillColor(colors.HexColor("#1A2E43"))
+    pdf.circle(inner_x + inner_w * 0.55, inner_y + inner_h * 0.52, 56, stroke=0, fill=1)
+    pdf.setFillColor(colors.HexColor("#133453"))
+    pdf.circle(inner_x + inner_w * 0.55, inner_y + inner_h * 0.52, 30, stroke=0, fill=1)
 
-    scale_x = (map_w - 80) / 760.0
-    scale_y = (map_h - 70) / 760.0
-    base_x = map_x + 20
-    base_y = map_y + 20
+    # State labels inside map
+    scale_x = (inner_w - 100) / 760.0
+    scale_y = (inner_h - 90) / 760.0
+    base_x = inner_x + 24
+    base_y = inner_y + 18
     for e in estados:
         pos = MAPA_UF_POS.get(e.get("uf"))
         if not pos:
             continue
         x = base_x + pos[0] * scale_x
         y = base_y + pos[1] * scale_y
-        _draw_state_tile_pdf(pdf, x, y, e, scale_x=max(0.72, scale_x * 1.02), scale_y=max(0.72, scale_y * 1.02))
+        _draw_state_tile_pdf(pdf, x, y, e, scale_x=max(0.76, scale_x * 1.0), scale_y=max(0.76, scale_y * 1.0))
 
-    pdf.setFillColor(colors.HexColor("#1A2029"))
-    pdf.setStrokeColor(colors.HexColor("#2B3444"))
-    pdf.roundRect(side_x, map_y, side_w, map_h, 12, stroke=1, fill=1)
-    pdf.setFillColor(colors.white)
-    pdf.setFont("Helvetica-Bold", 13)
-    pdf.drawString(side_x + 12, map_y + map_h - 20, "Resumo nacional")
-    _draw_store_icon(pdf, side_x + side_w - 56, map_y + map_h - 46, 1.05, "#3EA6FF")
-    _draw_store_icon(pdf, side_x + side_w - 31, map_y + map_h - 40, 0.78, "#EF5260")
+    # map legend
+    leg_y = inner_y + 10
+    leg_x = inner_x + 10
+    legend = [("DSP", "#3EA6FF"), ("DPA", "#EF5260"), ("Misto", "#8F63FF"), ("Sem lojas", "#657083")]
+    for i,(txt,cor) in enumerate(legend):
+        yy = leg_y + i * 14
+        pdf.setFillColor(colors.HexColor(cor))
+        pdf.circle(leg_x + 4, yy + 3, 3.2, stroke=0, fill=1)
+        pdf.setFillColor(colors.HexColor("#C8D8E7"))
+        pdf.setFont("Helvetica", 7.6)
+        pdf.drawString(leg_x + 12, yy, txt)
 
-    resumo_rows = [
+    # right panel summary
+    resumo_x = direita_x + 12
+    resumo_y = mapa_y + mapa_h - 92
+    resumo = [
+        ("Estados com lojas", total_estados),
         ("Lojas em operação", int(totais.get("ativa",0)) + int(totais.get("inaugurar",0))),
-        ("Estados com lojas", len([e for e in estados if int(e.get("total") or 0) > 0])),
         ("Sem bandeira", totais.get("sem_bandeira",0)),
         ("Lojas inativas", totais.get("inativa",0)),
     ]
-    yy = map_y + map_h - 52
-    for rot, val in resumo_rows:
-        pdf.setFillColor(colors.HexColor("#212934"))
-        pdf.roundRect(side_x + 12, yy - 16, side_w - 24, 22, 8, stroke=0, fill=1)
-        pdf.setFillColor(colors.HexColor("#9DABBC"))
-        pdf.setFont("Helvetica", 8.5)
-        pdf.drawString(side_x + 20, yy - 2, rot)
+    row_y = resumo_y
+    for rot, val in resumo:
+        pdf.setFillColor(colors.HexColor("#1D2834"))
+        pdf.roundRect(resumo_x, row_y, direita_w - 24, 15, 6, stroke=0, fill=1)
+        pdf.setFillColor(colors.HexColor("#AAC0D5"))
+        pdf.setFont("Helvetica", 8)
+        pdf.drawString(resumo_x + 8, row_y + 4.5, rot)
+        pdf.setFillColor(colors.white)
+        pdf.setFont("Helvetica-Bold", 9)
+        pdf.drawRightString(resumo_x + direita_w - 32, row_y + 4.5, str(val))
+        row_y -= 18
+
+    # top states section
+    bars_x = direita_x + 12
+    bars_y = mapa_y + 126
+    top8 = top[:8]
+    current_y = bars_y + (len(top8)-1)*20
+    for idx,e in enumerate(top8, start=1):
+        total = int(e.get("total") or 0)
+        _draw_pdf_progress(pdf, bars_x, current_y, direita_w - 74, 8, total, max_total, "#37A2FF", f"{idx}. {e.get('uf')} · {e.get('estado')}", f"{total} lojas")
+        current_y -= 20
+
+    # composition section
+    comp_x = direita_x + 12
+    comp_y = mapa_y + 12
+    total_status = max(1, int(totais.get("ativa",0)) + int(totais.get("inaugurar",0)) + int(totais.get("pendente",0)))
+    _draw_pdf_progress(pdf, comp_x, comp_y + 48, direita_w - 24, 10, totais.get("ativa",0), total_status, "#4CD792", "Ativas", str(totais.get("ativa",0)))
+    _draw_pdf_progress(pdf, comp_x, comp_y + 28, direita_w - 24, 10, totais.get("inaugurar",0), total_status, "#55C1FF", "A inaugurar", str(totais.get("inaugurar",0)))
+    _draw_pdf_progress(pdf, comp_x, comp_y + 8, direita_w - 24, 10, totais.get("pendente",0), total_status, "#A070FF", "Pendentes", str(totais.get("pendente",0)))
+    marcas_total = max(1, int(totais.get("dsp",0)) + int(totais.get("dpa",0)) + int(totais.get("sem_bandeira",0)))
+    bar_x = comp_x
+    bar_y = comp_y - 2
+    pdf.setFillColor(colors.HexColor("#1C2734"))
+    pdf.roundRect(bar_x, bar_y, direita_w - 24, 11, 5, stroke=0, fill=1)
+    usable = direita_w - 24
+    dsp_w = usable * (int(totais.get("dsp",0)) / marcas_total)
+    dpa_w = usable * (int(totais.get("dpa",0)) / marcas_total)
+    sem_w = max(0, usable - dsp_w - dpa_w)
+    if dsp_w > 0:
+        pdf.setFillColor(colors.HexColor("#3EA6FF"))
+        pdf.roundRect(bar_x, bar_y, dsp_w, 11, 5, stroke=0, fill=1)
+    if dpa_w > 0:
+        pdf.setFillColor(colors.HexColor("#EF5260"))
+        pdf.rect(bar_x + dsp_w, bar_y, dpa_w, 11, stroke=0, fill=1)
+    if sem_w > 0:
+        pdf.setFillColor(colors.HexColor("#657083"))
+        pdf.rect(bar_x + dsp_w + dpa_w, bar_y, sem_w, 11, stroke=0, fill=1)
+    pdf.setFillColor(colors.HexColor("#A9BACC"))
+    pdf.setFont("Helvetica", 7.5)
+    pdf.drawString(bar_x, bar_y - 9, f"DSP {totais.get('dsp',0)}")
+    pdf.drawCentredString(bar_x + usable/2, bar_y - 9, f"DPA {totais.get('dpa',0)}")
+    pdf.drawRightString(bar_x + usable, bar_y - 9, f"Sem bandeira {totais.get('sem_bandeira',0)}")
+
+    # Highlight note
+    note_y = alt - margem - 121
+    pdf.setFillColor(colors.HexColor("#17293D"))
+    pdf.roundRect(margem, note_y - 18, largura_util, 14, 7, stroke=0, fill=1)
+    pdf.setFillColor(colors.HexColor("#DDEBFA"))
+    pdf.setFont("Helvetica-Bold", 8)
+    insight = f"Destaque: {top_estado.get('estado')} ({top_estado.get('uf')}) lidera com {int(top_estado.get('total') or 0)} loja(s)." if top_estado else "Destaque: sem dados suficientes para gerar insights."
+    pdf.drawString(margem + 10, note_y - 8, insight)
+
+    pdf.setFillColor(colors.HexColor("#8694A6"))
+    pdf.setFont("Helvetica", 7.5)
+    pdf.drawString(margem, 12, "© 2026 · Developed by Alexandre Martins · Relatório executivo de projeção de lojas")
+
+    # Page 2
+    pdf.showPage()
+    pdf.setFillColor(colors.HexColor("#101720"))
+    pdf.rect(0, 0, larg, alt, stroke=0, fill=1)
+    pdf.setFillColor(colors.white)
+    pdf.setFont("Helvetica-Bold", 18)
+    pdf.drawString(margem, alt - margem, "Projeção detalhada por estado")
+    pdf.setFillColor(colors.HexColor("#A8B5C3"))
+    pdf.setFont("Helvetica", 9)
+    pdf.drawString(margem, alt - margem - 14, "Base consolidada para análise operacional e planejamento de abertura.")
+    pdf.drawRightString(larg - margem, alt - margem - 14, f"Gerado em {hoje}")
+
+    # summary strip page 2
+    strip_y = alt - margem - 48
+    strip_items = [
+        ("Estados com lojas", total_estados),
+        ("Total geral", totais.get("total_geral",0)),
+        ("Ativas", totais.get("ativa",0)),
+        ("A inaugurar", totais.get("inaugurar",0)),
+        ("Pendentes", totais.get("pendente",0)),
+    ]
+    sw = (largura_util - 4*6)/5.0
+    for i,(label,val) in enumerate(strip_items):
+        x = margem + i * (sw + 6)
+        pdf.setFillColor(colors.HexColor("#17222E"))
+        pdf.roundRect(x, strip_y, sw, 28, 8, stroke=0, fill=1)
+        pdf.setFillColor(colors.HexColor("#8FA5BA"))
+        pdf.setFont("Helvetica", 7)
+        pdf.drawString(x + 8, strip_y + 17, label.upper())
         pdf.setFillColor(colors.white)
         pdf.setFont("Helvetica-Bold", 11)
-        pdf.drawRightString(side_x + side_w - 20, yy - 2, str(val))
-        yy -= 28
+        pdf.drawString(x + 8, strip_y + 7, str(val))
 
-    total_marcas = max(1, int(totais.get("dsp",0)) + int(totais.get("dpa",0)) + int(totais.get("sem_bandeira",0)))
-    dsp_w = (side_w - 24) * (int(totais.get("dsp",0)) / total_marcas)
-    dpa_w = (side_w - 24) * (int(totais.get("dpa",0)) / total_marcas)
-    sem_w = max(0, (side_w - 24) - dsp_w - dpa_w)
-    bar_x = side_x + 12
-    bar_y = map_y + 84
-    pdf.setFillColor(colors.HexColor("#2E3948")); pdf.roundRect(bar_x, bar_y, side_w - 24, 12, 6, stroke=0, fill=1)
-    pdf.setFillColor(colors.HexColor("#3EA6FF")); pdf.roundRect(bar_x, bar_y, dsp_w, 12, 6, stroke=0, fill=1)
-    pdf.setFillColor(colors.HexColor("#EF5260")); pdf.rect(bar_x + dsp_w, bar_y, dpa_w, 12, stroke=0, fill=1)
-    pdf.setFillColor(colors.HexColor("#657083")); pdf.rect(bar_x + dsp_w + dpa_w, bar_y, sem_w, 12, stroke=0, fill=1)
-    pdf.setFont("Helvetica", 8)
-    pdf.setFillColor(colors.HexColor("#9DABBC"))
-    pdf.drawString(bar_x, bar_y - 10, f"DSP {totais.get('dsp',0)}")
-    pdf.drawCentredString(bar_x + (side_w - 24)/2, bar_y - 10, f"DPA {totais.get('dpa',0)}")
-    pdf.drawRightString(bar_x + side_w - 24, bar_y - 10, f"Sem bandeira {totais.get('sem_bandeira',0)}")
-
-    # top states
-    top = sorted(estados, key=lambda e: (-int(e.get('total') or 0), e.get('estado') or ''))[:6]
+    cols = [("UF", 24), ("Estado", 118), ("Ativas", 54), ("Inaugurar", 58), ("Pendentes", 58), ("DSP", 44), ("DPA", 44), ("Sem", 42), ("Total", 44)]
+    table_x = margem
+    table_y = strip_y - 24
+    row_h = 18
+    total_w = sum(w for _,w in cols)
+    pdf.setFillColor(colors.HexColor("#18314B"))
+    pdf.roundRect(table_x, table_y, total_w, row_h, 6, stroke=0, fill=1)
     pdf.setFillColor(colors.white)
-    pdf.setFont("Helvetica-Bold", 11)
-    pdf.drawString(side_x + 12, map_y + 64, "Estados com maior presença")
-    yy = map_y + 48
-    for e in top:
-        if int(e.get('total') or 0) <= 0:
-            continue
-        pdf.setFillColor(colors.HexColor("#212934"))
-        pdf.roundRect(side_x + 12, yy - 11, side_w - 24, 17, 6, stroke=0, fill=1)
-        pdf.setFillColor(colors.HexColor("#DDE4ED"))
-        pdf.setFont("Helvetica", 8)
-        pdf.drawString(side_x + 18, yy, f"{e.get('uf')} · {e.get('estado')}")
-        pdf.drawRightString(side_x + side_w - 18, yy, f"{int(e.get('total') or 0)} loja(s)")
-        yy -= 20
-
-    pdf.setFillColor(colors.HexColor("#8694A6"))
-    pdf.setFont("Helvetica", 7.5)
-    pdf.drawString(margem, 12, "© 2026 · Developed by Alexandre Martins · Relatório de projeção de lojas")
-
-    # Página 2 - tabela detalhada
-    pdf.showPage()
-    pdf.setFillColor(colors.white)
-    pdf.setStrokeColor(colors.white)
-    pdf.setFillColor(colors.HexColor("#12181F")); pdf.rect(0,0,larg,alt,stroke=0,fill=1)
-    pdf.setFillColor(colors.white)
-    pdf.setFont("Helvetica-Bold", 17)
-    pdf.drawString(margem, alt - margem, "Projeção detalhada por estado")
-    pdf.setFont("Helvetica", 9)
-    pdf.setFillColor(colors.HexColor("#A9B3C0"))
-    pdf.drawString(margem, alt - margem - 14, "Ativas, a inaugurar, pendentes e distribuição por bandeira.")
-
-    cols = [
-        ("UF", 26), ("Estado", 114), ("Ativas", 52), ("Inaugurar", 58), ("Pendentes", 56),
-        ("DSP", 42), ("DPA", 42), ("Sem", 42), ("Total", 42),
-    ]
-    x = margem; y = alt - margem - 40; row_h = 18
-    pdf.setFillColor(colors.HexColor("#1F4E78"))
-    pdf.roundRect(x, y, sum(w for _,w in cols), row_h, 5, stroke=0, fill=1)
-    pdf.setFillColor(colors.white); pdf.setFont("Helvetica-Bold", 8)
-    cx=x
-    for title,w in cols:
-        pdf.drawString(cx+4, y+6, title)
+    pdf.setFont("Helvetica-Bold", 8)
+    cx = table_x
+    for title, w in cols:
+        pdf.drawString(cx + 4, table_y + 6, title)
         cx += w
-    y -= row_h
-    pdf.setFont("Helvetica", 7.8)
+
+    y = table_y - row_h - 2
+    pdf.setFont("Helvetica", 8)
     alterna = False
-    for e in [e for e in estados if int(e.get('total') or 0) > 0 or int(e.get('inativa') or 0) > 0]:
+    linhas = [e for e in estados if int(e.get('total') or 0) > 0 or int(e.get('inativa') or 0) > 0]
+    for e in linhas:
         if y < margem + 24:
             pdf.showPage()
-            pdf.setFillColor(colors.HexColor("#12181F")); pdf.rect(0,0,larg,alt,stroke=0,fill=1)
-            pdf.setFillColor(colors.HexColor("#1F4E78"))
-            y = alt - margem
-            pdf.roundRect(x, y, sum(w for _,w in cols), row_h, 5, stroke=0, fill=1)
-            pdf.setFillColor(colors.white); pdf.setFont("Helvetica-Bold", 8)
-            cx=x
-            for title,w in cols:
-                pdf.drawString(cx+4, y+6, title)
+            pdf.setFillColor(colors.HexColor("#101720"))
+            pdf.rect(0, 0, larg, alt, stroke=0, fill=1)
+            pdf.setFillColor(colors.white)
+            pdf.setFont("Helvetica-Bold", 16)
+            pdf.drawString(margem, alt - margem, "Projeção detalhada por estado")
+            pdf.setFillColor(colors.HexColor("#18314B"))
+            y = alt - margem - 20
+            pdf.roundRect(table_x, y, total_w, row_h, 6, stroke=0, fill=1)
+            pdf.setFillColor(colors.white)
+            pdf.setFont("Helvetica-Bold", 8)
+            cx = table_x
+            for title, w in cols:
+                pdf.drawString(cx + 4, y + 6, title)
                 cx += w
-            y -= row_h
-            pdf.setFont("Helvetica", 7.8)
-        fill = "#1C2430" if alterna else "#18202A"
+            y -= row_h + 2
+            pdf.setFont("Helvetica", 8)
+        fill = "#18212C" if alterna else "#141D27"
         alterna = not alterna
         pdf.setFillColor(colors.HexColor(fill))
-        pdf.roundRect(x, y, sum(w for _,w in cols), row_h, 3, stroke=0, fill=1)
+        pdf.roundRect(table_x, y, total_w, row_h, 5, stroke=0, fill=1)
         vals = [e.get('uf'), e.get('estado'), e.get('ativa'), e.get('inaugurar'), e.get('pendente'), e.get('dsp'), e.get('dpa'), e.get('sem_bandeira'), e.get('total')]
-        cx=x
-        for idx, ((_,w), val) in enumerate(zip(cols, vals)):
-            pdf.setFillColor(colors.HexColor("#DDE4ED"))
-            if idx >= 2:
-                pdf.drawRightString(cx+w-4, y+6, str(val))
+        cx = table_x
+        for idx, ((_, w), val) in enumerate(zip(cols, vals)):
+            if idx == 2:
+                pdf.setFillColor(colors.HexColor("#63DBA6"))
+            elif idx == 5:
+                pdf.setFillColor(colors.HexColor("#62C7FF"))
+            elif idx == 6:
+                pdf.setFillColor(colors.HexColor("#FF7C87"))
             else:
-                pdf.drawString(cx+4, y+6, str(val))
+                pdf.setFillColor(colors.HexColor("#DDE4ED"))
+            if idx >= 2:
+                pdf.drawRightString(cx + w - 4, y + 6, str(val))
+            else:
+                pdf.drawString(cx + 4, y + 6, str(val))
             cx += w
         y -= row_h + 2
+
     pdf.setFillColor(colors.HexColor("#8694A6"))
     pdf.setFont("Helvetica", 7.5)
-    pdf.drawString(margem, 12, "Arquivo de dados: estoque.xlsx · Projeção baseada na aba Filiais")
-
+    pdf.drawString(margem, 12, "Arquivo de dados: estoque.xlsx · Relatório alimentado pela aba Filiais")
     pdf.save(); buf.seek(0)
     return buf
 
