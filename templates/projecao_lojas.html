@@ -61,6 +61,15 @@ main{padding:24px 32px 50px;max-width:1640px;margin:auto}
 @media(max-width:1440px){.layout{grid-template-columns:280px minmax(560px,1fr) 315px}}
 @media(max-width:1240px){.kpis{grid-template-columns:repeat(3,1fr)}.layout{grid-template-columns:1fr}.side-left,.side-right{grid-template-columns:1fr 1fr}.side-left .ranking-card,.side-right .distribution-card{grid-column:1/-1}.map-card{min-height:680px}#br-map{height:680px}}
 @media(max-width:780px){header,main{padding-left:16px;padding-right:16px}.kpis{grid-template-columns:repeat(2,1fr)}.head-actions{width:100%}.head-actions a,.head-actions button{flex:1;text-align:center}.side-left,.side-right{grid-template-columns:1fr}.side-left .ranking-card,.side-right .distribution-card{grid-column:auto}.map-head{position:relative;left:auto;top:auto;right:auto;pointer-events:auto;display:grid;padding:10px}.map-card{padding-top:0}.map-pills{display:grid;grid-template-columns:1fr 1fr}.map-title{width:100%}.map-tools{display:grid;grid-template-columns:1fr 1fr}.donut-wrap{grid-template-columns:1fr}.donut{margin:auto}#br-map{height:540px}}
+
+.fallback-svg{width:100%;height:100%;display:block;background:radial-gradient(circle at 50% 42%,rgba(44,124,194,.18),transparent 35%),linear-gradient(180deg,#0c2943,#071522)}
+.fallback-state{stroke:#e6f2ff;stroke-width:1.25;vector-effect:non-scaling-stroke;cursor:pointer;transition:opacity .18s ease,filter .18s ease,stroke-width .18s ease}
+.fallback-state:hover,.fallback-state.active{filter:brightness(1.18) drop-shadow(0 0 6px rgba(255,255,255,.18));stroke:#fff;stroke-width:2.1}
+.fallback-state.muted{opacity:.22}
+.fallback-label{pointer-events:none;text-anchor:middle;dominant-baseline:middle;font-family:Consolas,monospace;fill:#fff;font-weight:800;font-size:13px;paint-order:stroke;stroke:#071522;stroke-width:3px;stroke-linejoin:round}
+.fallback-ai{pointer-events:none;text-anchor:middle;font-family:Consolas,monospace;fill:#dbeeff;font-weight:700;font-size:9px;paint-order:stroke;stroke:#071522;stroke-width:2px}
+.fallback-note{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);z-index:5;background:rgba(5,17,29,.82);border:1px solid rgba(67,106,138,.54);border-radius:999px;padding:7px 11px;color:#a7bdd0;font-size:9px;white-space:nowrap}
+
 @media print{.app-menu,.head-actions,.leaflet-control-container{display:none!important}body{background:#fff;color:#111}.card,.kpi{box-shadow:none!important;border:1px solid #ccc;background:#fff!important;color:#111!important}#br-map{background:#f4f6f8!important}.layout{grid-template-columns:1fr}.table-wrap{max-height:none;overflow:visible}.updated,.legend-row,.tip,.card-sub,header p,.kpi small{color:#666!important}}
   </style>
 </head>
@@ -194,11 +203,16 @@ main{padding:24px 32px 50px;max-width:1640px;margin:auto}
 {% include '_footer.html' %}
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-const GEOJSON_URL='https://cdn.jsdelivr.net/gh/henriquemalvar/br-geojson@main/dist/estados.geojson';
+const GEOJSON_URLS=[
+  'https://cdn.jsdelivr.net/gh/henriquemalvar/br-geojson@main/dist/estados.geojson',
+  'https://raw.githubusercontent.com/henriquemalvar/br-geojson/main/dist/estados.geojson'
+];
+const FALLBACK_URL='{{ url_for("static", filename="brasil_fallback.json") }}';
 const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 const LABEL_OFFSET={RN:[24,-8],PB:[28,4],PE:[26,16],AL:[24,26],SE:[18,36],ES:[22,6],RJ:[18,20],DF:[14,-16],AP:[14,-12]};
 const FILTER_TEXT={todos:'Visual atual: todos os estados com lojas ativas e/ou a inaugurar.',ativas:'Visual atual: destaque para estados com lojas ativas.',inaugurar:'Visual atual: destaque para estados com lojas a inaugurar.',ambos:'Visual atual: destaque para estados com lojas ativas e a inaugurar.'};
 let dadosEstados=[],dadosPorUf={},mapa,bgLayer,geoLayer,labelLayer,estadoSelecionado=null,filtroMapa='todos';
+let fallbackMode=false,fallbackGeo=null;
 
 function totalOperacional(e){ return (e?.ativa||0)+(e?.inaugurar||0); }
 function passaFiltro(e){
@@ -216,187 +230,110 @@ function corEstado(e){
   if((e.ativa||0)>0 && (e.inaugurar||0)>0) return '#8f63ff';
   return '#607a92';
 }
-function styleBackground(){
-  return {color:'rgba(219,236,255,.32)',weight:1,opacity:.5,fillColor:'#16314B',fillOpacity:.35,lineJoin:'round'};
-}
+function styleBackground(){return {color:'rgba(219,236,255,.32)',weight:1,opacity:.5,fillColor:'#16314B',fillOpacity:.35,lineJoin:'round'};}
 function opacidadeEstado(e){ return e && passaFiltro(e) ? 0.94 : 0; }
 function labelHtml(e){
   if(!e || !passaFiltro(e)) return '<div class="state-label zero"></div>';
   return `<div class="state-label"><span class="uf">${esc(e.uf)}</span><span class="total">${totalOperacional(e)}</span><span class="detail"><b class="dsp">A ${e.ativa||0}</b> · <b class="dpa">I ${e.inaugurar||0}</b></span></div>`;
 }
 function styleFeature(feature){
-  const uf=(feature.properties.sigla||'').toUpperCase(),e=dadosPorUf[uf], vis=passaFiltro(e);
-  return {
-    color:vis?'#eef7ff':'rgba(214,231,247,.0)', weight:vis?1.65:0.1, opacity:vis?0.98:0,
-    fillColor:corEstado(e), fillOpacity:opacidadeEstado(e), lineJoin:'round', dashArray:vis?'':'4 3'
-  };
+  const uf=(feature.properties.sigla||'').toUpperCase(),e=dadosPorUf[uf],vis=passaFiltro(e);
+  return {color:vis?'#eef7ff':'rgba(214,231,247,.0)',weight:vis?1.65:.1,opacity:vis?.98:0,fillColor:corEstado(e),fillOpacity:opacidadeEstado(e),lineJoin:'round',dashArray:vis?'':'4 3'};
 }
-function styleHighlight(feature){
-  const uf=(feature.properties.sigla||'').toUpperCase(),e=dadosPorUf[uf];
-  return { color:'#ffffff', weight:2.8, opacity:1, fillColor:corEstado(e), fillOpacity:1, dashArray:'' };
-}
-function tooltipHtml(e, feature){
+function styleHighlight(feature){const uf=(feature.properties.sigla||'').toUpperCase(),e=dadosPorUf[uf];return {color:'#fff',weight:2.8,opacity:1,fillColor:corEstado(e),fillOpacity:1,dashArray:''};}
+function tooltipHtml(e,feature){
   const nome=(e?.estado)||(feature?.properties?.nome)||(feature?.properties?.name)||'';
   const uf=(e?.uf)||(feature?.properties?.sigla)||'';
-  if(!e || totalOperacional(e)===0){
-    return `<div class="state-tip-card"><div class="top"><div class="name">${esc(nome)}</div><span class="ufbadge">${esc(uf)}</span></div><div class="state-tip-foot"><span>Sem lojas ativas ou a inaugurar</span><span>Total: 0</span></div></div>`;
-  }
-  return `<div class="state-tip-card">
-    <div class="top"><div class="name">${esc(nome)}</div><span class="ufbadge">${esc(uf)}</span></div>
-    <div class="line">
-      <div class="state-tip-stat active"><span>Ativas</span><strong>${e.ativa||0}</strong></div>
-      <div class="state-tip-stat open"><span>A inaugurar</span><strong>${e.inaugurar||0}</strong></div>
-      <div class="state-tip-stat pending"><span>Pendentes</span><strong>${e.pendente||0}</strong></div>
-      <div class="state-tip-stat"><span>Total geral</span><strong>${e.total||0}</strong></div>
-    </div>
-    <div class="state-tip-foot"><span>DSP: ${e.dsp||0} · DPA: ${e.dpa||0}</span><span>${totalOperacional(e)} em operação/plano</span></div>
-  </div>`;
+  if(!e || totalOperacional(e)===0) return `<div class="state-tip-card"><div class="top"><div class="name">${esc(nome)}</div><span class="ufbadge">${esc(uf)}</span></div><div class="state-tip-foot"><span>Sem lojas ativas ou a inaugurar</span><span>Total: 0</span></div></div>`;
+  return `<div class="state-tip-card"><div class="top"><div class="name">${esc(nome)}</div><span class="ufbadge">${esc(uf)}</span></div><div class="line"><div class="state-tip-stat active"><span>Ativas</span><strong>${e.ativa||0}</strong></div><div class="state-tip-stat open"><span>A inaugurar</span><strong>${e.inaugurar||0}</strong></div><div class="state-tip-stat pending"><span>Pendentes</span><strong>${e.pendente||0}</strong></div><div class="state-tip-stat"><span>Total geral</span><strong>${e.total||0}</strong></div></div><div class="state-tip-foot"><span>DSP: ${e.dsp||0} · DPA: ${e.dpa||0}</span><span>${totalOperacional(e)} em operação/plano</span></div></div>`;
 }
 function atualizarDetalhe(e){
-  if(!e) return;
-  estadoSelecionado=e.uf;
+  if(!e)return; estadoSelecionado=e.uf;
   document.getElementById('state-name').textContent=`${e.estado} (${e.uf})`;
   document.getElementById('state-sub').textContent=`Ativas: ${e.ativa||0} · A inaugurar: ${e.inaugurar||0} · Total: ${e.total||0}`;
   document.getElementById('state-orb').style.background=corEstado(e);
-  document.getElementById('d-total').textContent=e.total||0;
-  document.getElementById('d-ativa').textContent=e.ativa||0;
-  document.getElementById('d-inaugurar').textContent=e.inaugurar||0;
-  document.getElementById('d-pendente').textContent=e.pendente||0;
-  document.getElementById('d-dsp').textContent=e.dsp||0;
-  document.getElementById('d-dpa').textContent=e.dpa||0;
+  ['total','ativa','inaugurar','pendente','dsp','dpa'].forEach(k=>document.getElementById('d-'+k).textContent=e[k]||0);
   document.getElementById('donut-total').textContent=e.total||0;
-  const base=Math.max(1,(e.ativa||0)+(e.inaugurar||0)+(e.pendente||0));
-  const pa=(e.ativa||0)/base*100, pi=(e.inaugurar||0)/base*100, pp=(e.pendente||0)/base*100;
-  document.getElementById('pct-ativa').textContent=`${pa.toFixed(1)}%`;
-  document.getElementById('pct-inaugurar').textContent=`${pi.toFixed(1)}%`;
-  document.getElementById('pct-pendente').textContent=`${pp.toFixed(1)}%`;
-  document.getElementById('donut').style.setProperty('--p-active',`${pa}%`);
-  document.getElementById('donut').style.setProperty('--p-open',`${pa+pi}%`);
-  document.querySelectorAll('.rank-row').forEach(el=>el.classList.toggle('active', el.dataset.uf===e.uf));
-  document.querySelectorAll('.state-row').forEach(el=>el.classList.toggle('active', el.dataset.uf===e.uf));
-}
-function resetFeatureStyle(ev){
-  const layer=ev.target;
-  const uf=(layer.feature.properties.sigla||'').toUpperCase();
-  if(estadoSelecionado && uf===estadoSelecionado && passaFiltro(dadosPorUf[uf])){ layer.setStyle(styleHighlight(layer.feature)); return; }
-  geoLayer.resetStyle(layer);
-}
-function highlightFeature(ev){
-  const layer=ev.target;
-  const uf=(layer.feature.properties.sigla||'').toUpperCase(),e=dadosPorUf[uf];
-  if(!passaFiltro(e)) return;
-  layer.setStyle(styleHighlight(layer.feature));
-  if(!L.Browser.ie&&!L.Browser.opera&&!L.Browser.edge){ layer.bringToFront(); }
-  if(e) atualizarDetalhe(e);
-}
-function focarUF(uf){
-  if(!geoLayer) return;
-  geoLayer.eachLayer(layer=>{
-    const layerUf=(layer.feature.properties.sigla||'').toUpperCase();
-    if(layerUf===uf){
-      const e=dadosPorUf[uf];
-      if(!passaFiltro(e)) return;
-      geoLayer.resetStyle();
-      layer.setStyle(styleHighlight(layer.feature));
-      mapa.fitBounds(layer.getBounds(),{padding:[60,60],maxZoom:6});
-    }
-  });
-}
-function onEachFeature(feature,layer){
-  const uf=(feature.properties.sigla||'').toUpperCase(),e=dadosPorUf[uf];
-  layer.on({
-    mouseover:highlightFeature,
-    mouseout:resetFeatureStyle,
-    click:()=>{ if(e && passaFiltro(e)){ atualizarDetalhe(e); focarUF(e.uf); } }
-  });
-  layer.bindTooltip(tooltipHtml(e,feature),{sticky:true,direction:'top',className:'state-tip'});
-}
-function rebuildLabels(){
-  if(!labelLayer || !geoLayer) return;
-  labelLayer.clearLayers();
-  geoLayer.eachLayer(layer=>{
-    const uf=(layer.feature.properties.sigla||'').toUpperCase(),e=dadosPorUf[uf];
-    if(!e || !passaFiltro(e)) return;
-    const c=layer.getBounds().getCenter(), off=LABEL_OFFSET[uf]||[0,0];
-    L.tooltip({permanent:true,direction:'center',className:'state-center-label',offset:L.point(off[0],off[1]),opacity:1})
-      .setLatLng(c)
-      .setContent(labelHtml(e))
-      .addTo(labelLayer);
-  });
-}
-function criarMapa(geojson){
-  mapa=L.map('br-map',{zoomControl:true,attributionControl:true,minZoom:3,maxZoom:7,scrollWheelZoom:false,dragging:true,doubleClickZoom:true,preferCanvas:true});
-  L.control.attribution({position:'bottomright',prefix:false}).addTo(mapa).addAttribution('Malha territorial: IBGE');
-  bgLayer=L.geoJSON(geojson,{style:styleBackground,interactive:false}).addTo(mapa);
-  geoLayer=L.geoJSON(geojson,{style:styleFeature,onEachFeature}).addTo(mapa);
-  mapa.fitBounds(geoLayer.getBounds(),{padding:[32,28]});
-  labelLayer=L.layerGroup().addTo(mapa);
-  rebuildLabels();
-  setTimeout(()=>mapa.invalidateSize(),120);
+  const base=Math.max(1,(e.ativa||0)+(e.inaugurar||0)+(e.pendente||0)),pa=(e.ativa||0)/base*100,pi=(e.inaugurar||0)/base*100,pp=(e.pendente||0)/base*100;
+  document.getElementById('pct-ativa').textContent=`${pa.toFixed(1)}%`;document.getElementById('pct-inaugurar').textContent=`${pi.toFixed(1)}%`;document.getElementById('pct-pendente').textContent=`${pp.toFixed(1)}%`;
+  document.getElementById('donut').style.setProperty('--p-active',`${pa}%`);document.getElementById('donut').style.setProperty('--p-open',`${pa+pi}%`);
+  document.querySelectorAll('.rank-row').forEach(el=>el.classList.toggle('active',el.dataset.uf===e.uf));
+  document.querySelectorAll('.state-row').forEach(el=>el.classList.toggle('active',el.dataset.uf===e.uf));
+  document.querySelectorAll('.fallback-state').forEach(el=>el.classList.toggle('active',el.dataset.uf===e.uf));
 }
 function renderRanking(estados){
   const arr=[...estados].filter(e=>totalOperacional(e)>0).sort((a,b)=>totalOperacional(b)-totalOperacional(a)||a.estado.localeCompare(b.estado));
-  const max=Math.max(1,...arr.map(e=>totalOperacional(e)));
-  const r=document.getElementById('ranking');
-  r.innerHTML=arr.slice(0,12).map((e,i)=>{ const op=totalOperacional(e); return `<div class="rank-row" data-uf="${e.uf}"><span class="rank-n">${i+1}</span><span class="rank-name">${esc(e.estado)} (${e.uf})</span><span class="rank-total">A ${e.ativa||0} · I ${e.inaugurar||0}</span><span class="rank-bar"><span style="width:${(op/max)*100}%"></span></span></div>`}).join('') || '<div class="empty">Nenhuma loja ativa ou a inaugurar foi encontrada.</div>';
-  r.querySelectorAll('.rank-row').forEach(el=>el.addEventListener('click',()=>{ const e=dadosPorUf[el.dataset.uf]; if(e){ atualizarDetalhe(e); focarUF(e.uf); } }));
+  const max=Math.max(1,...arr.map(e=>totalOperacional(e))),r=document.getElementById('ranking');
+  r.innerHTML=arr.slice(0,12).map((e,i)=>{const op=totalOperacional(e);return `<div class="rank-row" data-uf="${e.uf}"><span class="rank-n">${i+1}</span><span class="rank-name">${esc(e.estado)} (${e.uf})</span><span class="rank-total">A ${e.ativa||0} · I ${e.inaugurar||0}</span><span class="rank-bar"><span style="width:${(op/max)*100}%"></span></span></div>`}).join('')||'<div class="empty">Nenhuma loja ativa ou a inaugurar foi encontrada.</div>';
+  r.querySelectorAll('.rank-row').forEach(el=>el.addEventListener('click',()=>{const e=dadosPorUf[el.dataset.uf];if(e){atualizarDetalhe(e);focarUF(e.uf);}}));
 }
 function renderTabela(estados){
-  const arr=[...estados].filter(e=>e.total>0||e.inativa>0).sort((a,b)=>totalOperacional(b)-totalOperacional(a)||a.estado.localeCompare(b.estado));
-  const tb=document.getElementById('tb-estados');
-  tb.innerHTML=arr.map(e=>`<tr class="state-row" data-uf="${e.uf}"><td class="uf">${e.uf}</td><td>${esc(e.estado)}</td><td class="num"><strong>${e.total}</strong></td><td class="num c-green">${e.ativa}</td><td class="num">${e.inaugurar}</td><td class="num">${e.pendente}</td><td class="num c-blue">${e.dsp}</td><td class="num c-red">${e.dpa}</td><td class="num">${e.sem_bandeira}</td></tr>`).join('') || '<tr><td colspan="9" class="empty">Nenhuma filial com UF válida foi cadastrada.</td></tr>';
-  tb.querySelectorAll('.state-row').forEach(el=>el.addEventListener('click',()=>{ const e=dadosPorUf[el.dataset.uf]; if(e){ atualizarDetalhe(e); focarUF(e.uf); } }));
+  const arr=[...estados].filter(e=>e.total>0||e.inativa>0).sort((a,b)=>totalOperacional(b)-totalOperacional(a)||a.estado.localeCompare(b.estado)),tb=document.getElementById('tb-estados');
+  tb.innerHTML=arr.map(e=>`<tr class="state-row" data-uf="${e.uf}"><td class="uf">${e.uf}</td><td>${esc(e.estado)}</td><td class="num"><strong>${e.total}</strong></td><td class="num c-green">${e.ativa}</td><td class="num">${e.inaugurar}</td><td class="num">${e.pendente}</td><td class="num c-blue">${e.dsp}</td><td class="num c-red">${e.dpa}</td><td class="num">${e.sem_bandeira}</td></tr>`).join('')||'<tr><td colspan="9" class="empty">Nenhuma filial com UF válida foi cadastrada.</td></tr>';
+  tb.querySelectorAll('.state-row').forEach(el=>el.addEventListener('click',()=>{const e=dadosPorUf[el.dataset.uf];if(e){atualizarDetalhe(e);focarUF(e.uf);}}));
 }
-function renderInsights(estados, totais){
-  const ativos=[...estados].filter(e=>totalOperacional(e)>0).sort((a,b)=>totalOperacional(b)-totalOperacional(a)||a.estado.localeCompare(b.estado));
-  const best=ativos[0];
-  document.getElementById('ins-best-uf').textContent=best?best.uf:'-';
-  document.getElementById('ins-best-name').textContent=best?`${best.estado} · A ${best.ativa||0} · I ${best.inaugurar||0}`:'Sem dados';
-  document.getElementById('ins-covered').textContent=ativos.length;
-  document.getElementById('ins-open').textContent=totais.inaugurar||0;
-  document.getElementById('ins-pending').textContent=totais.pendente||0;
+function renderInsights(estados,totais){
+  const ativos=[...estados].filter(e=>totalOperacional(e)>0).sort((a,b)=>totalOperacional(b)-totalOperacional(a)||a.estado.localeCompare(b.estado)),best=ativos[0];
+  document.getElementById('ins-best-uf').textContent=best?best.uf:'-';document.getElementById('ins-best-name').textContent=best?`${best.estado} · A ${best.ativa||0} · I ${best.inaugurar||0}`:'Sem dados';
+  document.getElementById('ins-covered').textContent=ativos.length;document.getElementById('ins-open').textContent=totais.inaugurar||0;document.getElementById('ins-pending').textContent=totais.pendente||0;
 }
-function aplicarFiltroMapa(novoFiltro){
-  filtroMapa=novoFiltro;
-  document.querySelectorAll('.filter-chip').forEach(btn=>btn.classList.toggle('active',btn.dataset.filter===novoFiltro));
-  document.getElementById('map-current').textContent=FILTER_TEXT[novoFiltro]||FILTER_TEXT.todos;
-  if(geoLayer){ geoLayer.setStyle(styleFeature); rebuildLabels(); }
-  const disponiveis=dadosEstados.filter(e=>passaFiltro(e));
-  document.getElementById('map-estados').textContent=disponiveis.length;
-  document.getElementById('map-operacao').textContent=disponiveis.reduce((s,e)=>s+totalOperacional(e),0);
-  document.getElementById('map-pendentes').textContent=disponiveis.reduce((s,e)=>s+(e.pendente||0),0);
-  if(estadoSelecionado && dadosPorUf[estadoSelecionado] && passaFiltro(dadosPorUf[estadoSelecionado])){
-    atualizarDetalhe(dadosPorUf[estadoSelecionado]);
-    focarUF(estadoSelecionado);
-  }else if(disponiveis[0]){
-    atualizarDetalhe(disponiveis.sort((a,b)=>totalOperacional(b)-totalOperacional(a))[0]);
+function resetFeatureStyle(ev){const layer=ev.target,uf=(layer.feature.properties.sigla||'').toUpperCase();if(estadoSelecionado&&uf===estadoSelecionado&&passaFiltro(dadosPorUf[uf])){layer.setStyle(styleHighlight(layer.feature));return;}geoLayer.resetStyle(layer);}
+function highlightFeature(ev){const layer=ev.target,uf=(layer.feature.properties.sigla||'').toUpperCase(),e=dadosPorUf[uf];if(!passaFiltro(e))return;layer.setStyle(styleHighlight(layer.feature));if(layer.bringToFront)layer.bringToFront();if(e)atualizarDetalhe(e);}
+function onEachFeature(feature,layer){const uf=(feature.properties.sigla||'').toUpperCase(),e=dadosPorUf[uf];layer.on({mouseover:highlightFeature,mouseout:resetFeatureStyle,click:()=>{if(e&&passaFiltro(e)){atualizarDetalhe(e);focarUF(e.uf);}}});layer.bindTooltip(tooltipHtml(e,feature),{sticky:true,direction:'top',className:'state-tip'});}
+function rebuildLabels(){if(!labelLayer||!geoLayer)return;labelLayer.clearLayers();geoLayer.eachLayer(layer=>{const uf=(layer.feature.properties.sigla||'').toUpperCase(),e=dadosPorUf[uf];if(!e||!passaFiltro(e))return;const c=layer.getBounds().getCenter(),off=LABEL_OFFSET[uf]||[0,0];L.tooltip({permanent:true,direction:'center',className:'state-center-label',offset:L.point(off[0],off[1]),opacity:1}).setLatLng(c).setContent(labelHtml(e)).addTo(labelLayer);});}
+function criarMapaLeaflet(geojson){
+  fallbackMode=false;const alvo=document.getElementById('br-map');alvo.innerHTML='';
+  mapa=L.map('br-map',{zoomControl:true,attributionControl:true,minZoom:3,maxZoom:7,scrollWheelZoom:false,dragging:true,doubleClickZoom:true,preferCanvas:true});
+  L.control.attribution({position:'bottomright',prefix:false}).addTo(mapa).addAttribution('Malha territorial: IBGE');
+  bgLayer=L.geoJSON(geojson,{style:styleBackground,interactive:false}).addTo(mapa);geoLayer=L.geoJSON(geojson,{style:styleFeature,onEachFeature}).addTo(mapa);mapa.fitBounds(geoLayer.getBounds(),{padding:[32,28]});labelLayer=L.layerGroup().addTo(mapa);rebuildLabels();setTimeout(()=>mapa.invalidateSize(),120);
+}
+function projectFallback(lon,lat,bbox,w,h,pad=55){const [minLon,minLat,maxLon,maxLat]=bbox;return [pad+(lon-minLon)/(maxLon-minLon)*(w-2*pad),pad+(maxLat-lat)/(maxLat-minLat)*(h-2*pad)];}
+async function renderFallbackMap(){
+  fallbackMode=true;mapa=null;geoLayer=null;labelLayer=null;
+  if(!fallbackGeo){const r=await fetch(FALLBACK_URL,{cache:'no-store'});if(!r.ok)throw new Error('Falha ao carregar mapa local');fallbackGeo=await r.json();}
+  const w=900,h=680,alvo=document.getElementById('br-map');
+  const parts=[`<svg class="fallback-svg" viewBox="0 0 ${w} ${h}" role="img" aria-label="Mapa do Brasil por estado">`];
+  for(const f of fallbackGeo.features){
+    const e=dadosPorUf[f.uf]||{uf:f.uf,estado:f.uf,ativa:0,inaugurar:0,pendente:0,total:0,dsp:0,dpa:0};const vis=passaFiltro(e);const pts=f.polygon.map(([lon,lat])=>projectFallback(lon,lat,fallbackGeo.bbox,w,h).map(v=>v.toFixed(1)).join(',')).join(' ');const [cx,cy]=projectFallback(f.center[0],f.center[1],fallbackGeo.bbox,w,h);const cls='fallback-state'+(vis?'':' muted');
+    parts.push(`<polygon class="${cls}" data-uf="${f.uf}" points="${pts}" fill="${corEstado(e)}" opacity="${vis?'.94':'.30'}"><title>${esc(e.estado)} (${f.uf}) · Ativas ${e.ativa||0} · A inaugurar ${e.inaugurar||0}</title></polygon>`);
+    if(vis)parts.push(`<text class="fallback-label" x="${cx.toFixed(1)}" y="${(cy-6).toFixed(1)}">${f.uf}</text><text class="fallback-ai" x="${cx.toFixed(1)}" y="${(cy+11).toFixed(1)}">A ${e.ativa||0} · I ${e.inaugurar||0}</text>`);
   }
+  parts.push('</svg><div class="fallback-note">Mapa local ativo · funcionamento independente de serviços externos</div>');alvo.innerHTML=parts.join('');
+  alvo.querySelectorAll('.fallback-state').forEach(el=>{const e=dadosPorUf[el.dataset.uf];el.addEventListener('mouseenter',()=>e&&atualizarDetalhe(e));el.addEventListener('click',()=>e&&atualizarDetalhe(e));});
+}
+async function fetchGeojsonComFallback(){
+  for(const url of GEOJSON_URLS){
+    try{const ctrl=new AbortController(),timer=setTimeout(()=>ctrl.abort(),4500);const r=await fetch(url,{signal:ctrl.signal,cache:'force-cache'});clearTimeout(timer);if(r.ok)return await r.json();}catch(_){ }
+  }
+  return null;
+}
+async function inicializarMapa(){
+  if(typeof L!=='undefined'){
+    const geo=await fetchGeojsonComFallback();if(geo){criarMapaLeaflet(geo);return;}
+  }
+  await renderFallbackMap();
+}
+function focarUF(uf){
+  if(fallbackMode){document.querySelectorAll('.fallback-state').forEach(el=>el.classList.toggle('active',el.dataset.uf===uf));return;}
+  if(!geoLayer)return;geoLayer.eachLayer(layer=>{const layerUf=(layer.feature.properties.sigla||'').toUpperCase();if(layerUf===uf){const e=dadosPorUf[uf];if(!passaFiltro(e))return;geoLayer.resetStyle();layer.setStyle(styleHighlight(layer.feature));mapa.fitBounds(layer.getBounds(),{padding:[60,60],maxZoom:6});}});
+}
+async function aplicarFiltroMapa(novoFiltro){
+  filtroMapa=novoFiltro;document.querySelectorAll('.filter-chip').forEach(btn=>btn.classList.toggle('active',btn.dataset.filter===novoFiltro));document.getElementById('map-current').textContent=FILTER_TEXT[novoFiltro]||FILTER_TEXT.todos;
+  const disponiveis=dadosEstados.filter(e=>passaFiltro(e));document.getElementById('map-estados').textContent=disponiveis.length;document.getElementById('map-operacao').textContent=disponiveis.reduce((s,e)=>s+totalOperacional(e),0);document.getElementById('map-pendentes').textContent=disponiveis.reduce((s,e)=>s+(e.pendente||0),0);
+  if(fallbackMode){await renderFallbackMap();}else if(geoLayer){geoLayer.setStyle(styleFeature);rebuildLabels();}
+  if(estadoSelecionado&&dadosPorUf[estadoSelecionado]&&passaFiltro(dadosPorUf[estadoSelecionado])){atualizarDetalhe(dadosPorUf[estadoSelecionado]);focarUF(estadoSelecionado);}else if(disponiveis[0]){const e=[...disponiveis].sort((a,b)=>totalOperacional(b)-totalOperacional(a))[0];atualizarDetalhe(e);focarUF(e.uf);}
 }
 async function init(){
   try{
-    const [rDados,rGeo]=await Promise.all([fetch('/api/projecao-lojas'),fetch(GEOJSON_URL)]);
-    if(!rDados.ok) throw new Error('Falha nos dados da projeção');
-    if(!rGeo.ok) throw new Error('Falha na malha geográfica');
-    const d=await rDados.json(), geo=await rGeo.json(), t=d.totais||{}, estados=d.estados||[];
-    dadosEstados=estados; dadosPorUf=Object.fromEntries(estados.map(e=>[e.uf,e]));
-    document.getElementById('k-total').textContent=t.total_geral||0;
-    document.getElementById('k-ativa').textContent=t.ativa||0;
-    document.getElementById('k-inaugurar').textContent=t.inaugurar||0;
-    document.getElementById('k-pendente').textContent=t.pendente||0;
-    document.getElementById('k-dsp').textContent=t.dsp||0;
-    document.getElementById('k-dpa').textContent=t.dpa||0;
-    renderRanking(estados); renderTabela(estados); renderInsights(estados,t); criarMapa(geo);
-    document.querySelectorAll('.filter-chip').forEach(btn=>btn.addEventListener('click',()=>aplicarFiltroMapa(btn.dataset.filter)));
-    aplicarFiltroMapa('todos');
-    const primeiro=[...estados].filter(e=>totalOperacional(e)>0).sort((a,b)=>totalOperacional(b)-totalOperacional(a))[0]||estados[0];
-    if(primeiro){ atualizarDetalhe(primeiro); focarUF(primeiro.uf); }
+    const rDados=await fetch('/api/projecao-lojas',{cache:'no-store'});if(!rDados.ok)throw new Error('Falha nos dados da projeção');const d=await rDados.json(),t=d.totais||{},estados=d.estados||[];
+    dadosEstados=estados;dadosPorUf=Object.fromEntries(estados.map(e=>[e.uf,e]));
+    document.getElementById('k-total').textContent=t.total_geral||0;document.getElementById('k-ativa').textContent=t.ativa||0;document.getElementById('k-inaugurar').textContent=t.inaugurar||0;document.getElementById('k-pendente').textContent=t.pendente||0;document.getElementById('k-dsp').textContent=t.dsp||0;document.getElementById('k-dpa').textContent=t.dpa||0;
+    renderRanking(estados);renderTabela(estados);renderInsights(estados,t);document.querySelectorAll('.filter-chip').forEach(btn=>btn.addEventListener('click',()=>aplicarFiltroMapa(btn.dataset.filter)));
+    document.getElementById('map-estados').textContent=estados.filter(e=>totalOperacional(e)>0).length;document.getElementById('map-operacao').textContent=(t.ativa||0)+(t.inaugurar||0);document.getElementById('map-pendentes').textContent=t.pendente||0;
+    const primeiro=[...estados].filter(e=>totalOperacional(e)>0).sort((a,b)=>totalOperacional(b)-totalOperacional(a))[0]||estados[0];if(primeiro)atualizarDetalhe(primeiro);
     document.getElementById('updated').textContent='Atualizado em '+new Date().toLocaleString('pt-BR');
-  }catch(err){
-    console.error(err);
-    document.getElementById('br-map').innerHTML='<div class="empty" style="padding-top:270px">Não foi possível carregar o mapa. Verifique a conexão com a internet e atualize a página.</div>';
-    document.getElementById('ranking').innerHTML='<div class="empty">Falha ao carregar.</div>';
-    document.getElementById('tb-estados').innerHTML='<tr><td colspan="9" class="empty">Falha ao carregar a projeção.</td></tr>';
-  }
+    try{await inicializarMapa();if(primeiro)focarUF(primeiro.uf);}catch(mapErr){console.error(mapErr);document.getElementById('br-map').innerHTML='<div class="empty" style="padding-top:270px">Os dados foram carregados, mas o desenho do mapa não pôde ser inicializado.</div>';}
+  }catch(err){console.error(err);document.getElementById('br-map').innerHTML='<div class="empty" style="padding-top:270px">Não foi possível carregar os dados da Projeção.</div>';document.getElementById('ranking').innerHTML='<div class="empty">Falha ao carregar os dados.</div>';document.getElementById('tb-estados').innerHTML='<tr><td colspan="9" class="empty">Falha ao carregar a projeção.</td></tr>';}
 }
 init();
 </script>
