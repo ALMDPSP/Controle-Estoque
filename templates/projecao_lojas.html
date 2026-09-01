@@ -7,49 +7,36 @@
   {% include '_mobile_head.html' %}
   <style>
 :root{
-  --bg:#12181f;--panel:#1a2029;--panel-2:#212934;--line:#2b3444;--line-soft:rgba(112,129,152,.18);
-  --text:#e7ebf1;--muted:#8b96a8;--accent:#3ea6ff;--accent-2:#ffb648;--ok:#4cd792;--danger:#ff6b6b;
-  --dsp:#3ea6ff;--dpa:#ef5260;--soft-blue:#8fd0ff;--soft-red:#ff9aa4;--soft-gold:#ffd27f;
-  --mono:Consolas,monospace;
+  --bg:#12181f;--panel:#1a2029;--panel-2:#212934;--line:#2b3444;--line-soft:rgba(128,145,168,.18);
+  --text:#e7ebf1;--muted:#8b96a8;--accent:#3ea6ff;--accent-2:#ffb648;--ok:#4cd792;
+  --dsp:#3ea6ff;--dpa:#ef5260;--neutral:#6d7786;--mono:Consolas,monospace;
 }
 *{box-sizing:border-box}
 body{margin:0;background:radial-gradient(circle at top,#17212d,#11171f 50%,#0d1217 100%);color:var(--text);font-family:"Segoe UI",Inter,system-ui,sans-serif}
 header{padding:26px 32px 18px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:16px;align-items:flex-end;flex-wrap:wrap}
 .tag{font:12px var(--mono);letter-spacing:.12em;color:var(--accent-2);text-transform:uppercase;border:1px solid var(--accent-2);padding:2px 8px;border-radius:3px}
-h1{font-size:26px;margin:7px 0 3px}header p{margin:0;color:var(--muted);font-size:13px;max-width:840px;line-height:1.6}
+h1{font-size:26px;margin:7px 0 3px}header p{margin:0;color:var(--muted);font-size:13px;max-width:860px;line-height:1.6}
 .head-actions{display:flex;gap:8px;flex-wrap:wrap}.head-actions a,.head-actions button{border:1px solid var(--line);background:var(--panel-2);color:var(--text);text-decoration:none;padding:10px 13px;border-radius:10px;font-size:12px;cursor:pointer}.head-actions a.primary{background:var(--accent);border-color:var(--accent);color:#08131f;font-weight:700}.head-actions a.ghost{background:#19222d}.head-actions a.pdf{background:rgba(255,182,72,.1);border-color:rgba(255,182,72,.25);color:#ffd089}
 main{padding:24px 32px 54px;max-width:1540px;margin:auto}
 .kpis{display:grid;grid-template-columns:repeat(6,minmax(125px,1fr));gap:12px}.kpi{background:linear-gradient(180deg,rgba(255,255,255,.02),rgba(255,255,255,.01)),var(--panel);border:1px solid var(--line);border-radius:14px;padding:15px;min-width:0;box-shadow:0 14px 28px rgba(0,0,0,.14)}.kpi span{display:block;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em}.kpi strong{display:block;margin-top:7px;font:700 27px var(--mono)}.kpi small{display:block;margin-top:4px;color:var(--muted);font-size:9px}.kpi.ativa strong{color:var(--ok)}.kpi.inaugurar strong{color:var(--accent)}.kpi.pendente strong{color:var(--accent-2)}.kpi.dsp strong{color:var(--dsp)}.kpi.dpa strong{color:#ff7882}
-.grid{display:grid;grid-template-columns:minmax(0,1.48fr) minmax(340px,.82fr);gap:18px;margin-top:18px;align-items:start}
 .panel{background:linear-gradient(180deg,rgba(255,255,255,.02),rgba(255,255,255,.01)),var(--panel);border:1px solid var(--line);border-radius:18px;padding:18px;min-width:0;box-shadow:0 16px 30px rgba(0,0,0,.15)}.panel h2{font-size:16px;margin:0 0 4px}.panel-sub{font-size:11px;color:var(--muted);margin:0 0 14px;line-height:1.6}
-.legend{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px}.legend span{display:flex;gap:7px;align-items:center;font-size:10.5px;color:var(--muted);background:#141d27;border:1px solid rgba(255,255,255,.05);padding:7px 10px;border-radius:999px}.legend i{width:11px;height:11px;border-radius:4px;display:block}.legend .dsp{background:var(--dsp)}.legend .dpa{background:var(--dpa)}.legend .sem{background:#657083}
-.map-shell{display:grid;grid-template-columns:minmax(0,1fr) 312px;gap:16px;align-items:start}
-.map-stage{background:linear-gradient(180deg,rgba(255,255,255,.02),rgba(255,255,255,.01)),var(--panel-2);border:1px solid var(--line-soft);border-radius:18px;padding:14px;min-width:0}
-.map-toolbar{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;margin-bottom:12px}.map-toolbar h3{margin:0;font-size:14px}.map-toolbar p{margin:4px 0 0;font-size:10.5px;color:var(--muted);max-width:520px;line-height:1.55}.badge-row{display:flex;gap:8px;flex-wrap:wrap}.map-badge{background:#111925;border:1px solid rgba(255,255,255,.06);border-radius:999px;padding:7px 10px;font:700 10px var(--mono);color:#cdd9e7}.map-badge strong{color:#fff}
-.map-frame{display:flex;justify-content:center;align-items:center;overflow:auto;border-radius:16px;overscroll-behavior:contain;padding:4px}
-.mapa{position:relative;width:min(100%,1040px);min-width:1040px;height:760px;border-radius:22px;overflow:hidden;border:1px solid rgba(94,112,136,.32);background:
-  radial-gradient(circle at 20% 20%, rgba(83,178,255,.22), transparent 24%),
-  radial-gradient(circle at 85% 75%, rgba(239,82,96,.12), transparent 22%),
-  linear-gradient(180deg,#172b41 0%,#122133 35%,#101824 100%);
-  box-shadow:inset 0 0 0 1px rgba(255,255,255,.03),0 18px 46px rgba(0,0,0,.22)}
-.mapa::before{content:"";position:absolute;inset:12px;border-radius:18px;border:1px solid rgba(255,255,255,.035);pointer-events:none}
-.map-grid{position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.022) 1px, transparent 1px),linear-gradient(90deg, rgba(255,255,255,.022) 1px, transparent 1px);background-size:42px 42px;opacity:.28;pointer-events:none}
-.map-bg,.map-overlay{position:absolute;inset:0}.map-bg svg,.map-overlay svg{width:100%;height:100%;display:block}.map-overlay{pointer-events:none;opacity:.85}
-.map-title{position:absolute;left:22px;top:18px;z-index:2;background:rgba(10,17,26,.84);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:12px 14px;max-width:360px;box-shadow:0 12px 24px rgba(0,0,0,.18)}.map-title strong{display:block;font-size:13px}.map-title small{display:block;margin-top:5px;font-size:10px;color:var(--muted);line-height:1.5}
-.map-legend{position:absolute;right:20px;top:18px;display:grid;gap:8px;z-index:2}.map-legend .pill{display:flex;align-items:center;gap:7px;background:rgba(10,17,26,.82);border:1px solid rgba(255,255,255,.08);padding:8px 10px;border-radius:999px;font-size:10px;color:#dfe7ef}.map-legend i{width:10px;height:10px;border-radius:50%;display:block}.map-legend .dsp{background:var(--dsp)}.map-legend .dpa{background:var(--dpa)}.map-legend .mix{background:linear-gradient(90deg,var(--dsp),var(--dpa))}
-.region-label{position:absolute;z-index:1;font:700 11px var(--mono);letter-spacing:.04em;color:rgba(231,235,241,.5);background:rgba(11,18,27,.48);border:1px solid rgba(255,255,255,.05);padding:6px 9px;border-radius:999px;backdrop-filter:blur(6px)}
-.region-norte{left:126px;top:120px}.region-nordeste{right:144px;top:150px}.region-centro{left:345px;top:325px}.region-sudeste{right:245px;bottom:172px}.region-sul{left:398px;bottom:84px}
-.compass{position:absolute;left:22px;bottom:20px;z-index:2;background:rgba(10,17,26,.78);border:1px solid rgba(255,255,255,.08);width:84px;height:84px;border-radius:50%;display:grid;place-items:center;color:#dce6f0;box-shadow:0 12px 22px rgba(0,0,0,.18)}.compass::before{content:"N";position:absolute;top:10px;font:700 10px var(--mono);color:#9ed7ff}.compass::after{content:"";width:2px;height:26px;background:linear-gradient(180deg,#9ed7ff,transparent);position:absolute;top:18px}.compass span{display:block;width:34px;height:34px;border-radius:50%;border:1px solid rgba(255,255,255,.12);position:relative}.compass span::before,.compass span::after{content:"";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%)}.compass span::before{width:1px;height:28px;background:rgba(255,255,255,.14)}.compass span::after{width:28px;height:1px;background:rgba(255,255,255,.14)}
-.map-note{position:absolute;right:22px;bottom:20px;z-index:2;background:rgba(10,17,26,.82);border:1px solid rgba(255,255,255,.08);padding:10px 12px;border-radius:14px;max-width:290px;color:var(--muted);font-size:10px;line-height:1.5}
-.state-pin{position:absolute;transform:translate(-50%,-50%);min-width:84px;max-width:92px;padding:8px 9px 8px;border-radius:16px;border:1px solid rgba(255,255,255,.12);background:rgba(25,40,56,.9);backdrop-filter:blur(8px);box-shadow:0 14px 26px rgba(0,0,0,.22);cursor:pointer;transition:.16s ease;user-select:none}.state-pin:hover,.state-pin.ativo{transform:translate(-50%,-54%);border-color:#fff;box-shadow:0 16px 30px rgba(0,0,0,.28)}.state-pin.zero{opacity:.74;background:rgba(45,54,67,.84);border-color:rgba(255,255,255,.08)}.state-pin::after{content:"";position:absolute;inset:0;border-radius:16px;background:linear-gradient(180deg,rgba(255,255,255,.09),transparent 30%,rgba(0,0,0,.22));pointer-events:none}
-.state-top,.state-bottom{position:relative;z-index:1}.state-top{display:flex;justify-content:space-between;align-items:flex-start;gap:4px}.state-uf{font:800 14px var(--mono);line-height:1;color:#fff}.state-total{font:700 10px var(--mono);line-height:1.1;color:#f4f8fc;background:rgba(11,18,27,.28);padding:4px 6px;border-radius:999px;border:1px solid rgba(255,255,255,.09)}.state-name{margin-top:5px;font-size:9px;line-height:1.25;color:#e4edf6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.state-bottom{margin-top:7px;display:flex;justify-content:space-between;gap:6px;font:700 9px var(--mono)}.state-bottom span:first-child{color:#d5ffea}.state-bottom span:last-child{color:#d7ecff}
+.legend{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}.legend span{display:flex;gap:7px;align-items:center;font-size:10.5px;color:var(--muted);background:#141d27;border:1px solid rgba(255,255,255,.05);padding:7px 10px;border-radius:999px}.legend i{width:11px;height:11px;border-radius:4px;display:block}.legend .dsp{background:var(--dsp)}.legend .dpa{background:var(--dpa)}.legend .mix{background:linear-gradient(90deg,var(--dsp),var(--dpa))}.legend .sem{background:var(--neutral)}
+.map-shell{display:grid;grid-template-columns:minmax(0,1.42fr) minmax(320px,.72fr);gap:16px;align-items:start}
+.map-stage{background:var(--panel-2);border:1px solid var(--line-soft);border-radius:18px;padding:14px;min-width:0}
+.map-toolbar{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;margin-bottom:12px}.map-toolbar h3{margin:0;font-size:14px}.map-toolbar p{margin:4px 0 0;font-size:10.5px;color:var(--muted);max-width:540px;line-height:1.55}.badge-row{display:flex;gap:8px;flex-wrap:wrap}.map-badge{background:#111925;border:1px solid rgba(255,255,255,.06);border-radius:999px;padding:7px 10px;font:700 10px var(--mono);color:#cdd9e7}.map-badge strong{color:#fff}
+.map-frame{display:flex;justify-content:center;align-items:center;border-radius:16px;padding:4px;overflow:auto}
+.map-canvas{position:relative;width:min(100%,880px);min-width:700px;aspect-ratio:561 / 583;background:#eef1f4 url("{{ url_for('static', filename='mapa_brasil_real_base.png') }}") center center / contain no-repeat;border-radius:18px;border:1px solid rgba(94,112,136,.26);box-shadow:inset 0 0 0 1px rgba(255,255,255,.65),0 16px 36px rgba(0,0,0,.18);overflow:hidden}
+.map-canvas::before{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(255,255,255,.14),rgba(255,255,255,0) 28%,rgba(17,24,32,.02));pointer-events:none}
+.map-title{position:absolute;left:16px;top:16px;z-index:2;background:rgba(14,21,31,.86);color:#edf2f8;border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:11px 13px;max-width:300px;box-shadow:0 10px 22px rgba(0,0,0,.16)}.map-title strong{display:block;font-size:12px}.map-title small{display:block;margin-top:5px;font-size:10px;color:#b5c0cf;line-height:1.5}
+.map-note{position:absolute;right:16px;bottom:16px;z-index:2;background:rgba(14,21,31,.86);color:#b5c0cf;border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:10px 12px;max-width:280px;font-size:10px;line-height:1.5;box-shadow:0 10px 22px rgba(0,0,0,.16)}
+.state-marker{position:absolute;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:4px;z-index:3;background:transparent;border:0;padding:0;cursor:pointer}.state-marker:hover,.state-marker.ativo{z-index:4}.state-bubble{width:46px;height:46px;border-radius:50%;display:grid;place-items:center;font:700 16px var(--mono);color:#fff;border:2px solid rgba(255,255,255,.9);box-shadow:0 10px 18px rgba(0,0,0,.24),0 0 0 4px rgba(255,255,255,.14);transition:transform .15s ease, box-shadow .15s ease}.state-code{font:800 9px var(--mono);letter-spacing:.04em;color:#202938;background:rgba(255,255,255,.96);border-radius:999px;padding:3px 8px;box-shadow:0 8px 14px rgba(0,0,0,.14);border:1px solid rgba(32,41,56,.08)}.state-marker:hover .state-bubble,.state-marker.ativo .state-bubble{transform:scale(1.1)}.state-marker.zero .state-bubble{color:#eef2f5}
 .map-side{display:grid;gap:12px;align-content:start}.info-card,.summary-card,.top-card{background:var(--panel-2);border:1px solid var(--line);border-radius:16px;padding:15px}.info-card h3,.summary-card h3,.top-card h3{margin:0 0 10px;font-size:14px}.state-chip{display:inline-flex;align-items:center;gap:8px;padding:7px 11px;border-radius:999px;background:#101923;border:1px solid #2d3948;font:700 11px var(--mono);margin-bottom:12px}.state-chip i{width:10px;height:10px;border-radius:50%;display:block;background:var(--accent)}.info-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.mini{background:#141d27;border:1px solid rgba(255,255,255,.06);border-radius:10px;padding:10px}.mini span{display:block;font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}.mini strong{display:block;margin-top:4px;font:700 17px var(--mono)}.mini small{display:block;margin-top:2px;color:#c7d1dd;font-size:10px}.mini.dsp strong{color:#82cbff}.mini.dpa strong{color:#ff8e98}.mini.ok strong{color:#7de7ab}.mini.warn strong{color:#ffd07e}.summary-list{display:grid;gap:8px}.summary-row{background:#141d27;border:1px solid rgba(255,255,255,.06);border-radius:10px;padding:10px 11px;display:flex;justify-content:space-between;gap:12px;align-items:center}.summary-row span{font-size:11px;color:var(--muted)}.summary-row strong{font:700 13px var(--mono)}
-.brand-bar{height:12px;border-radius:999px;overflow:hidden;background:#313a49;display:flex;margin-top:12px}.brand-bar .dsp{background:var(--dsp)}.brand-bar .dpa{background:var(--dpa)}.brand-bar .sem{background:#657083}.brand-values{display:flex;justify-content:space-between;gap:8px;margin-top:7px;font-size:10px;color:var(--muted)}.notice{margin-top:14px;border:1px solid rgba(255,182,72,.28);background:rgba(255,182,72,.06);border-radius:10px;padding:10px 11px;font-size:10.5px;color:#d7c69d;line-height:1.45;display:none}.notice.show{display:block}.top-list{display:grid;gap:8px;max-height:268px;overflow:auto;padding-right:3px}.top-row{background:#141d27;border:1px solid rgba(255,255,255,.06);border-radius:10px;padding:10px 11px;display:flex;justify-content:space-between;gap:10px;align-items:center}.top-row .left strong{display:block;font-size:11px}.top-row .left small{display:block;margin-top:3px;color:var(--muted);font-size:10px}.top-row .right{font:700 12px var(--mono);color:#fff;text-align:right}.top-row .right small{display:block;margin-top:3px;color:#8ebfff;font-size:10px}
+.brand-bar{height:12px;border-radius:999px;overflow:hidden;background:#313a49;display:flex;margin-top:12px}.brand-bar .dsp{background:var(--dsp)}.brand-bar .dpa{background:var(--dpa)}.brand-bar .sem{background:var(--neutral)}.brand-values{display:flex;justify-content:space-between;gap:8px;margin-top:7px;font-size:10px;color:var(--muted)}.notice{margin-top:14px;border:1px solid rgba(255,182,72,.28);background:rgba(255,182,72,.06);border-radius:10px;padding:10px 11px;font-size:10.5px;color:#d7c69d;line-height:1.45;display:none}.notice.show{display:block}.top-list{display:grid;gap:8px;max-height:280px;overflow:auto;padding-right:4px}.top-row{background:#141d27;border:1px solid rgba(255,255,255,.06);border-radius:10px;padding:10px 11px;display:flex;justify-content:space-between;gap:10px;align-items:center}.top-row .left strong{display:block;font-size:11px}.top-row .left small{display:block;margin-top:3px;color:var(--muted);font-size:10px}.top-row .right{font:700 12px var(--mono);color:#fff;text-align:right}.top-row .right small{display:block;margin-top:3px;color:#8ebfff;font-size:10px}
 .table-panel{margin-top:18px}.table-wrap{max-height:520px;overflow:auto;border:1px solid rgba(82,99,123,.25);border-radius:12px;scrollbar-gutter:stable}table{width:100%;border-collapse:collapse;font-size:11px}thead{position:sticky;top:0;background:#171e27;z-index:2}th,td{padding:10px;border-bottom:1px solid var(--line);text-align:left}th{font-size:9.5px;text-transform:uppercase;color:var(--muted);letter-spacing:.05em}.num{text-align:right;font-family:var(--mono)}.uf-code{font:700 11px var(--mono);color:var(--accent)}.pill{display:inline-flex;border:1px solid var(--line);border-radius:999px;padding:3px 7px;font-size:9px}.pill.dsp{color:#79c2ff;border-color:rgba(62,166,255,.3)}.pill.dpa{color:#ff8992;border-color:rgba(239,82,96,.3)}.empty{padding:28px;text-align:center;color:var(--muted)}
-@media(max-width:1260px){.kpis{grid-template-columns:repeat(3,1fr)}.grid{grid-template-columns:1fr}.map-shell{grid-template-columns:1fr}.map-side{grid-template-columns:1fr 1fr}.top-card{grid-column:1/-1}}
-@media(max-width:760px){header,main{padding-left:14px;padding-right:14px}.kpis{grid-template-columns:repeat(2,1fr)}.head-actions{width:100%}.head-actions a,.head-actions button{flex:1;text-align:center}.panel,.map-stage{padding:14px}.map-toolbar{align-items:stretch}.map-title{max-width:260px}.map-side{grid-template-columns:1fr}.table-wrap{max-height:430px}table{min-width:760px}.top-list{max-height:340px}}
-@media(max-width:420px){.kpis{grid-template-columns:1fr 1fr}.kpi strong{font-size:22px}}
-@media print{.app-menu,.head-actions{display:none!important}body{background:#fff;color:#111}.panel,.kpi,.map-stage{background:#fff!important;color:#111!important;box-shadow:none;border:1px solid #ccc}.panel-sub,.kpi span,.kpi small,.legend span,.brand-values,.summary-row span,.top-row .left small,.map-toolbar p,.map-note,.map-title small{color:#555!important}.grid{grid-template-columns:1fr}.map-shell{grid-template-columns:1fr}.map-frame{overflow:visible}.mapa{transform:scale(.85);transform-origin:top center;margin-bottom:-100px;background:#fff;border-color:#ccc}.table-wrap{max-height:none;overflow:visible}thead{position:static}}
+@media(max-width:1280px){.kpis{grid-template-columns:repeat(3,1fr)}.map-shell{grid-template-columns:1fr}.map-side{grid-template-columns:1fr 1fr}.top-card{grid-column:1/-1}}
+@media(max-width:860px){header,main{padding-left:14px;padding-right:14px}.kpis{grid-template-columns:repeat(2,1fr)}.head-actions{width:100%}.head-actions a,.head-actions button{flex:1;text-align:center}.panel,.map-stage{padding:14px}.map-side{grid-template-columns:1fr}.map-canvas{min-width:620px}.table-wrap{max-height:430px}table{min-width:760px}}
+@media(max-width:520px){.kpis{grid-template-columns:1fr 1fr}.kpi strong{font-size:22px}.map-canvas{min-width:560px}.map-title,.map-note{max-width:220px}}
+@media print{.app-menu,.head-actions{display:none!important}body{background:#fff;color:#111}.panel,.kpi,.map-stage{background:#fff!important;color:#111!important;box-shadow:none;border:1px solid #ccc}.panel-sub,.kpi span,.kpi small,.legend span,.brand-values,.summary-row span,.top-row .left small,.map-toolbar p{color:#555!important}.map-shell{grid-template-columns:1fr}.map-frame{overflow:visible}.map-canvas{box-shadow:none}.table-wrap{max-height:none;overflow:visible}thead{position:static}}
   </style>
 </head>
 <body>
@@ -57,7 +44,7 @@ main{padding:24px 32px 54px;max-width:1540px;margin:auto}
   <div>
     <span class="tag">PROJEÇÃO</span>
     <h1>Projeção de abertura e lojas</h1>
-    <p>Visão nacional baseada diretamente no cadastro de Filiais. O mapa foi redesenhado para ficar mais real, mais colorido e melhor distribuído na tela, com foco executivo para leitura de presença por estado.</p>
+    <p>Mapa baseado no cadastro de Filiais, agora usando uma base visual real do Brasil e distribuição profissional na tela. Cada estado recebe um marcador colorido com a quantidade de lojas, mantendo a leitura clara de DSP, DPA, ativas e a inaugurar.</p>
   </div>
   <div class="head-actions">
     <a href="{{ url_for('pagina_filiais') }}" class="ghost">Gerenciar filiais</a>
@@ -77,103 +64,65 @@ main{padding:24px 32px 54px;max-width:1540px;margin:auto}
     <div class="kpi dpa"><span>DPA</span><strong id="k-dpa">0</strong><small>Bandeira vermelha</small></div>
   </section>
 
-  <section class="grid">
-    <div class="panel">
-      <h2>Mapa de presença por estado</h2>
-      <p class="panel-sub">Cada estado mostra o total de lojas e a divisão operacional entre <strong>Ativas (A)</strong> e <strong>A inaugurar (I)</strong>. As cores evidenciam a bandeira: <strong>DSP em azul</strong> e <strong>DPA em vermelho</strong>. Quando há as duas bandeiras no mesmo estado, o marcador fica dividido proporcionalmente.</p>
-      <div class="legend">
-        <span><i class="dsp"></i> DSP</span>
-        <span><i class="dpa"></i> DPA</span>
-        <span><i class="sem"></i> Sem bandeira / sem lojas</span>
-      </div>
-      <div class="map-shell">
-        <div class="map-stage">
-          <div class="map-toolbar">
-            <div>
-              <h3>Mapa executivo do Brasil</h3>
-              <p>O mapa agora fica centralizado, com proporção mais ampla e leitura visual profissional. Passe o mouse ou clique em um estado para ver o detalhamento completo ao lado.</p>
-            </div>
-            <div class="badge-row">
-              <div class="map-badge">UFs com lojas: <strong id="badge-estados">0</strong></div>
-              <div class="map-badge">Operação ativa + inaugurar: <strong id="badge-operacao">0</strong></div>
-            </div>
+  <section class="panel" style="margin-top:18px">
+    <h2>Mapa de presença por estado</h2>
+    <p class="panel-sub">As cores destacam a bandeira predominante: <strong>DSP em azul</strong>, <strong>DPA em vermelho</strong> e <strong>misto</strong> quando há as duas no estado. O número dentro do marcador mostra o total de lojas; o detalhamento completo aparece no painel lateral.</p>
+    <div class="legend">
+      <span><i class="dsp"></i> DSP</span>
+      <span><i class="dpa"></i> DPA</span>
+      <span><i class="mix"></i> Misto</span>
+      <span><i class="sem"></i> Sem bandeira / sem lojas</span>
+    </div>
+    <div class="map-shell">
+      <div class="map-stage">
+        <div class="map-toolbar">
+          <div>
+            <h3>Mapa executivo do Brasil</h3>
+            <p>Layout centralizado, usando um mapa real do Brasil como base visual. Clique ou passe o mouse em um marcador para consultar o estado e seus indicadores.</p>
           </div>
-          <div class="map-frame">
-            <div class="mapa" id="mapa">
-              <div class="map-grid"></div>
-              <div class="map-bg">
-                <svg viewBox="0 0 1040 760" aria-hidden="true">
-                  <defs>
-                    <radialGradient id="oceanGlow" cx="50%" cy="35%" r="70%">
-                      <stop offset="0%" stop-color="#1e3f5f"/>
-                      <stop offset="100%" stop-color="#101824"/>
-                    </radialGradient>
-                    <linearGradient id="landGrad" x1="0" y1="0" x2="1" y2="1">
-                      <stop offset="0%" stop-color="#2d4d68"/>
-                      <stop offset="35%" stop-color="#25455f"/>
-                      <stop offset="100%" stop-color="#183041"/>
-                    </linearGradient>
-                    <linearGradient id="coastGlow" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stop-color="#6fd2ff" stop-opacity=".42"/>
-                      <stop offset="100%" stop-color="#6fd2ff" stop-opacity="0"/>
-                    </linearGradient>
-                  </defs>
-                  <rect width="1040" height="760" fill="url(#oceanGlow)" opacity="0.72"/>
-                  <path d="M314 75l85 16 61 48 111 15 79 58 52 83 64 45 41 85-16 83-49 58-36 86-100 35-76 40-105-7-56 15-51-21-80 18-54-40-54 2-61-51-68-13-23-85 31-69 15-98 38-19 28-76 64-12 31-56 76-32z" fill="url(#landGrad)" stroke="#3d6886" stroke-width="5" opacity="0.98"/>
-                  <path d="M378 120l55 40 115 16 77 51 48 76 62 46 35 75-15 78-42 52-38 82-89 31-73 38-97-9-52 12-48-21-73 15-50-35-49 1-53-44-61-14-21-73 24-58 17-96 35-17 26-72 60-11 28-50 69-29 75 14z" fill="none" stroke="rgba(255,255,255,.12)" stroke-width="20" opacity=".22"/>
-                  <path d="M730 266c17 25 36 46 68 60 34 14 67 48 81 90" fill="none" stroke="url(#coastGlow)" stroke-width="14" opacity=".34"/>
-                </svg>
-              </div>
-              <div class="map-overlay">
-                <svg viewBox="0 0 1040 760" aria-hidden="true">
-                  <path d="M426 152l-46 70-80 11-32 90-36 22-22 112-16 73 38 15 59 50 55 2 47 37 84-22 54 22 57-16 102 8 99-36 32-81 57-66 18-91-42-81-65-45-51-82-80-58-111-15-62-48-85-16z" fill="none" stroke="rgba(255,255,255,.06)" stroke-width="2.5" stroke-dasharray="7 8"/>
-                </svg>
-              </div>
-              <div class="map-title"><strong>Brasil · presença por estado</strong><small>Leitura executiva centralizada: cada marcador traz o nome da UF, o total de lojas e o resumo operacional. Selecione um estado para analisar sua distribuição detalhada.</small></div>
-              <div class="map-legend">
-                <div class="pill"><i class="dsp"></i> DSP</div>
-                <div class="pill"><i class="dpa"></i> DPA</div>
-                <div class="pill"><i class="mix"></i> Misto</div>
-              </div>
-              <div class="region-label region-norte">NORTE</div>
-              <div class="region-label region-nordeste">NORDESTE</div>
-              <div class="region-label region-centro">CENTRO-OESTE</div>
-              <div class="region-label region-sudeste">SUDESTE</div>
-              <div class="region-label region-sul">SUL</div>
-              <div class="compass"><span></span></div>
-              <div class="map-note">A = lojas ativas &nbsp;·&nbsp; I = lojas a inaugurar. Estados sem bandeira definida permanecem em tom neutro para facilitar a revisão cadastral.</div>
-            </div>
+          <div class="badge-row">
+            <div class="map-badge">UFs com lojas: <strong id="badge-estados">0</strong></div>
+            <div class="map-badge">Operação ativa + inaugurar: <strong id="badge-operacao">0</strong></div>
           </div>
         </div>
-        <div class="map-side">
-          <div class="info-card">
-            <h3>Detalhamento do estado</h3>
-            <div class="state-chip"><i id="state-color"></i><span id="state-chip-text">Passe o mouse sobre o mapa</span></div>
-            <div class="info-grid">
-              <div class="mini ok"><span>Ativas</span><strong id="d-ativa">0</strong><small>Em operação</small></div>
-              <div class="mini"><span>A inaugurar</span><strong id="d-inaugurar">0</strong><small>Planejadas</small></div>
-              <div class="mini warn"><span>Pendentes</span><strong id="d-pendente">0</strong><small>Aguardando definição</small></div>
-              <div class="mini"><span>Total</span><strong id="d-total">0</strong><small>Sem inativas</small></div>
-              <div class="mini dsp"><span>DSP</span><strong id="d-dsp">0</strong><small>Bandeira azul</small></div>
-              <div class="mini dpa"><span>DPA</span><strong id="d-dpa">0</strong><small>Bandeira vermelha</small></div>
+        <div class="map-frame">
+          <div class="map-canvas" id="mapa">
+            <div class="map-title">
+              <strong>Brasil · presença por estado</strong>
+              <small>Mapa real com estados e marcadores operacionais. Cada bolha representa o total de lojas da UF.</small>
             </div>
+            <div class="map-note">A = ativas · I = a inaugurar. Ao selecionar um estado, o painel lateral mostra DSP, DPA, pendentes e totais.</div>
           </div>
-          <div class="summary-card">
-            <h3>Resumo nacional</h3>
-            <div class="summary-list">
-              <div class="summary-row"><span>Ativas + a inaugurar</span><strong id="s-operacao">0</strong></div>
-              <div class="summary-row"><span>Filiais inativas</span><strong id="s-inativas">0</strong></div>
-              <div class="summary-row"><span>Estados com lojas</span><strong id="s-estados">0</strong></div>
-              <div class="summary-row"><span>Sem bandeira definida</span><strong id="s-sem">0</strong></div>
-            </div>
-            <div class="brand-bar" id="brand-bar"><span class="dsp" id="bar-dsp"></span><span class="dpa" id="bar-dpa"></span><span class="sem" id="bar-sem"></span></div>
-            <div class="brand-values"><span id="v-dsp">DSP 0%</span><span id="v-dpa">DPA 0%</span><span id="v-sem">Sem bandeira 0%</span></div>
-            <div class="notice" id="notice-sem">Existem filiais sem bandeira definida. Edite esses registros na aba Filiais para que o mapa represente corretamente DSP e DPA.</div>
+        </div>
+      </div>
+      <div class="map-side">
+        <div class="info-card">
+          <h3>Detalhamento do estado</h3>
+          <div class="state-chip"><i id="state-color"></i><span id="state-chip-text">Passe o mouse sobre o mapa</span></div>
+          <div class="info-grid">
+            <div class="mini ok"><span>Ativas</span><strong id="d-ativa">0</strong><small>Em operação</small></div>
+            <div class="mini"><span>A inaugurar</span><strong id="d-inaugurar">0</strong><small>Planejadas</small></div>
+            <div class="mini warn"><span>Pendentes</span><strong id="d-pendente">0</strong><small>Aguardando definição</small></div>
+            <div class="mini"><span>Total</span><strong id="d-total">0</strong><small>Sem inativas</small></div>
+            <div class="mini dsp"><span>DSP</span><strong id="d-dsp">0</strong><small>Bandeira azul</small></div>
+            <div class="mini dpa"><span>DPA</span><strong id="d-dpa">0</strong><small>Bandeira vermelha</small></div>
           </div>
-          <div class="top-card">
-            <h3>Estados com maior presença</h3>
-            <div id="top-estados" class="top-list"></div>
+        </div>
+        <div class="summary-card">
+          <h3>Resumo nacional</h3>
+          <div class="summary-list">
+            <div class="summary-row"><span>Ativas + a inaugurar</span><strong id="s-operacao">0</strong></div>
+            <div class="summary-row"><span>Filiais inativas</span><strong id="s-inativas">0</strong></div>
+            <div class="summary-row"><span>Estados com lojas</span><strong id="s-estados">0</strong></div>
+            <div class="summary-row"><span>Sem bandeira definida</span><strong id="s-sem">0</strong></div>
           </div>
+          <div class="brand-bar"><span class="dsp" id="bar-dsp"></span><span class="dpa" id="bar-dpa"></span><span class="sem" id="bar-sem"></span></div>
+          <div class="brand-values"><span id="v-dsp">DSP 0%</span><span id="v-dpa">DPA 0%</span><span id="v-sem">Sem bandeira 0%</span></div>
+          <div class="notice" id="notice-sem">Existem filiais sem bandeira definida. Edite esses registros na aba Filiais para que o mapa represente corretamente DSP e DPA.</div>
+        </div>
+        <div class="top-card">
+          <h3>Estados com maior presença</h3>
+          <div id="top-estados" class="top-list"></div>
         </div>
       </div>
     </div>
@@ -181,7 +130,7 @@ main{padding:24px 32px 54px;max-width:1540px;margin:auto}
 
   <section class="panel table-panel">
     <h2>Consolidado por estado</h2>
-    <p class="panel-sub">Somatório de lojas ativas, a inaugurar e pendentes em cada UF. Esta base também alimenta o Excel e o PDF ilustrado.</p>
+    <p class="panel-sub">Somatório de lojas ativas, a inaugurar e pendentes em cada UF. Esta base também alimenta os relatórios em Excel e PDF.</p>
     <div class="table-wrap">
       <table>
         <thead>
@@ -194,17 +143,16 @@ main{padding:24px 32px 54px;max-width:1540px;margin:auto}
 </main>
 {% include '_footer.html' %}
 <script>
-const POS={RR:[198,116],AP:[662,108],AM:[322,206],PA:[568,220],AC:[178,318],RO:[257,350],TO:[528,336],MA:[696,243],PI:[760,275],CE:[833,242],RN:[898,288],PB:[888,328],PE:[838,352],AL:[842,403],SE:[816,433],BA:[737,425],MT:[404,428],GO:[519,485],DF:[572,498],MS:[397,550],MG:[625,528],ES:[718,560],RJ:[652,602],SP:[559,596],PR:[550,648],SC:[579,694],RS:[497,729]};
+const POS={AC:[8.5,34.2],AM:[20.8,23.4],RR:[31.8,7.0],AP:[66.4,8.7],PA:[50.8,25.2],RO:[25.1,40.4],TO:[57.7,44.8],MA:[74.4,27.3],PI:[79.4,32.1],CE:[89.4,26.9],RN:[97.2,26.6],PB:[94.6,30.4],PE:[90.7,34.0],AL:[91.1,39.0],SE:[88.0,42.2],BA:[78.7,41.5],MT:[43.0,53.1],DF:[61.3,46.2],GO:[58.6,50.6],MS:[45.0,64.4],MG:[71.0,54.4],ES:[88.4,57.9],RJ:[81.6,61.6],SP:[69.6,61.7],PR:[66.7,72.0],SC:[67.0,79.3],RS:[60.7,90.2]};
 const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-let estadosCache=[];
-function indicadorCor(e){if((e.total||0)===0)return '#657083';if((e.dsp||0)>0 && (e.dpa||0)===0)return '#3ea6ff';if((e.dpa||0)>0 && (e.dsp||0)===0)return '#ef5260';return '#ffb648';}
-function fundoEstado(e){const conhecidos=(e.dsp||0)+(e.dpa||0);if((e.total||0)===0)return 'rgba(41,49,61,.9)';if(conhecidos===0)return 'rgba(88,99,117,.88)';if(e.dsp>0 && e.dpa===0)return 'linear-gradient(135deg, rgba(70,184,255,.96), rgba(39,108,206,.84))';if(e.dpa>0 && e.dsp===0)return 'linear-gradient(135deg, rgba(255,118,129,.95), rgba(194,58,73,.86))';const pct=Math.round((e.dsp/conhecidos)*100);return `linear-gradient(135deg, rgba(70,184,255,.96) 0 ${pct}%, rgba(255,118,129,.94) ${pct}% 100%)`;}
-function atualizarDetalhe(e){if(!e)return;document.getElementById('state-color').style.background=indicadorCor(e);document.getElementById('state-chip-text').textContent=`${e.estado} (${e.uf})`;document.getElementById('d-ativa').textContent=e.ativa||0;document.getElementById('d-inaugurar').textContent=e.inaugurar||0;document.getElementById('d-pendente').textContent=e.pendente||0;document.getElementById('d-total').textContent=e.total||0;document.getElementById('d-dsp').textContent=e.dsp||0;document.getElementById('d-dpa').textContent=e.dpa||0;}
-function selecionarMarcador(el,e){document.querySelectorAll('.state-pin').forEach(s=>s.classList.remove('ativo'));if(el)el.classList.add('ativo');atualizarDetalhe(e);}
-function renderMapa(estados){const mapa=document.getElementById('mapa');[...mapa.querySelectorAll('.state-pin')].forEach(x=>x.remove());estados.forEach(e=>{const p=POS[e.uf];if(!p)return;const el=document.createElement('button');el.type='button';el.className='state-pin'+((e.total||0)===0?' zero':'');el.style.left=p[0]+'px';el.style.top=p[1]+'px';el.style.background=fundoEstado(e);el.title=`${e.estado} (${e.uf})\nAtivas: ${e.ativa}\nA inaugurar: ${e.inaugurar}\nPendentes: ${e.pendente}\nDSP: ${e.dsp}\nDPA: ${e.dpa}\nSem bandeira: ${e.sem_bandeira}\nTotal: ${e.total}`;el.innerHTML=`<div class="state-top"><div class="state-uf">${esc(e.uf)}</div><div class="state-total">${e.total||0}</div></div><div class="state-name">${esc(e.estado)}</div><div class="state-bottom"><span>A ${e.ativa||0}</span><span>I ${e.inaugurar||0}</span></div>`;el.addEventListener('mouseenter',()=>selecionarMarcador(el,e));el.addEventListener('click',()=>selecionarMarcador(el,e));mapa.appendChild(el);});const primeiro=estados.find(e=>(e.total||0)>0)||estados[0];if(primeiro){const marcador=[...document.querySelectorAll('.state-pin')].find(el=>el.querySelector('.state-uf')?.textContent===primeiro.uf);selecionarMarcador(marcador,primeiro);}}
+function corPrincipal(e){if((e.total||0)===0)return '#798392';if((e.dsp||0)>0 && (e.dpa||0)===0)return '#3ea6ff';if((e.dpa||0)>0 && (e.dsp||0)===0)return '#ef5260';return '#ffb648';}
+function fundoBolha(e){const conhecidos=(e.dsp||0)+(e.dpa||0);if((e.total||0)===0)return 'linear-gradient(135deg,#7b8696,#5f6977)';if(conhecidos===0)return 'linear-gradient(135deg,#7b8696,#5f6977)';if(e.dsp>0 && e.dpa===0)return 'linear-gradient(135deg,#4ec0ff,#2c79d0)';if(e.dpa>0 && e.dsp===0)return 'linear-gradient(135deg,#ff7b86,#d14b5b)';const pct=Math.round((e.dsp/conhecidos)*100);return `linear-gradient(135deg,#4ec0ff 0 ${pct}%,#ff7b86 ${pct}% 100%)`;}
+function atualizarDetalhe(e){if(!e)return;document.getElementById('state-color').style.background=corPrincipal(e);document.getElementById('state-chip-text').textContent=`${e.estado} (${e.uf})`;document.getElementById('d-ativa').textContent=e.ativa||0;document.getElementById('d-inaugurar').textContent=e.inaugurar||0;document.getElementById('d-pendente').textContent=e.pendente||0;document.getElementById('d-total').textContent=e.total||0;document.getElementById('d-dsp').textContent=e.dsp||0;document.getElementById('d-dpa').textContent=e.dpa||0;}
+function selecionarMarcador(el,e){document.querySelectorAll('.state-marker').forEach(x=>x.classList.remove('ativo'));if(el)el.classList.add('ativo');atualizarDetalhe(e);}
+function renderMapa(estados){const mapa=document.getElementById('mapa');[...mapa.querySelectorAll('.state-marker')].forEach(x=>x.remove());estados.forEach(e=>{const p=POS[e.uf];if(!p)return;const el=document.createElement('button');el.type='button';el.className='state-marker'+((e.total||0)===0?' zero':'');el.style.left=p[0]+'%';el.style.top=p[1]+'%';el.title=`${e.estado} (${e.uf})\nAtivas: ${e.ativa}\nA inaugurar: ${e.inaugurar}\nPendentes: ${e.pendente}\nDSP: ${e.dsp}\nDPA: ${e.dpa}\nSem bandeira: ${e.sem_bandeira}\nTotal: ${e.total}`;el.innerHTML=`<span class="state-bubble" style="background:${fundoBolha(e)}">${e.total||0}</span><span class="state-code">${esc(e.uf)}</span>`;el.addEventListener('mouseenter',()=>selecionarMarcador(el,e));el.addEventListener('click',()=>selecionarMarcador(el,e));mapa.appendChild(el);});const primeiro=estados.find(e=>(e.total||0)>0)||estados[0];if(primeiro){const m=[...document.querySelectorAll('.state-marker')].find(el=>el.querySelector('.state-code')?.textContent===primeiro.uf);selecionarMarcador(m,primeiro);}}
 function renderTabela(estados){const tb=document.getElementById('tb-estados');const comDados=estados.filter(e=>e.total>0||e.inativa>0);if(!comDados.length){tb.innerHTML='<tr><td colspan="9" class="empty">Nenhuma filial com UF válida foi cadastrada.</td></tr>';return;}tb.innerHTML=comDados.map(e=>`<tr><td class="uf-code">${e.uf}</td><td>${esc(e.estado)}</td><td class="num">${e.ativa}</td><td class="num">${e.inaugurar}</td><td class="num">${e.pendente}</td><td class="num"><span class="pill dsp">${e.dsp}</span></td><td class="num"><span class="pill dpa">${e.dpa}</span></td><td class="num">${e.sem_bandeira}</td><td class="num"><strong>${e.total}</strong></td></tr>`).join('');}
 function renderTop(estados){const alvo=document.getElementById('top-estados');const top=[...estados].filter(e=>(e.total||0)>0).sort((a,b)=>(b.total||0)-(a.total||0)||String(a.estado||'').localeCompare(String(b.estado||''))).slice(0,8);if(!top.length){alvo.innerHTML='<div class="empty">Nenhum estado com lojas cadastrado.</div>';return;}alvo.innerHTML=top.map(e=>`<div class="top-row"><div class="left"><strong>${esc(e.estado)} <span style="color:#83c6ff">(${esc(e.uf)})</span></strong><small>Ativas ${e.ativa} · Inaugurar ${e.inaugurar} · Pendentes ${e.pendente}</small></div><div class="right">${e.total}<small>${e.dsp} DSP · ${e.dpa} DPA</small></div></div>`).join('');}
-async function init(){try{const r=await fetch('/api/projecao-lojas');if(!r.ok)throw new Error('Falha ao carregar projeção');const d=await r.json(),t=d.totais||{},estados=d.estados||[];estadosCache=estados;document.getElementById('k-total').textContent=t.total_geral||0;document.getElementById('k-ativa').textContent=t.ativa||0;document.getElementById('k-inaugurar').textContent=t.inaugurar||0;document.getElementById('k-pendente').textContent=t.pendente||0;document.getElementById('k-dsp').textContent=t.dsp||0;document.getElementById('k-dpa').textContent=t.dpa||0;document.getElementById('badge-estados').textContent=estados.filter(e=>(e.total||0)>0).length;document.getElementById('badge-operacao').textContent=(t.ativa||0)+(t.inaugurar||0);document.getElementById('s-operacao').textContent=(t.ativa||0)+(t.inaugurar||0);document.getElementById('s-inativas').textContent=t.inativa||0;document.getElementById('s-estados').textContent=estados.filter(e=>e.total>0).length;document.getElementById('s-sem').textContent=t.sem_bandeira||0;const base=Math.max(1,(t.dsp||0)+(t.dpa||0)+(t.sem_bandeira||0)),pd=(t.dsp||0)/base*100,pa=(t.dpa||0)/base*100,ps=(t.sem_bandeira||0)/base*100;document.getElementById('bar-dsp').style.width=pd+'%';document.getElementById('bar-dpa').style.width=pa+'%';document.getElementById('bar-sem').style.width=ps+'%';document.getElementById('v-dsp').textContent=`DSP ${Math.round(pd)}%`;document.getElementById('v-dpa').textContent=`DPA ${Math.round(pa)}%`;document.getElementById('v-sem').textContent=`Sem bandeira ${Math.round(ps)}%`;document.getElementById('notice-sem').classList.toggle('show',(t.sem_bandeira||0)>0);renderMapa(estados);renderTabela(estados);renderTop(estados)}catch(e){console.error(e);document.getElementById('tb-estados').innerHTML='<tr><td colspan="9" class="empty">Não foi possível carregar a projeção.</td></tr>';document.getElementById('top-estados').innerHTML='<div class="empty">Erro ao carregar dados.</div>'}}
+async function init(){try{const r=await fetch('/api/projecao-lojas');if(!r.ok)throw new Error('Falha ao carregar projeção');const d=await r.json(),t=d.totais||{},estados=d.estados||[];document.getElementById('k-total').textContent=t.total_geral||0;document.getElementById('k-ativa').textContent=t.ativa||0;document.getElementById('k-inaugurar').textContent=t.inaugurar||0;document.getElementById('k-pendente').textContent=t.pendente||0;document.getElementById('k-dsp').textContent=t.dsp||0;document.getElementById('k-dpa').textContent=t.dpa||0;document.getElementById('badge-estados').textContent=estados.filter(e=>(e.total||0)>0).length;document.getElementById('badge-operacao').textContent=(t.ativa||0)+(t.inaugurar||0);document.getElementById('s-operacao').textContent=(t.ativa||0)+(t.inaugurar||0);document.getElementById('s-inativas').textContent=t.inativa||0;document.getElementById('s-estados').textContent=estados.filter(e=>e.total>0).length;document.getElementById('s-sem').textContent=t.sem_bandeira||0;const base=Math.max(1,(t.dsp||0)+(t.dpa||0)+(t.sem_bandeira||0)),pd=(t.dsp||0)/base*100,pa=(t.dpa||0)/base*100,ps=(t.sem_bandeira||0)/base*100;document.getElementById('bar-dsp').style.width=pd+'%';document.getElementById('bar-dpa').style.width=pa+'%';document.getElementById('bar-sem').style.width=ps+'%';document.getElementById('v-dsp').textContent=`DSP ${Math.round(pd)}%`;document.getElementById('v-dpa').textContent=`DPA ${Math.round(pa)}%`;document.getElementById('v-sem').textContent=`Sem bandeira ${Math.round(ps)}%`;document.getElementById('notice-sem').classList.toggle('show',(t.sem_bandeira||0)>0);renderMapa(estados);renderTabela(estados);renderTop(estados)}catch(e){console.error(e);document.getElementById('tb-estados').innerHTML='<tr><td colspan="9" class="empty">Não foi possível carregar a projeção.</td></tr>';document.getElementById('top-estados').innerHTML='<div class="empty">Erro ao carregar dados.</div>'}}
 init();
 </script>
 </body>
