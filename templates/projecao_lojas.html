@@ -7,70 +7,23 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   {% include '_mobile_head.html' %}
   <style>
-:root{
-  --bg:#06111d;--bg-soft:#0a1b2d;--panel:#0d2034;--panel-2:#12283f;--line:#214565;
-  --text:#edf5ff;--muted:#8fa8bf;--blue:#2a8dff;--blue-soft:#6cc5ff;--red:#ff5a67;
-  --purple:#9567ff;--green:#4ad79a;--amber:#ffbe4c;--slate:#607a92;--mono:Consolas,monospace;
-}
-*{box-sizing:border-box}
-html,body{max-width:100%;overflow-x:hidden}
-body{margin:0;background:#12181f;color:var(--text);font-family:"Segoe UI",Inter,system-ui,sans-serif}
-header{padding:26px 32px 18px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:16px;align-items:flex-end;flex-wrap:wrap;background:transparent}
-.tag{font:12px var(--mono);letter-spacing:.12em;color:#ffb648;text-transform:uppercase;border:1px solid #ffb648;padding:2px 8px;border-radius:3px}
-h1{font-size:23px;margin:7px 0 3px}
-header p{margin:0;color:var(--muted);font-size:13px;line-height:1.55;max-width:860px}
-.head-actions{display:flex;gap:8px;flex-wrap:wrap}
-.head-actions a,.head-actions button{border:1px solid #294760;background:#0d2236;color:#e8f3ff;text-decoration:none;padding:9px 12px;border-radius:10px;font-size:11px;cursor:pointer}
-.head-actions a.primary{background:linear-gradient(135deg,#1478e7,#2b90ff);border-color:#41a0ff;font-weight:700}
-.head-actions a.pdf{background:linear-gradient(135deg,#162f4f,#204870);border-color:#446e98}
-main{padding:24px 32px 50px;max-width:1640px;margin:auto}
-.kpis{display:grid;grid-template-columns:repeat(6,minmax(140px,1fr));gap:12px}
-.kpi{position:relative;background:linear-gradient(155deg,rgba(18,49,77,.96),rgba(10,27,45,.97));border:1px solid rgba(62,100,132,.55);border-radius:16px;padding:15px;min-height:98px;overflow:hidden;box-shadow:0 18px 32px rgba(0,0,0,.16)}
-.kpi::after{content:"";position:absolute;width:112px;height:112px;border-radius:50%;right:-42px;top:-50px;background:radial-gradient(circle,rgba(87,178,255,.18),transparent 68%)}
-.kpi span{display:block;font-size:9px;color:#a9bfd3;text-transform:uppercase;letter-spacing:.08em}
-.kpi strong{display:block;margin-top:8px;font:800 26px var(--mono)}
-.kpi small{display:block;margin-top:4px;color:#87a0b7;font-size:10px}
-.kpi.total strong{color:#fff}.kpi.active strong{color:var(--green)}.kpi.open strong{color:var(--blue-soft)}.kpi.pending strong{color:var(--amber)}.kpi.dsp strong{color:var(--blue-soft)}.kpi.dpa strong{color:#ff7d87}
-.layout{display:grid;grid-template-columns:300px minmax(620px,1fr) 330px;gap:14px;margin-top:16px;align-items:start}
-.card{background:linear-gradient(160deg,rgba(13,33,53,.97),rgba(9,25,42,.97));border:1px solid rgba(58,95,126,.55);border-radius:16px;padding:15px;box-shadow:0 18px 32px rgba(0,0,0,.15)}
-.card h2,.card h3{margin:0 0 12px;font-size:13px;text-transform:uppercase;letter-spacing:.05em}
-.card-sub{margin:-2px 0 12px;color:var(--muted);font-size:10px;line-height:1.5}
-.side-stack{display:grid;gap:12px}
-.legend{display:grid;gap:10px}.legend-row{display:flex;align-items:center;gap:10px;font-size:10.5px;color:#c3d4e4}.legend-dot{width:12px;height:12px;border-radius:4px;box-shadow:0 0 14px rgba(255,255,255,.06)}.legend-dot.dsp{background:#33c27f}.legend-dot.dpa{background:#2a8dff}.legend-dot.mix{background:#9567ff}.legend-dot.none{background:#465d72}
-.tip{display:flex;gap:11px;align-items:flex-start;color:#9db4c8;font-size:10px;line-height:1.55}.tip-icon{width:30px;height:30px;border-radius:10px;background:#10304a;border:1px solid #285271;display:grid;place-items:center;color:#8dd2ff;font-size:14px;flex:0 0 auto}
-.mini-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.mini{background:rgba(5,18,30,.48);border:1px solid rgba(56,89,118,.48);border-radius:12px;padding:12px}.mini span{display:block;font-size:8.5px;color:#9db4c8;text-transform:uppercase}.mini strong{display:block;margin-top:6px;font:800 18px var(--mono)}.mini b{display:block;margin-top:3px;font-size:10px;color:#dcebfa}
-.mini.best strong{color:#6cc5ff}.mini.cover strong{color:#4ad79a}.mini.opening strong{color:#ffbe4c}.mini.pending strong{color:#bc9dff}
-.ranking{display:grid;gap:8px;max-height:320px;overflow:auto;padding-right:4px}.rank-row{display:grid;grid-template-columns:26px minmax(0,1fr) auto;gap:8px;align-items:center;padding:9px 10px;border-radius:10px;background:rgba(5,18,31,.42);border:1px solid transparent;cursor:pointer}.rank-row:hover{border-color:#2e5f87;background:#0b2942}.rank-row.active{border-color:#5ab6ff;background:#0c3453}.rank-n{font:700 10px var(--mono);color:#87a0b8;text-align:center}.rank-name{font-size:10.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.rank-total{font:700 10px var(--mono)}.rank-bar{height:4px;border-radius:999px;background:#11304a;grid-column:2/4;overflow:hidden}.rank-bar span{display:block;height:100%;background:linear-gradient(90deg,#2a8dff,#64c9ff)}
-.map-card{padding:0;overflow:hidden;position:relative;min-height:760px;background:linear-gradient(180deg,#081829,#07121e)}
-.map-head{position:absolute;z-index:700;top:14px;left:14px;right:14px;display:flex;justify-content:space-between;align-items:flex-start;gap:12px;pointer-events:none}
-.map-title{background:rgba(5,17,29,.82);backdrop-filter:blur(7px);border:1px solid rgba(67,106,138,.54);border-radius:12px;padding:11px 12px;box-shadow:0 12px 26px rgba(0,0,0,.18)}
-.map-title strong{display:block;font-size:12px}.map-title span{display:block;margin-top:4px;font-size:9px;color:#92aac0}
-.map-pills{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}.map-pill{background:rgba(5,17,29,.82);border:1px solid rgba(67,106,138,.54);border-radius:999px;padding:8px 11px;font:700 9px var(--mono);color:#edf5ff}.map-tools{margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;pointer-events:auto}.filter-chip{border:1px solid rgba(96,145,182,.62);background:rgba(6,20,32,.9);color:#dcedff;border-radius:999px;padding:7px 10px;font:700 9px var(--mono);cursor:pointer;transition:.18s}.filter-chip:hover{transform:translateY(-1px);border-color:#77c4ff}.filter-chip.active{background:linear-gradient(135deg,#1478e7,#2b90ff);border-color:#41a0ff;color:#fff;box-shadow:0 0 0 1px rgba(255,255,255,.04),0 10px 20px rgba(5,61,122,.2)}.map-current{display:block;margin-top:6px;color:#9eb6ca;font-size:9px}
-#br-map{height:760px;width:100%;background:radial-gradient(circle at 50% 40%,rgba(53,132,206,.22),transparent 34%),radial-gradient(circle at 50% 56%,rgba(24,66,110,.28),transparent 54%),linear-gradient(180deg,#0d2b46,#071524 72%)}
-.leaflet-container{font-family:inherit;background:transparent}.leaflet-control-attribution{font-size:8px!important;background:rgba(5,15,25,.72)!important;color:#8ca3b9!important}.leaflet-control-attribution a{color:#66b8ff!important}.leaflet-control-zoom a{background:#0b2034!important;color:#dcecff!important;border-color:#294760!important}
-.leaflet-tooltip.state-tip{background:rgba(6,19,32,.97);border:1px solid #3b6d98;color:#eaf5ff;border-radius:14px;box-shadow:0 14px 28px rgba(0,0,0,.28);padding:0;min-width:220px}.leaflet-tooltip.state-tip:before{border-top-color:#3b6d98!important}.state-tip-card{padding:10px 12px}.state-tip-card .top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}.state-tip-card .name{font-weight:700;font-size:12px;line-height:1.25}.state-tip-card .ufbadge{font:700 10px var(--mono);background:#12283f;border:1px solid #355b7b;color:#fff;border-radius:999px;padding:3px 7px}.state-tip-card .line{margin-top:8px;display:grid;grid-template-columns:1fr 1fr;gap:8px}.state-tip-stat{background:rgba(255,255,255,.04);border:1px solid rgba(114,150,181,.22);border-radius:10px;padding:8px}.state-tip-stat span{display:block;font-size:8px;color:#95aabe;text-transform:uppercase}.state-tip-stat strong{display:block;margin-top:4px;font:800 14px var(--mono)}.state-tip-stat.active strong{color:#61e0a5}.state-tip-stat.open strong{color:#6bc7ff}.state-tip-stat.pending strong{color:#b695ff}.state-tip-foot{margin-top:8px;color:#9db3c8;font-size:9px;display:flex;justify-content:space-between;gap:10px}
-.leaflet-tooltip.state-center-label{background:transparent;border:0;box-shadow:none;padding:0}.leaflet-tooltip.state-center-label:before{display:none}
-.state-label{display:grid;gap:2px;min-width:54px;padding:5px 7px;border-radius:10px;background:rgba(5,16,28,.92);border:1px solid rgba(119,163,201,.74);backdrop-filter:blur(2px);text-align:center;box-shadow:0 10px 14px rgba(0,0,0,.16)}
-.state-label .uf{font:800 10px var(--mono);color:#fff;letter-spacing:.04em}
-.state-label .total{font:800 13px var(--mono);color:#fff;line-height:1}
-.state-label .detail{font:700 8px var(--mono);color:#a8c7df;white-space:nowrap}.state-label .detail .dsp{color:#6ee5a9}.state-label .detail .dpa{color:#77c9ff}.state-label.zero{display:none}
-.detail-title{display:flex;align-items:center;gap:10px;margin-bottom:13px}.state-orb{width:30px;height:30px;border-radius:50%;box-shadow:0 0 18px rgba(78,167,255,.26);background:#244f74;flex:0 0 auto}.detail-title strong{font-size:14px}.detail-title small{display:block;color:#84a0b8;font-size:9px;margin-top:2px}
-.detail-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border:1px solid #20415f;border-radius:12px;overflow:hidden}.detail-cell{padding:11px 7px;background:rgba(5,18,30,.52);text-align:center;border-right:1px solid #20415f;border-bottom:1px solid #20415f;min-height:74px}.detail-cell:nth-child(3n){border-right:0}.detail-cell:nth-last-child(-n+3){border-bottom:0}.detail-cell span{display:block;font-size:8px;color:#94adc2;text-transform:uppercase}.detail-cell strong{display:block;margin-top:7px;font:800 18px var(--mono)}.detail-cell.active strong{color:var(--green)}.detail-cell.open strong{color:var(--blue-soft)}.detail-cell.pending strong{color:var(--purple)}.detail-cell.dsp strong{color:var(--blue-soft)}.detail-cell.dpa strong{color:var(--red)}
-.donut-wrap{display:grid;grid-template-columns:115px minmax(0,1fr);gap:12px;align-items:center}.donut{width:108px;height:108px;border-radius:50%;background:conic-gradient(var(--green) 0 var(--p-active),var(--amber) var(--p-active) var(--p-open),var(--purple) var(--p-open) 100%);position:relative;box-shadow:0 0 0 1px rgba(255,255,255,.08),inset 0 0 18px rgba(0,0,0,.18)}.donut:after{content:"";position:absolute;inset:24px;background:#0b2135;border-radius:50%;box-shadow:inset 0 0 0 1px rgba(255,255,255,.06)}.donut-center{position:absolute;inset:0;display:grid;place-items:center;text-align:center;z-index:1}.donut-center strong{font:800 18px var(--mono)}.donut-center span{font-size:8px;color:#90a9bf;text-transform:uppercase}.status-legend{display:grid;gap:8px}.status-row{display:grid;grid-template-columns:8px 1fr auto;gap:7px;align-items:center;font-size:10px;color:#a3bacd}.status-row i{width:8px;height:8px;border-radius:2px}.status-row .value{font:700 10px var(--mono);color:#eef6ff}.updated{margin-top:10px;text-align:right;color:#7f99b1;font-size:8px}
-.table-card{margin-top:14px;padding:14px 15px}.table-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-end;flex-wrap:wrap}.table-head p{margin:0;color:var(--muted);font-size:10px}.table-wrap{margin-top:12px;max-height:390px;overflow:auto;border:1px solid rgba(64,99,129,.42);border-radius:12px}table{width:100%;border-collapse:collapse;font-size:10px;min-width:780px}thead{position:sticky;top:0;z-index:2;background:#0f2b44}th,td{padding:9px 10px;border-bottom:1px solid rgba(57,91,120,.42);text-align:left}th{text-transform:uppercase;color:#aac2d7;font-size:8.5px;letter-spacing:.04em}.num{text-align:right;font-family:var(--mono)}.uf{font-family:var(--mono);font-weight:700;color:#d7ebff}.c-blue{color:#66c5ff}.c-red{color:#ff7c84}.c-green{color:#55e2a0}.empty{text-align:center;color:#849bae;padding:24px}.state-row{cursor:pointer;transition:.15s}.state-row:hover{background:rgba(16,52,83,.5)}.state-row.active{background:rgba(20,74,117,.58)}.legend-note{margin-top:8px;color:#89a2b7;font-size:9px;line-height:1.5}
-@media(max-width:1440px){.layout{grid-template-columns:280px minmax(560px,1fr) 315px}}
-@media(max-width:1240px){.kpis{grid-template-columns:repeat(3,1fr)}.layout{grid-template-columns:1fr}.side-left,.side-right{grid-template-columns:1fr 1fr}.side-left .ranking-card,.side-right .distribution-card{grid-column:1/-1}.map-card{min-height:680px}#br-map{height:680px}}
-@media(max-width:780px){header,main{padding-left:16px;padding-right:16px}.kpis{grid-template-columns:repeat(2,1fr)}.head-actions{width:100%}.head-actions a,.head-actions button{flex:1;text-align:center}.side-left,.side-right{grid-template-columns:1fr}.side-left .ranking-card,.side-right .distribution-card{grid-column:auto}.map-head{position:relative;left:auto;top:auto;right:auto;pointer-events:auto;display:grid;padding:10px}.map-card{padding-top:0}.map-pills{display:grid;grid-template-columns:1fr 1fr}.map-title{width:100%}.map-tools{display:grid;grid-template-columns:1fr 1fr}.donut-wrap{grid-template-columns:1fr}.donut{margin:auto}#br-map{height:540px}}
-
-.fallback-svg{width:100%;height:100%;display:block;background:radial-gradient(circle at 50% 42%,rgba(44,124,194,.18),transparent 35%),linear-gradient(180deg,#0c2943,#071522)}
-.fallback-state{stroke:#e6f2ff;stroke-width:1.25;vector-effect:non-scaling-stroke;cursor:pointer;transition:opacity .18s ease,filter .18s ease,stroke-width .18s ease}
-.fallback-state:hover,.fallback-state.active{filter:brightness(1.18) drop-shadow(0 0 6px rgba(255,255,255,.18));stroke:#fff;stroke-width:2.1}
-.fallback-state.muted{opacity:.22}
-.fallback-label{pointer-events:none;text-anchor:middle;dominant-baseline:middle;font-family:Consolas,monospace;fill:#fff;font-weight:800;font-size:13px;paint-order:stroke;stroke:#071522;stroke-width:3px;stroke-linejoin:round}
-.fallback-ai{pointer-events:none;text-anchor:middle;font-family:Consolas,monospace;fill:#dbeeff;font-weight:700;font-size:9px;paint-order:stroke;stroke:#071522;stroke-width:2px}
-.fallback-note{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);z-index:5;background:rgba(5,17,29,.82);border:1px solid rgba(67,106,138,.54);border-radius:999px;padding:7px 11px;color:#a7bdd0;font-size:9px;white-space:nowrap}
-
-@media print{.app-menu,.head-actions,.leaflet-control-container{display:none!important}body{background:#fff;color:#111}.card,.kpi{box-shadow:none!important;border:1px solid #ccc;background:#fff!important;color:#111!important}#br-map{background:#f4f6f8!important}.layout{grid-template-columns:1fr}.table-wrap{max-height:none;overflow:visible}.updated,.legend-row,.tip,.card-sub,header p,.kpi small{color:#666!important}}
+:root{--bg:#06111d;--bg2:#081a2b;--panel:#0d2034;--panel2:#102941;--line:#1e3c57;--text:#edf5ff;--muted:#8ca3b9;--blue:#238dff;--blue2:#54b4ff;--red:#ff535f;--green:#45d996;--amber:#ffbe49;--purple:#9a63ff;--neutral:#4f667b;--mono:Consolas,monospace}
+*{box-sizing:border-box}html,body{max-width:100%;overflow-x:hidden}body{margin:0;background:radial-gradient(circle at 50% -20%,#12385b 0,#08192a 38%,#06111d 100%);color:var(--text);font-family:"Segoe UI",Inter,system-ui,sans-serif}
+.leaflet-control-attribution{font-size:8px!important;background:rgba(5,15,25,.72)!important;color:#8ca3b9!important}.leaflet-control-attribution a{color:#66b8ff!important}.leaflet-control-zoom a{background:#0b2034!important;color:#dcecff!important;border-color:#294760!important}.leaflet-container{font-family:inherit}.leaflet-tooltip.state-tip{background:rgba(6,19,32,.95);border:1px solid #2f5b82;color:#eaf5ff;border-radius:8px;box-shadow:0 8px 18px rgba(0,0,0,.2)}.leaflet-tooltip.state-tip:before{border-top-color:#2f5b82!important}
+header{padding:22px 28px 14px;border-bottom:1px solid rgba(76,111,142,.34);display:flex;justify-content:space-between;gap:16px;align-items:flex-end;flex-wrap:wrap;background:rgba(5,14,24,.55)}.tag{font:11px var(--mono);letter-spacing:.12em;color:#72bdff;text-transform:uppercase;border:1px solid rgba(64,159,255,.55);padding:3px 9px;border-radius:999px}h1{font-size:26px;margin:7px 0 3px}header p{margin:0;color:var(--muted);font-size:12px;line-height:1.5}.head-actions{display:flex;gap:8px;flex-wrap:wrap}.head-actions a,.head-actions button{border:1px solid #24415c;background:#0c2237;color:#e8f3ff;text-decoration:none;padding:9px 12px;border-radius:9px;font-size:11px;cursor:pointer}.head-actions a.primary{background:linear-gradient(135deg,#1478e7,#248eff);border-color:#369cff;font-weight:700}.head-actions a.pdf{background:linear-gradient(135deg,#173353,#123a6a);border-color:#315a80}
+main{padding:20px 24px 52px;max-width:1600px;margin:auto}.kpis{display:grid;grid-template-columns:repeat(6,minmax(135px,1fr));gap:11px}.kpi{position:relative;background:linear-gradient(145deg,rgba(19,49,77,.95),rgba(10,31,51,.95));border:1px solid rgba(66,105,138,.48);border-radius:12px;padding:14px 14px 13px;min-height:92px;overflow:hidden;box-shadow:0 14px 30px rgba(0,0,0,.15)}.kpi::after{content:"";position:absolute;width:100px;height:100px;border-radius:50%;right:-42px;top:-48px;background:radial-gradient(circle,rgba(64,159,255,.15),transparent 68%)}.kpi-label{font-size:9px;color:#9eb3c8;text-transform:uppercase;letter-spacing:.08em}.kpi strong{display:block;margin-top:7px;font:800 25px var(--mono)}.kpi small{display:block;margin-top:4px;color:#8da2b6;font-size:9px}.kpi.total strong{color:#fff}.kpi.active strong{color:var(--green)}.kpi.open strong{color:var(--blue2)}.kpi.pending strong{color:var(--amber)}.kpi.dsp strong{color:var(--blue2)}.kpi.dpa strong{color:#ff7580}
+.dashboard-grid{display:grid;grid-template-columns:245px minmax(560px,1fr) 310px;gap:14px;margin-top:14px;align-items:start}.side-stack{display:grid;gap:12px}.box{background:linear-gradient(160deg,rgba(15,43,68,.96),rgba(8,27,45,.96));border:1px solid rgba(59,95,126,.55);border-radius:12px;padding:14px;box-shadow:0 14px 28px rgba(0,0,0,.14)}.box h2,.box h3{margin:0 0 11px;font-size:12px;text-transform:uppercase;letter-spacing:.04em}.legend-list{display:grid;gap:10px}.legend-row{display:flex;align-items:center;gap:9px;color:#c2d2e1;font-size:10px}.legend-dot{width:11px;height:11px;border-radius:3px;box-shadow:0 0 12px rgba(255,255,255,.08)}.legend-dot.dsp{background:var(--blue)}.legend-dot.dpa{background:var(--red)}.legend-dot.mix{background:var(--purple)}.legend-dot.none{background:#17283a;border:1px solid #63788c}.tip-box{display:flex;gap:11px;align-items:center;color:#9eb3c8;font-size:10px;line-height:1.5}.mouse-icon{width:24px;height:34px;border:1px solid #7e9cb7;border-radius:12px;position:relative;flex:0 0 auto}.mouse-icon:before{content:"";position:absolute;left:50%;top:6px;width:2px;height:8px;background:#7e9cb7;transform:translateX(-50%)}
+.ranking{display:grid;gap:6px;max-height:255px;overflow:auto;padding-right:3px}.rank-row{display:grid;grid-template-columns:20px minmax(0,1fr) auto;gap:7px;align-items:center;padding:7px 8px;border-radius:7px;background:rgba(5,20,35,.45);border:1px solid transparent;cursor:pointer}.rank-row:hover{border-color:#295679;background:#0b2a45}.rank-n{font:700 10px var(--mono);color:#8199ae}.rank-name{font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.rank-total{font:700 10px var(--mono)}.rank-bar{height:2px;background:#143047;border-radius:999px;grid-column:2/4;overflow:hidden}.rank-bar span{display:block;height:100%;background:linear-gradient(90deg,#238dff,#55c1ff)}
+.map-box{padding:0;overflow:hidden;position:relative;min-height:690px;background:linear-gradient(180deg,#081728,#07131f)}.map-head{position:absolute;z-index:600;top:14px;left:14px;right:14px;display:flex;justify-content:space-between;align-items:flex-start;gap:10px;pointer-events:none}.map-heading{background:rgba(5,18,31,.87);backdrop-filter:blur(7px);border:1px solid rgba(67,107,140,.54);border-radius:10px;padding:9px 11px;box-shadow:0 8px 20px rgba(0,0,0,.18)}.map-heading strong{display:block;font-size:11px}.map-heading span{display:block;margin-top:3px;font-size:9px;color:#8fa8bf}.map-summary{display:flex;gap:7px}.map-chip{background:rgba(5,18,31,.87);border:1px solid rgba(67,107,140,.54);border-radius:999px;padding:7px 10px;font:700 9px var(--mono)}
+#br-map{height:690px;width:100%;background:radial-gradient(circle at 50% 38%,rgba(31,112,180,.22),transparent 36%),radial-gradient(circle at 50% 52%,rgba(25,77,126,.28),transparent 52%),linear-gradient(180deg,#0b2842,#061523 70%)}
+.state-div-icon{background:transparent!important;border:0!important}.state-label-wrap{position:relative;transform:translate(var(--dx,0px),var(--dy,0px));display:flex;flex-direction:column;align-items:center;filter:drop-shadow(0 7px 6px rgba(0,0,0,.28));pointer-events:auto}.state-label{min-width:48px;background:rgba(5,16,28,.94);border:1px solid rgba(121,166,204,.68);border-radius:8px;padding:4px 5px;text-align:center;line-height:1.05;color:#fff}.state-label .uf{font:800 10px var(--mono);display:block;margin-bottom:3px}.state-label .counts{display:flex;justify-content:center;gap:4px;font:800 9px var(--mono)}.state-label .dsp-n{color:#49b4ff}.state-label .dpa-n{color:#ff6c76}.state-label .sep{color:#728ca4}.state-pin{width:6px;height:6px;border-radius:50%;background:#dff1ff;border:1px solid #1e4f74;margin-top:2px;box-shadow:0 0 0 2px rgba(107,188,255,.25)}
+.detail-title{display:flex;align-items:center;gap:10px;margin-bottom:12px}.state-orb{width:28px;height:28px;border-radius:50%;box-shadow:0 0 16px rgba(60,157,255,.28);flex:0 0 auto}.detail-title strong{font-size:13px}.detail-title small{display:block;color:#8099b0;font-size:9px;margin-top:2px}.detail-grid{display:grid;grid-template-columns:repeat(3,1fr);border:1px solid #1d3d58;border-radius:9px;overflow:hidden}.detail-cell{padding:11px 7px;background:rgba(4,18,31,.55);text-align:center;border-right:1px solid #1d3d58;border-bottom:1px solid #1d3d58;min-height:72px}.detail-cell:nth-child(3n){border-right:0}.detail-cell:nth-last-child(-n+3){border-bottom:0}.detail-cell span{display:block;font-size:8px;color:#91a7bb;text-transform:uppercase}.detail-cell strong{display:block;margin-top:7px;font:800 18px var(--mono)}.detail-cell.active strong{color:var(--green)}.detail-cell.open strong{color:var(--blue2)}.detail-cell.pending strong{color:var(--purple)}.detail-cell.dsp strong{color:var(--blue2)}.detail-cell.dpa strong{color:var(--red)}
+.status-wrap{display:grid;grid-template-columns:110px minmax(0,1fr);gap:12px;align-items:center}.donut{width:104px;height:104px;border-radius:50%;background:conic-gradient(var(--green) 0 var(--p-active),var(--amber) var(--p-active) var(--p-open),var(--purple) var(--p-open) 100%);position:relative;box-shadow:0 0 0 1px rgba(255,255,255,.08),inset 0 0 18px rgba(0,0,0,.14)}.donut:after{content:"";position:absolute;inset:24px;background:#0b2135;border-radius:50%;box-shadow:inset 0 0 0 1px rgba(255,255,255,.06)}.status-legend{display:grid;gap:8px}.status-row{display:grid;grid-template-columns:8px 1fr auto;gap:7px;align-items:center;font-size:9px;color:#9eb4c7}.status-row i{width:8px;height:8px;border-radius:2px}.status-row .value{font:700 9px var(--mono);color:#eaf5ff}.updated{margin-top:8px;color:#748ca1;font-size:8px;text-align:right}
+.table-panel{margin-top:14px;padding:12px 14px}.table-panel h2{margin:0 0 9px;font-size:11px;text-transform:uppercase;letter-spacing:.04em}.table-wrap{max-height:350px;overflow:auto;border:1px solid rgba(64,99,129,.42);border-radius:8px}table{width:100%;border-collapse:collapse;font-size:9.5px;min-width:760px}thead{position:sticky;top:0;z-index:2;background:#0d2941}th,td{padding:8px 9px;border-bottom:1px solid rgba(57,91,120,.42);text-align:left}th{text-transform:uppercase;color:#a6bad0;font-size:8.5px}.num{text-align:right;font-family:var(--mono)}.uf{font-family:var(--mono);font-weight:700}.c-blue{color:#49b4ff}.c-red{color:#ff6873}.c-green{color:#55e2a0}.empty{text-align:center;color:#849bae;padding:24px}
+@media(max-width:1300px){.dashboard-grid{grid-template-columns:220px minmax(520px,1fr) 285px}.kpis{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:1050px){.dashboard-grid{grid-template-columns:1fr}.side-left{grid-template-columns:1fr 1fr}.side-right{grid-template-columns:1fr 1fr}.side-left .ranking-box,.side-right .status-box{grid-column:1/-1}#br-map{height:630px}.map-box{min-height:630px}}
+@media(max-width:700px){header,main{padding-left:12px;padding-right:12px}.kpis{grid-template-columns:repeat(2,1fr)}.head-actions{width:100%}.head-actions a,.head-actions button{flex:1;text-align:center}.side-left,.side-right{grid-template-columns:1fr}.side-left .ranking-box,.side-right .status-box{grid-column:auto}.map-head{position:relative;left:auto;right:auto;top:auto;padding:10px;pointer-events:auto;display:grid}.map-box{padding-top:0}.map-heading,.map-chip{width:max-content;max-width:100%}.status-wrap{grid-template-columns:1fr}.donut{margin:auto}#br-map{height:520px}}
+@media print{.app-menu,.head-actions,.leaflet-control-container{display:none!important}body{background:#fff;color:#111}.box,.kpi{box-shadow:none!important;border:1px solid #ccc;background:#fff!important;color:#111!important}#br-map{background:#f4f6f8!important}.dashboard-grid{grid-template-columns:1fr}.table-wrap{max-height:none;overflow:visible}.updated,.legend-row,.tip-box,header p,.kpi small{color:#666!important}}
   </style>
 </head>
 <body>
@@ -78,263 +31,64 @@ main{padding:24px 32px 50px;max-width:1640px;margin:auto}
   <div>
     <span class="tag">PROJEÇÃO</span>
     <h1>Projeção de abertura e lojas</h1>
-    <p>Visão executiva das filiais por estado, status e bandeira. O mapa destaca visualmente cada UF com cores profissionais e detalhamento interativo alimentado pela aba Filiais.</p>
+    <p>Mapa profissional do Brasil com o desenho de cada estado, alimentado pela aba Filiais. As cores representam DSP/DPA e os indicadores laterais mostram os detalhes operacionais do estado selecionado.</p>
   </div>
   <div class="head-actions">
     <a href="{{ url_for('pagina_filiais') }}">Gerenciar filiais</a>
     <a class="primary" href="{{ url_for('exportar_projecao_lojas') }}">Exportar Excel</a>
-    <a class="pdf" href="{{ url_for('exportar_projecao_lojas_pdf') }}">Baixar PDF executivo</a>
+    <a class="pdf" href="{{ url_for('exportar_projecao_lojas_pdf') }}">Imprimir / PDF</a>
   </div>
 </header>
 {% include '_menu.html' %}
 <main>
   <section class="kpis">
-    <div class="kpi total"><span>Total geral</span><strong id="k-total">0</strong><small>Ativas + inaugurar + pendentes</small></div>
-    <div class="kpi active"><span>Lojas ativas</span><strong id="k-ativa">0</strong><small>Em operação</small></div>
-    <div class="kpi open"><span>A inaugurar</span><strong id="k-inaugurar">0</strong><small>Aberturas planejadas</small></div>
-    <div class="kpi pending"><span>Pendentes</span><strong id="k-pendente">0</strong><small>Aguardando definição</small></div>
-    <div class="kpi dsp"><span>DSP</span><strong id="k-dsp">0</strong><small>Bandeira azul</small></div>
-    <div class="kpi dpa"><span>DPA</span><strong id="k-dpa">0</strong><small>Bandeira vermelha</small></div>
+    <div class="kpi total"><span class="kpi-label">Total geral</span><strong id="k-total">0</strong><small>Ativas + inaugurar + pendentes</small></div>
+    <div class="kpi active"><span class="kpi-label">Lojas ativas</span><strong id="k-ativa">0</strong><small>Em operação</small></div>
+    <div class="kpi open"><span class="kpi-label">A inaugurar</span><strong id="k-inaugurar">0</strong><small>Aberturas planejadas</small></div>
+    <div class="kpi pending"><span class="kpi-label">Pendentes</span><strong id="k-pendente">0</strong><small>Aguardando definição</small></div>
+    <div class="kpi dsp"><span class="kpi-label">DSP</span><strong id="k-dsp">0</strong><small>Bandeira azul</small></div>
+    <div class="kpi dpa"><span class="kpi-label">DPA</span><strong id="k-dpa">0</strong><small>Bandeira vermelha</small></div>
   </section>
 
-  <section class="layout">
+  <section class="dashboard-grid">
     <aside class="side-stack side-left">
-      <div class="card">
-        <h3>Legenda do mapa</h3>
-        <div class="legend">
-          <div class="legend-row"><i class="legend-dot dsp"></i> Ativa predominante</div>
-          <div class="legend-row"><i class="legend-dot dpa"></i> A inaugurar predominante</div>
-          <div class="legend-row"><i class="legend-dot mix"></i> Ativa + a inaugurar no mesmo estado</div>
-          <div class="legend-row"><i class="legend-dot none"></i> Sem lojas ativas ou a inaugurar</div>
-        </div>
-        <div class="legend-note">Filtro visual disponível no mapa para focar apenas lojas ativas, apenas inaugurações ou estados que possuem os dois cenários.</div>
-      </div>
-      <div class="card">
-        <h3>Leitura rápida</h3>
-        <div class="tip"><div class="tip-icon">⌖</div><div>Passe o mouse sobre um estado ou clique no ranking. O mapa do Brasil permanece como base visual e os rótulos exibem A = lojas ativas e I = lojas a inaugurar.</div></div>
-      </div>
-      <div class="card" id="insights-card">
-        <h3>Indicadores-chave</h3>
-        <p class="card-sub">Resumo automático com base na distribuição atual das filiais.</p>
-        <div class="mini-grid">
-          <div class="mini best"><span>Maior presença</span><strong id="ins-best-uf">-</strong><b id="ins-best-name">Sem dados</b></div>
-          <div class="mini cover"><span>Estados com lojas</span><strong id="ins-covered">0</strong><b>Cobertura nacional</b></div>
-          <div class="mini opening"><span>A inaugurar</span><strong id="ins-open">0</strong><b>Em planejamento</b></div>
-          <div class="mini pending"><span>Pendentes</span><strong id="ins-pending">0</strong><b>Em definição</b></div>
-        </div>
-      </div>
-      <div class="card ranking-card">
-        <h3>Ranking · maior presença</h3>
-        <p class="card-sub">Estados ordenados pelo total de lojas operacionais.</p>
-        <div class="ranking" id="ranking"><div class="empty">Carregando...</div></div>
-      </div>
+      <div class="box"><h3>Legenda do mapa</h3><div class="legend-list"><div class="legend-row"><i class="legend-dot dsp"></i>DSP — bandeira azul</div><div class="legend-row"><i class="legend-dot dpa"></i>DPA — bandeira vermelha</div><div class="legend-row"><i class="legend-dot mix"></i>DSP + DPA no estado</div><div class="legend-row"><i class="legend-dot none"></i>Sem lojas / sem bandeira</div></div></div>
+      <div class="box tip-box"><span class="mouse-icon"></span><span>Passe o mouse ou clique em um estado para atualizar o detalhamento. O desenho do mapa exibe cada UF de forma visual, não apenas pontos soltos.</span></div>
+      <div class="box ranking-box"><h3>Ranking · maior presença</h3><div class="ranking" id="ranking"><div class="empty">Carregando...</div></div></div>
     </aside>
 
-    <div class="card map-card">
-      <div class="map-head">
-        <div class="map-title">
-          <strong>Mapa executivo do Brasil</strong>
-          <span>Polígonos reais dos estados · mapa do Brasil em destaque · rótulos com lojas ativas e a inaugurar</span>
-          <div class="map-tools" id="map-filters">
-            <button class="filter-chip active" data-filter="todos">Todos</button>
-            <button class="filter-chip" data-filter="ativas">Somente ativas</button>
-            <button class="filter-chip" data-filter="inaugurar">Somente a inaugurar</button>
-            <button class="filter-chip" data-filter="ambos">Ativa + inaugurar</button>
-          </div>
-          <span class="map-current" id="map-current">Visual atual: todos os estados com lojas ativas e/ou a inaugurar.</span>
-        </div>
-        <div class="map-pills">
-          <span class="map-pill">UFs com lojas: <b id="map-estados">0</b></span>
-          <span class="map-pill">Ativas + inaugurar: <b id="map-operacao">0</b></span>
-          <span class="map-pill">Pendentes: <b id="map-pendentes">0</b></span>
-        </div>
-      </div>
+    <div class="box map-box">
+      <div class="map-head"><div class="map-heading"><strong>Mapa executivo do Brasil</strong><span>Estados desenhados em polígonos reais · DSP azul · DPA vermelho</span></div><div class="map-summary"><span class="map-chip">UFs com lojas: <b id="map-estados">0</b></span><span class="map-chip">Ativas + inaugurar: <b id="map-operacao">0</b></span></div></div>
       <div id="br-map"></div>
     </div>
 
     <aside class="side-stack side-right">
-      <div class="card">
-        <h3>Detalhamento do estado</h3>
-        <div class="detail-title"><i class="state-orb" id="state-orb"></i><div><strong id="state-name">Selecione um estado</strong><small id="state-sub">Totais operacionais da aba Filiais</small></div></div>
-        <div class="detail-grid">
-          <div class="detail-cell"><span>Total</span><strong id="d-total">0</strong></div>
-          <div class="detail-cell active"><span>Ativas</span><strong id="d-ativa">0</strong></div>
-          <div class="detail-cell open"><span>A inaugurar</span><strong id="d-inaugurar">0</strong></div>
-          <div class="detail-cell pending"><span>Pendentes</span><strong id="d-pendente">0</strong></div>
-          <div class="detail-cell dsp"><span>DSP</span><strong id="d-dsp">0</strong></div>
-          <div class="detail-cell dpa"><span>DPA</span><strong id="d-dpa">0</strong></div>
-        </div>
-      </div>
-      <div class="card distribution-card">
-        <h3>Distribuição por status</h3>
-        <p class="card-sub">Composição do estado selecionado entre lojas ativas, inaugurações planejadas e pendências.</p>
-        <div class="donut-wrap">
-          <div class="donut" id="donut"><div class="donut-center"><strong id="donut-total">0</strong><span>Total</span></div></div>
-          <div class="status-legend">
-            <div class="status-row"><i style="background:var(--green)"></i><span>Ativas</span><span class="value" id="pct-ativa">0%</span></div>
-            <div class="status-row"><i style="background:var(--blue-soft)"></i><span>A inaugurar</span><span class="value" id="pct-inaugurar">0%</span></div>
-            <div class="status-row"><i style="background:var(--purple)"></i><span>Pendentes</span><span class="value" id="pct-pendente">0%</span></div>
-          </div>
-        </div>
-        <div class="updated" id="updated"></div>
-      </div>
+      <div class="box"><h3>Detalhamento do estado</h3><div class="detail-title"><i class="state-orb" id="state-orb"></i><div><strong id="state-name">Selecione um estado</strong><small id="state-sub">Dados da aba Filiais</small></div></div><div class="detail-grid"><div class="detail-cell"><span>Total</span><strong id="d-total">0</strong></div><div class="detail-cell active"><span>Ativas</span><strong id="d-ativa">0</strong></div><div class="detail-cell open"><span>A inaugurar</span><strong id="d-inaugurar">0</strong></div><div class="detail-cell pending"><span>Pendentes</span><strong id="d-pendente">0</strong></div><div class="detail-cell dsp"><span>DSP</span><strong id="d-dsp">0</strong></div><div class="detail-cell dpa"><span>DPA</span><strong id="d-dpa">0</strong></div></div></div>
+      <div class="box status-box"><h3>Distribuição por status</h3><div class="status-wrap"><div class="donut" id="donut"></div><div class="status-legend"><div class="status-row"><i style="background:var(--green)"></i><span>Ativas</span><span class="value" id="pct-ativa">0%</span></div><div class="status-row"><i style="background:var(--amber)"></i><span>A inaugurar</span><span class="value" id="pct-inaugurar">0%</span></div><div class="status-row"><i style="background:var(--purple)"></i><span>Pendentes</span><span class="value" id="pct-pendente">0%</span></div></div></div><div class="updated" id="updated"></div></div>
     </aside>
   </section>
 
-  <section class="card table-card">
-    <div class="table-head">
-      <div>
-        <h2>Resumo por estado</h2>
-        <p>Consolidado utilizado no mapa do Brasil, no PDF executivo e nos relatórios da projeção de abertura e lojas. Clique em uma linha para focar o estado no mapa.</p>
-      </div>
-    </div>
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>UF</th><th>Estado</th><th class="num">Total</th><th class="num">Ativas</th><th class="num">A inaugurar</th><th class="num">Pendentes</th><th class="num c-blue">DSP</th><th class="num c-red">DPA</th><th class="num">Sem bandeira</th>
-          </tr>
-        </thead>
-        <tbody id="tb-estados"><tr><td colspan="9" class="empty">Carregando...</td></tr></tbody>
-      </table>
-    </div>
-  </section>
+  <section class="box table-panel"><h2>Resumo por estado</h2><div class="table-wrap"><table><thead><tr><th>UF</th><th>Estado</th><th class="num">Total</th><th class="num">Ativas</th><th class="num">A inaugurar</th><th class="num">Pendentes</th><th class="num c-blue">DSP</th><th class="num c-red">DPA</th><th class="num">Sem bandeira</th></tr></thead><tbody id="tb-estados"><tr><td colspan="9" class="empty">Carregando...</td></tr></tbody></table></div></section>
 </main>
 {% include '_footer.html' %}
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-const GEOJSON_URLS=[
-  'https://cdn.jsdelivr.net/gh/henriquemalvar/br-geojson@main/dist/estados.geojson',
-  'https://raw.githubusercontent.com/henriquemalvar/br-geojson/main/dist/estados.geojson'
-];
-const FALLBACK_URL='{{ url_for("static", filename="brasil_fallback.json") }}';
+const GEOJSON_URL='https://cdn.jsdelivr.net/gh/henriquemalvar/br-geojson@main/dist/estados.geojson';
 const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-const LABEL_OFFSET={RN:[24,-8],PB:[28,4],PE:[26,16],AL:[24,26],SE:[18,36],ES:[22,6],RJ:[18,20],DF:[14,-16],AP:[14,-12]};
-const FILTER_TEXT={todos:'Visual atual: todos os estados com lojas ativas e/ou a inaugurar.',ativas:'Visual atual: destaque para estados com lojas ativas.',inaugurar:'Visual atual: destaque para estados com lojas a inaugurar.',ambos:'Visual atual: destaque para estados com lojas ativas e a inaugurar.'};
-let dadosEstados=[],dadosPorUf={},mapa,bgLayer,geoLayer,labelLayer,estadoSelecionado=null,filtroMapa='todos';
-let fallbackMode=false,fallbackGeo=null;
-
-function totalOperacional(e){ return (e?.ativa||0)+(e?.inaugurar||0); }
-function passaFiltro(e){
-  if(!e) return false;
-  if(filtroMapa==='todos') return totalOperacional(e)>0;
-  if(filtroMapa==='ativas') return (e.ativa||0)>0;
-  if(filtroMapa==='inaugurar') return (e.inaugurar||0)>0;
-  if(filtroMapa==='ambos') return (e.ativa||0)>0 && (e.inaugurar||0)>0;
-  return true;
-}
-function corEstado(e){
-  if(!e || totalOperacional(e)===0) return '#2f455c';
-  if((e.ativa||0)>0 && (e.inaugurar||0)===0) return '#33c27f';
-  if((e.inaugurar||0)>0 && (e.ativa||0)===0) return '#2a8dff';
-  if((e.ativa||0)>0 && (e.inaugurar||0)>0) return '#8f63ff';
-  return '#607a92';
-}
-function styleBackground(){return {color:'rgba(219,236,255,.32)',weight:1,opacity:.5,fillColor:'#16314B',fillOpacity:.35,lineJoin:'round'};}
-function opacidadeEstado(e){ return e && passaFiltro(e) ? 0.94 : 0; }
-function labelHtml(e){
-  if(!e || !passaFiltro(e)) return '<div class="state-label zero"></div>';
-  return `<div class="state-label"><span class="uf">${esc(e.uf)}</span><span class="total">${totalOperacional(e)}</span><span class="detail"><b class="dsp">A ${e.ativa||0}</b> · <b class="dpa">I ${e.inaugurar||0}</b></span></div>`;
-}
-function styleFeature(feature){
-  const uf=(feature.properties.sigla||'').toUpperCase(),e=dadosPorUf[uf],vis=passaFiltro(e);
-  return {color:vis?'#eef7ff':'rgba(214,231,247,.0)',weight:vis?1.65:.1,opacity:vis?.98:0,fillColor:corEstado(e),fillOpacity:opacidadeEstado(e),lineJoin:'round',dashArray:vis?'':'4 3'};
-}
-function styleHighlight(feature){const uf=(feature.properties.sigla||'').toUpperCase(),e=dadosPorUf[uf];return {color:'#fff',weight:2.8,opacity:1,fillColor:corEstado(e),fillOpacity:1,dashArray:''};}
-function tooltipHtml(e,feature){
-  const nome=(e?.estado)||(feature?.properties?.nome)||(feature?.properties?.name)||'';
-  const uf=(e?.uf)||(feature?.properties?.sigla)||'';
-  if(!e || totalOperacional(e)===0) return `<div class="state-tip-card"><div class="top"><div class="name">${esc(nome)}</div><span class="ufbadge">${esc(uf)}</span></div><div class="state-tip-foot"><span>Sem lojas ativas ou a inaugurar</span><span>Total: 0</span></div></div>`;
-  return `<div class="state-tip-card"><div class="top"><div class="name">${esc(nome)}</div><span class="ufbadge">${esc(uf)}</span></div><div class="line"><div class="state-tip-stat active"><span>Ativas</span><strong>${e.ativa||0}</strong></div><div class="state-tip-stat open"><span>A inaugurar</span><strong>${e.inaugurar||0}</strong></div><div class="state-tip-stat pending"><span>Pendentes</span><strong>${e.pendente||0}</strong></div><div class="state-tip-stat"><span>Total geral</span><strong>${e.total||0}</strong></div></div><div class="state-tip-foot"><span>DSP: ${e.dsp||0} · DPA: ${e.dpa||0}</span><span>${totalOperacional(e)} em operação/plano</span></div></div>`;
-}
-function atualizarDetalhe(e){
-  if(!e)return; estadoSelecionado=e.uf;
-  document.getElementById('state-name').textContent=`${e.estado} (${e.uf})`;
-  document.getElementById('state-sub').textContent=`Ativas: ${e.ativa||0} · A inaugurar: ${e.inaugurar||0} · Total: ${e.total||0}`;
-  document.getElementById('state-orb').style.background=corEstado(e);
-  ['total','ativa','inaugurar','pendente','dsp','dpa'].forEach(k=>document.getElementById('d-'+k).textContent=e[k]||0);
-  document.getElementById('donut-total').textContent=e.total||0;
-  const base=Math.max(1,(e.ativa||0)+(e.inaugurar||0)+(e.pendente||0)),pa=(e.ativa||0)/base*100,pi=(e.inaugurar||0)/base*100,pp=(e.pendente||0)/base*100;
-  document.getElementById('pct-ativa').textContent=`${pa.toFixed(1)}%`;document.getElementById('pct-inaugurar').textContent=`${pi.toFixed(1)}%`;document.getElementById('pct-pendente').textContent=`${pp.toFixed(1)}%`;
-  document.getElementById('donut').style.setProperty('--p-active',`${pa}%`);document.getElementById('donut').style.setProperty('--p-open',`${pa+pi}%`);
-  document.querySelectorAll('.rank-row').forEach(el=>el.classList.toggle('active',el.dataset.uf===e.uf));
-  document.querySelectorAll('.state-row').forEach(el=>el.classList.toggle('active',el.dataset.uf===e.uf));
-  document.querySelectorAll('.fallback-state').forEach(el=>el.classList.toggle('active',el.dataset.uf===e.uf));
-}
-function renderRanking(estados){
-  const arr=[...estados].filter(e=>totalOperacional(e)>0).sort((a,b)=>totalOperacional(b)-totalOperacional(a)||a.estado.localeCompare(b.estado));
-  const max=Math.max(1,...arr.map(e=>totalOperacional(e))),r=document.getElementById('ranking');
-  r.innerHTML=arr.slice(0,12).map((e,i)=>{const op=totalOperacional(e);return `<div class="rank-row" data-uf="${e.uf}"><span class="rank-n">${i+1}</span><span class="rank-name">${esc(e.estado)} (${e.uf})</span><span class="rank-total">A ${e.ativa||0} · I ${e.inaugurar||0}</span><span class="rank-bar"><span style="width:${(op/max)*100}%"></span></span></div>`}).join('')||'<div class="empty">Nenhuma loja ativa ou a inaugurar foi encontrada.</div>';
-  r.querySelectorAll('.rank-row').forEach(el=>el.addEventListener('click',()=>{const e=dadosPorUf[el.dataset.uf];if(e){atualizarDetalhe(e);focarUF(e.uf);}}));
-}
-function renderTabela(estados){
-  const arr=[...estados].filter(e=>e.total>0||e.inativa>0).sort((a,b)=>totalOperacional(b)-totalOperacional(a)||a.estado.localeCompare(b.estado)),tb=document.getElementById('tb-estados');
-  tb.innerHTML=arr.map(e=>`<tr class="state-row" data-uf="${e.uf}"><td class="uf">${e.uf}</td><td>${esc(e.estado)}</td><td class="num"><strong>${e.total}</strong></td><td class="num c-green">${e.ativa}</td><td class="num">${e.inaugurar}</td><td class="num">${e.pendente}</td><td class="num c-blue">${e.dsp}</td><td class="num c-red">${e.dpa}</td><td class="num">${e.sem_bandeira}</td></tr>`).join('')||'<tr><td colspan="9" class="empty">Nenhuma filial com UF válida foi cadastrada.</td></tr>';
-  tb.querySelectorAll('.state-row').forEach(el=>el.addEventListener('click',()=>{const e=dadosPorUf[el.dataset.uf];if(e){atualizarDetalhe(e);focarUF(e.uf);}}));
-}
-function renderInsights(estados,totais){
-  const ativos=[...estados].filter(e=>totalOperacional(e)>0).sort((a,b)=>totalOperacional(b)-totalOperacional(a)||a.estado.localeCompare(b.estado)),best=ativos[0];
-  document.getElementById('ins-best-uf').textContent=best?best.uf:'-';document.getElementById('ins-best-name').textContent=best?`${best.estado} · A ${best.ativa||0} · I ${best.inaugurar||0}`:'Sem dados';
-  document.getElementById('ins-covered').textContent=ativos.length;document.getElementById('ins-open').textContent=totais.inaugurar||0;document.getElementById('ins-pending').textContent=totais.pendente||0;
-}
-function resetFeatureStyle(ev){const layer=ev.target,uf=(layer.feature.properties.sigla||'').toUpperCase();if(estadoSelecionado&&uf===estadoSelecionado&&passaFiltro(dadosPorUf[uf])){layer.setStyle(styleHighlight(layer.feature));return;}geoLayer.resetStyle(layer);}
-function highlightFeature(ev){const layer=ev.target,uf=(layer.feature.properties.sigla||'').toUpperCase(),e=dadosPorUf[uf];if(!passaFiltro(e))return;layer.setStyle(styleHighlight(layer.feature));if(layer.bringToFront)layer.bringToFront();if(e)atualizarDetalhe(e);}
-function onEachFeature(feature,layer){const uf=(feature.properties.sigla||'').toUpperCase(),e=dadosPorUf[uf];layer.on({mouseover:highlightFeature,mouseout:resetFeatureStyle,click:()=>{if(e&&passaFiltro(e)){atualizarDetalhe(e);focarUF(e.uf);}}});layer.bindTooltip(tooltipHtml(e,feature),{sticky:true,direction:'top',className:'state-tip'});}
-function rebuildLabels(){if(!labelLayer||!geoLayer)return;labelLayer.clearLayers();geoLayer.eachLayer(layer=>{const uf=(layer.feature.properties.sigla||'').toUpperCase(),e=dadosPorUf[uf];if(!e||!passaFiltro(e))return;const c=layer.getBounds().getCenter(),off=LABEL_OFFSET[uf]||[0,0];L.tooltip({permanent:true,direction:'center',className:'state-center-label',offset:L.point(off[0],off[1]),opacity:1}).setLatLng(c).setContent(labelHtml(e)).addTo(labelLayer);});}
-function criarMapaLeaflet(geojson){
-  fallbackMode=false;const alvo=document.getElementById('br-map');alvo.innerHTML='';
-  mapa=L.map('br-map',{zoomControl:true,attributionControl:true,minZoom:3,maxZoom:7,scrollWheelZoom:false,dragging:true,doubleClickZoom:true,preferCanvas:true});
-  L.control.attribution({position:'bottomright',prefix:false}).addTo(mapa).addAttribution('Malha territorial: IBGE');
-  bgLayer=L.geoJSON(geojson,{style:styleBackground,interactive:false}).addTo(mapa);geoLayer=L.geoJSON(geojson,{style:styleFeature,onEachFeature}).addTo(mapa);mapa.fitBounds(geoLayer.getBounds(),{padding:[32,28]});labelLayer=L.layerGroup().addTo(mapa);rebuildLabels();setTimeout(()=>mapa.invalidateSize(),120);
-}
-function projectFallback(lon,lat,bbox,w,h,pad=55){const [minLon,minLat,maxLon,maxLat]=bbox;return [pad+(lon-minLon)/(maxLon-minLon)*(w-2*pad),pad+(maxLat-lat)/(maxLat-minLat)*(h-2*pad)];}
-async function renderFallbackMap(){
-  fallbackMode=true;mapa=null;geoLayer=null;labelLayer=null;
-  if(!fallbackGeo){const r=await fetch(FALLBACK_URL,{cache:'no-store'});if(!r.ok)throw new Error('Falha ao carregar mapa local');fallbackGeo=await r.json();}
-  const w=900,h=680,alvo=document.getElementById('br-map');
-  const parts=[`<svg class="fallback-svg" viewBox="0 0 ${w} ${h}" role="img" aria-label="Mapa do Brasil por estado">`];
-  for(const f of fallbackGeo.features){
-    const e=dadosPorUf[f.uf]||{uf:f.uf,estado:f.uf,ativa:0,inaugurar:0,pendente:0,total:0,dsp:0,dpa:0};const vis=passaFiltro(e);const pts=f.polygon.map(([lon,lat])=>projectFallback(lon,lat,fallbackGeo.bbox,w,h).map(v=>v.toFixed(1)).join(',')).join(' ');const [cx,cy]=projectFallback(f.center[0],f.center[1],fallbackGeo.bbox,w,h);const cls='fallback-state'+(vis?'':' muted');
-    parts.push(`<polygon class="${cls}" data-uf="${f.uf}" points="${pts}" fill="${corEstado(e)}" opacity="${vis?'.94':'.30'}"><title>${esc(e.estado)} (${f.uf}) · Ativas ${e.ativa||0} · A inaugurar ${e.inaugurar||0}</title></polygon>`);
-    if(vis)parts.push(`<text class="fallback-label" x="${cx.toFixed(1)}" y="${(cy-6).toFixed(1)}">${f.uf}</text><text class="fallback-ai" x="${cx.toFixed(1)}" y="${(cy+11).toFixed(1)}">A ${e.ativa||0} · I ${e.inaugurar||0}</text>`);
-  }
-  parts.push('</svg><div class="fallback-note">Mapa local ativo · funcionamento independente de serviços externos</div>');alvo.innerHTML=parts.join('');
-  alvo.querySelectorAll('.fallback-state').forEach(el=>{const e=dadosPorUf[el.dataset.uf];el.addEventListener('mouseenter',()=>e&&atualizarDetalhe(e));el.addEventListener('click',()=>e&&atualizarDetalhe(e));});
-}
-async function fetchGeojsonComFallback(){
-  for(const url of GEOJSON_URLS){
-    try{const ctrl=new AbortController(),timer=setTimeout(()=>ctrl.abort(),4500);const r=await fetch(url,{signal:ctrl.signal,cache:'force-cache'});clearTimeout(timer);if(r.ok)return await r.json();}catch(_){ }
-  }
-  return null;
-}
-async function inicializarMapa(){
-  if(typeof L!=='undefined'){
-    const geo=await fetchGeojsonComFallback();if(geo){criarMapaLeaflet(geo);return;}
-  }
-  await renderFallbackMap();
-}
-function focarUF(uf){
-  if(fallbackMode){document.querySelectorAll('.fallback-state').forEach(el=>el.classList.toggle('active',el.dataset.uf===uf));return;}
-  if(!geoLayer)return;geoLayer.eachLayer(layer=>{const layerUf=(layer.feature.properties.sigla||'').toUpperCase();if(layerUf===uf){const e=dadosPorUf[uf];if(!passaFiltro(e))return;geoLayer.resetStyle();layer.setStyle(styleHighlight(layer.feature));mapa.fitBounds(layer.getBounds(),{padding:[60,60],maxZoom:6});}});
-}
-async function aplicarFiltroMapa(novoFiltro){
-  filtroMapa=novoFiltro;document.querySelectorAll('.filter-chip').forEach(btn=>btn.classList.toggle('active',btn.dataset.filter===novoFiltro));document.getElementById('map-current').textContent=FILTER_TEXT[novoFiltro]||FILTER_TEXT.todos;
-  const disponiveis=dadosEstados.filter(e=>passaFiltro(e));document.getElementById('map-estados').textContent=disponiveis.length;document.getElementById('map-operacao').textContent=disponiveis.reduce((s,e)=>s+totalOperacional(e),0);document.getElementById('map-pendentes').textContent=disponiveis.reduce((s,e)=>s+(e.pendente||0),0);
-  if(fallbackMode){await renderFallbackMap();}else if(geoLayer){geoLayer.setStyle(styleFeature);rebuildLabels();}
-  if(estadoSelecionado&&dadosPorUf[estadoSelecionado]&&passaFiltro(dadosPorUf[estadoSelecionado])){atualizarDetalhe(dadosPorUf[estadoSelecionado]);focarUF(estadoSelecionado);}else if(disponiveis[0]){const e=[...disponiveis].sort((a,b)=>totalOperacional(b)-totalOperacional(a))[0];atualizarDetalhe(e);focarUF(e.uf);}
-}
-async function init(){
-  try{
-    const rDados=await fetch('/api/projecao-lojas',{cache:'no-store'});if(!rDados.ok)throw new Error('Falha nos dados da projeção');const d=await rDados.json(),t=d.totais||{},estados=d.estados||[];
-    dadosEstados=estados;dadosPorUf=Object.fromEntries(estados.map(e=>[e.uf,e]));
-    document.getElementById('k-total').textContent=t.total_geral||0;document.getElementById('k-ativa').textContent=t.ativa||0;document.getElementById('k-inaugurar').textContent=t.inaugurar||0;document.getElementById('k-pendente').textContent=t.pendente||0;document.getElementById('k-dsp').textContent=t.dsp||0;document.getElementById('k-dpa').textContent=t.dpa||0;
-    renderRanking(estados);renderTabela(estados);renderInsights(estados,t);document.querySelectorAll('.filter-chip').forEach(btn=>btn.addEventListener('click',()=>aplicarFiltroMapa(btn.dataset.filter)));
-    document.getElementById('map-estados').textContent=estados.filter(e=>totalOperacional(e)>0).length;document.getElementById('map-operacao').textContent=(t.ativa||0)+(t.inaugurar||0);document.getElementById('map-pendentes').textContent=t.pendente||0;
-    const primeiro=[...estados].filter(e=>totalOperacional(e)>0).sort((a,b)=>totalOperacional(b)-totalOperacional(a))[0]||estados[0];if(primeiro)atualizarDetalhe(primeiro);
-    document.getElementById('updated').textContent='Atualizado em '+new Date().toLocaleString('pt-BR');
-    try{await inicializarMapa();if(primeiro)focarUF(primeiro.uf);}catch(mapErr){console.error(mapErr);document.getElementById('br-map').innerHTML='<div class="empty" style="padding-top:270px">Os dados foram carregados, mas o desenho do mapa não pôde ser inicializado.</div>';}
-  }catch(err){console.error(err);document.getElementById('br-map').innerHTML='<div class="empty" style="padding-top:270px">Não foi possível carregar os dados da Projeção.</div>';document.getElementById('ranking').innerHTML='<div class="empty">Falha ao carregar os dados.</div>';document.getElementById('tb-estados').innerHTML='<tr><td colspan="9" class="empty">Falha ao carregar a projeção.</td></tr>';}
-}
+const LABEL_OFFSET={RN:[24,-16],PB:[30,-2],PE:[25,11],AL:[25,25],SE:[18,36],ES:[22,3],RJ:[20,18],DF:[18,-18],AP:[15,-10]};
+let dadosEstados=[],dadosPorUf={},mapa,geoLayer,labelLayer;
+function corEstado(e){if(!e||(e.total||0)===0)return '#28465d';if((e.dsp||0)>0&&(e.dpa||0)===0)return '#258cf5';if((e.dpa||0)>0&&(e.dsp||0)===0)return '#dd5460';if((e.dsp||0)>0&&(e.dpa||0)>0)return '#8a59f4';return '#546d80'}
+function opacidadeEstado(e){return e&&e.total>0?0.92:0.58}
+function styleFeature(feature){const uf=(feature.properties.sigla||'').toUpperCase(),e=dadosPorUf[uf];return {color:'#d9ecff',weight:1.4,opacity:0.95,fillColor:corEstado(e),fillOpacity:opacidadeEstado(e),lineJoin:'round'}}
+function labelHtml(e){const uf=e.uf,off=LABEL_OFFSET[uf]||[0,0];return `<div class="state-label-wrap" style="--dx:${off[0]}px;--dy:${off[1]}px"><div class="state-label"><span class="uf">${esc(uf)}</span><span class="counts"><b class="dsp-n">${e.dsp||0}</b><span class="sep">|</span><b class="dpa-n">${e.dpa||0}</b></span></div><span class="state-pin"></span></div>`}
+function atualizarDetalhe(e){if(!e)return;document.getElementById('state-name').textContent=`${e.estado} (${e.uf})`;document.getElementById('state-sub').textContent=`${e.total||0} loja(s) considerada(s)`;document.getElementById('state-orb').style.background=corEstado(e);document.getElementById('d-total').textContent=e.total||0;document.getElementById('d-ativa').textContent=e.ativa||0;document.getElementById('d-inaugurar').textContent=e.inaugurar||0;document.getElementById('d-pendente').textContent=e.pendente||0;document.getElementById('d-dsp').textContent=e.dsp||0;document.getElementById('d-dpa').textContent=e.dpa||0;const base=Math.max(1,(e.ativa||0)+(e.inaugurar||0)+(e.pendente||0)),pa=(e.ativa||0)/base*100,pi=(e.inaugurar||0)/base*100,pp=(e.pendente||0)/base*100;document.getElementById('pct-ativa').textContent=`${pa.toFixed(1)}%`;document.getElementById('pct-inaugurar').textContent=`${pi.toFixed(1)}%`;document.getElementById('pct-pendente').textContent=`${pp.toFixed(1)}%`;document.getElementById('donut').style.setProperty('--p-active',`${pa}%`);document.getElementById('donut').style.setProperty('--p-open',`${pa+pi}%`)}
+function resetFeatureStyle(ev){geoLayer.resetStyle(ev.target)}
+function highlightFeature(ev){const layer=ev.target;layer.setStyle({weight:2.4,color:'#ffffff',fillOpacity:1});if(!L.Browser.ie&&!L.Browser.opera&&!L.Browser.edge){layer.bringToFront()}const uf=(layer.feature.properties.sigla||'').toUpperCase(),e=dadosPorUf[uf];if(e)atualizarDetalhe(e)}
+function onEachFeature(feature,layer){const uf=(feature.properties.sigla||'').toUpperCase(),e=dadosPorUf[uf];layer.on({mouseover:highlightFeature,mouseout:resetFeatureStyle,click:()=>{if(e)atualizarDetalhe(e);mapa.fitBounds(layer.getBounds(),{padding:[55,55],maxZoom:6})}});layer.bindTooltip(()=>e?`${e.estado} (${e.uf}) · Total: ${e.total} · DSP: ${e.dsp||0} · DPA: ${e.dpa||0}`:(feature.properties.nome||uf),{sticky:true,direction:'top',className:'state-tip'})}
+function criarMapa(geojson){mapa=L.map('br-map',{zoomControl:true,attributionControl:true,minZoom:3,maxZoom:7,scrollWheelZoom:false,dragging:true,doubleClickZoom:true,preferCanvas:true});L.control.attribution({position:'bottomright',prefix:false}).addTo(mapa).addAttribution('Malha territorial: IBGE');geoLayer=L.geoJSON(geojson,{style:styleFeature,onEachFeature}).addTo(mapa);mapa.fitBounds(geoLayer.getBounds(),{padding:[32,24]});labelLayer=L.layerGroup().addTo(mapa);geoLayer.eachLayer(layer=>{const uf=(layer.feature.properties.sigla||'').toUpperCase(),e=dadosPorUf[uf];if(!e)return;const c=layer.getBounds().getCenter();L.marker(c,{interactive:true,keyboard:false,icon:L.divIcon({className:'state-div-icon',html:labelHtml(e),iconSize:[54,54],iconAnchor:[27,27]})}).on('mouseover',()=>atualizarDetalhe(e)).on('click',()=>{atualizarDetalhe(e);mapa.fitBounds(layer.getBounds(),{padding:[60,60],maxZoom:6})}).addTo(labelLayer)});setTimeout(()=>mapa.invalidateSize(),120)}
+function renderRanking(estados){const r=document.getElementById('ranking'),arr=[...estados].filter(e=>e.total>0).sort((a,b)=>b.total-a.total||a.estado.localeCompare(b.estado)),max=Math.max(1,...arr.map(e=>e.total));r.innerHTML=arr.slice(0,10).map((e,i)=>`<div class="rank-row" data-uf="${e.uf}"><span class="rank-n">${i+1}</span><span class="rank-name">${esc(e.estado)} (${e.uf})</span><span class="rank-total">${e.total}</span><span class="rank-bar"><span style="width:${e.total/max*100}%"></span></span></div>`).join('')||'<div class="empty">Nenhuma loja cadastrada.</div>';r.querySelectorAll('.rank-row').forEach(el=>el.addEventListener('click',()=>{const e=dadosPorUf[el.dataset.uf];if(!e||!geoLayer)return;atualizarDetalhe(e);geoLayer.eachLayer(layer=>{const uf=(layer.feature.properties.sigla||'').toUpperCase();if(uf===e.uf){mapa.fitBounds(layer.getBounds(),{padding:[60,60],maxZoom:6})}})}))}
+function renderTabela(estados){const tb=document.getElementById('tb-estados'),arr=[...estados].filter(e=>e.total>0||e.inativa>0).sort((a,b)=>b.total-a.total||a.estado.localeCompare(b.estado));tb.innerHTML=arr.map(e=>`<tr><td class="uf">${e.uf}</td><td>${esc(e.estado)}</td><td class="num"><strong>${e.total}</strong></td><td class="num c-green">${e.ativa}</td><td class="num">${e.inaugurar}</td><td class="num">${e.pendente}</td><td class="num c-blue">${e.dsp}</td><td class="num c-red">${e.dpa}</td><td class="num">${e.sem_bandeira}</td></tr>`).join('')||'<tr><td colspan="9" class="empty">Nenhuma filial com UF válida foi cadastrada.</td></tr>'}
+async function init(){try{const [rDados,rGeo]=await Promise.all([fetch('/api/projecao-lojas'),fetch(GEOJSON_URL)]);if(!rDados.ok)throw new Error('Falha nos dados da projeção');if(!rGeo.ok)throw new Error('Falha na malha geográfica');const d=await rDados.json(),geo=await rGeo.json(),t=d.totais||{},estados=d.estados||[];dadosEstados=estados;dadosPorUf=Object.fromEntries(estados.map(e=>[e.uf,e]));document.getElementById('k-total').textContent=t.total_geral||0;document.getElementById('k-ativa').textContent=t.ativa||0;document.getElementById('k-inaugurar').textContent=t.inaugurar||0;document.getElementById('k-pendente').textContent=t.pendente||0;document.getElementById('k-dsp').textContent=t.dsp||0;document.getElementById('k-dpa').textContent=t.dpa||0;document.getElementById('map-estados').textContent=estados.filter(e=>e.total>0).length;document.getElementById('map-operacao').textContent=(t.ativa||0)+(t.inaugurar||0);renderRanking(estados);renderTabela(estados);criarMapa(geo);const primeiro=[...estados].filter(e=>e.total>0).sort((a,b)=>b.total-a.total)[0]||estados[0];if(primeiro)atualizarDetalhe(primeiro);document.getElementById('updated').textContent='Atualizado em '+new Date().toLocaleString('pt-BR')}catch(err){console.error(err);document.getElementById('br-map').innerHTML='<div class="empty" style="padding-top:250px">Não foi possível carregar o mapa. Verifique a conexão com a internet e atualize a página.</div>';document.getElementById('ranking').innerHTML='<div class="empty">Falha ao carregar.</div>';document.getElementById('tb-estados').innerHTML='<tr><td colspan="9" class="empty">Falha ao carregar a projeção.</td></tr>'}}
 init();
 </script>
 </body>
