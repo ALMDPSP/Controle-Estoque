@@ -46,6 +46,7 @@ from reportlab.pdfgen import canvas
 import db
 
 app = Flask(__name__)
+APP_BUILD = "2026-09-01-filiais-delete-stock-v4"
 app.secret_key = os.environ.get("SECRET_KEY", "troque-esta-chave-em-producao")
 app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
@@ -1036,13 +1037,16 @@ def _texto_celula_excel_filial(celula):
 def _cabecalho_filial_normalizado(valor):
     s = unicodedata.normalize("NFD", str(valor or ""))
     s = "".join(ch for ch in s if unicodedata.category(ch) != "Mn")
-    s = " ".join(s.lower().replace("_", " ").replace("-", " ").split())
+    # Remove pontuação e separadores para aceitar cabeçalhos como
+    # "Nome / identificação", exatamente como no Excel exportado pelo sistema.
+    s = "".join(ch if ch.isalnum() else " " for ch in s.lower())
+    s = " ".join(s.split())
     aliases = {
         "codigo": {
             "codigo", "codigo filial", "codigo da filial", "codigo loja", "codigo da loja",
-            "numero loja", "numero da loja", "n loja", "nº loja", "loja", "filial",
+            "numero loja", "numero da loja", "n loja", "loja", "filial",
         },
-        "nome": {"nome", "nome filial", "nome da filial", "identificacao", "descricao", "descricao filial"},
+        "nome": {"nome", "nome identificacao", "nome filial", "nome da filial", "identificacao", "descricao", "descricao filial"},
         "cidade": {"cidade", "municipio"},
         "uf": {"uf", "estado", "sigla uf"},
         "bandeira": {"bandeira", "marca", "rede"},
@@ -1289,10 +1293,73 @@ def api_atualizar_filial(filial_id):
 @app.route("/api/filiais/<int:filial_id>", methods=["DELETE"])
 @manager_required
 def api_excluir_filial(filial_id):
-    ok, referencias = db.excluir_filial(filial_id)
-    if referencias:
-        return jsonify({"erro": f"Esta filial está vinculada a {referencias} equipamento(s). Inative a filial em vez de excluir."}), 409
-    return (jsonify({"ok": True}) if ok else (jsonify({"erro": "Filial não encontrada."}), 404))
+    """Exclusão individual no mesmo padrão visual/operacional do Estoque."""
+    filial = db.buscar_filial_por_id(filial_id)
+    if not filial:
+        return jsonify({"erro": "Filial não encontrada."}), 404
+    try:
+        excluidas, _ = db.excluir_filiais_em_lote([filial_id], desvincular_equipamentos=True)
+    except Exception:
+        app.logger.exception("Erro ao excluir filial %s", filial_id)
+        return jsonify({"erro": "Erro ao excluir filial."}), 500
+    if not excluidas:
+        return jsonify({"erro": "Erro ao excluir filial."}), 500
+    db.registrar_movimentacao(
+        0,
+        "exclusao_filial",
+        "1",
+        session.get("username"),
+        f"Filial {filial.get('codigo') or filial_id} excluída.",
+        tabela="sistema",
+    )
+    return jsonify({"ok": True, "filial": filial})
+
+
+@app.route("/api/filiais/excluir-em-lote", methods=["POST"])
+@manager_required
+def api_excluir_filiais_em_lote():
+    """Exclusão em massa seguindo o mesmo fluxo usado no Estoque."""
+    dados = request.get_json(force=True) or {}
+    ids = dados.get("ids") or []
+    if not isinstance(ids, list) or not ids:
+        return jsonify({"erro": "Nenhuma filial selecionada."}), 400
+
+    ids_limpos = []
+    for valor in ids:
+        try:
+            filial_id = int(valor)
+        except (TypeError, ValueError):
+            continue
+        if filial_id > 0 and filial_id not in ids_limpos:
+            ids_limpos.append(filial_id)
+    if not ids_limpos:
+        return jsonify({"erro": "Nenhuma filial válida selecionada."}), 400
+
+    # Captura os dados antes da exclusão para registrar no histórico.
+    atuais = {int(f["id"]): f for f in db.listar_filiais(incluir_inativas=True) if f.get("id") is not None}
+    try:
+        excluidas, nao_encontradas = db.excluir_filiais_em_lote(ids_limpos, desvincular_equipamentos=True)
+    except Exception:
+        app.logger.exception("Erro ao excluir filiais em lote")
+        return jsonify({"erro": "Erro ao excluir as filiais selecionadas."}), 500
+
+    for info in excluidas:
+        filial = atuais.get(int(info.get("id") or 0), {})
+        db.registrar_movimentacao(
+            0,
+            "exclusao_filial",
+            "1",
+            session.get("username"),
+            f"Filial {filial.get('codigo') or info.get('codigo') or info.get('id')} excluída (exclusão em massa).",
+            tabela="sistema",
+        )
+
+    return jsonify({
+        "ok": True,
+        "excluidos": len(excluidas),
+        "nao_encontradas": nao_encontradas,
+        "build": APP_BUILD,
+    })
 
 
 @app.route("/api/produtos", methods=["GET"])
