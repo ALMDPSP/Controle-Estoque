@@ -1118,64 +1118,90 @@ def exportar_filiais_excel():
 @app.route("/api/filiais/importar", methods=["POST"])
 @manager_required
 def api_importar_filiais_excel():
+    # Mesmo padrão de segurança da importação da aba Estoque.
+    senha = request.form.get("senha", "")
+    usuario_atual = db.buscar_usuario_por_id(session["user_id"])
+    if not usuario_atual or not check_password_hash(usuario_atual["password_hash"], senha):
+        return jsonify({"erro": "Senha incorreta."}), 403
+
     arquivo = request.files.get("arquivo")
     if not arquivo or not arquivo.filename:
-        return jsonify({"erro": "Selecione uma planilha Excel."}), 400
-    nome = arquivo.filename.lower()
-    if not (nome.endswith(".xlsx") or nome.endswith(".xlsm")):
-        return jsonify({"erro": "Use um arquivo .xlsx ou .xlsm."}), 400
+        return jsonify({"erro": "Nenhum arquivo enviado."}), 400
+    if not arquivo.filename.lower().endswith((".xlsx", ".xlsm")):
+        return jsonify({"erro": "Envie um arquivo Excel (.xlsx ou .xlsm)."}), 400
 
     try:
-        wb = load_workbook(arquivo, data_only=True, read_only=True)
-        ws = wb.active
-        if ws.max_row < 2:
-            return jsonify({"erro": "A planilha não possui dados para importar."}), 400
+        try:
+            wb = load_workbook(arquivo, read_only=True, data_only=True)
+            ws = wb.active
+        except Exception:
+            return jsonify({"erro": "Não consegui abrir esse arquivo. Confirme se é um .xlsx válido."}), 400
 
-        # Localiza o cabeçalho nas primeiras 10 linhas.
-        cab_row = None
+        if ws is None:
+            return jsonify({"erro": "A planilha não possui uma aba com dados."}), 400
+
+        # Leitura sequencial, igual à importação do Estoque. Evita milhares de
+        # acessos aleatórios ws.cell() no modo read_only, que é lento no Render.
+        linhas_iter = ws.iter_rows(values_only=True)
+        cabecalho = None
         mapa_colunas = {}
-        for r in range(1, min(ws.max_row, 10) + 1):
-            candidato = {}
-            for c in range(1, ws.max_column + 1):
-                campo = _cabecalho_filial_normalizado(ws.cell(r, c).value)
-                if campo and campo not in candidato:
-                    candidato[campo] = c
-            if "codigo" in candidato:
-                cab_row = r
-                mapa_colunas = candidato
+        cab_row = 0
+        for numero_linha, valores in enumerate(linhas_iter, start=1):
+            if numero_linha > 10:
                 break
-        if not cab_row:
+            candidato = {}
+            for idx, valor in enumerate(valores or ()):
+                campo = _cabecalho_filial_normalizado(valor)
+                if campo and campo not in candidato:
+                    candidato[campo] = idx
+            if "codigo" in candidato:
+                cabecalho = valores
+                mapa_colunas = candidato
+                cab_row = numero_linha
+                break
+
+        if cabecalho is None:
             return jsonify({
                 "erro": "Não encontrei a coluna de código da filial. Use a planilha baixada pela própria aba Filiais."
             }), 400
 
-        ignoradas = 0
-        erros = []
-        vistos = set()
-        linhas_validas = []
-        total_linhas = 0
         usuario = session.get("username")
+        linhas_validas = []
+        vistos = set()
+        erros = []
+        ignoradas = 0
+        total_linhas = 0
 
-        for r in range(cab_row + 1, ws.max_row + 1):
-            def ler(campo):
-                col = mapa_colunas.get(campo)
-                return _texto_celula_excel_filial(ws.cell(r, col)) if col else ""
-
-            codigo = ler("codigo").strip()
-            outros = [ler(c) for c in ("nome", "cidade", "uf", "bandeira", "status")]
-            if not codigo and not any(outros):
+        # As linhas restantes do iterador começam imediatamente após o cabeçalho.
+        for numero_linha, valores in enumerate(linhas_iter, start=cab_row + 1):
+            valores = tuple(valores or ())
+            if not valores or all(v is None or str(v).strip() == "" for v in valores):
                 continue
             total_linhas += 1
 
+            def ler(campo):
+                idx = mapa_colunas.get(campo)
+                if idx is None or idx >= len(valores):
+                    return ""
+                valor = valores[idx]
+                if valor is None:
+                    return ""
+                if isinstance(valor, bool):
+                    return "1" if valor else "0"
+                if isinstance(valor, float) and valor.is_integer():
+                    return str(int(valor))
+                return str(valor).strip()
+
+            codigo = ler("codigo").strip()
             if not codigo:
                 ignoradas += 1
                 if len(erros) < 20:
-                    erros.append(f"Linha {r}: código da filial não informado.")
+                    erros.append(f"Linha {numero_linha}: código da filial não informado.")
                 continue
             if codigo in vistos:
                 ignoradas += 1
                 if len(erros) < 20:
-                    erros.append(f"Linha {r}: código {codigo} repetido na planilha.")
+                    erros.append(f"Linha {numero_linha}: código {codigo} repetido na planilha.")
                 continue
             vistos.add(codigo)
 
@@ -1188,20 +1214,19 @@ def api_importar_filiais_excel():
             if uf and (len(uf) != 2 or uf not in UF_NOMES):
                 ignoradas += 1
                 if len(erros) < 20:
-                    erros.append(f"Linha {r}: UF '{uf}' inválida para a filial {codigo}.")
+                    erros.append(f"Linha {numero_linha}: UF '{uf}' inválida para a filial {codigo}.")
                 continue
             if bandeira and bandeira not in ("DSP", "DPA"):
                 ignoradas += 1
                 if len(erros) < 20:
-                    erros.append(f"Linha {r}: bandeira '{bandeira}' inválida para a filial {codigo}.")
+                    erros.append(f"Linha {numero_linha}: bandeira '{bandeira}' inválida para a filial {codigo}.")
                 continue
 
-            # Status vazio é preservado para loja existente e assume Ativa em loja nova.
             status = "" if not status_txt else _status_filial_importacao(status_txt, None)
             if status_txt and status is None:
                 ignoradas += 1
                 if len(erros) < 20:
-                    erros.append(f"Linha {r}: status '{status_txt}' inválido para a filial {codigo}.")
+                    erros.append(f"Linha {numero_linha}: status '{status_txt}' inválido para a filial {codigo}.")
                 continue
 
             linhas_validas.append({
@@ -1213,8 +1238,9 @@ def api_importar_filiais_excel():
                 "status": status,
             })
 
-        # IMPORTANTE: uma única conexão/transação para toda a planilha.
-        # Isso evita timeout no Render ao importar milhares de lojas.
+        if not linhas_validas:
+            return jsonify({"erro": "Nenhuma filial válida foi encontrada na planilha."}), 400
+
         resultado = db.importar_filiais_em_lote(linhas_validas, usuario)
         criadas = int(resultado.get("criadas") or 0)
         atualizadas = int(resultado.get("atualizadas") or 0)
@@ -1222,16 +1248,22 @@ def api_importar_filiais_excel():
         processadas = criadas + atualizadas + sem_alteracao
 
         if criadas or atualizadas:
-            db.registrar_movimentacao(
-                0,
-                "importacao_filiais",
-                str(criadas + atualizadas),
-                usuario,
-                f"Upload de filiais: {total_linhas} linha(s) lida(s), {processadas} processada(s), {criadas} criada(s), {atualizadas} atualizada(s), {sem_alteracao} sem alteração e {ignoradas} ignorada(s).",
-                tabela="sistema",
-            )
+            try:
+                db.registrar_movimentacao(
+                    0,
+                    "importacao_filiais",
+                    str(criadas + atualizadas),
+                    usuario,
+                    f"Importação de filiais: {total_linhas} linha(s) lida(s), {processadas} processada(s), {criadas} criada(s), {atualizadas} atualizada(s), {sem_alteracao} sem alteração e {ignoradas} ignorada(s).",
+                    tabela="sistema",
+                )
+            except Exception as hist_err:
+                # O histórico não deve desfazer uma importação que já foi concluída.
+                print(f"[aviso] Importação de filiais concluída, mas falhou o histórico: {type(hist_err).__name__}: {hist_err}")
+
         return jsonify({
             "ok": True,
+            "arquivo": arquivo.filename,
             "total_linhas": total_linhas,
             "processadas": processadas,
             "criadas": criadas,
@@ -1242,7 +1274,7 @@ def api_importar_filiais_excel():
         })
     except Exception as e:
         print(f"[erro] Falha ao importar filiais: {type(e).__name__}: {e}")
-        return jsonify({"erro": "Não foi possível importar toda a planilha. Verifique o log do servidor para o detalhe técnico."}), 500
+        return jsonify({"erro": f"Erro ao processar a planilha ({type(e).__name__}). Consulte o log do servidor para o detalhe técnico."}), 500
 
 
 @app.route("/api/filiais", methods=["POST"])

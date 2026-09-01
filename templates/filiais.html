@@ -13,6 +13,7 @@
 .data-grid{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#171e27}.table-wrap{max-height:560px;overflow:auto;scrollbar-gutter:stable}table{width:100%;border-collapse:collapse;font-size:12px;min-width:1050px}thead{position:sticky;top:0;z-index:3;background:#151c25;box-shadow:0 1px 0 var(--line)}th,td{padding:10px 9px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle}tbody tr{transition:background .12s ease}tbody tr:hover{background:#1e2732}tbody tr.selected{background:rgba(62,166,255,.09)}th{color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.05em}.check-col{width:42px;text-align:center}.check-col input{width:16px;height:16px;accent-color:var(--accent);cursor:pointer}.codigo{font-family:var(--mono);color:var(--accent);font-weight:700}.badge{display:inline-flex;padding:3px 8px;border-radius:999px;border:1px solid var(--line);font-size:10px;white-space:nowrap}.badge.ativa{color:var(--ok);border-color:rgba(76,215,146,.28);background:rgba(76,215,146,.06)}.badge.inativa{color:var(--muted)}.badge.inaugurar{color:var(--accent);border-color:rgba(62,166,255,.32);background:rgba(62,166,255,.07)}.badge.pendente{color:var(--accent-2);border-color:rgba(255,182,72,.32);background:rgba(255,182,72,.07)}.badge.dsp{color:#72bdff;border-color:rgba(62,166,255,.35);background:rgba(62,166,255,.08)}.badge.dpa{color:#ff8790;border-color:rgba(239,82,96,.35);background:rgba(239,82,96,.08)}.badge.sem{color:var(--muted)}.actions{display:flex;gap:6px}.empty{text-align:center;padding:32px;color:var(--muted)}
 .grid-footer{display:flex;align-items:center;gap:10px;justify-content:space-between;padding:10px 12px;background:#151c25;border-top:1px solid var(--line);flex-wrap:wrap}.pager{display:flex;align-items:center;gap:7px}.pager button{padding:6px 10px;font-size:11px}.pager button:disabled{opacity:.4;cursor:not-allowed}.pager-info{font-size:10px;color:var(--muted);min-width:110px;text-align:center}.page-size{display:flex;align-items:center;gap:7px;font-size:10px;color:var(--muted)}.page-size select{width:auto;padding:6px 28px 6px 8px;font-size:11px}
 .hint{margin-top:12px;color:var(--muted);font-size:11px;line-height:1.55;padding:11px 12px;border:1px solid rgba(62,166,255,.18);background:rgba(62,166,255,.06);border-radius:9px}.hint strong{color:var(--text)}
+dialog{border:1px solid var(--line);background:var(--panel);color:var(--text);border-radius:12px;padding:0;box-shadow:0 24px 60px rgba(0,0,0,.42)}dialog::backdrop{background:rgba(3,8,14,.72)}.dlg-body{padding:20px}.dlg-body h3{margin:0 0 8px;font-size:17px}.dlg-body p{margin:0 0 16px;color:var(--muted);font-size:12px;line-height:1.55}.dlg-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}.dlg-actions .btn-primary{background:var(--accent);border-color:var(--accent);color:#08131f;font-weight:700}.dlg-actions .btn-ghost{background:var(--panel-2)}.import-msg{display:none;margin-bottom:14px;padding:9px 11px;border-radius:6px;font-size:12px;line-height:1.5}.import-msg.erro{display:block;background:rgba(255,107,107,.12);border:1px solid rgba(255,107,107,.3);color:var(--danger)}.import-msg.info{display:block;background:rgba(62,166,255,.10);border:1px solid rgba(62,166,255,.28);color:#b9ddff}.import-msg.ok{display:block;background:rgba(76,215,146,.10);border:1px solid rgba(76,215,146,.28);color:#b8f5d0}
 @media(max-width:1180px){.form{grid-template-columns:repeat(4,minmax(0,1fr))}.form button{min-height:42px}.summary-grid{grid-template-columns:repeat(3,1fr)}.toolbar{grid-template-columns:1fr 1fr}}
 @media(max-width:760px){header,main{padding-left:14px;padding-right:14px}.form{grid-template-columns:1fr 1fr}.form .wide{grid-column:1/-1}.summary-grid{grid-template-columns:repeat(2,1fr)}.toolbar{grid-template-columns:1fr}.toolbar-actions{width:100%}.toolbar-actions a,.toolbar-actions button{flex:1;text-align:center}.toolbar-spacer{display:none}.table-wrap{max-height:500px}.grid-footer{align-items:stretch}.page-size,.pager{justify-content:center}}
 @media(max-width:480px){.form{grid-template-columns:1fr}.form .wide{grid-column:auto}.summary-grid{grid-template-columns:1fr 1fr}.toolbar-actions a,.toolbar-actions button{flex:1 1 100%}}
@@ -56,14 +57,13 @@
 
 <div class="toolbar-actions">
   <a class="download" href="{{ url_for('exportar_filiais_excel') }}">↓ Download Excel</a>
-  {% if role in ['admin','gestor'] %}<button type="button" class="upload" id="btn-upload-filiais">↑ Upload Excel</button><input type="file" id="arquivo-filiais" accept=".xlsx,.xlsm" hidden>{% endif %}
+  {% if role in ['admin','gestor'] %}<button type="button" class="upload" id="btn-upload-filiais">↑ Importar Excel</button>{% endif %}
   <a href="{{ url_for('pagina_projecao_lojas') }}">Abrir projeção de lojas</a>
   {% if role in ['admin','gestor'] %}<button type="button" class="danger-fill" id="btn-excluir-selecionadas" style="display:none">Excluir selecionadas</button>{% endif %}
   <span class="toolbar-spacer"></span>
   <span class="selection-count" id="selection-count"></span>
   <span class="contador" id="contador"></span>
 </div>
-<div class="import-result" id="import-result"></div>
 
 <div class="data-grid">
   <div class="table-wrap">
@@ -78,6 +78,30 @@
   </div>
 </div>
 </section>
+
+{% if role in ['admin','gestor'] %}
+<dialog id="importar-filiais-dialog" style="width:min(480px,94vw)">
+  <div class="dlg-body">
+    <h3>Importar planilha de filiais</h3>
+    <p>Mesmo padrão da importação do Estoque. Utilize preferencialmente o Excel baixado pela própria aba Filiais. Lojas novas serão cadastradas e códigos existentes serão atualizados. Por segurança, confirme sua senha.</p>
+    <div id="importar-filiais-msg" class="import-msg"></div>
+    <form id="importar-filiais-form">
+      <div class="field">
+        <label for="importar-filiais-arquivo">Arquivo (.xlsx ou .xlsm)</label>
+        <input id="importar-filiais-arquivo" type="file" accept=".xlsx,.xlsm" required>
+      </div>
+      <div class="field" style="margin-top:12px">
+        <label for="importar-filiais-senha">Sua senha</label>
+        <input id="importar-filiais-senha" type="password" autocomplete="current-password" required>
+      </div>
+    </form>
+    <div class="dlg-actions">
+      <button type="button" class="btn-ghost" id="importar-filiais-cancelar">Cancelar</button>
+      <button type="button" class="btn-primary" id="importar-filiais-enviar">Importar</button>
+    </div>
+  </div>
+</dialog>
+{% endif %}
 </main>
 {% include '_footer.html' %}
 <script>
@@ -153,9 +177,36 @@ async function excluirSelecionadas(){
 }
 ['busca-filial','filtro-uf','filtro-bandeira','filtro-status'].forEach(id=>document.getElementById(id).addEventListener(id==='busca-filial'?'input':'change',()=>{selecionadas.clear();render(true)}));document.getElementById('filial-cancelar').addEventListener('click',limpar);document.getElementById('filial-uf').addEventListener('input',e=>e.target.value=e.target.value.toUpperCase().replace(/[^A-Z]/g,'').slice(0,2));document.getElementById('page-size').addEventListener('change',e=>{tamanhoPagina=Number(e.target.value)||50;render(true)});document.getElementById('prev-page').addEventListener('click',()=>{if(paginaAtual>1){paginaAtual--;render(false)}});document.getElementById('next-page').addEventListener('click',()=>{const tp=Math.max(1,Math.ceil(filtradas.length/tamanhoPagina));if(paginaAtual<tp){paginaAtual++;render(false)}});document.getElementById('check-all')?.addEventListener('change',e=>{document.querySelectorAll('.chk-filial').forEach(ch=>{ch.checked=e.target.checked;const id=Number(ch.value);if(e.target.checked)selecionadas.add(id);else selecionadas.delete(id);});atualizarSelecaoUi()});document.getElementById('btn-excluir-selecionadas')?.addEventListener('click',excluirSelecionadas);
 document.getElementById('form-filial').addEventListener('submit',async e=>{e.preventDefault();if(!PODE_GERENCIAR){alert('Seu perfil não permite alterar filiais.');return;}const id=document.getElementById('filial-id').value;const body={codigo:document.getElementById('filial-codigo').value.trim(),nome:document.getElementById('filial-nome').value.trim(),cidade:document.getElementById('filial-cidade').value.trim(),uf:document.getElementById('filial-uf').value.trim(),bandeira:document.getElementById('filial-bandeira').value,ativo:document.getElementById('filial-ativo').value};const r=await fetch(id?'/api/filiais/'+id:'/api/filiais',{method:id?'PUT':'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const x=await r.json();if(!r.ok){alert(x.erro||'Erro ao salvar filial.');return;}appToast(id?'Filial atualizada.':'Filial cadastrada.','ok');limpar();carregar()});
-const btnUploadFiliais=document.getElementById('btn-upload-filiais');const arquivoFiliais=document.getElementById('arquivo-filiais');const importResult=document.getElementById('import-result');
-function mostrarResultadoImportacao(x){if(!importResult)return;const erros=(x.erros||[]),total=x.total_linhas??((x.processadas||0)+(x.ignoradas||0));importResult.className='import-result show '+(x.ignoradas>0?'warn':'ok');importResult.innerHTML=`<strong>Upload concluído.</strong> ${total||0} linha(s) lida(s) · ${x.processadas||0} processada(s) · ${x.criadas||0} criada(s) · ${x.atualizadas||0} atualizada(s) · ${x.sem_alteracao||0} sem alteração · ${x.ignoradas||0} ignorada(s).`+(erros.length?`<div class="import-errors">${erros.map(esc).join('<br>')}</div>`:'');}
-btnUploadFiliais?.addEventListener('click',()=>arquivoFiliais?.click());arquivoFiliais?.addEventListener('change',async()=>{const arquivo=arquivoFiliais.files?.[0];if(!arquivo)return;if(!confirm(`Carregar a planilha ${arquivo.name}? Filiais novas serão criadas e códigos já existentes poderão ser atualizados.`)){arquivoFiliais.value='';return;}btnUploadFiliais.disabled=true;btnUploadFiliais.textContent='Importando...';if(importResult){importResult.className='import-result show';importResult.textContent='Lendo e validando a planilha...';}try{const fd=new FormData();fd.append('arquivo',arquivo);const r=await fetch('/api/filiais/importar',{method:'POST',body:fd});const x=await respostaJsonSegura(r);if(!r.ok)throw new Error(x.erro||'Não foi possível importar a planilha.');mostrarResultadoImportacao(x);appToast('Planilha de filiais processada.','ok');await carregar();}catch(err){if(importResult){importResult.className='import-result show warn';importResult.textContent=err.message||'Erro ao importar.';}else alert(err.message||'Erro ao importar.');}finally{btnUploadFiliais.disabled=false;btnUploadFiliais.textContent='↑ Upload Excel';arquivoFiliais.value='';}});
+const btnUploadFiliais=document.getElementById('btn-upload-filiais');
+const importarFiliaisDialog=document.getElementById('importar-filiais-dialog');
+const importarFiliaisMsg=document.getElementById('importar-filiais-msg');
+const importarFiliaisArquivo=document.getElementById('importar-filiais-arquivo');
+const importarFiliaisSenha=document.getElementById('importar-filiais-senha');
+const importarFiliaisEnviar=document.getElementById('importar-filiais-enviar');
+const importarFiliaisCancelar=document.getElementById('importar-filiais-cancelar');
+function setImportMsg(tipo,texto){if(!importarFiliaisMsg)return;importarFiliaisMsg.className='import-msg '+tipo;importarFiliaisMsg.textContent=texto;}
+btnUploadFiliais?.addEventListener('click',()=>{document.getElementById('importar-filiais-form')?.reset();if(importarFiliaisMsg){importarFiliaisMsg.className='import-msg';importarFiliaisMsg.textContent='';}importarFiliaisDialog?.showModal();});
+importarFiliaisCancelar?.addEventListener('click',()=>importarFiliaisDialog?.close());
+importarFiliaisEnviar?.addEventListener('click',async()=>{
+  const arquivo=importarFiliaisArquivo?.files?.[0];
+  const senha=importarFiliaisSenha?.value||'';
+  if(!arquivo){setImportMsg('erro','Escolha um arquivo .xlsx ou .xlsm.');return;}
+  if(!senha){setImportMsg('erro','Digite sua senha para confirmar.');return;}
+  const fd=new FormData();fd.append('arquivo',arquivo);fd.append('senha',senha);
+  importarFiliaisEnviar.disabled=true;importarFiliaisEnviar.textContent='Importando... aguarde';
+  setImportMsg('info','Lendo, validando e gravando as filiais. Em planilhas grandes, aguarde a conclusão sem fechar esta janela.');
+  try{
+    const r=await fetch('/api/filiais/importar',{method:'POST',body:fd});
+    const x=await respostaJsonSegura(r);
+    if(!r.ok)throw new Error(x.erro||'Não foi possível importar a planilha.');
+    const texto=`${x.processadas||0} filial(is) processada(s): ${x.criadas||0} criada(s), ${x.atualizadas||0} atualizada(s), ${x.sem_alteracao||0} sem alteração e ${x.ignoradas||0} ignorada(s).`;
+    setImportMsg('ok',texto);
+    await carregar();
+    appToast(texto,'ok');
+    setTimeout(()=>importarFiliaisDialog?.close(),900);
+  }catch(err){setImportMsg('erro',err.message||'Erro ao importar a planilha.');}
+  finally{importarFiliaisEnviar.disabled=false;importarFiliaisEnviar.textContent='Importar';}
+});
 if(!PODE_GERENCIAR){document.querySelectorAll('#form-filial input,#form-filial select,#form-filial button').forEach(x=>x.disabled=true)}
 carregar();
 </script>

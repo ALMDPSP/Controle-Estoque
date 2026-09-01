@@ -1076,28 +1076,31 @@ def buscar_filial_por_codigo(codigo):
     cur.close(); conn.close(); return result
 
 def importar_filiais_em_lote(linhas, usuario):
-    """Cria/atualiza filiais em uma única conexão e transação.
+    """Cria/atualiza filiais em uma única transação.
 
-    Pensado para planilhas grandes no Render/PostgreSQL: evita abrir duas
-    conexões por linha (consulta + insert/update), o que fazia uploads com
-    milhares de lojas demorarem demais e terminarem parcialmente.
-
-    Campos vazios preservam o valor já cadastrado. Para filial nova, status
-    vazio assume Ativa ("1").
+    A rotina é otimizada para planilhas grandes e funciona tanto em SQLite
+    quanto em PostgreSQL/Render. Antes de gravar, carrega as filiais atuais
+    em memória para preservar campos vazios vindos da planilha.
     """
     linhas = list(linhas or [])
     if not linhas:
         return {"criadas": 0, "atualizadas": 0, "sem_alteracao": 0}
 
-    conn = get_conn(); cur = get_cursor(conn)
+    conn = get_conn()
+    cur = get_cursor(conn)
     agora = datetime.now().strftime("%Y-%m-%d %H:%M")
     try:
         cur.execute("SELECT id, codigo, nome, cidade, uf, bandeira, ativo FROM filiais")
-        existentes = {str(dict(r).get("codigo") or "").strip(): dict(r) for r in cur.fetchall()}
+        existentes = {}
+        for row in cur.fetchall():
+            d = dict(row)
+            existentes[str(d.get("codigo") or "").strip()] = d
 
         inserts = []
         updates = []
-        criadas = atualizadas = sem_alteracao = 0
+        criadas = 0
+        atualizadas = 0
+        sem_alteracao = 0
 
         for item in linhas:
             codigo = str(item.get("codigo") or "").strip()
@@ -1113,43 +1116,41 @@ def importar_filiais_em_lote(linhas, usuario):
 
             existente = existentes.get(codigo)
             if existente:
-                novo_nome = nome if nome != "" else str(existente.get("nome") or "")
-                nova_cidade = cidade if cidade != "" else str(existente.get("cidade") or "")
-                nova_uf = uf if uf != "" else str(existente.get("uf") or "").upper()
-                nova_bandeira = bandeira if bandeira != "" else str(existente.get("bandeira") or "").upper()
-                novo_status = status if status != "" else str(existente.get("ativo") or "1")
-                mudou = any([
-                    str(existente.get("nome") or "") != novo_nome,
-                    str(existente.get("cidade") or "") != nova_cidade,
-                    str(existente.get("uf") or "").upper() != nova_uf,
-                    str(existente.get("bandeira") or "").upper() != nova_bandeira,
-                    str(existente.get("ativo") or "") != novo_status,
-                ])
+                novo_nome = nome if nome else str(existente.get("nome") or "")
+                nova_cidade = cidade if cidade else str(existente.get("cidade") or "")
+                nova_uf = uf if uf else str(existente.get("uf") or "").upper()
+                nova_bandeira = bandeira if bandeira else str(existente.get("bandeira") or "").upper()
+                novo_status = status if status else str(existente.get("ativo") or "1")
+                mudou = (
+                    str(existente.get("nome") or "") != novo_nome
+                    or str(existente.get("cidade") or "") != nova_cidade
+                    or str(existente.get("uf") or "").upper() != nova_uf
+                    or str(existente.get("bandeira") or "").upper() != nova_bandeira
+                    or str(existente.get("ativo") or "") != novo_status
+                )
                 if mudou:
                     updates.append((novo_nome, nova_cidade, nova_uf, nova_bandeira, novo_status, existente["id"]))
                     atualizadas += 1
-                    existente.update({"nome": novo_nome, "cidade": nova_cidade, "uf": nova_uf, "bandeira": nova_bandeira, "ativo": novo_status})
                 else:
                     sem_alteracao += 1
             else:
                 novo_status = status or "1"
                 inserts.append((codigo, nome, cidade, uf, bandeira, novo_status, usuario, agora))
                 criadas += 1
-                # Mantém o mapa em memória coerente caso a função receba código repetido.
-                existentes[codigo] = {"codigo": codigo, "nome": nome, "cidade": cidade, "uf": uf, "bandeira": bandeira, "ativo": novo_status}
 
+        # executemany é suportado de forma consistente pelo SQLite e pelo
+        # psycopg2/RealDictCursor usado no Render. Para ~2 mil lojas é rápido
+        # e evita incompatibilidades observadas com helpers de batch.
         if updates:
-            sql_update = q("UPDATE filiais SET nome=?, cidade=?, uf=?, bandeira=?, ativo=? WHERE id=?")
-            if IS_PG:
-                psycopg2.extras.execute_batch(cur, sql_update, updates, page_size=500)
-            else:
-                cur.executemany(sql_update, updates)
+            cur.executemany(
+                q("UPDATE filiais SET nome=?, cidade=?, uf=?, bandeira=?, ativo=? WHERE id=?"),
+                updates,
+            )
         if inserts:
-            sql_insert = q("INSERT INTO filiais (codigo,nome,cidade,uf,bandeira,ativo,criado_por,criado_em) VALUES (?,?,?,?,?,?,?,?)")
-            if IS_PG:
-                psycopg2.extras.execute_batch(cur, sql_insert, inserts, page_size=500)
-            else:
-                cur.executemany(sql_insert, inserts)
+            cur.executemany(
+                q("INSERT INTO filiais (codigo,nome,cidade,uf,bandeira,ativo,criado_por,criado_em) VALUES (?,?,?,?,?,?,?,?)"),
+                inserts,
+            )
 
         conn.commit()
         return {"criadas": criadas, "atualizadas": atualizadas, "sem_alteracao": sem_alteracao}
@@ -1157,8 +1158,8 @@ def importar_filiais_em_lote(linhas, usuario):
         conn.rollback()
         raise
     finally:
-        cur.close(); conn.close()
-
+        cur.close()
+        conn.close()
 
 def criar_filial(codigo, nome, cidade, uf, ativo, usuario, bandeira=None):
     conn = get_conn(); cur = get_cursor(conn)
