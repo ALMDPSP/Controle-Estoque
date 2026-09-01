@@ -1118,44 +1118,108 @@ def atualizar_filial(filial_id, codigo, nome, cidade, uf, ativo, bandeira=None):
     finally:
         cur.close(); conn.close()
 
+def _valor_escalar(row, chave=None, default=0):
+    """Lê um valor escalar tanto de sqlite3.Row/tupla quanto de RealDictRow."""
+    if row is None:
+        return default
+    if isinstance(row, dict):
+        if chave and chave in row:
+            return row.get(chave, default)
+        return next(iter(row.values()), default)
+    try:
+        return row[0]
+    except Exception:
+        return default
+
+
 def contar_referencias_filial(codigo):
     conn = get_conn(); cur = get_cursor(conn)
-    cur.execute(q("SELECT COUNT(*) FROM itens WHERE filial_destino = ?"), (codigo,))
-    a = cur.fetchone()[0]
-    cur.execute(q("SELECT COUNT(*) FROM imobilizados WHERE filial_destino = ?"), (codigo,))
-    b = cur.fetchone()[0]
-    cur.close(); conn.close(); return int(a or 0) + int(b or 0)
+    try:
+        cur.execute(q("SELECT COUNT(*) AS total FROM itens WHERE filial_destino = ?"), (codigo,))
+        a = _valor_escalar(cur.fetchone(), "total", 0)
+        cur.execute(q("SELECT COUNT(*) AS total FROM imobilizados WHERE filial_destino = ?"), (codigo,))
+        b = _valor_escalar(cur.fetchone(), "total", 0)
+        return int(a or 0) + int(b or 0)
+    finally:
+        cur.close(); conn.close()
 
-def excluir_filial(filial_id, desvincular_equipamentos=False):
-    """Exclui uma filial sem apagar equipamentos.
 
-    Quando ``desvincular_equipamentos`` for True, equipamentos de Estoque e
-    Imobilizados que apontam para o código da filial permanecem cadastrados,
-    mas o campo ``filial_destino`` é limpo antes da exclusão. A operação é
-    feita na mesma transação para evitar ficar pela metade.
+def excluir_filiais_em_lote(ids, desvincular_equipamentos=True):
+    """Exclui várias filiais em uma única transação.
+
+    Os equipamentos permanecem cadastrados. Quando solicitado, apenas o campo
+    filial_destino é limpo antes da exclusão. A implementação é compatível com
+    SQLite e PostgreSQL/RealDictCursor e evita abrir uma conexão por filial.
     """
-    filial = buscar_filial_por_id(filial_id)
-    if not filial:
-        return False, 0
-    codigo = str(filial.get("codigo") or "").strip()
-    refs = contar_referencias_filial(codigo)
-    if refs and not desvincular_equipamentos:
-        return False, refs
+    ids_limpos = []
+    for valor in ids or []:
+        try:
+            filial_id = int(valor)
+        except (TypeError, ValueError):
+            continue
+        if filial_id > 0 and filial_id not in ids_limpos:
+            ids_limpos.append(filial_id)
+    if not ids_limpos:
+        return [], []
 
     conn = get_conn(); cur = get_cursor(conn)
     try:
-        if refs and desvincular_equipamentos:
-            cur.execute(q("UPDATE itens SET filial_destino = NULL WHERE filial_destino = ?"), (codigo,))
-            cur.execute(q("UPDATE imobilizados SET filial_destino = NULL WHERE filial_destino = ?"), (codigo,))
-        cur.execute(q("DELETE FROM filiais WHERE id = ?"), (filial_id,))
-        ok = cur.rowcount > 0
+        ph_ids = ",".join(["?"] * len(ids_limpos))
+        cur.execute(q(f"SELECT id, codigo FROM filiais WHERE id IN ({ph_ids})"), ids_limpos)
+        rows = [dict(r) for r in cur.fetchall()]
+        por_id = {int(r["id"]): r for r in rows}
+        encontradas = [por_id[i] for i in ids_limpos if i in por_id]
+        nao_encontradas = [i for i in ids_limpos if i not in por_id]
+        if not encontradas:
+            return [], nao_encontradas
+
+        codigos = [str(r.get("codigo") or "").strip() for r in encontradas]
+        codigos_validos = [c for c in codigos if c]
+        refs_por_codigo = {c: 0 for c in codigos_validos}
+
+        if codigos_validos:
+            ph_cod = ",".join(["?"] * len(codigos_validos))
+            for tabela in ("itens", "imobilizados"):
+                cur.execute(q(f"SELECT filial_destino, COUNT(*) AS total FROM {tabela} WHERE filial_destino IN ({ph_cod}) GROUP BY filial_destino"), codigos_validos)
+                for row in cur.fetchall():
+                    d = dict(row)
+                    codigo = str(d.get("filial_destino") or "").strip()
+                    refs_por_codigo[codigo] = refs_por_codigo.get(codigo, 0) + int(d.get("total") or 0)
+
+            total_refs = sum(refs_por_codigo.values())
+            if total_refs and not desvincular_equipamentos:
+                return [], nao_encontradas
+            if desvincular_equipamentos:
+                cur.execute(q(f"UPDATE itens SET filial_destino = NULL WHERE filial_destino IN ({ph_cod})"), codigos_validos)
+                cur.execute(q(f"UPDATE imobilizados SET filial_destino = NULL WHERE filial_destino IN ({ph_cod})"), codigos_validos)
+
+        cur.execute(q(f"DELETE FROM filiais WHERE id IN ({ph_ids})"), ids_limpos)
         conn.commit()
-        return ok, refs if ok else 0
+        excluidas = [{
+            "id": int(r["id"]),
+            "codigo": r.get("codigo") or str(r["id"]),
+            "desvinculados": int(refs_por_codigo.get(str(r.get("codigo") or "").strip(), 0)),
+        } for r in encontradas]
+        return excluidas, nao_encontradas
     except Exception:
         conn.rollback()
         raise
     finally:
         cur.close(); conn.close()
+
+
+def excluir_filial(filial_id, desvincular_equipamentos=False):
+    filial = buscar_filial_por_id(filial_id)
+    if not filial:
+        return False, 0
+    if not desvincular_equipamentos:
+        refs = contar_referencias_filial(str(filial.get("codigo") or "").strip())
+        if refs:
+            return False, refs
+    excluidas, _ = excluir_filiais_em_lote([filial_id], desvincular_equipamentos=desvincular_equipamentos)
+    if not excluidas:
+        return False, 0
+    return True, int(excluidas[0].get("desvinculados") or 0)
 
 
 # ---------------------------------------------------------------------

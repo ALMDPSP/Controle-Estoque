@@ -1295,7 +1295,11 @@ def api_excluir_filial(filial_id):
     filial = db.buscar_filial_por_id(filial_id)
     if not filial:
         return jsonify({"erro": "Filial não encontrada."}), 404
-    ok, referencias = db.excluir_filial(filial_id, desvincular_equipamentos=True)
+    try:
+        ok, referencias = db.excluir_filial(filial_id, desvincular_equipamentos=True)
+    except Exception as exc:
+        app.logger.exception("Erro ao excluir filial %s", filial_id)
+        return jsonify({"erro": "Não foi possível excluir a filial no banco de dados.", "detalhe": str(exc) if app.debug else None}), 500
     if ok:
         detalhe = f"Filial {filial.get('codigo') or filial_id} excluída do cadastro."
         if referencias:
@@ -1333,22 +1337,16 @@ def api_excluir_filiais_em_lote():
     if len(ids) > 1000:
         return jsonify({"erro": "Selecione no máximo 1000 filiais por operação."}), 400
 
-    excluidas = []
-    bloqueadas = []
-    nao_encontradas = []
-    for filial_id in ids:
-        filial = db.buscar_filial_por_id(filial_id)
-        if not filial:
-            nao_encontradas.append(filial_id)
-            continue
-        ok, referencias = db.excluir_filial(filial_id, desvincular_equipamentos=True)
-        if ok:
-            excluidas.append({
-                "id": filial_id,
-                "codigo": filial.get("codigo") or str(filial_id),
-                "desvinculados": referencias,
-            })
+    try:
+        excluidas, nao_encontradas = db.excluir_filiais_em_lote(ids, desvincular_equipamentos=True)
+    except Exception as exc:
+        app.logger.exception("Erro ao excluir filiais em lote")
+        return jsonify({
+            "erro": "Não foi possível concluir a exclusão das filiais no banco de dados.",
+            "detalhe": str(exc) if app.debug else None,
+        }), 500
 
+    bloqueadas = []
     if excluidas:
         codigos = ", ".join(str(x["codigo"]) for x in excluidas[:20])
         complemento = "" if len(excluidas) <= 20 else f" e mais {len(excluidas) - 20} filial(is)"
