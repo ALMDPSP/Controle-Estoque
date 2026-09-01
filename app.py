@@ -1036,13 +1036,16 @@ def _texto_celula_excel_filial(celula):
 def _cabecalho_filial_normalizado(valor):
     s = unicodedata.normalize("NFD", str(valor or ""))
     s = "".join(ch for ch in s if unicodedata.category(ch) != "Mn")
-    s = " ".join(s.lower().replace("_", " ").replace("-", " ").split())
+    # Remove pontuação e separadores para aceitar cabeçalhos como
+    # "Nome / identificação", exatamente como no Excel exportado pelo sistema.
+    s = "".join(ch if ch.isalnum() else " " for ch in s.lower())
+    s = " ".join(s.split())
     aliases = {
         "codigo": {
             "codigo", "codigo filial", "codigo da filial", "codigo loja", "codigo da loja",
-            "numero loja", "numero da loja", "n loja", "nº loja", "loja", "filial",
+            "numero loja", "numero da loja", "n loja", "loja", "filial",
         },
-        "nome": {"nome", "nome filial", "nome da filial", "identificacao", "descricao", "descricao filial"},
+        "nome": {"nome", "nome identificacao", "nome filial", "nome da filial", "identificacao", "descricao", "descricao filial"},
         "cidade": {"cidade", "municipio"},
         "uf": {"uf", "estado", "sigla uf"},
         "bandeira": {"bandeira", "marca", "rede"},
@@ -1289,10 +1292,80 @@ def api_atualizar_filial(filial_id):
 @app.route("/api/filiais/<int:filial_id>", methods=["DELETE"])
 @manager_required
 def api_excluir_filial(filial_id):
+    filial = db.buscar_filial_por_id(filial_id)
     ok, referencias = db.excluir_filial(filial_id)
     if referencias:
         return jsonify({"erro": f"Esta filial está vinculada a {referencias} equipamento(s). Inative a filial em vez de excluir."}), 409
+    if ok and filial:
+        db.registrar_movimentacao(
+            0,
+            "exclusao_filial",
+            "1",
+            session.get("username"),
+            f"Filial {filial.get('codigo') or filial_id} excluída do cadastro.",
+            tabela="sistema",
+        )
     return (jsonify({"ok": True}) if ok else (jsonify({"erro": "Filial não encontrada."}), 404))
+
+
+@app.route("/api/filiais/excluir-em-lote", methods=["POST"])
+@manager_required
+def api_excluir_filiais_em_lote():
+    dados = request.get_json(silent=True) or {}
+    ids_recebidos = dados.get("ids") or []
+    if not isinstance(ids_recebidos, list) or not ids_recebidos:
+        return jsonify({"erro": "Selecione ao menos uma filial para excluir."}), 400
+
+    ids = []
+    for valor in ids_recebidos:
+        try:
+            filial_id = int(valor)
+        except (TypeError, ValueError):
+            continue
+        if filial_id > 0 and filial_id not in ids:
+            ids.append(filial_id)
+    if not ids:
+        return jsonify({"erro": "Nenhuma filial válida foi selecionada."}), 400
+    if len(ids) > 1000:
+        return jsonify({"erro": "Selecione no máximo 1000 filiais por operação."}), 400
+
+    excluidas = []
+    bloqueadas = []
+    nao_encontradas = []
+    for filial_id in ids:
+        filial = db.buscar_filial_por_id(filial_id)
+        if not filial:
+            nao_encontradas.append(filial_id)
+            continue
+        ok, referencias = db.excluir_filial(filial_id)
+        if referencias:
+            bloqueadas.append({
+                "id": filial_id,
+                "codigo": filial.get("codigo") or str(filial_id),
+                "referencias": referencias,
+            })
+            continue
+        if ok:
+            excluidas.append({"id": filial_id, "codigo": filial.get("codigo") or str(filial_id)})
+
+    if excluidas:
+        codigos = ", ".join(str(x["codigo"]) for x in excluidas[:20])
+        complemento = "" if len(excluidas) <= 20 else f" e mais {len(excluidas) - 20} filial(is)"
+        db.registrar_movimentacao(
+            0,
+            "exclusao_filiais_lote",
+            str(len(excluidas)),
+            session.get("username"),
+            f"Exclusão em lote de {len(excluidas)} filial(is): {codigos}{complemento}.",
+            tabela="sistema",
+        )
+
+    return jsonify({
+        "ok": True,
+        "excluidas": excluidas,
+        "bloqueadas": bloqueadas,
+        "nao_encontradas": nao_encontradas,
+    })
 
 
 @app.route("/api/produtos", methods=["GET"])
