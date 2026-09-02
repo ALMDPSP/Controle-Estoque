@@ -46,7 +46,7 @@ from reportlab.pdfgen import canvas
 import db
 
 app = Flask(__name__)
-APP_BUILD = "2026-09-02-projecao-layout-v8"
+APP_BUILD = "2026-09-02-projecao-estatica-v8"
 app.secret_key = os.environ.get("SECRET_KEY", "troque-esta-chave-em-producao")
 app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
@@ -703,7 +703,7 @@ def _gerar_pdf_projecao_lojas(dados):
         y -= row_h + 2
     pdf.setFillColor(colors.HexColor("#8694A6"))
     pdf.setFont("Helvetica", 7.5)
-    pdf.drawString(margem, 12, "Projeção baseada nos dados cadastrados na aba Filiais")
+    pdf.drawString(margem, 12, "Arquivo de dados: estoque.xlsx · Projeção baseada na aba Filiais")
 
     pdf.save(); buf.seek(0)
     return buf
