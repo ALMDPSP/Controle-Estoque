@@ -75,6 +75,49 @@
   main{padding:26px 32px 60px; max-width:1400px; margin:0 auto;}
 
   .graficos-duplos{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:24px; align-items:start;}
+  .grafico-tipo-coluna{min-width:0;display:flex;flex-direction:column;}
+  .capacidade-abertura{margin-top:20px;border:1px solid rgba(62,166,255,.28);border-radius:14px;background:linear-gradient(145deg,rgba(62,166,255,.07),rgba(255,255,255,.015));padding:16px;box-shadow:inset 0 1px 0 rgba(255,255,255,.025);}
+  .capacidade-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+  .capacidade-title{display:flex;align-items:center;gap:10px;min-width:0;}
+  .capacidade-icon{width:38px;height:38px;display:grid;place-items:center;border-radius:10px;background:rgba(62,166,255,.12);border:1px solid rgba(62,166,255,.25);font-size:19px;flex:0 0 38px;}
+  .capacidade-title strong{display:block;font-size:13px;color:var(--text);}
+  .capacidade-title span{display:block;margin-top:3px;color:var(--muted);font-size:10px;line-height:1.4;}
+  .capacidade-status{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;padding:6px 9px;font:700 9px var(--mono);white-space:nowrap;background:var(--panel-2);}
+  .capacidade-status::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--muted);box-shadow:0 0 10px currentColor;}
+  .capacidade-status.ok{color:var(--ok);border-color:rgba(76,215,146,.32);background:rgba(76,215,146,.07)}
+  .capacidade-status.ok::before{background:var(--ok)}
+  .capacidade-status.alerta{color:var(--accent-2);border-color:rgba(255,182,72,.34);background:rgba(255,182,72,.07)}
+  .capacidade-status.alerta::before{background:var(--accent-2)}
+  .capacidade-status.critico{color:var(--danger);border-color:rgba(255,107,107,.34);background:rgba(255,107,107,.07)}
+  .capacidade-status.critico::before{background:var(--danger)}
+  .capacidade-hero{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:end;margin-top:16px;}
+  .capacidade-numero{font:900 48px/1 var(--mono);letter-spacing:-.04em;color:var(--accent);}
+  .capacidade-numero small{font:700 13px var(--mono);color:var(--muted);letter-spacing:0;margin-left:5px;}
+  .capacidade-meta{text-align:right;}
+  .capacidade-meta span{display:block;color:var(--muted);font-size:9px;text-transform:uppercase;letter-spacing:.07em;}
+  .capacidade-meta strong{display:block;margin-top:4px;font:800 22px var(--mono);color:var(--text);}
+  .capacidade-progress-info{display:flex;justify-content:space-between;gap:10px;margin-top:13px;color:var(--muted);font-size:9px;}
+  .capacidade-progress-info strong{color:var(--text);font-family:var(--mono);}
+  .capacidade-progress{height:10px;margin-top:6px;background:#111923;border:1px solid rgba(82,99,123,.42);border-radius:999px;overflow:hidden;}
+  .capacidade-progress span{display:block;height:100%;width:0;border-radius:inherit;background:linear-gradient(90deg,#3ea6ff,#4cd792);transition:width .35s ease;box-shadow:0 0 15px rgba(62,166,255,.25);}
+  .capacidade-progress.alerta span{background:linear-gradient(90deg,#ffb648,#ffd27d)}
+  .capacidade-progress.critico span{background:linear-gradient(90deg,#ff6b6b,#ff9a73)}
+  .capacidade-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin-top:14px;}
+  .capacidade-card{background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:11px;min-width:0;}
+  .capacidade-card span{display:block;color:var(--muted);font-size:8.5px;text-transform:uppercase;letter-spacing:.055em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .capacidade-card strong{display:block;margin-top:5px;font:800 18px var(--mono);color:var(--text);}
+  .capacidade-card small{display:block;margin-top:4px;color:#9dabb9;font-size:9px;line-height:1.35;}
+  .capacidade-card.deficit strong,.capacidade-card.criticos strong{color:var(--danger)}
+  .capacidade-card.estoque strong{color:var(--accent)}
+  .capacidade-card.proxima strong{color:var(--accent-2)}
+  .capacidade-proxima{margin-top:12px;border:1px solid rgba(255,182,72,.25);border-radius:10px;background:rgba(255,182,72,.045);padding:11px 12px;}
+  .capacidade-proxima-top{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;}
+  .capacidade-proxima-top strong{font-size:11px;color:var(--text);}
+  .capacidade-proxima-top span{font:800 9px var(--mono);color:var(--accent-2);text-transform:uppercase;}
+  .capacidade-proxima p{margin:6px 0 0;color:var(--muted);font-size:9.5px;line-height:1.45;}
+  .capacidade-sem-kit{margin-top:14px;padding:12px;border:1px dashed var(--line);border-radius:10px;color:var(--muted);font-size:10px;line-height:1.45;}
+  @media(max-width:900px){.capacidade-abertura{margin-bottom:4px}}
+  @media(max-width:520px){.capacidade-hero{grid-template-columns:1fr}.capacidade-meta{text-align:left}.capacidade-grid{grid-template-columns:1fr 1fr}.capacidade-numero{font-size:40px}}
   .grafico-card{min-width:0;}
   .grafico-head{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap;margin-bottom:12px;}
   .grafico-head h2{margin-bottom:4px;}
@@ -606,10 +649,35 @@
 
   <section class="panel">
     <div class="graficos-duplos">
-      <div>
+      <div class="grafico-tipo-coluna">
         <h2>Estoque por tipo</h2>
-        <div style="max-width:520px; margin:0 auto;">
+        <div style="max-width:520px; margin:0 auto; width:100%;">
           <canvas id="grafico-tipo-estoque" height="220"></canvas>
+        </div>
+        <div class="capacidade-abertura" id="capacidade-abertura">
+          <div class="capacidade-head">
+            <div class="capacidade-title"><div class="capacidade-icon">🏪</div><div><strong>Capacidade de abertura</strong><span>Quanto do lote de inauguração o estoque de Expansão consegue atender hoje.</span></div></div>
+            <span class="capacidade-status" id="cap-status">Calculando...</span>
+          </div>
+          <div id="cap-conteudo">
+            <div class="capacidade-hero">
+              <div><div class="capacidade-numero"><span id="cap-lojas">0</span><small>lojas completas</small></div></div>
+              <div class="capacidade-meta"><span>Meta configurada</span><strong id="cap-meta">0 lojas</strong></div>
+            </div>
+            <div class="capacidade-progress-info"><span>Atendimento da meta</span><strong id="cap-percentual">0%</strong></div>
+            <div class="capacidade-progress" id="cap-progress"><span id="cap-progress-bar"></span></div>
+            <div class="capacidade-grid">
+              <div class="capacidade-card estoque"><span>Estoque Expansão</span><strong id="cap-estoque">0</strong><small>unidades disponíveis</small></div>
+              <div class="capacidade-card deficit"><span>Déficit para a meta</span><strong id="cap-deficit">0</strong><small id="cap-deficit-sub">lojas</small></div>
+              <div class="capacidade-card criticos"><span>Itens críticos</span><strong id="cap-criticos">0</strong><small>códigos abaixo da premissa</small></div>
+              <div class="capacidade-card proxima"><span>Próxima além da capacidade</span><strong id="cap-proxima-loja">-</strong><small id="cap-proxima-sub">aguardando cálculo</small></div>
+            </div>
+            <div class="capacidade-proxima" id="cap-proxima-box">
+              <div class="capacidade-proxima-top"><strong id="cap-proxima-titulo">Próxima loja</strong><span id="cap-proxima-status">Calculando</span></div>
+              <p id="cap-proxima-texto">Aguardando dados do estoque e do Kit padrão.</p>
+            </div>
+          </div>
+          <div class="capacidade-sem-kit" id="cap-sem-kit" hidden>Cadastre itens no <strong>Kit padrão por loja</strong> para o sistema calcular a capacidade real de inauguração.</div>
         </div>
       </div>
       <div class="grafico-card">
@@ -1155,6 +1223,7 @@ function renderizar(){
 
   atualizarStats();
   atualizarGrafico();
+  renderizarCapacidadeAbertura();
   if(modoSimuladorLojas) renderizarSimuladorLojas();
   else if(modoKitPadrao) renderizarKitPadrao();
   else atualizarGraficoCodigoItem();
@@ -1314,6 +1383,7 @@ async function salvarMetaLojasExpansao(){
     if(status){status.textContent=`Meta salva com sucesso: ${META_LOJAS_EXPANSAO} loja(s). Dashboard, gráficos e relatórios já usarão este valor.`;status.className='meta-lote-status ok';status.style.color='';}
     renderizarSimuladorLojas();
     renderizarFaltantesProximaLoja('faltantes-loja-grafico');
+    renderizarCapacidadeAbertura();
     atualizarGraficoCodigoItem();
     if(modoLojaVirtual) renderizarLojaVirtual();
     mostrarToast(`Meta de inauguração atualizada para ${META_LOJAS_EXPANSAO} loja(s).`);
@@ -1874,6 +1944,83 @@ function calcularSimulacaoLojas(){
   return {lojas,metaLojas:META_LOJAS_EXPANSAO,lotePronto,detalhe,requisitos,limitantes,faltantesProximaLoja};
 }
 
+function renderizarCapacidadeAbertura(){
+  const painel=document.getElementById('capacidade-abertura');
+  if(!painel) return;
+  const resultado=calcularSimulacaoLojas();
+  const semKit=document.getElementById('cap-sem-kit');
+  const conteudo=document.getElementById('cap-conteudo');
+  const status=document.getElementById('cap-status');
+  const meta=Math.max(1,Number(META_LOJAS_EXPANSAO)||1);
+  const estoqueExpansao=(itensCache||[]).reduce((s,it)=>{
+    const q=Number(it.qtde)||0;
+    return s+(q>0 && normalizarTexto(it.tipo_estoque)===normalizarTexto('Expansão') ? q : 0);
+  },0);
+
+  if(!resultado.requisitos || !resultado.requisitos.length){
+    if(semKit) semKit.hidden=false;
+    if(conteudo) conteudo.style.display='none';
+    if(status){status.textContent='Kit não configurado';status.className='capacidade-status alerta';}
+    return;
+  }
+  if(semKit) semKit.hidden=true;
+  if(conteudo) conteudo.style.display='block';
+
+  const capacidade=Math.max(0,Number(resultado.lojas)||0);
+  const deficit=Math.max(0,meta-capacidade);
+  const percentual=Math.min(100,Math.max(0,(capacidade/meta)*100));
+  const criticos=(resultado.faltantesProximaLoja||[]).length;
+  const proximaNumero=capacidade+1;
+  const faltantesProxima=(resultado.requisitos||[]).map(r=>{
+    const alvoProxima=proximaNumero*Math.max(1,Number(r.necessario)||1);
+    const falta=Math.max(0,alvoProxima-(Number(r.disponivel)||0));
+    return {...r,faltaProxima:falta};
+  }).filter(r=>r.faltaProxima>0).sort((a,b)=>b.faltaProxima-a.faltaProxima || compararCodigosNaturais(a.codigo,b.codigo));
+  const unidadesProxima=faltantesProxima.reduce((s,r)=>s+r.faltaProxima,0);
+
+  document.getElementById('cap-lojas').textContent=capacidade;
+  document.getElementById('cap-meta').textContent=`${meta} loja${meta===1?'':'s'}`;
+  document.getElementById('cap-percentual').textContent=`${percentual.toFixed(percentual>=10?0:1)}%`;
+  document.getElementById('cap-progress-bar').style.width=`${percentual}%`;
+  document.getElementById('cap-estoque').textContent=estoqueExpansao;
+  document.getElementById('cap-deficit').textContent=deficit;
+  document.getElementById('cap-deficit-sub').textContent=deficit===1?'loja para atingir a meta':'lojas para atingir a meta';
+  document.getElementById('cap-criticos').textContent=criticos;
+  document.getElementById('cap-proxima-loja').textContent=`${proximaNumero}ª`;
+  document.getElementById('cap-proxima-sub').textContent=`${faltantesProxima.length} tipo(s) com falta`;
+
+  const progress=document.getElementById('cap-progress');
+  progress.className='capacidade-progress';
+  if(capacidade>=meta){
+    status.textContent='Meta atendida';
+    status.className='capacidade-status ok';
+  }else if(percentual>=70){
+    status.textContent='Próximo da meta';
+    status.className='capacidade-status alerta';
+    progress.classList.add('alerta');
+  }else{
+    status.textContent='Estoque insuficiente';
+    status.className='capacidade-status critico';
+    progress.classList.add('critico');
+  }
+
+  const proxTitulo=document.getElementById('cap-proxima-titulo');
+  const proxStatus=document.getElementById('cap-proxima-status');
+  const proxTexto=document.getElementById('cap-proxima-texto');
+  proxTitulo.textContent=`Capacidade adicional · ${proximaNumero}ª loja`;
+  if(!faltantesProxima.length){
+    proxStatus.textContent='ATENDIDA';
+    proxStatus.style.color='var(--ok)';
+    proxTexto.textContent=`O estoque atual já contém todos os itens necessários para completar a ${proximaNumero}ª loja.`;
+  }else{
+    proxStatus.textContent='NÃO ATENDIDA';
+    proxStatus.style.color='var(--danger)';
+    const principal=faltantesProxima[0];
+    const nome=principal.codigo ? `${principal.codigo} — ${principal.descricao}` : principal.descricao;
+    proxTexto.textContent=`Faltam ${unidadesProxima} unidade(s) distribuídas em ${faltantesProxima.length} tipo(s) de equipamento para completar a ${proximaNumero}ª loja. Maior falta: ${nome} (${principal.faltaProxima}).`;
+  }
+}
+
 function htmlFaltantesProximaLoja(resultado){
   if(!resultado.requisitos || !resultado.requisitos.length){
     return `<div class="faltantes-loja-head"><strong>Itens faltantes para a premissa de ${META_LOJAS_EXPANSAO} lojas</strong></div><span style="font-size:11px;color:var(--muted)">Configure o Kit padrão por loja para calcular os itens faltantes.</span>`;
@@ -2127,6 +2274,7 @@ async function carregarKitPadrao(){
     if(!res.ok) throw new Error('Falha ao carregar kit padrão');
     kitPadraoCache=await res.json();
     renderizarKitPadrao();
+    renderizarCapacidadeAbertura();
     if(modoSimuladorLojas) renderizarSimuladorLojas();
     if(modoKitPadrao) renderizarKitPadrao();
     if(modoLojaVirtual) renderizarLojaVirtual();
