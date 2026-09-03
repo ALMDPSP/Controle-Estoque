@@ -47,7 +47,7 @@ from reportlab.pdfgen import canvas
 import db
 
 app = Flask(__name__)
-APP_BUILD = "2026-09-03-projecao-ranking-sem-espaco-v17"
+APP_BUILD = "2026-09-03-projecao-zero-gap-v18"
 app.secret_key = os.environ.get("SECRET_KEY", "troque-esta-chave-em-producao")
 app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
