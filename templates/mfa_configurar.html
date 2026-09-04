@@ -1,8 +1,147 @@
 <!DOCTYPE html>
-<html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Configurar MFA · Controle de Ativos</title>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Configurar MFA · Controle de Ativos</title>
 <style>
-:root{--bg:#0b1118;--panel:#151d27;--line:#2b394a;--text:#e8eef6;--muted:#8fa2b7;--blue:#3ea6ff;--ok:#4cd792;--warn:#ffb648;--danger:#ff6b6b;--mono:Consolas,monospace}*{box-sizing:border-box}body{margin:0;min-height:100vh;padding:28px;background:radial-gradient(circle at 50% 0,rgba(62,166,255,.12),transparent 44%),var(--bg);color:var(--text);font-family:"Segoe UI",system-ui,sans-serif}.wrap{width:min(900px,100%);margin:auto}.head{margin-bottom:18px}.tag{display:inline-block;color:var(--warn);border:1px solid rgba(255,182,72,.4);border-radius:4px;padding:3px 8px;font:700 10px var(--mono);letter-spacing:.08em;text-transform:uppercase}h1{font-size:25px;margin:10px 0 5px}.lead{color:var(--muted);font-size:13px;line-height:1.5;margin:0}.required{margin-top:13px;padding:10px 12px;border:1px solid rgba(255,182,72,.3);border-radius:9px;background:rgba(255,182,72,.08);color:#ffd18c;font-size:12px}.grid{display:grid;grid-template-columns:310px 1fr;gap:16px}.panel{background:linear-gradient(180deg,#18222e,#111820);border:1px solid var(--line);border-radius:16px;padding:22px}.panel h2{font-size:14px;margin:0 0 10px}.qr{display:grid;place-items:center;background:#fff;border-radius:13px;padding:13px;width:245px;height:245px;margin:14px auto}.qr img{max-width:100%;max-height:100%}.apps{display:flex;justify-content:center;gap:8px;flex-wrap:wrap}.app{border:1px solid var(--line);border-radius:999px;padding:6px 9px;color:#a8b9ca;font-size:10px}.steps{display:grid;gap:13px}.step{display:grid;grid-template-columns:29px 1fr;gap:10px;align-items:start}.n{width:29px;height:29px;border-radius:50%;display:grid;place-items:center;background:rgba(62,166,255,.12);border:1px solid rgba(62,166,255,.3);color:var(--blue);font:700 11px var(--mono)}.step b{font-size:12px}.step p{margin:3px 0 0;color:var(--muted);font-size:11px;line-height:1.5}.secret{margin-top:15px;border:1px solid var(--line);border-radius:9px;padding:10px;background:#0c131b}.secret span{display:block;color:var(--muted);font-size:9px;text-transform:uppercase}.secret code{display:block;margin-top:5px;color:#dce9f7;font:700 12px var(--mono);letter-spacing:.08em;word-break:break-all}.confirm{margin-top:18px;padding-top:17px;border-top:1px solid var(--line)}label{display:block;color:#aebbc9;font-size:11px;margin-bottom:7px}.code{width:100%;background:#0b1219;border:1px solid var(--line);border-radius:10px;padding:13px;color:#fff;font:700 20px var(--mono);letter-spacing:.14em;outline:none;text-align:center}.code:focus{border-color:var(--blue)}button{width:100%;margin-top:11px;border:0;border-radius:10px;padding:12px;background:linear-gradient(135deg,var(--blue),#65c8ff);color:#07121c;font-weight:800;cursor:pointer}.erro{margin-bottom:13px;border:1px solid rgba(255,107,107,.35);background:rgba(255,107,107,.09);color:#ffb3b3;border-radius:9px;padding:10px 12px;font-size:12px}@media(max-width:760px){body{padding:14px}.grid{grid-template-columns:1fr}.qr{width:220px;height:220px}}
-</style></head><body><main class="wrap"><div class="head"><span class="tag">Segurança</span><h1>Configurar dupla autenticação</h1><p class="lead">Compatível com <b>Microsoft Authenticator</b> e <b>Google Authenticator</b>. O mesmo QR Code funciona nos dois aplicativos.</p>{% if obrigatorio %}<div class="required">🔐 O MFA é obrigatório para todos os perfis. Conclua a configuração para entrar no sistema.</div>{% endif %}</div>
-<div class="grid"><section class="panel"><h2>1. Escaneie o QR Code</h2><div class="qr"><img src="{{ qr_data }}" alt="QR Code para configurar o Authenticator"></div><div class="apps"><span class="app">Microsoft Authenticator</span><span class="app">Google Authenticator</span></div><div class="secret"><span>Chave manual</span><code>{{ secret }}</code></div></section>
-<section class="panel"><h2>Como configurar</h2><div class="steps"><div class="step"><span class="n">1</span><div><b>Abra o aplicativo</b><p>No Microsoft Authenticator, escolha adicionar conta e depois “Outra conta”. No Google Authenticator, toque em adicionar.</p></div></div><div class="step"><span class="n">2</span><div><b>Leia o QR Code</b><p>Se a câmera não estiver disponível, use a chave manual exibida ao lado.</p></div></div><div class="step"><span class="n">3</span><div><b>Confirme o primeiro código</b><p>Digite abaixo o código de 6 dígitos mostrado no aplicativo.</p></div></div></div>
-<div class="confirm">{% if erro %}<div class="erro">⚠ {{ erro }}</div>{% endif %}<form method="POST"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><label for="codigo">Código de 6 dígitos</label><input class="code" id="codigo" name="codigo" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" required autofocus placeholder="000000"><button type="submit">Ativar MFA</button></form></div></section></div></main></body></html>
+:root{
+  --bg:#06090e; --panel:#0d131c; --panel2:#101823; --line:rgba(255,255,255,.09);
+  --text:#eef4fb; --muted:#7f8da1; --blue:#3ea6ff; --cyan:#5ef2d6; --purple:#8c6cff;
+  --red:#ff6b6b; --warn:#ffb648; --mono:"SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace;
+}
+*{box-sizing:border-box}
+html,body{width:100%;min-height:100%}
+body{
+  margin:0; min-height:100vh; padding:24px; display:flex; align-items:center; justify-content:center;
+  background:radial-gradient(circle at 15% 20%,rgba(62,166,255,.08),transparent 30%),radial-gradient(circle at 85% 80%,rgba(94,242,214,.06),transparent 30%),var(--bg);
+  color:var(--text); font-family:"Segoe UI",Inter,system-ui,-apple-system,sans-serif; overflow:hidden;
+}
+.aurora{position:fixed;inset:0;overflow:hidden;pointer-events:none;z-index:0}
+.aurora span{position:absolute;border-radius:50%;filter:blur(100px);opacity:.18;animation:auroraMove 18s ease-in-out infinite}
+.aurora span:nth-child(1){width:520px;height:520px;left:-220px;top:-220px;background:#168cff}
+.aurora span:nth-child(2){width:450px;height:450px;right:-180px;bottom:-200px;background:#26d9c0;animation-delay:-7s}
+.aurora span:nth-child(3){width:320px;height:320px;left:48%;top:45%;background:#7054ff;opacity:.08;animation-delay:-12s}
+@keyframes auroraMove{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(30px,-35px) scale(1.08)}}
+.grid-bg{position:fixed;inset:0;pointer-events:none;z-index:0;background-image:linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px);background-size:46px 46px;mask-image:radial-gradient(ellipse 75% 70% at center,black 20%,transparent 90%)}
+#particles{position:fixed;inset:0;pointer-events:none;z-index:0}
+.particle{position:absolute;width:2px;height:2px;border-radius:50%;background:var(--blue);box-shadow:0 0 8px var(--blue);opacity:0;animation:particleUp linear infinite}
+@keyframes particleUp{0%{transform:translateY(20px);opacity:0}15%{opacity:.6}80%{opacity:.35}100%{transform:translateY(-100vh);opacity:0}}
+.wrapper{position:relative;z-index:2;width:min(1080px,100%);animation:cardIn .65s ease-out both}
+@keyframes cardIn{from{opacity:0;transform:translateY(18px) scale(.985)}to{opacity:1;transform:translateY(0) scale(1)}}
+.card{position:relative;display:flex;min-height:640px;overflow:hidden;border-radius:20px;background:linear-gradient(135deg,rgba(18,25,35,.98),rgba(9,13,19,.99));border:1px solid rgba(255,255,255,.09);box-shadow:0 35px 90px rgba(0,0,0,.65),0 0 0 1px rgba(255,255,255,.015) inset}
+.card::before{content:"";position:absolute;inset:0;padding:1px;border-radius:20px;background:conic-gradient(from 0deg,transparent 0deg,transparent 260deg,rgba(62,166,255,.8) 285deg,rgba(94,242,214,.7) 300deg,transparent 330deg);-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;animation:borderSpin 8s linear infinite;pointer-events:none;z-index:50}
+@keyframes borderSpin{to{transform:rotate(360deg)}}
+.visual{position:relative;flex:1.2;min-width:500px;overflow:hidden;border-right:1px solid var(--line);background:radial-gradient(ellipse at 50% 48%,rgba(62,166,255,.10),transparent 55%),linear-gradient(160deg,#0b121b,#070b11)}
+.visual-header{position:absolute;top:25px;left:28px;right:28px;z-index:5;display:flex;align-items:center;justify-content:space-between}
+.system-name{display:flex;align-items:center;gap:10px;font-family:var(--mono);font-size:10px;color:#93a1b4;letter-spacing:.08em}
+.status-dot{width:8px;height:8px;border-radius:50%;background:var(--cyan);box-shadow:0 0 10px rgba(94,242,214,.8);animation:statusPulse 1.8s ease-in-out infinite}
+@keyframes statusPulse{0%,100%{opacity:.45}50%{opacity:1}}
+.live{font-family:var(--mono);font-size:9px;color:var(--cyan);letter-spacing:.12em}
+.visual-body{position:absolute;inset:92px 34px 34px;display:flex;flex-direction:column;justify-content:center}
+.kicker{display:inline-flex;align-items:center;gap:8px;width:max-content;padding:8px 14px;border-radius:999px;border:1px solid rgba(94,242,214,.18);background:rgba(14,27,39,.7);font:700 11px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:#caeef1}
+.kicker::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--cyan);box-shadow:0 0 10px rgba(94,242,214,.8)}
+.visual h1{font-size:40px;line-height:1.07;margin:18px 0 14px;max-width:470px}
+.visual p{font-size:15px;line-height:1.7;color:#9fb0c3;max-width:500px;margin:0}
+.visual-list{margin:26px 0 0;padding:0;list-style:none;display:grid;gap:14px;max-width:500px}
+.visual-list li{display:flex;gap:12px;align-items:flex-start;padding:14px 16px;border-radius:14px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06)}
+.visual-list i{display:grid;place-items:center;flex:0 0 28px;height:28px;border-radius:50%;background:rgba(62,166,255,.14);border:1px solid rgba(62,166,255,.28);color:var(--blue);font:700 12px var(--mono);font-style:normal}
+.visual-list strong{display:block;font-size:13px;margin-bottom:4px}.visual-list span{display:block;color:#91a2b5;font-size:12px;line-height:1.55}
+.info-band{margin-top:22px;padding:12px 14px;border-radius:14px;background:linear-gradient(180deg,rgba(17,27,40,.9),rgba(10,16,24,.9));border:1px solid rgba(255,255,255,.08);font-size:12px;color:#dce6f2}
+.info-band b{color:#fff}.chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.chip{padding:6px 10px;border-radius:999px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.03);font-size:11px;color:#b7c4d1}
+.form-side{width:430px;padding:34px 30px 26px;display:flex;flex-direction:column;justify-content:center;position:relative;z-index:2}
+.form-head small{display:inline-block;padding:5px 10px;border-radius:999px;border:1px solid rgba(62,166,255,.22);color:#9bd5ff;background:rgba(62,166,255,.08);font:700 10px var(--mono);letter-spacing:.09em;text-transform:uppercase}
+.form-head h2{font-size:30px;line-height:1.12;margin:14px 0 10px}.form-head p{margin:0;color:var(--muted);line-height:1.6;font-size:13px}
+.required{margin-top:14px;padding:10px 12px;border:1px solid rgba(255,182,72,.3);border-radius:12px;background:rgba(255,182,72,.08);color:#ffd18c;font-size:12px;line-height:1.5}
+.erro{margin-top:16px;border:1px solid rgba(255,107,107,.35);background:rgba(255,107,107,.09);color:#ffb3b3;border-radius:12px;padding:10px 12px;font-size:12px;line-height:1.5}
+.qrbox{margin-top:18px;padding:16px;border-radius:18px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08)}
+.qr{display:grid;place-items:center;background:#fff;border-radius:18px;padding:14px;width:236px;height:236px;margin:0 auto 14px}.qr img{max-width:100%;max-height:100%}
+.apps{display:flex;justify-content:center;gap:8px;flex-wrap:wrap}.app{border:1px solid var(--line);border-radius:999px;padding:7px 10px;color:#b4c3d2;font-size:10px}
+.secret{margin-top:14px;border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:12px;background:#0c131b}.secret span{display:block;color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.08em}.secret code{display:block;margin-top:6px;color:#dce9f7;font:700 12px var(--mono);letter-spacing:.08em;word-break:break-all}
+.steps{margin-top:16px;display:grid;gap:10px}.step{display:grid;grid-template-columns:24px 1fr;gap:10px;align-items:start}.n{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;background:rgba(62,166,255,.12);border:1px solid rgba(62,166,255,.3);color:var(--blue);font:700 11px var(--mono)}.step b{font-size:12px;display:block;margin-bottom:2px}.step p{margin:0;color:var(--muted);font-size:11px;line-height:1.45}
+.form{margin-top:18px}.form label{display:block;color:#aec0d1;font-size:12px;margin-bottom:8px}.code{width:100%;background:#0b1219;border:1px solid var(--line);border-radius:12px;padding:14px;color:#fff;font:700 21px var(--mono);letter-spacing:.16em;outline:none;text-align:center}.code:focus{border-color:var(--blue);box-shadow:0 0 0 4px rgba(62,166,255,.12)}
+.btn{width:100%;margin-top:12px;border:0;border-radius:12px;padding:14px;background:linear-gradient(135deg,var(--blue),#65c8ff);color:#07121c;font-weight:800;cursor:pointer;font-size:14px}
+.note{margin-top:14px;color:#8fa1b4;font-size:11px;line-height:1.6}
+.footer-note{margin-top:auto;padding-top:18px;color:#7b8b9f;font-size:11px;border-top:1px solid rgba(255,255,255,.06)}
+@media (max-width:980px){body{padding:16px;overflow:auto}.wrapper{width:min(760px,100%)}.card{flex-direction:column;min-height:auto}.visual{min-width:0;border-right:0;border-bottom:1px solid var(--line)}.visual-body{position:relative;inset:auto;padding:90px 28px 28px}.visual h1{font-size:32px;max-width:none}.form-side{width:100%;padding:28px}.footer-note{margin-top:18px}}
+@media (max-width:560px){.visual-header{left:18px;right:18px;top:18px}.visual-body{padding:78px 18px 20px}.form-side{padding:20px 16px 18px}.form-head h2{font-size:24px}.qr{width:210px;height:210px}.code{font-size:18px;letter-spacing:.12em}}
+</style>
+</head>
+<body>
+<div class="aurora"><span></span><span></span><span></span></div>
+<div class="grid-bg"></div>
+<div id="particles"></div>
+<div class="wrapper">
+  <div class="card">
+    <section class="visual">
+      <div class="visual-header">
+        <div class="system-name"><span class="status-dot"></span> CONTROLE DE ATIVOS - PRELOAD</div>
+        <div class="live">● ON LINE</div>
+      </div>
+      <div class="visual-body">
+        <span class="kicker">Site seguro com dupla autenticação</span>
+        <h1>Configure o acesso protegido ao sistema.</h1>
+        <p>Para concluir o primeiro acesso, associe sua conta ao <b>Microsoft Authenticator</b> ou <b>Google Authenticator</b>. O mesmo QR Code funciona nos dois aplicativos.</p>
+        <ul class="visual-list">
+          <li><i>1</i><div><strong>Escaneie o QR Code</strong><span>Abra o aplicativo autenticador no celular e adicione uma nova conta para ler o código exibido.</span></div></li>
+          <li><i>2</i><div><strong>Use a chave manual se precisar</strong><span>Se a câmera não estiver disponível, você pode cadastrar a conta usando a chave manual informada ao lado.</span></div></li>
+          <li><i>3</i><div><strong>Confirme com o código de 6 dígitos</strong><span>Depois de adicionar a conta, digite o primeiro código exibido no aplicativo para ativar o MFA.</span></div></li>
+        </ul>
+        <div class="info-band">
+          <b>Compatível com:</b>
+          <div class="chips"><span class="chip">Microsoft Authenticator</span><span class="chip">Google Authenticator</span><span class="chip">Acesso protegido</span></div>
+        </div>
+      </div>
+    </section>
+    <section class="form-side">
+      <div class="form-head">
+        <small>Configuração de acesso</small>
+        <h2>Cadastre seu Authenticator</h2>
+        <p>Usuário: <b>{{ username }}</b><br>Escaneie o QR Code abaixo e confirme a ativação para continuar.</p>
+      </div>
+      {% if obrigatorio %}<div class="required">🔐 A dupla autenticação é obrigatória. Conclua a configuração para acessar o sistema.</div>{% endif %}
+      {% if erro %}<div class="erro">⚠ {{ erro }}</div>{% endif %}
+      <div class="qrbox">
+        <div class="qr"><img src="{{ qr_data }}" alt="QR Code para configurar o Authenticator"></div>
+        <div class="apps"><span class="app">Microsoft Authenticator</span><span class="app">Google Authenticator</span></div>
+        <div class="secret"><span>Chave manual</span><code>{{ secret }}</code></div>
+      </div>
+      <div class="steps">
+        <div class="step"><span class="n">1</span><div><b>Abra o aplicativo</b><p>No Microsoft Authenticator, escolha adicionar conta. No Google Authenticator, toque em adicionar.</p></div></div>
+        <div class="step"><span class="n">2</span><div><b>Leia o QR Code</b><p>Se necessário, use a chave manual acima para concluir o cadastro da conta.</p></div></div>
+      </div>
+      <form method="POST" class="form" autocomplete="off">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <label for="codigo">Código de 6 dígitos</label>
+        <input class="code" id="codigo" name="codigo" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" required autofocus placeholder="000000">
+        <button type="submit" class="btn">Ativar dupla autenticação</button>
+      </form>
+      <div class="note">Após a confirmação, o sistema mostrará os códigos de recuperação. Guarde-os em local seguro.</div>
+      <div class="footer-note">© 2026 · Todos os direitos reservados · Developed by <b>Alexandre Martins</b></div>
+    </section>
+  </div>
+</div>
+<script>
+(function(){
+  const container=document.getElementById('particles');
+  if(container){
+    const total=34;
+    for(let i=0;i<total;i++){
+      const p=document.createElement('span');
+      p.className='particle';
+      p.style.left=(Math.random()*100)+'vw';
+      p.style.top=(Math.random()*100)+'vh';
+      p.style.animationDuration=(10+Math.random()*16)+'s';
+      p.style.animationDelay=(-Math.random()*18)+'s';
+      p.style.opacity=Math.random()*.55;
+      container.appendChild(p);
+    }
+  }
+  const code=document.getElementById('codigo');
+  if(code){
+    code.addEventListener('input',()=>{ code.value = code.value.replace(/\D/g,'').slice(0,6); });
+  }
+})();
+</script>
+</body>
+</html>
