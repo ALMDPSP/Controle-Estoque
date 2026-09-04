@@ -743,6 +743,7 @@
     </form>
     <div class="dlg-actions">
       <button type="button" class="btn-ghost" id="importar-cancel">Cancelar</button>
+      <button type="button" class="btn-ghost" id="importar-validar">Validar planilha</button>
       <button type="button" class="btn-primary" id="importar-enviar">Importar</button>
     </div>
   </div>
@@ -1469,6 +1470,15 @@ document.getElementById('abrir-importar')?.addEventListener('click', (e) => {
   importarDialog.showModal();
 });
 document.getElementById('importar-cancel').addEventListener('click', () => importarDialog.close());
+
+document.getElementById('importar-validar')?.addEventListener('click', async () => {
+  const arquivoInput=document.getElementById('importar-arquivo');const btn=document.getElementById('importar-validar');
+  if(!arquivoInput.files.length){alert('Escolha um arquivo .xlsx.');return;}
+  const fd=new FormData();fd.append('arquivo',arquivoInput.files[0]);fd.append('tabela',document.getElementById('importar-tabela').value);
+  btn.disabled=true;btn.textContent='Validando...';importarMsg.style.display='block';importarMsg.className='';importarMsg.style.cssText='background:rgba(62,166,255,.10); border:1px solid rgba(62,166,255,.28); color:#b9ddff; font-size:13px; padding:9px 11px; border-radius:6px;';importarMsg.textContent='Analisando a planilha sem gravar dados...';
+  try{const r=await fetch('/api/itens/importar/validar',{method:'POST',body:fd});const x=await r.json();if(!r.ok)throw new Error(x.erro||'Falha na validação.');importarMsg.style.cssText='background:rgba(76,215,146,.10); border:1px solid rgba(76,215,146,.28); color:#b8f5d0; font-size:13px; padding:9px 11px; border-radius:6px;';importarMsg.textContent=`Validação OK: ${x.total_linhas||0} linha(s), ${x.validas||0} válida(s), ${x.registros_previstos||0} registro(s) serão gerados e ${x.ignoradas||0} linha(s) serão ignoradas.`;}catch(err){importarMsg.style.cssText='background:rgba(255,107,107,.12); border:1px solid rgba(255,107,107,.3); color:var(--danger); font-size:13px; padding:9px 11px; border-radius:6px;';importarMsg.textContent=err.message||'Erro ao validar planilha.';}finally{btn.disabled=false;btn.textContent='Validar planilha';}
+});
+
 
 document.getElementById('importar-enviar').addEventListener('click', async () => {
   const arquivoInput = document.getElementById('importar-arquivo');

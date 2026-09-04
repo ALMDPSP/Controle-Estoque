@@ -27,7 +27,7 @@ import zipfile
 import secrets
 import hmac
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 from functools import wraps
 
 from flask import (
@@ -47,7 +47,7 @@ from reportlab.pdfgen import canvas
 import db
 
 app = Flask(__name__)
-APP_BUILD = "2026-09-04-relatorio-maior-inauguracao-v23"
+APP_BUILD = "2026-09-04-versao-executiva-v24"
 app.secret_key = os.environ.get("SECRET_KEY", "troque-esta-chave-em-producao")
 app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
@@ -375,6 +375,12 @@ def api_busca_global():
                 })
             if len(resultados)>=80: break
         if len(resultados)>=80: break
+    for filial in db.listar_filiais(incluir_inativas=True):
+        alvo=f"{filial.get('codigo','')} {filial.get('nome','')} {filial.get('cidade','')} {filial.get('uf','')}".lower()
+        alvo=unicodedata.normalize("NFD",alvo); alvo="".join(c for c in alvo if unicodedata.category(c)!="Mn")
+        if termo in alvo:
+            resultados.append({"origem":"Filiais","id":filial.get("id"),"codigo":filial.get("codigo","") or "","descricao":filial.get("nome","") or "","quantidade":"","tipo_estoque":"","status":_status_filial_normalizado(filial.get("ativo")),"localizacao":f"{filial.get('cidade','')} / {filial.get('uf','')}","nro_serie":"","nro_patrimonio":"","filial_destino":""})
+        if len(resultados)>=100: break
     for prod in db.listar_produtos():
         alvo=f"{prod.get('codigo','')} {prod.get('descricao','')}".lower()
         alvo=unicodedata.normalize("NFD",alvo)
@@ -385,14 +391,97 @@ def api_busca_global():
     return jsonify(resultados)
 
 
+def _normalizar_exec(valor):
+    texto=unicodedata.normalize("NFD",str(valor or "").strip().lower())
+    return "".join(c for c in texto if unicodedata.category(c)!="Mn")
+
+def _calcular_visao_executiva():
+    def _qtd_num(valor):
+        try:return int(float(valor or 0))
+        except Exception:return 0
+    itens=db.listar_itens()
+    kit=db.listar_kit_padrao_loja()
+    filiais=db.listar_filiais(incluir_inativas=True)
+    meta=db.obter_meta_lojas_expansao()
+    expansao=[x for x in itens if _normalizar_exec(x.get("tipo_estoque"))=="expansao" and _qtd_num(x.get("qtde"))>0]
+    req=[]
+    for k in kit:
+        necessario=max(1,int(k.get("quantidade") or 1))
+        codigo_k=str(k.get("codigo") or "").strip()
+        desc_k=_normalizar_exec(k.get("descricao"))
+        disponivel=0
+        for item in expansao:
+            codigo_i=str(item.get("codigo") or "").strip()
+            desc_i=_normalizar_exec(item.get("descricao"))
+            combina=(codigo_k and codigo_i==codigo_k) or (desc_k and desc_i and (desc_k in desc_i or desc_i in desc_k))
+            if combina:
+                disponivel += _qtd_num(item.get("qtde"))
+        lojas=disponivel//necessario
+        req.append({"codigo":codigo_k,"descricao":k.get("descricao") or "","necessario":necessario,"disponivel":disponivel,"lojas":lojas})
+    capacidade=min([x["lojas"] for x in req],default=0)
+    planejadas=[f for f in filiais if _status_filial_normalizado(f.get("ativo"))=="inaugurar"]
+    planejadas.sort(key=lambda f: (str(f.get("previsao_abertura") or "9999-99-99"), str(f.get("codigo") or "")))
+    qtd_planejada=len(planejadas)
+    atendiveis=min(capacidade,qtd_planejada)
+    risco=max(0,qtd_planejada-capacidade)
+    pct=100.0 if qtd_planejada==0 else min(100.0,(capacidade/qtd_planejada)*100.0)
+    hoje=datetime.now().date()
+    horizontes={}
+    for dias in (30,60,90):
+        limite=hoje+timedelta(days=dias)
+        dentro=[]
+        for f in planejadas:
+            txt=str(f.get("previsao_abertura") or "").strip()
+            try: dt=datetime.strptime(txt[:10],"%Y-%m-%d").date()
+            except Exception: continue
+            if hoje <= dt <= limite: dentro.append(f)
+        qtd=len(dentro)
+        horizontes[str(dias)]={"lojas":qtd,"atendiveis":min(capacidade,qtd),"risco":max(0,qtd-capacidade)}
+    sem_data=sum(1 for f in planejadas if not str(f.get("previsao_abertura") or "").strip())
+    deficits=[]
+    for x in req:
+        alvo=x["necessario"]*max(1,qtd_planejada or int(meta or 1))
+        falta=max(0,alvo-x["disponivel"])
+        if falta:
+            deficits.append({**x,"falta":falta,"alvo":alvo})
+    deficits.sort(key=lambda x:-x["falta"])
+    return {
+        "meta_lojas":int(meta or 10),"capacidade_lojas":capacidade,"lojas_a_inaugurar":qtd_planejada,
+        "lojas_atendiveis":atendiveis,"lojas_em_risco":risco,"percentual_atendimento":round(pct,1),
+        "itens_criticos":len(deficits),"estoque_expansao":sum(_qtd_num(x.get("qtde")) for x in expansao),
+        "horizontes":horizontes,"sem_data":sem_data,"deficits":deficits[:8],
+        "planejadas":[{"id":f.get("id"),"codigo":f.get("codigo"),"nome":f.get("nome"),"uf":f.get("uf"),"previsao_abertura":f.get("previsao_abertura"),"situacao":"ATENDIDA" if i<capacidade else "RISCO"} for i,f in enumerate(planejadas)]
+    }
+
 @app.route("/api/status-sistema")
 @login_required
 def api_status_sistema():
-    return jsonify({
+    try:
+        saude=db.obter_saude_sistema()
+    except Exception as e:
+        saude={"database":"indisponível","database_ok":False,"erro":str(e),"contagens":{},"inconsistencias":{"total":0}}
+    saude.update({
         "ultimo_backup":session.get("ultimo_backup"),
         "perfil":session.get("role") or "user",
-        "usuario":session.get("username")
+        "usuario":session.get("username"),
+        "build":APP_BUILD,
     })
+    return jsonify(saude)
+
+@app.route("/api/visao-executiva")
+@login_required
+def api_visao_executiva():
+    return jsonify(_calcular_visao_executiva())
+
+@app.route("/api/importacoes-recentes")
+@login_required
+def api_importacoes_recentes():
+    return jsonify(db.listar_importacoes_recentes(30))
+
+@app.route("/gestao-dados")
+@login_required
+def pagina_gestao_dados():
+    return render_template("gestao_dados.html",username=session.get("username"),role=session.get("role") or "user",is_admin=session.get("role")=="admin")
 
 
 UF_NOMES = {
@@ -1121,6 +1210,20 @@ def pagina_filiais():
     return render_template("filiais.html", username=session.get("username"), role=session.get("role") or "user", is_admin=session.get("role") == "admin")
 
 
+@app.route("/filiais/<int:filial_id>")
+@login_required
+def pagina_filial_detalhe(filial_id):
+    filial=db.buscar_filial_por_id(filial_id)
+    if not filial:
+        return redirect(url_for("pagina_filiais"))
+    codigo=str(filial.get("codigo") or "")
+    itens=[x for x in db.listar_itens() if str(x.get("filial_destino") or "")==codigo]
+    imobs=[x for x in db.listar_imobilizados() if str(x.get("filial_destino") or "")==codigo]
+    visao=_calcular_visao_executiva()
+    proj=next((x for x in visao.get("planejadas",[]) if int(x.get("id") or 0)==filial_id),None)
+    return render_template("filial_detalhe.html",filial=filial,itens=itens,imobs=imobs,projecao=proj,username=session.get("username"),role=session.get("role") or "user",is_admin=session.get("role")=="admin")
+
+
 @app.route("/projecao-lojas")
 @login_required
 def pagina_projecao_lojas():
@@ -1219,6 +1322,7 @@ def _cabecalho_filial_normalizado(valor):
         "uf": {"uf", "estado", "sigla uf"},
         "bandeira": {"bandeira", "marca", "rede"},
         "status": {"status", "situacao", "situacao da loja", "ativo"},
+        "previsao_abertura": {"previsao abertura", "previsao de abertura", "data abertura", "data de abertura", "abertura prevista"},
     }
     for campo, nomes in aliases.items():
         if s in nomes:
@@ -1238,6 +1342,19 @@ def _status_filial_importacao(valor, atual=None):
     }
     return mapa.get(s)
 
+def _data_filial_iso(valor):
+    if valor is None or valor == "":
+        return ""
+    if isinstance(valor, datetime):
+        return valor.strftime("%Y-%m-%d")
+    texto=str(valor).strip()
+    for fmt in ("%Y-%m-%d","%d/%m/%Y","%d-%m-%Y","%Y/%m/%d"):
+        try:
+            return datetime.strptime(texto[:10],fmt).strftime("%Y-%m-%d")
+        except Exception:
+            pass
+    return texto[:10] if len(texto)>=10 else texto
+
 
 @app.route("/export-filiais")
 @login_required
@@ -1246,7 +1363,7 @@ def exportar_filiais_excel():
     wb = Workbook()
     ws = wb.active
     ws.title = "Filiais"
-    headers = ["Código da filial", "Nome / identificação", "Cidade", "UF", "Bandeira", "Status"]
+    headers = ["Código da filial", "Nome / identificação", "Cidade", "UF", "Bandeira", "Status", "Previsão de abertura"]
     ws.append(headers)
     status_rotulos = {"1": "Ativa", "0": "Inativa", "inaugurar": "Inaugurar", "pendente": "Pendente"}
     for f in filiais:
@@ -1254,6 +1371,7 @@ def exportar_filiais_excel():
             str(f.get("codigo") or ""), f.get("nome") or "", f.get("cidade") or "",
             str(f.get("uf") or "").upper(), str(f.get("bandeira") or "").upper(),
             status_rotulos.get(str(f.get("ativo") or ""), str(f.get("ativo") or "")),
+            str(f.get("previsao_abertura") or ""),
         ])
 
     cor_header = PatternFill("solid", fgColor="1F4E78")
@@ -1262,11 +1380,11 @@ def exportar_filiais_excel():
         c.fill = cor_header
         c.alignment = Alignment(horizontal="center", vertical="center")
     ws.freeze_panes = "A2"
-    ws.auto_filter.ref = f"A1:F{max(1, ws.max_row)}"
-    larguras = [20, 34, 24, 10, 14, 16]
+    ws.auto_filter.ref = f"A1:G{max(1, ws.max_row)}"
+    larguras = [20, 34, 24, 10, 14, 16, 20]
     for idx, largura in enumerate(larguras, start=1):
         ws.column_dimensions[get_column_letter(idx)].width = largura
-    for row in ws.iter_rows(min_row=2, max_col=6):
+    for row in ws.iter_rows(min_row=2, max_col=7):
         row[0].number_format = "@"
         row[3].alignment = Alignment(horizontal="center")
         row[4].alignment = Alignment(horizontal="center")
@@ -1282,6 +1400,74 @@ def exportar_filiais_excel():
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
 
+
+@app.route("/api/filiais/importar/validar", methods=["POST"])
+@manager_required
+def api_validar_filiais_excel():
+    arquivo=request.files.get("arquivo")
+    if not arquivo or not arquivo.filename:
+        return jsonify({"erro":"Nenhum arquivo enviado."}),400
+    if not arquivo.filename.lower().endswith((".xlsx",".xlsm")):
+        return jsonify({"erro":"Envie um arquivo Excel (.xlsx ou .xlsm)."}),400
+    try:
+        wb=load_workbook(arquivo,read_only=True,data_only=True); ws=wb.active
+        linhas_iter=ws.iter_rows(values_only=True)
+        mapa_colunas={}; cab_row=0
+        for numero_linha,valores in enumerate(linhas_iter,start=1):
+            if numero_linha>10: break
+            candidato={}
+            for idx,valor in enumerate(valores or ()):
+                campo=_cabecalho_filial_normalizado(valor)
+                if campo and campo not in candidato: candidato[campo]=idx
+            if "codigo" in candidato:
+                mapa_colunas=candidato; cab_row=numero_linha; break
+        if not mapa_colunas:
+            return jsonify({"erro":"Não encontrei a coluna de código da filial."}),400
+        atuais={str(f.get("codigo") or "").strip():f for f in db.listar_filiais(incluir_inativas=True)}
+        vistos=set(); total=validas=ignoradas=criadas=atualizadas=sem_alteracao=0; erros=[]; amostra=[]
+        for numero_linha,valores in enumerate(linhas_iter,start=cab_row+1):
+            valores=tuple(valores or ())
+            if not valores or all(v is None or str(v).strip()=="" for v in valores): continue
+            total+=1
+            def ler(campo):
+                idx=mapa_colunas.get(campo)
+                if idx is None or idx>=len(valores): return ""
+                v=valores[idx]
+                if v is None:return ""
+                if isinstance(v,datetime):return v.strftime("%Y-%m-%d")
+                if isinstance(v,float) and v.is_integer():return str(int(v))
+                return str(v).strip()
+            codigo=ler("codigo").strip(); uf=ler("uf").upper().strip(); bandeira=ler("bandeira").upper().strip(); status_txt=ler("status").strip()
+            if not codigo or codigo in vistos:
+                ignoradas+=1
+                if len(erros)<15: erros.append(f"Linha {numero_linha}: código ausente ou repetido ({codigo or '-'}).")
+                continue
+            vistos.add(codigo)
+            if uf and (len(uf)!=2 or uf not in UF_NOMES):
+                ignoradas+=1
+                if len(erros)<15:erros.append(f"Linha {numero_linha}: UF '{uf}' inválida.")
+                continue
+            if bandeira and bandeira not in ("DSP","DPA"):
+                ignoradas+=1
+                if len(erros)<15:erros.append(f"Linha {numero_linha}: bandeira '{bandeira}' inválida.")
+                continue
+            status="" if not status_txt else _status_filial_importacao(status_txt,None)
+            if status_txt and status is None:
+                ignoradas+=1
+                if len(erros)<15:erros.append(f"Linha {numero_linha}: status '{status_txt}' inválido.")
+                continue
+            validas+=1
+            atual=atuais.get(codigo)
+            if atual:
+                nome=ler("nome") or str(atual.get("nome") or ""); cidade=ler("cidade") or str(atual.get("cidade") or ""); nova_uf=uf or str(atual.get("uf") or "").upper(); nova_b=bandeira or str(atual.get("bandeira") or "").upper(); novo_s=status or str(atual.get("ativo") or "1"); nova_p=_data_filial_iso(ler("previsao_abertura")) or str(atual.get("previsao_abertura") or "")
+                mudou=any([str(atual.get("nome") or "")!=nome,str(atual.get("cidade") or "")!=cidade,str(atual.get("uf") or "").upper()!=nova_uf,str(atual.get("bandeira") or "").upper()!=nova_b,str(atual.get("ativo") or "")!=novo_s,str(atual.get("previsao_abertura") or "")!=nova_p])
+                if mudou: atualizadas+=1
+                else: sem_alteracao+=1
+            else: criadas+=1
+            if len(amostra)<8: amostra.append({"codigo":codigo,"nome":ler("nome"),"uf":uf,"status":status or (atual or {}).get("ativo","1"),"acao":"Atualizar" if atual else "Criar"})
+        return jsonify({"ok":True,"arquivo":arquivo.filename,"total_linhas":total,"validas":validas,"criadas":criadas,"atualizadas":atualizadas,"sem_alteracao":sem_alteracao,"ignoradas":ignoradas,"erros":erros,"amostra":amostra})
+    except Exception as e:
+        return jsonify({"erro":f"Erro ao validar a planilha: {e}"}),500
 
 @app.route("/api/filiais/importar", methods=["POST"])
 @manager_required
@@ -1378,6 +1564,7 @@ def api_importar_filiais_excel():
             uf = ler("uf").upper().strip()
             bandeira = ler("bandeira").upper().strip()
             status_txt = ler("status").strip()
+            previsao_abertura = _data_filial_iso(ler("previsao_abertura"))
 
             if uf and (len(uf) != 2 or uf not in UF_NOMES):
                 ignoradas += 1
@@ -1404,6 +1591,7 @@ def api_importar_filiais_excel():
                 "uf": uf,
                 "bandeira": bandeira,
                 "status": status,
+                "previsao_abertura": previsao_abertura,
             })
 
         if not linhas_validas:
@@ -1414,6 +1602,10 @@ def api_importar_filiais_excel():
         atualizadas = int(resultado.get("atualizadas") or 0)
         sem_alteracao = int(resultado.get("sem_alteracao") or 0)
         processadas = criadas + atualizadas + sem_alteracao
+        try:
+            db.registrar_importacao("filiais", arquivo.filename, total_linhas, processadas, criadas, atualizadas, ignoradas, usuario, "concluida", f"Sem alteração: {sem_alteracao}")
+        except Exception as audit_err:
+            print(f"[aviso] Falha ao registrar auditoria de importação: {audit_err}")
 
         if criadas or atualizadas:
             try:
@@ -1456,15 +1648,17 @@ def api_criar_filial():
     bandeira = (dados.get("bandeira") or "").strip().upper()
     if bandeira not in ("", "DSP", "DPA"):
         return jsonify({"erro": "Bandeira inválida. Use DSP ou DPA."}), 400
+    previsao_abertura = _data_filial_iso(dados.get("previsao_abertura"))
     ativo = str(dados.get("ativo", "1") or "1").strip().lower()
     mapa_status = {"ativa":"1","ativo":"1","1":"1","inativa":"0","inativo":"0","0":"0","inaugurar":"inaugurar","pendente":"pendente"}
     ativo = mapa_status.get(ativo, "1")
     if not codigo:
         return jsonify({"erro": "Código da filial é obrigatório."}), 400
     try:
-        novo_id = db.criar_filial(codigo, nome, cidade, uf, ativo, session.get("username"), bandeira=bandeira)
+        novo_id = db.criar_filial(codigo, nome, cidade, uf, ativo, session.get("username"), bandeira=bandeira, previsao_abertura=previsao_abertura)
     except Exception:
         return jsonify({"erro": "Já existe uma filial cadastrada com este código."}), 409
+    db.registrar_movimentacao(0,"criacao_filial","1",session.get("username"),f"Filial {codigo} criada · status={ativo} · UF={uf} · previsão={previsao_abertura or '-'}",tabela="sistema")
     return jsonify({"ok": True, "id": novo_id}), 201
 
 
@@ -1479,16 +1673,23 @@ def api_atualizar_filial(filial_id):
     bandeira = (dados.get("bandeira") or "").strip().upper()
     if bandeira not in ("", "DSP", "DPA"):
         return jsonify({"erro": "Bandeira inválida. Use DSP ou DPA."}), 400
+    previsao_abertura = _data_filial_iso(dados.get("previsao_abertura"))
     ativo = str(dados.get("ativo", "1") or "1").strip().lower()
     mapa_status = {"ativa":"1","ativo":"1","1":"1","inativa":"0","inativo":"0","0":"0","inaugurar":"inaugurar","pendente":"pendente"}
     ativo = mapa_status.get(ativo, "1")
     if not codigo:
         return jsonify({"erro": "Código da filial é obrigatório."}), 400
+    anterior=db.buscar_filial_por_id(filial_id)
     try:
-        ok = db.atualizar_filial(filial_id, codigo, nome, cidade, uf, ativo, bandeira=bandeira)
+        ok = db.atualizar_filial(filial_id, codigo, nome, cidade, uf, ativo, bandeira=bandeira, previsao_abertura=previsao_abertura)
     except Exception:
         return jsonify({"erro": "Já existe outra filial com este código."}), 409
-    return (jsonify({"ok": True}) if ok else (jsonify({"erro": "Filial não encontrada."}), 404))
+    if ok:
+        resumo_ant=f"status={anterior.get('ativo') if anterior else '-'}; UF={anterior.get('uf') if anterior else '-'}; bandeira={anterior.get('bandeira') if anterior else '-'}; previsão={anterior.get('previsao_abertura') if anterior else '-'}"
+        resumo_novo=f"status={ativo}; UF={uf}; bandeira={bandeira or '-'}; previsão={previsao_abertura or '-'}"
+        db.registrar_movimentacao(0,"alteracao_filial","1",session.get("username"),f"Filial {codigo} alterada · antes: {resumo_ant} · depois: {resumo_novo}",tabela="sistema")
+        return jsonify({"ok": True})
+    return jsonify({"erro": "Filial não encontrada."}), 404
 
 
 @app.route("/api/filiais/<int:filial_id>", methods=["DELETE"])
@@ -2332,6 +2533,39 @@ def _valor_para_texto(valor):
     return str(valor).strip()
 
 
+@app.route("/api/itens/importar/validar", methods=["POST"])
+@edit_required
+def api_validar_importacao_itens():
+    tabela_destino=request.form.get("tabela","estoque")
+    if tabela_destino not in ("estoque","imobilizados"): tabela_destino="estoque"
+    arquivo=request.files.get("arquivo")
+    if not arquivo or not arquivo.filename:return jsonify({"erro":"Nenhum arquivo enviado."}),400
+    try:
+        wb=load_workbook(arquivo,read_only=True,data_only=True); ws=wb.active; linhas=ws.iter_rows(values_only=True)
+        try:cabecalho=next(linhas)
+        except StopIteration:return jsonify({"erro":"A planilha está vazia."}),400
+        mapa=_mapear_colunas(cabecalho)
+        if "codigo" not in mapa.values():return jsonify({"erro":"Não encontrei uma coluna de Código do item."}),400
+        total=validas=ignoradas=registros=0; erros=[]; amostra=[]
+        for n,linha in enumerate(linhas,start=2):
+            if linha is None or all(v is None for v in linha):continue
+            total+=1; dados={}
+            for indice,campo in mapa.items():
+                if indice<len(linha):dados[campo]=_valor_para_texto(linha[indice])
+            if not dados.get("codigo"):
+                ignoradas+=1
+                if len(erros)<15:erros.append(f"Linha {n}: código não informado.")
+                continue
+            validas+=1
+            qtd=1
+            try:qtd=max(1,int(float(dados.get("qtde") or 1)))
+            except Exception:qtd=1
+            registros += qtd if tabela_destino=="estoque" else 1
+            if len(amostra)<8:amostra.append({"codigo":dados.get("codigo"),"descricao":dados.get("descricao",""),"qtde":qtd,"tipo":dados.get("tipo_estoque","")})
+        return jsonify({"ok":True,"arquivo":arquivo.filename,"tabela":tabela_destino,"total_linhas":total,"validas":validas,"ignoradas":ignoradas,"registros_previstos":registros,"erros":erros,"amostra":amostra})
+    except Exception as e:
+        return jsonify({"erro":f"Erro ao validar a planilha: {e}"}),500
+
 @app.route("/api/itens/importar", methods=["POST"])
 @edit_required
 def api_importar():
@@ -2374,10 +2608,13 @@ def api_importar():
         usuario = session.get("username")
         novos_itens = []
         ignoradas = 0
+        linhas_validas_count = 0
+        total_linhas_planilha = 0
 
         for linha in linhas:
             if linha is None or all(v is None for v in linha):
                 continue
+            total_linhas_planilha += 1
             dados = {}
             for indice, campo in mapa_colunas.items():
                 if indice < len(linha):
@@ -2385,6 +2622,7 @@ def api_importar():
             if not dados.get("codigo"):
                 ignoradas += 1
                 continue
+            linhas_validas_count += 1
             if dados.get("tipo_estoque"):
                 dados["tipo_estoque"] = _canonicalizar_tipo_estoque(dados["tipo_estoque"])
             dados["criado_por"] = usuario
@@ -2421,6 +2659,10 @@ def api_importar():
                 observacao=f"Importado via planilha ({arquivo.filename})"
             )
 
+        try:
+            db.registrar_importacao(tabela_destino, arquivo.filename, total_linhas=total_linhas_planilha, validas=linhas_validas_count, criadas=total, atualizadas=0, ignoradas=ignoradas, usuario=usuario, status="concluida")
+        except Exception as audit_err:
+            print(f"[aviso] Falha ao registrar auditoria de importação: {audit_err}")
         return jsonify({"ok": True, "importados": total, "ignoradas": ignoradas, "tabela": tabela_destino})
 
     except Exception as e:

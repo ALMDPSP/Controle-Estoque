@@ -255,6 +255,7 @@ def init_db():
                 cidade TEXT,
                 uf TEXT,
                 bandeira TEXT,
+                previsao_abertura TEXT,
                 ativo TEXT NOT NULL DEFAULT '1',
                 criado_por TEXT,
                 criado_em TEXT
@@ -269,6 +270,7 @@ def init_db():
                 cidade TEXT,
                 uf TEXT,
                 bandeira TEXT,
+                previsao_abertura TEXT,
                 ativo TEXT NOT NULL DEFAULT '1',
                 criado_por TEXT,
                 criado_em TEXT
@@ -286,6 +288,53 @@ def init_db():
         conn.commit()
     except Exception:
         conn.rollback()
+
+    # Migração: data prevista de abertura da filial (opcional).
+    try:
+        if IS_PG:
+            cur.execute("ALTER TABLE filiais ADD COLUMN IF NOT EXISTS previsao_abertura TEXT")
+        else:
+            cur.execute("ALTER TABLE filiais ADD COLUMN previsao_abertura TEXT")
+        conn.commit()
+    except Exception:
+        conn.rollback()
+
+    # Auditoria de importações e validações de arquivos.
+    if IS_PG:
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS importacoes (
+                id SERIAL PRIMARY KEY,
+                tipo TEXT NOT NULL,
+                arquivo TEXT,
+                total_linhas INTEGER DEFAULT 0,
+                validas INTEGER DEFAULT 0,
+                criadas INTEGER DEFAULT 0,
+                atualizadas INTEGER DEFAULT 0,
+                ignoradas INTEGER DEFAULT 0,
+                usuario TEXT,
+                status TEXT,
+                detalhes TEXT,
+                data_hora TEXT NOT NULL
+            )
+        """)
+    else:
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS importacoes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                tipo TEXT NOT NULL,
+                arquivo TEXT,
+                total_linhas INTEGER DEFAULT 0,
+                validas INTEGER DEFAULT 0,
+                criadas INTEGER DEFAULT 0,
+                atualizadas INTEGER DEFAULT 0,
+                ignoradas INTEGER DEFAULT 0,
+                usuario TEXT,
+                status TEXT,
+                detalhes TEXT,
+                data_hora TEXT NOT NULL
+            )
+        """)
+    conn.commit()
 
     # Configurações persistentes do sistema. A meta de lojas usada na simulação
     # fica aqui para que Dashboard, relatórios e Loja 3D usem o mesmo valor.
@@ -453,6 +502,26 @@ def init_db():
             conn.commit()
             print(f"[migração] {total_itens_existentes} registro(s) movido(s) de Estoque para Imobilizados "
                   f"(cadastro único, executado automaticamente).")
+
+    # Índices para acelerar filtros, buscas e dashboards em bases maiores.
+    indices = [
+        "CREATE INDEX IF NOT EXISTS idx_itens_codigo ON itens(codigo)",
+        "CREATE INDEX IF NOT EXISTS idx_itens_tipo ON itens(tipo_estoque)",
+        "CREATE INDEX IF NOT EXISTS idx_itens_filial ON itens(filial_destino)",
+        "CREATE INDEX IF NOT EXISTS idx_imob_codigo ON imobilizados(codigo)",
+        "CREATE INDEX IF NOT EXISTS idx_imob_filial ON imobilizados(filial_destino)",
+        "CREATE INDEX IF NOT EXISTS idx_filiais_status ON filiais(ativo)",
+        "CREATE INDEX IF NOT EXISTS idx_filiais_uf ON filiais(uf)",
+        "CREATE INDEX IF NOT EXISTS idx_filiais_previsao ON filiais(previsao_abertura)",
+        "CREATE INDEX IF NOT EXISTS idx_mov_data ON movimentacoes(data_hora)",
+        "CREATE INDEX IF NOT EXISTS idx_import_data ON importacoes(data_hora)",
+    ]
+    for sql_idx in indices:
+        try:
+            cur.execute(sql_idx)
+            conn.commit()
+        except Exception:
+            conn.rollback()
 
     # Cria o primeiro usuário administrador automaticamente, se ainda
     # não existir nenhum usuário cadastrado.
@@ -1090,7 +1159,7 @@ def importar_filiais_em_lote(linhas, usuario):
     cur = get_cursor(conn)
     agora = datetime.now().strftime("%Y-%m-%d %H:%M")
     try:
-        cur.execute("SELECT id, codigo, nome, cidade, uf, bandeira, ativo FROM filiais")
+        cur.execute("SELECT id, codigo, nome, cidade, uf, bandeira, previsao_abertura, ativo FROM filiais")
         existentes = {}
         for row in cur.fetchall():
             d = dict(row)
@@ -1111,6 +1180,7 @@ def importar_filiais_em_lote(linhas, usuario):
             uf = str(item.get("uf") or "").strip().upper()
             bandeira = str(item.get("bandeira") or "").strip().upper()
             status = str(item.get("status") or "").strip()
+            previsao_abertura = str(item.get("previsao_abertura") or "").strip()
             if bandeira not in ("", "DSP", "DPA"):
                 bandeira = ""
 
@@ -1121,21 +1191,23 @@ def importar_filiais_em_lote(linhas, usuario):
                 nova_uf = uf if uf else str(existente.get("uf") or "").upper()
                 nova_bandeira = bandeira if bandeira else str(existente.get("bandeira") or "").upper()
                 novo_status = status if status else str(existente.get("ativo") or "1")
+                nova_previsao = previsao_abertura if previsao_abertura else str(existente.get("previsao_abertura") or "")
                 mudou = (
                     str(existente.get("nome") or "") != novo_nome
                     or str(existente.get("cidade") or "") != nova_cidade
                     or str(existente.get("uf") or "").upper() != nova_uf
                     or str(existente.get("bandeira") or "").upper() != nova_bandeira
                     or str(existente.get("ativo") or "") != novo_status
+                    or str(existente.get("previsao_abertura") or "") != nova_previsao
                 )
                 if mudou:
-                    updates.append((novo_nome, nova_cidade, nova_uf, nova_bandeira, novo_status, existente["id"]))
+                    updates.append((novo_nome, nova_cidade, nova_uf, nova_bandeira, nova_previsao, novo_status, existente["id"]))
                     atualizadas += 1
                 else:
                     sem_alteracao += 1
             else:
                 novo_status = status or "1"
-                inserts.append((codigo, nome, cidade, uf, bandeira, novo_status, usuario, agora))
+                inserts.append((codigo, nome, cidade, uf, bandeira, previsao_abertura, novo_status, usuario, agora))
                 criadas += 1
 
         # executemany é suportado de forma consistente pelo SQLite e pelo
@@ -1143,12 +1215,12 @@ def importar_filiais_em_lote(linhas, usuario):
         # e evita incompatibilidades observadas com helpers de batch.
         if updates:
             cur.executemany(
-                q("UPDATE filiais SET nome=?, cidade=?, uf=?, bandeira=?, ativo=? WHERE id=?"),
+                q("UPDATE filiais SET nome=?, cidade=?, uf=?, bandeira=?, previsao_abertura=?, ativo=? WHERE id=?"),
                 updates,
             )
         if inserts:
             cur.executemany(
-                q("INSERT INTO filiais (codigo,nome,cidade,uf,bandeira,ativo,criado_por,criado_em) VALUES (?,?,?,?,?,?,?,?)"),
+                q("INSERT INTO filiais (codigo,nome,cidade,uf,bandeira,previsao_abertura,ativo,criado_por,criado_em) VALUES (?,?,?,?,?,?,?,?,?)"),
                 inserts,
             )
 
@@ -1161,7 +1233,7 @@ def importar_filiais_em_lote(linhas, usuario):
         cur.close()
         conn.close()
 
-def criar_filial(codigo, nome, cidade, uf, ativo, usuario, bandeira=None):
+def criar_filial(codigo, nome, cidade, uf, ativo, usuario, bandeira=None, previsao_abertura=None):
     conn = get_conn(); cur = get_cursor(conn)
     agora = datetime.now().strftime("%Y-%m-%d %H:%M")
     bandeira = (str(bandeira or "").strip().upper() if bandeira else "")
@@ -1169,12 +1241,12 @@ def criar_filial(codigo, nome, cidade, uf, ativo, usuario, bandeira=None):
         bandeira = ""
     try:
         if IS_PG:
-            cur.execute(q("INSERT INTO filiais (codigo,nome,cidade,uf,bandeira,ativo,criado_por,criado_em) VALUES (?,?,?,?,?,?,?,?) RETURNING id"),
-                        (codigo,nome,cidade,uf,bandeira,ativo,usuario,agora))
+            cur.execute(q("INSERT INTO filiais (codigo,nome,cidade,uf,bandeira,previsao_abertura,ativo,criado_por,criado_em) VALUES (?,?,?,?,?,?,?,?,?) RETURNING id"),
+                        (codigo,nome,cidade,uf,bandeira,previsao_abertura or "",ativo,usuario,agora))
             novo_id = cur.fetchone()["id"]
         else:
-            cur.execute(q("INSERT INTO filiais (codigo,nome,cidade,uf,bandeira,ativo,criado_por,criado_em) VALUES (?,?,?,?,?,?,?,?)"),
-                        (codigo,nome,cidade,uf,bandeira,ativo,usuario,agora))
+            cur.execute(q("INSERT INTO filiais (codigo,nome,cidade,uf,bandeira,previsao_abertura,ativo,criado_por,criado_em) VALUES (?,?,?,?,?,?,?,?,?)"),
+                        (codigo,nome,cidade,uf,bandeira,previsao_abertura or "",ativo,usuario,agora))
             novo_id = cur.lastrowid
         conn.commit(); return novo_id
     except Exception:
@@ -1182,7 +1254,7 @@ def criar_filial(codigo, nome, cidade, uf, ativo, usuario, bandeira=None):
     finally:
         cur.close(); conn.close()
 
-def atualizar_filial(filial_id, codigo, nome, cidade, uf, ativo, bandeira=None):
+def atualizar_filial(filial_id, codigo, nome, cidade, uf, ativo, bandeira=None, previsao_abertura=None):
     conn = get_conn(); cur = get_cursor(conn)
     bandeira = (str(bandeira or "").strip().upper() if bandeira else "")
     if bandeira not in ("DSP", "DPA"):
@@ -1193,8 +1265,8 @@ def atualizar_filial(filial_id, codigo, nome, cidade, uf, ativo, bandeira=None):
         if not row:
             return False
         codigo_antigo = row["codigo"] if isinstance(row, dict) else row[0]
-        cur.execute(q("UPDATE filiais SET codigo=?, nome=?, cidade=?, uf=?, bandeira=?, ativo=? WHERE id=?"),
-                    (codigo,nome,cidade,uf,bandeira,ativo,filial_id))
+        cur.execute(q("UPDATE filiais SET codigo=?, nome=?, cidade=?, uf=?, bandeira=?, previsao_abertura=?, ativo=? WHERE id=?"),
+                    (codigo,nome,cidade,uf,bandeira,previsao_abertura or "",ativo,filial_id))
         if str(codigo_antigo) != str(codigo):
             cur.execute(q("UPDATE itens SET filial_destino = ? WHERE filial_destino = ?"), (codigo, codigo_antigo))
             cur.execute(q("UPDATE imobilizados SET filial_destino = ? WHERE filial_destino = ?"), (codigo, codigo_antigo))
@@ -1316,6 +1388,64 @@ def excluir_filial(filial_id, desvincular_equipamentos=False):
         return False, 0
     return True, int(excluidas[0].get("desvinculados") or 0)
 
+
+# ---------------------------------------------------------------------
+# Auditoria de importações / saúde do sistema
+# ---------------------------------------------------------------------
+
+def registrar_importacao(tipo, arquivo, total_linhas=0, validas=0, criadas=0, atualizadas=0, ignoradas=0, usuario=None, status="concluida", detalhes=None):
+    conn=get_conn(); cur=get_cursor(conn)
+    try:
+        cur.execute(q("INSERT INTO importacoes (tipo,arquivo,total_linhas,validas,criadas,atualizadas,ignoradas,usuario,status,detalhes,data_hora) VALUES (?,?,?,?,?,?,?,?,?,?,?)"),
+                    (tipo,arquivo,int(total_linhas or 0),int(validas or 0),int(criadas or 0),int(atualizadas or 0),int(ignoradas or 0),usuario,status,detalhes,datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+        conn.commit()
+    except Exception:
+        conn.rollback(); raise
+    finally:
+        cur.close(); conn.close()
+
+def listar_importacoes_recentes(limite=20):
+    conn=get_conn(); cur=get_cursor(conn)
+    try:
+        cur.execute(q("SELECT * FROM importacoes ORDER BY id DESC LIMIT ?"), (int(limite or 20),))
+        return [dict(r) for r in cur.fetchall()]
+    finally:
+        cur.close(); conn.close()
+
+def obter_saude_sistema():
+    conn=get_conn(); cur=get_cursor(conn)
+    try:
+        cur.execute("SELECT 1 AS ok")
+        _=cur.fetchone()
+        contagens={}
+        for tabela in ("itens","imobilizados","produtos","filiais","movimentacoes"):
+            cur.execute(f"SELECT COUNT(*) AS total FROM {tabela}")
+            contagens[tabela]=int(_valor_escalar(cur.fetchone(),"total",0) or 0)
+        cur.execute("SELECT COUNT(*) AS total FROM filiais WHERE COALESCE(TRIM(uf),'') = ''")
+        filiais_sem_uf=int(_valor_escalar(cur.fetchone(),"total",0) or 0)
+        cur.execute("SELECT COUNT(*) AS total FROM filiais WHERE ativo IN ('1','inaugurar','pendente') AND COALESCE(TRIM(bandeira),'') = ''")
+        filiais_sem_bandeira=int(_valor_escalar(cur.fetchone(),"total",0) or 0)
+        cur.execute("SELECT COUNT(*) AS total FROM filiais WHERE ativo = 'inaugurar' AND COALESCE(TRIM(previsao_abertura),'') = ''")
+        inaug_sem_data=int(_valor_escalar(cur.fetchone(),"total",0) or 0)
+        cur.execute("SELECT data_hora FROM movimentacoes ORDER BY id DESC LIMIT 1")
+        row=cur.fetchone(); ultima_mov=(dict(row).get('data_hora') if row and hasattr(row,'keys') else (row[0] if row else None))
+        cur.execute("SELECT data_hora, tipo, arquivo, status FROM importacoes ORDER BY id DESC LIMIT 1")
+        row=cur.fetchone(); ultima_importacao=dict(row) if row else None
+        return {
+            "database":"PostgreSQL" if IS_PG else "SQLite",
+            "database_ok":True,
+            "contagens":contagens,
+            "inconsistencias":{
+                "filiais_sem_uf":filiais_sem_uf,
+                "filiais_sem_bandeira":filiais_sem_bandeira,
+                "inauguracoes_sem_data":inaug_sem_data,
+                "total":filiais_sem_uf+filiais_sem_bandeira+inaug_sem_data,
+            },
+            "ultima_movimentacao":ultima_mov,
+            "ultima_importacao":ultima_importacao,
+        }
+    finally:
+        cur.close(); conn.close()
 
 # ---------------------------------------------------------------------
 # Usuários
