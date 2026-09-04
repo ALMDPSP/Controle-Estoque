@@ -450,6 +450,23 @@ def init_db():
     except Exception:
         conn.rollback()
 
+    # Migração MFA/TOTP: compatível com Microsoft Authenticator e Google Authenticator.
+    mfa_colunas = [
+        ("mfa_enabled", "TEXT DEFAULT '0'"),
+        ("mfa_secret", "TEXT"),
+        ("mfa_recovery_codes", "TEXT"),
+        ("mfa_configurado_em", "TEXT"),
+    ]
+    for coluna, tipo in mfa_colunas:
+        try:
+            if IS_PG:
+                cur.execute(f"ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS {coluna} {tipo}")
+            else:
+                cur.execute(f"ALTER TABLE usuarios ADD COLUMN {coluna} {tipo}")
+            conn.commit()
+        except Exception:
+            conn.rollback()
+
     # Migração: as mesmas colunas extras dos itens, também na tabela de imobilizados.
     colunas_imobilizados = novas_colunas + [
         ("enviado_estoque_por", "TEXT"),
@@ -1568,7 +1585,9 @@ def obter_saude_sistema():
 def listar_usuarios():
     conn = get_conn()
     cur = get_cursor(conn)
-    cur.execute("SELECT id, username, role, criado_em, precisa_trocar_senha FROM usuarios ORDER BY id")
+    cur.execute("SELECT id, username, role, criado_em, precisa_trocar_senha, "
+                "COALESCE(mfa_enabled, '0') AS mfa_enabled, mfa_configurado_em "
+                "FROM usuarios ORDER BY id")
     linhas = cur.fetchall()
     usuarios = [dict(r) for r in linhas]
     cur.close()
@@ -1609,6 +1628,48 @@ def criar_usuario(username, password, role="user"):
     conn.commit()
     cur.close()
     conn.close()
+
+
+def salvar_mfa_usuario(user_id, secret_protegido, recovery_codes_json):
+    conn = get_conn()
+    cur = get_cursor(conn)
+    cur.execute(
+        q("UPDATE usuarios SET mfa_enabled = '1', mfa_secret = ?, mfa_recovery_codes = ?, mfa_configurado_em = ? WHERE id = ?"),
+        (secret_protegido, recovery_codes_json, datetime.now().strftime("%Y-%m-%d %H:%M:%S"), user_id),
+    )
+    afetadas = cur.rowcount
+    conn.commit()
+    cur.close()
+    conn.close()
+    return afetadas > 0
+
+
+def desativar_mfa_usuario(user_id):
+    conn = get_conn()
+    cur = get_cursor(conn)
+    cur.execute(
+        q("UPDATE usuarios SET mfa_enabled = '0', mfa_secret = NULL, mfa_recovery_codes = NULL, mfa_configurado_em = NULL WHERE id = ?"),
+        (user_id,),
+    )
+    afetadas = cur.rowcount
+    conn.commit()
+    cur.close()
+    conn.close()
+    return afetadas > 0
+
+
+def atualizar_codigos_recuperacao_mfa(user_id, recovery_codes_json):
+    conn = get_conn()
+    cur = get_cursor(conn)
+    cur.execute(
+        q("UPDATE usuarios SET mfa_recovery_codes = ? WHERE id = ?"),
+        (recovery_codes_json, user_id),
+    )
+    afetadas = cur.rowcount
+    conn.commit()
+    cur.close()
+    conn.close()
+    return afetadas > 0
 
 
 def trocar_senha(user_id, nova_senha):

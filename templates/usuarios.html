@@ -97,7 +97,7 @@
     <h2>Usuários cadastrados</h2>
     <table>
       <thead>
-        <tr><th>Usuário</th><th>Perfil</th><th>Acesso</th><th>Criado em</th><th></th></tr>
+        <tr><th>Usuário</th><th>Perfil</th><th>Acesso</th><th>MFA</th><th>Criado em</th><th></th></tr>
       </thead>
       <tbody id="tbody">
         {% for u in usuarios %}
@@ -111,12 +111,22 @@
             <span class="badge" style="background:rgba(76,215,146,.12); color:var(--ok); border:1px solid rgba(76,215,146,.3);">Ativo</span>
             {% endif %}
           </td>
+          <td>
+            {% if u.mfa_enabled == '1' %}
+            <span class="badge" style="background:rgba(76,215,146,.12); color:var(--ok); border:1px solid rgba(76,215,146,.3);">MFA ativo</span>
+            {% elif u.role == 'admin' %}
+            <span class="badge" style="background:rgba(255,182,72,.12); color:var(--accent-2); border:1px solid rgba(255,182,72,.3);">Obrigatório</span>
+            {% else %}
+            <span class="badge" style="background:rgba(139,150,168,.12); color:var(--muted); border:1px solid rgba(139,150,168,.3);">Opcional</span>
+            {% endif %}
+          </td>
           <td>{{ u.criado_em[:10] if u.criado_em else '' }}</td>
           <td>
             <div style="display:flex; gap:6px;">
               {% if u.precisa_trocar_senha != '1' %}
               <button class="btn-ghost" onclick="forcarTrocaSenha({{ u.id }}, '{{ u.username }}')">Forçar troca de senha</button>
               {% endif %}
+              {% if u.mfa_enabled == '1' %}<button class="btn-ghost" onclick="resetMfa({{ u.id }}, '{{ u.username }}')">Resetar MFA</button>{% endif %}
               <button class="btn-ghost" onclick="excluirUsuario({{ u.id }})">Excluir</button>
             </div>
           </td>
@@ -130,6 +140,7 @@
 
 <script>
 const msg = document.getElementById('msg');
+const CSRF_TOKEN = {{ csrf_token|tojson }};
 function mostrarMsg(texto, tipo){
   msg.textContent = texto;
   msg.className = 'msg ' + tipo;
@@ -165,6 +176,19 @@ async function excluirUsuario(id){
     document.getElementById(`row-${id}`).remove();
   } else {
     alert(corpo.erro || 'Erro ao excluir usuário.');
+  }
+}
+
+
+async function resetMfa(id, username){
+  if(!confirm(`Resetar o MFA de ${username}? O vínculo atual com o Authenticator será removido.`)) return;
+  const res = await fetch(`/api/usuarios/${id}/reset-mfa`, {method:'POST', headers:{'X-CSRF-Token':CSRF_TOKEN}});
+  const corpo = await res.json();
+  if(res.ok){
+    mostrarMsg(corpo.mensagem || 'MFA resetado com sucesso.', 'ok');
+    setTimeout(() => location.reload(), 800);
+  } else {
+    alert(corpo.erro || 'Erro ao resetar MFA.');
   }
 }
 

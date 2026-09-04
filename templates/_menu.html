@@ -48,6 +48,7 @@ body{overflow-x:hidden}header{padding-left:16px!important;padding-right:16px!imp
       <div class="global-search-results" data-global-results></div>
     </div>
     <span class="app-user">{{ username }} · {{ {'admin':'Administrador','gestor':'Gestor','operador':'Operador','consulta':'Consulta','user':'Operador'}.get(role or 'user','Operador') }}</span>{% if role == 'consulta' %}<span class="app-role-note">somente leitura</span>{% endif %}
+    <a href="{{ url_for('pagina_seguranca') }}" class="{{ 'ativo' if request.endpoint == 'pagina_seguranca' else '' }}">Segurança</a>
     <a href="{{ url_for('logout') }}">Sair</a>
   </div>
 </nav>

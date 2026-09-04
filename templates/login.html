@@ -2007,7 +2007,7 @@ input:focus-visible{
   font:700 9px var(--mono);letter-spacing:.08em;text-transform:uppercase;
 }
 .access-badge .shield{width:7px;height:7px;border-radius:50%;background:var(--cyan);box-shadow:0 0 10px rgba(94,242,214,.7)}
-.security-strip{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin:-12px 0 23px}
+.security-strip{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;margin:-12px 0 23px}
 .security-chip{min-width:0;border:1px solid rgba(255,255,255,.07);background:rgba(255,255,255,.025);border-radius:8px;padding:8px 7px;color:#8090a5;font-size:9px;line-height:1.25;text-align:center}
 .security-chip b{display:block;color:#bbcada;font-size:9px;font-weight:650;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .login-options{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:-3px 0 8px}
@@ -2027,7 +2027,6 @@ input:focus-visible{
 .erro::before{content:'!';position:absolute;left:12px;top:9px;width:15px;height:15px;display:grid;place-items:center;border:1px solid rgba(255,107,107,.45);border-radius:50%;font:700 9px var(--mono)}
 @media(max-width:480px){
   .security-strip{grid-template-columns:1fr 1fr;margin-bottom:20px}
-  .security-chip:last-child{grid-column:1/-1}
   .access-badge{font-size:8px}
 }
 
@@ -2391,6 +2390,7 @@ button.loading .submit-spinner{display:inline-block;}
         <div class="security-chip"><b>Sessão protegida</b>Credenciais validadas</div>
         <div class="security-chip"><b>Auditoria de acesso</b>Entradas registradas</div>
         <div class="security-chip"><b>Controle de perfil</b>Acesso por permissão</div>
+        <div class="security-chip"><b>MFA / Authenticator</b>Segundo fator disponível</div>
       </div>
 
 

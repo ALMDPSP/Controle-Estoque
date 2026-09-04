@@ -27,6 +27,10 @@ import zipfile
 import secrets
 import hmac
 import time
+import base64
+import hashlib
+import struct
+import json
 from datetime import datetime, timedelta
 from functools import wraps
 
@@ -43,11 +47,13 @@ from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.units import mm
 from reportlab.lib.utils import ImageReader
 from reportlab.pdfgen import canvas
+from cryptography.fernet import Fernet, InvalidToken
+import qrcode
 
 import db
 
 app = Flask(__name__)
-APP_BUILD = "2026-09-04-login-premium-v29"
+APP_BUILD = "2026-09-04-mfa-authenticator-v30"
 app.secret_key = os.environ.get("SECRET_KEY", "troque-esta-chave-em-producao")
 app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
@@ -101,13 +107,175 @@ def _csrf_token():
     return token
 
 def _csrf_ok():
-    recebido = request.form.get("csrf_token", "")
+    recebido = request.form.get("csrf_token", "") or request.headers.get("X-CSRF-Token", "")
     esperado = session.get("_csrf_token", "")
     return bool(recebido and esperado and hmac.compare_digest(recebido, esperado))
 
 @app.context_processor
 def _inject_security_helpers():
     return {"csrf_token": _csrf_token()}
+
+
+# ---------------------------------------------------------------------
+# MFA / TOTP — Microsoft Authenticator e Google Authenticator
+# ---------------------------------------------------------------------
+
+MFA_ISSUER = os.environ.get("MFA_ISSUER", "Controle de Estoque")
+MFA_ATTEMPTS = {}
+MFA_MAX_FAILURES = 5
+MFA_WINDOW_SECONDS = 5 * 60
+
+
+def _mfa_cipher():
+    material = os.environ.get("MFA_ENCRYPTION_KEY") or app.secret_key
+    chave = base64.urlsafe_b64encode(hashlib.sha256(material.encode("utf-8")).digest())
+    return Fernet(chave)
+
+
+def _protect_mfa_secret(secret):
+    return _mfa_cipher().encrypt(secret.encode("utf-8")).decode("ascii")
+
+
+def _unprotect_mfa_secret(token):
+    if not token:
+        return None
+    try:
+        return _mfa_cipher().decrypt(token.encode("ascii")).decode("utf-8")
+    except (InvalidToken, ValueError, TypeError):
+        return None
+
+
+def _base32_secret():
+    return base64.b32encode(secrets.token_bytes(20)).decode("ascii").rstrip("=")
+
+
+def _totp_code(secret, timestamp=None, interval=30, digits=6):
+    timestamp = time.time() if timestamp is None else timestamp
+    contador = int(timestamp // interval)
+    padded = secret + "=" * ((8 - len(secret) % 8) % 8)
+    key = base64.b32decode(padded.upper(), casefold=True)
+    digest = hmac.new(key, struct.pack(">Q", contador), hashlib.sha1).digest()
+    offset = digest[-1] & 0x0F
+    valor = struct.unpack(">I", digest[offset:offset + 4])[0] & 0x7FFFFFFF
+    return str(valor % (10 ** digits)).zfill(digits)
+
+
+def _verify_totp(secret, codigo, window=1):
+    codigo = "".join(ch for ch in str(codigo or "") if ch.isdigit())
+    if len(codigo) != 6 or not secret:
+        return False
+    agora = time.time()
+    return any(hmac.compare_digest(_totp_code(secret, agora + passo * 30), codigo) for passo in range(-window, window + 1))
+
+
+def _mfa_uri(username, secret):
+    from urllib.parse import quote
+    label = quote(f"{MFA_ISSUER}:{username}")
+    issuer = quote(MFA_ISSUER)
+    return f"otpauth://totp/{label}?secret={secret}&issuer={issuer}&algorithm=SHA1&digits=6&period=30"
+
+
+def _qr_data_uri(texto):
+    qr = qrcode.QRCode(version=None, error_correction=qrcode.constants.ERROR_CORRECT_M, box_size=7, border=3)
+    qr.add_data(texto)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color="black", back_color="white")
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    return "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode("ascii")
+
+
+def _gerar_codigos_recuperacao(qtd=8):
+    alfabeto = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+    codigos = []
+    for _ in range(qtd):
+        bruto = "".join(secrets.choice(alfabeto) for _ in range(10))
+        codigos.append(bruto[:5] + "-" + bruto[5:])
+    return codigos
+
+
+def _hash_recovery_code(codigo):
+    normalizado = "".join(ch for ch in str(codigo or "").upper() if ch.isalnum())
+    return hashlib.sha256(normalizado.encode("utf-8")).hexdigest()
+
+
+def _consume_recovery_code(usuario, codigo):
+    if not usuario:
+        return False
+    try:
+        hashes = json.loads(usuario.get("mfa_recovery_codes") or "[]")
+    except Exception:
+        hashes = []
+    alvo = _hash_recovery_code(codigo)
+    if alvo not in hashes:
+        return False
+    hashes.remove(alvo)
+    db.atualizar_codigos_recuperacao_mfa(usuario["id"], json.dumps(hashes))
+    return True
+
+
+def _mfa_key(username):
+    return f"{_client_ip()}|{(username or '').strip().lower()}"
+
+
+def _mfa_prune(key):
+    agora = time.time()
+    tentativas = [t for t in MFA_ATTEMPTS.get(key, []) if agora - t < MFA_WINDOW_SECONDS]
+    if tentativas:
+        MFA_ATTEMPTS[key] = tentativas
+    else:
+        MFA_ATTEMPTS.pop(key, None)
+    return tentativas
+
+
+def _mfa_wait_seconds(username):
+    tentativas = _mfa_prune(_mfa_key(username))
+    if len(tentativas) < MFA_MAX_FAILURES:
+        return 0
+    return max(1, int(MFA_WINDOW_SECONDS - (time.time() - tentativas[0])))
+
+
+def _mfa_register_failure(username):
+    key = _mfa_key(username)
+    tentativas = _mfa_prune(key)
+    tentativas.append(time.time())
+    MFA_ATTEMPTS[key] = tentativas
+
+
+def _mfa_clear_failures(username):
+    MFA_ATTEMPTS.pop(_mfa_key(username), None)
+
+
+def _set_pending_login(usuario, proximo):
+    csrf = session.get("_csrf_token") or secrets.token_urlsafe(32)
+    session.clear()
+    session["_csrf_token"] = csrf
+    session["pending_user_id"] = usuario["id"]
+    session["pending_username"] = usuario["username"]
+    session["pending_role"] = usuario["role"]
+    session["pending_precisa_trocar_senha"] = usuario.get("precisa_trocar_senha") == "1"
+    session["pending_next"] = proximo or url_for("dashboard")
+
+
+def _finalize_login(usuario=None):
+    if usuario is None:
+        user_id = session.get("pending_user_id")
+        usuario = db.buscar_usuario_por_id(user_id) if user_id else None
+    if not usuario:
+        session.clear()
+        return redirect(url_for("login"))
+    precisa_trocar = usuario.get("precisa_trocar_senha") == "1"
+    proximo = session.get("pending_next") or url_for("dashboard")
+    session.clear()
+    session["_csrf_token"] = secrets.token_urlsafe(32)
+    session["user_id"] = usuario["id"]
+    session["username"] = usuario["username"]
+    session["role"] = usuario["role"]
+    session["precisa_trocar_senha"] = precisa_trocar
+    db.registrar_evento_login(usuario["username"], _client_ip(), "sucesso", "login concluído com MFA" if usuario.get("mfa_enabled") == "1" else "login realizado")
+    if precisa_trocar:
+        return redirect(url_for("trocar_senha"))
+    return redirect(proximo)
 
 
 # ---------------------------------------------------------------------
@@ -209,16 +377,183 @@ def login():
         return render_template("login.html", erro="Usuário ou senha inválidos.", username_value=username), 401
 
     _clear_login_failures(username)
-    session["user_id"] = usuario["id"]
-    session["username"] = usuario["username"]
-    session["role"] = usuario["role"]
-    session["precisa_trocar_senha"] = usuario.get("precisa_trocar_senha") == "1"
-    db.registrar_evento_login(usuario["username"], _client_ip(), "sucesso", "login realizado")
-
-    if session["precisa_trocar_senha"]:
-        return redirect(url_for("trocar_senha"))
     proximo = request.args.get("proximo") or url_for("dashboard")
-    return redirect(proximo)
+
+    # O login só é concluído depois do segundo fator quando o MFA está ativo.
+    # Administradores sem MFA são direcionados obrigatoriamente para a configuração.
+    if usuario.get("mfa_enabled") == "1" or usuario.get("role") == "admin":
+        _set_pending_login(usuario, proximo)
+        if usuario.get("mfa_enabled") == "1":
+            db.registrar_evento_login(usuario["username"], _client_ip(), "mfa_pendente", "senha validada; aguardando segundo fator")
+            return redirect(url_for("mfa_verificar"))
+        db.registrar_evento_login(usuario["username"], _client_ip(), "mfa_configuracao_exigida", "administrador deve ativar MFA")
+        return redirect(url_for("mfa_configurar"))
+
+    session["pending_next"] = proximo
+    return _finalize_login(usuario)
+
+
+@app.route("/mfa/verificar", methods=["GET", "POST"])
+def mfa_verificar():
+    user_id = session.get("pending_user_id")
+    if not user_id:
+        return redirect(url_for("login"))
+    usuario = db.buscar_usuario_por_id(user_id)
+    if not usuario:
+        session.clear()
+        return redirect(url_for("login"))
+    if usuario.get("mfa_enabled") != "1":
+        return redirect(url_for("mfa_configurar"))
+
+    erro = None
+    if request.method == "POST":
+        if not _csrf_ok():
+            erro = "A sessão de segurança expirou. Atualize a página e tente novamente."
+            return render_template("mfa_verificar.html", username=usuario["username"], erro=erro), 400
+
+        espera = _mfa_wait_seconds(usuario["username"])
+        if espera > 0:
+            minutos = max(1, (espera + 59) // 60)
+            db.registrar_evento_login(usuario["username"], _client_ip(), "mfa_bloqueado", "limite de tentativas MFA excedido")
+            erro = f"Muitas tentativas de MFA. Aguarde aproximadamente {minutos} minuto(s)."
+            return render_template("mfa_verificar.html", username=usuario["username"], erro=erro), 429
+
+        codigo = (request.form.get("codigo") or "").strip()
+        secret = _unprotect_mfa_secret(usuario.get("mfa_secret"))
+        totp_ok = _verify_totp(secret, codigo) if secret else False
+        recovery_ok = False
+        if not totp_ok and len("".join(ch for ch in codigo if ch.isalnum())) >= 8:
+            recovery_ok = _consume_recovery_code(usuario, codigo)
+
+        if not (totp_ok or recovery_ok):
+            _mfa_register_failure(usuario["username"])
+            db.registrar_evento_login(usuario["username"], _client_ip(), "mfa_falha", "código MFA inválido")
+            erro = "Código inválido. Informe o código de 6 dígitos do Authenticator ou um código de recuperação."
+            return render_template("mfa_verificar.html", username=usuario["username"], erro=erro), 401
+
+        _mfa_clear_failures(usuario["username"])
+        db.registrar_evento_login(usuario["username"], _client_ip(), "mfa_validado", "código de recuperação utilizado" if recovery_ok else "código TOTP validado")
+        return _finalize_login(usuario)
+
+    return render_template("mfa_verificar.html", username=usuario["username"], erro=erro)
+
+
+@app.route("/mfa/configurar", methods=["GET", "POST"])
+def mfa_configurar():
+    pending = bool(session.get("pending_user_id"))
+    user_id = session.get("pending_user_id") or session.get("user_id")
+    if not user_id:
+        return redirect(url_for("login"))
+    usuario = db.buscar_usuario_por_id(user_id)
+    if not usuario:
+        session.clear()
+        return redirect(url_for("login"))
+
+    # Administradores entram por aqui obrigatoriamente no primeiro acesso sem MFA.
+    obrigatorio = pending and usuario.get("role") == "admin"
+    if usuario.get("mfa_enabled") == "1":
+        return redirect(url_for("mfa_verificar") if pending else url_for("pagina_seguranca"))
+
+    setup_key = f"mfa_setup_secret_{user_id}"
+    secret = session.get(setup_key)
+    if not secret:
+        secret = _base32_secret()
+        session[setup_key] = secret
+    qr_uri = _mfa_uri(usuario["username"], secret)
+    qr_data = _qr_data_uri(qr_uri)
+    erro = None
+
+    if request.method == "POST":
+        if not _csrf_ok():
+            erro = "A sessão de segurança expirou. Atualize a página e tente novamente."
+            return render_template("mfa_configurar.html", username=usuario["username"], secret=secret, qr_data=qr_data, erro=erro, obrigatorio=obrigatorio), 400
+        codigo = request.form.get("codigo", "")
+        if not _verify_totp(secret, codigo):
+            db.registrar_evento_login(usuario["username"], _client_ip(), "mfa_config_falha", "código de confirmação inválido")
+            erro = "O código não confere. Aguarde um novo código no Authenticator e tente novamente."
+            return render_template("mfa_configurar.html", username=usuario["username"], secret=secret, qr_data=qr_data, erro=erro, obrigatorio=obrigatorio), 400
+
+        codigos = _gerar_codigos_recuperacao()
+        hashes = [_hash_recovery_code(c) for c in codigos]
+        db.salvar_mfa_usuario(user_id, _protect_mfa_secret(secret), json.dumps(hashes))
+        session.pop(setup_key, None)
+        session["mfa_recovery_codes_once"] = codigos
+        session["mfa_recovery_username"] = usuario["username"]
+        session["mfa_setup_pending"] = pending
+        db.registrar_evento_login(usuario["username"], _client_ip(), "mfa_ativado", "MFA TOTP ativado")
+        return redirect(url_for("mfa_codigos_recuperacao"))
+
+    return render_template("mfa_configurar.html", username=usuario["username"], secret=secret, qr_data=qr_data, erro=erro, obrigatorio=obrigatorio)
+
+
+@app.route("/mfa/codigos-recuperacao")
+def mfa_codigos_recuperacao():
+    codigos = session.get("mfa_recovery_codes_once")
+    if not codigos:
+        if session.get("pending_user_id"):
+            return redirect(url_for("mfa_verificar"))
+        if session.get("user_id"):
+            return redirect(url_for("pagina_seguranca"))
+        return redirect(url_for("login"))
+    return render_template(
+        "mfa_recuperacao.html",
+        username=session.get("mfa_recovery_username") or session.get("pending_username") or session.get("username"),
+        codigos=codigos,
+        pending=bool(session.get("mfa_setup_pending")),
+    )
+
+
+@app.route("/mfa/concluir", methods=["POST"])
+def mfa_concluir():
+    if not _csrf_ok():
+        return redirect(url_for("mfa_codigos_recuperacao"))
+    session.pop("mfa_recovery_codes_once", None)
+    session.pop("mfa_recovery_username", None)
+    pending = bool(session.pop("mfa_setup_pending", False))
+    if pending and session.get("pending_user_id"):
+        usuario = db.buscar_usuario_por_id(session.get("pending_user_id"))
+        return _finalize_login(usuario)
+    return redirect(url_for("pagina_seguranca") if session.get("user_id") else url_for("login"))
+
+
+@app.route("/seguranca")
+@login_required
+def pagina_seguranca():
+    usuario = db.buscar_usuario_por_id(session.get("user_id"))
+    return render_template(
+        "seguranca.html",
+        username=session.get("username"),
+        role=session.get("role") or "user",
+        is_admin=session.get("role") == "admin",
+        usuario=usuario,
+    )
+
+
+@app.route("/mfa/desativar", methods=["POST"])
+@login_required
+def mfa_desativar():
+    usuario = db.buscar_usuario_por_id(session.get("user_id"))
+    if not usuario or usuario.get("mfa_enabled") != "1":
+        return redirect(url_for("pagina_seguranca"))
+    if usuario.get("role") == "admin":
+        flash("O MFA é obrigatório para Administradores. Para reconfigurar, solicite o reset a outro Administrador e configure novamente no próximo acesso.", "erro")
+        return redirect(url_for("pagina_seguranca"))
+    if not _csrf_ok():
+        flash("A sessão de segurança expirou. Tente novamente.", "erro")
+        return redirect(url_for("pagina_seguranca"))
+    password = request.form.get("password", "")
+    codigo = request.form.get("codigo", "")
+    if not check_password_hash(usuario["password_hash"], password):
+        flash("Senha atual inválida.", "erro")
+        return redirect(url_for("pagina_seguranca"))
+    secret = _unprotect_mfa_secret(usuario.get("mfa_secret"))
+    if not _verify_totp(secret, codigo):
+        flash("Código do Authenticator inválido.", "erro")
+        return redirect(url_for("pagina_seguranca"))
+    db.desativar_mfa_usuario(usuario["id"])
+    db.registrar_evento_login(usuario["username"], _client_ip(), "mfa_desativado", "MFA desativado pelo usuário")
+    flash("MFA desativado com sucesso.", "ok")
+    return redirect(url_for("pagina_seguranca"))
 
 
 @app.route("/trocar-senha", methods=["GET", "POST"])
@@ -2779,6 +3114,21 @@ def api_forcar_troca_senha(user_id):
         return jsonify({"erro": "Usuário não encontrado."}), 404
     db.forcar_troca_senha(user_id)
     return jsonify({"ok": True})
+
+
+@app.route("/api/usuarios/<int:user_id>/reset-mfa", methods=["POST"])
+@admin_required
+def api_reset_mfa_usuario(user_id):
+    if not _csrf_ok():
+        return jsonify({"erro": "Token de segurança inválido."}), 400
+    alvo = db.buscar_usuario_por_id(user_id)
+    if not alvo:
+        return jsonify({"erro": "Usuário não encontrado."}), 404
+    if alvo.get("mfa_enabled") != "1":
+        return jsonify({"erro": "Este usuário não possui MFA ativo."}), 400
+    db.desativar_mfa_usuario(user_id)
+    db.registrar_evento_login(alvo.get("username"), _client_ip(), "mfa_reset_admin", f"MFA resetado pelo administrador {session.get('username')}")
+    return jsonify({"ok": True, "mensagem": "MFA resetado. O usuário deverá configurar novamente no próximo acesso se for Administrador."})
 
 
 @app.route("/api/usuarios/<int:user_id>", methods=["DELETE"])

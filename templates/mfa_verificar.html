@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Verificação em duas etapas · Controle de Ativos</title>
+<style>
+:root{--bg:#0b1118;--panel:#151d27;--line:#2b394a;--text:#e8eef6;--muted:#8fa2b7;--blue:#3ea6ff;--ok:#4cd792;--danger:#ff6b6b;--cyan:#5ef2d6;--mono:Consolas,monospace}*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;padding:24px;background:radial-gradient(circle at 50% 0,rgba(62,166,255,.12),transparent 42%),var(--bg);color:var(--text);font-family:"Segoe UI",system-ui,sans-serif}.card{width:min(470px,100%);background:linear-gradient(180deg,#18222e,#111820);border:1px solid var(--line);border-radius:20px;padding:30px;box-shadow:0 28px 80px rgba(0,0,0,.5)}.badge{display:inline-flex;gap:7px;align-items:center;border:1px solid rgba(94,242,214,.22);background:rgba(94,242,214,.05);color:#a8eadf;border-radius:999px;padding:6px 10px;font:700 9px var(--mono);letter-spacing:.08em;text-transform:uppercase}.dot{width:7px;height:7px;border-radius:50%;background:var(--cyan);box-shadow:0 0 10px var(--cyan)}h1{font-size:23px;margin:18px 0 6px}p{color:var(--muted);font-size:13px;line-height:1.55;margin:0 0 20px}.user{border:1px solid var(--line);background:#101821;border-radius:10px;padding:10px 12px;margin-bottom:16px;color:#c6d3e1;font-size:12px}.user b{color:var(--blue)}label{display:block;color:#aebbc9;font-size:11px;margin-bottom:7px}.code{width:100%;background:#0b1219;border:1px solid var(--line);border-radius:10px;padding:14px 15px;color:#fff;font:700 21px var(--mono);letter-spacing:.14em;outline:none;text-transform:uppercase}.code:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(62,166,255,.09)}button{width:100%;margin-top:13px;border:0;border-radius:10px;padding:13px 15px;background:linear-gradient(135deg,var(--blue),#65c8ff);color:#07121c;font-weight:800;cursor:pointer}.erro{margin:0 0 14px;border:1px solid rgba(255,107,107,.35);background:rgba(255,107,107,.09);color:#ffb3b3;border-radius:9px;padding:10px 12px;font-size:12px}.help{margin-top:17px;padding-top:15px;border-top:1px solid var(--line);font-size:10px;color:#708297;line-height:1.5}.apps{display:flex;gap:7px;flex-wrap:wrap;margin-top:8px}.app{border:1px solid var(--line);border-radius:999px;padding:5px 8px;color:#9db0c3;font-size:9px}@media(max-width:500px){body{padding:14px}.card{padding:22px}.code{font-size:18px}}
+</style>
+</head><body>
+<main class="card">
+<div class="badge"><span class="dot"></span> Dupla autenticação ativa</div>
+<h1>Confirme seu acesso</h1>
+<p>Abra seu aplicativo autenticador e informe o código atual de 6 dígitos. Você também pode usar um código de recuperação.</p>
+<div class="user">Usuário: <b>{{ username }}</b></div>
+{% if erro %}<div class="erro">⚠ {{ erro }}</div>{% endif %}
+<form method="POST" autocomplete="off">
+<input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+<label for="codigo">Código do Authenticator ou recuperação</label>
+<input class="code" id="codigo" name="codigo" required autofocus maxlength="16" autocomplete="one-time-code" placeholder="000000">
+<button type="submit">Validar e entrar</button>
+</form>
+<div class="apps"><span class="app">Microsoft Authenticator</span><span class="app">Google Authenticator</span></div>
+<div class="help">O código do aplicativo muda a cada 30 segundos. Se um código estiver perto de expirar, aguarde o próximo e tente novamente.</div>
+</main>
+<script>const c=document.getElementById('codigo');c.addEventListener('input',()=>{c.value=c.value.toUpperCase().replace(/\s+/g,'')});</script>
+</body></html>
