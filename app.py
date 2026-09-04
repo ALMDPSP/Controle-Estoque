@@ -47,7 +47,7 @@ from reportlab.pdfgen import canvas
 import db
 
 app = Flask(__name__)
-APP_BUILD = "2026-09-03-relatorio-executivo-brandfix-v21"
+APP_BUILD = "2026-09-04-relatorio-brand-layout-v22"
 app.secret_key = os.environ.get("SECRET_KEY", "troque-esta-chave-em-producao")
 app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
@@ -604,20 +604,22 @@ def _gerar_pdf_projecao_lojas(dados):
         pdf.setFillColor(colors.HexColor("#1B2531"))
         pdf.roundRect(x, y, w, h, 8, stroke=0, fill=1)
         titulo_exib = titulo if len(str(titulo)) <= 10 else "Sem band."
-        title_font = 7.4 if len(titulo_exib) > 6 else 8
+        title_font = 7.0 if len(titulo_exib) > 8 else 7.8
         pdf.setFillColor(colors.HexColor("#8EA2B6"))
-        pdf.setFont("Helvetica", title_font)
-        pdf.drawString(x + 8, y + h - 12, titulo_exib)
+        pdf.setFont("Helvetica-Bold", title_font)
+        pdf.drawCentredString(x + (w/2), y + h - 10, titulo_exib)
+        pdf.setFillColor(colors.HexColor(color_hex))
+        pdf.setFont("Helvetica-Bold", 10.8)
+        pdf.drawString(x + 8, y + 14, str(valor))
+        pdf.setFillColor(colors.HexColor("#D9E4EF"))
+        pdf.setFont("Helvetica-Bold", 7.0)
+        pdf.drawRightString(x + w - 8, y + 14, f"{pct:.1f}%")
         pdf.setFillColor(colors.HexColor("#0D1721"))
-        pdf.roundRect(x + 8, y + 7, w - 16, 4, 2, stroke=0, fill=1)
-        pdf.setFillColor(colors.HexColor(color_hex))
-        pdf.roundRect(x + 8, y + 7, max(10, (w - 16) * max(0, min(1, pct / 100.0))), 4, 2, stroke=0, fill=1)
-        pdf.setFillColor(colors.HexColor(color_hex))
-        pdf.setFont("Helvetica-Bold", 11.5)
-        pdf.drawString(x + 8, y + 16, str(valor))
-        pdf.setFillColor(colors.HexColor("#C7D4E2"))
-        pdf.setFont("Helvetica-Bold", 7.2)
-        pdf.drawRightString(x + w - 8, y + 16, f"{pct:.1f}%")
+        pdf.roundRect(x + 8, y + 5, w - 16, 4, 2, stroke=0, fill=1)
+        barra = (w - 16) * max(0, min(1, pct / 100.0))
+        if barra > 0:
+            pdf.setFillColor(colors.HexColor(color_hex))
+            pdf.roundRect(x + 8, y + 5, max(6, barra), 4, 2, stroke=0, fill=1)
 
     def _pill(x, y, text, accent="#FFB648"):
         tw = pdf.stringWidth(text, "Helvetica-Bold", 7.2)
