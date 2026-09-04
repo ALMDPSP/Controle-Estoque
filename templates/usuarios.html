@@ -54,6 +54,8 @@
   .msg{font-size:13px; padding:9px 11px; border-radius:6px; margin-bottom:14px; display:none;}
   .msg.erro{background:rgba(255,107,107,.12); border:1px solid rgba(255,107,107,.3); color:var(--danger);}
   .msg.ok{background:rgba(76,215,146,.12); border:1px solid rgba(76,215,146,.3); color:var(--ok);}
+  .credencial-inicial{display:none;margin:0 0 18px;padding:14px 16px;border-radius:9px;border:1px solid rgba(255,182,72,.34);background:rgba(255,182,72,.08)}
+  .credencial-inicial.ativo{display:block}.credencial-inicial h3{margin:0 0 5px;font-size:12px;color:var(--accent-2);text-transform:uppercase;letter-spacing:.07em}.credencial-inicial p{margin:0 0 10px;color:var(--muted);font-size:11px;line-height:1.45}.credencial-linha{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.credencial-linha code{background:#0f151e;border:1px solid var(--line);border-radius:6px;padding:8px 10px;color:var(--text);font:700 13px var(--mono)}.btn-copy{background:var(--panel-2);color:var(--text);border:1px solid var(--line);padding:8px 10px}.btn-copy:hover{border-color:var(--accent);color:var(--accent)}
 </style>
 {% include '_mobile_head.html' %}
 </head>
@@ -68,6 +70,11 @@
 {% include '_menu.html' %}
 
 <main>
+  <div class="credencial-inicial" id="credencial-inicial">
+    <h3>Credencial inicial · somente Administrador</h3>
+    <p>A senha temporária é exibida somente agora e não é armazenada em texto aberto. O usuário deverá alterá-la no primeiro acesso.</p>
+    <div class="credencial-linha"><code id="credencial-usuario">-</code><code id="credencial-senha">-</code><button type="button" class="btn-copy" id="copiar-credencial">Copiar credencial</button></div>
+  </div>
   <div class="panel">
     <h2>Novo usuário</h2>
     <div class="msg" id="msg"></div>
@@ -78,7 +85,7 @@
       </div>
       <div class="field">
         <label for="password">Senha (mín. 6 caracteres)</label>
-        <input id="password" type="password" required minlength="6">
+        <input id="password" type="password" required minlength="6" autocomplete="new-password">
       </div>
       <div class="field">
         <label for="role">Perfil</label>
@@ -161,11 +168,24 @@ document.getElementById('user-form').addEventListener('submit', async (e) => {
   });
   const corpo = await res.json();
   if(res.ok){
-    mostrarMsg('Usuário criado com sucesso.', 'ok');
-    setTimeout(() => location.reload(), 700);
+    mostrarMsg('Usuário criado com sucesso. A credencial inicial está disponível abaixo somente para o Administrador.', 'ok');
+    const box=document.getElementById('credencial-inicial');
+    document.getElementById('credencial-usuario').textContent='Usuário: '+(corpo.username||dados.username);
+    document.getElementById('credencial-senha').textContent='Senha temporária: '+(corpo.senha_temporaria||dados.password);
+    box.classList.add('ativo');
+    document.getElementById('username').value='';
+    document.getElementById('password').value='';
+    document.getElementById('role').value='operador';
   } else {
     mostrarMsg(corpo.erro || 'Erro ao criar usuário.', 'erro');
   }
+});
+
+document.getElementById('copiar-credencial')?.addEventListener('click', async ()=>{
+  const usuario=document.getElementById('credencial-usuario').textContent.replace(/^Usuário:\s*/, '');
+  const senha=document.getElementById('credencial-senha').textContent.replace(/^Senha temporária:\s*/, '');
+  try{await navigator.clipboard.writeText(`Usuário: ${usuario}\nSenha temporária: ${senha}`);mostrarMsg('Credencial copiada. Compartilhe a senha temporária por um canal seguro.', 'ok');}
+  catch(e){mostrarMsg('Não foi possível copiar automaticamente.', 'erro');}
 });
 
 async function excluirUsuario(id){

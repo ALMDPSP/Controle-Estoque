@@ -53,7 +53,7 @@ import qrcode
 import db
 
 app = Flask(__name__)
-APP_BUILD = "2026-09-04-login-seguro-mfa-v31"
+APP_BUILD = "2026-09-04-mfa-obrigatorio-todos-v33"
 app.secret_key = os.environ.get("SECRET_KEY", "troque-esta-chave-em-producao")
 app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
@@ -379,18 +379,14 @@ def login():
     _clear_login_failures(username)
     proximo = request.args.get("proximo") or url_for("dashboard")
 
-    # O login só é concluído depois do segundo fator quando o MFA está ativo.
-    # Administradores sem MFA são direcionados obrigatoriamente para a configuração.
-    if usuario.get("mfa_enabled") == "1" or usuario.get("role") == "admin":
-        _set_pending_login(usuario, proximo)
-        if usuario.get("mfa_enabled") == "1":
-            db.registrar_evento_login(usuario["username"], _client_ip(), "mfa_pendente", "senha validada; aguardando segundo fator")
-            return redirect(url_for("mfa_verificar"))
-        db.registrar_evento_login(usuario["username"], _client_ip(), "mfa_configuracao_exigida", "administrador deve ativar MFA")
-        return redirect(url_for("mfa_configurar"))
-
-    session["pending_next"] = proximo
-    return _finalize_login(usuario)
+    # MFA é obrigatório para todos os perfis: Administrador, Gestor, Operador e Consulta.
+    # O login só é concluído depois da validação do segundo fator.
+    _set_pending_login(usuario, proximo)
+    if usuario.get("mfa_enabled") == "1":
+        db.registrar_evento_login(usuario["username"], _client_ip(), "mfa_pendente", "senha validada; aguardando segundo fator")
+        return redirect(url_for("mfa_verificar"))
+    db.registrar_evento_login(usuario["username"], _client_ip(), "mfa_configuracao_exigida", "usuário deve ativar MFA obrigatório")
+    return redirect(url_for("mfa_configurar"))
 
 
 @app.route("/mfa/verificar", methods=["GET", "POST"])
@@ -449,8 +445,8 @@ def mfa_configurar():
         session.clear()
         return redirect(url_for("login"))
 
-    # Administradores entram por aqui obrigatoriamente no primeiro acesso sem MFA.
-    obrigatorio = pending and usuario.get("role") == "admin"
+    # Todos os perfis entram por aqui obrigatoriamente no primeiro acesso sem MFA.
+    obrigatorio = pending
     if usuario.get("mfa_enabled") == "1":
         return redirect(url_for("mfa_verificar") if pending else url_for("pagina_seguranca"))
 
@@ -535,24 +531,7 @@ def mfa_desativar():
     usuario = db.buscar_usuario_por_id(session.get("user_id"))
     if not usuario or usuario.get("mfa_enabled") != "1":
         return redirect(url_for("pagina_seguranca"))
-    if usuario.get("role") == "admin":
-        flash("O MFA é obrigatório para Administradores. Para reconfigurar, solicite o reset a outro Administrador e configure novamente no próximo acesso.", "erro")
-        return redirect(url_for("pagina_seguranca"))
-    if not _csrf_ok():
-        flash("A sessão de segurança expirou. Tente novamente.", "erro")
-        return redirect(url_for("pagina_seguranca"))
-    password = request.form.get("password", "")
-    codigo = request.form.get("codigo", "")
-    if not check_password_hash(usuario["password_hash"], password):
-        flash("Senha atual inválida.", "erro")
-        return redirect(url_for("pagina_seguranca"))
-    secret = _unprotect_mfa_secret(usuario.get("mfa_secret"))
-    if not _verify_totp(secret, codigo):
-        flash("Código do Authenticator inválido.", "erro")
-        return redirect(url_for("pagina_seguranca"))
-    db.desativar_mfa_usuario(usuario["id"])
-    db.registrar_evento_login(usuario["username"], _client_ip(), "mfa_desativado", "MFA desativado pelo usuário")
-    flash("MFA desativado com sucesso.", "ok")
+    flash("O MFA é obrigatório para todos os perfis e não pode ser desativado. Em caso de troca ou perda do aparelho, solicite a um Administrador o reset do MFA.", "erro")
     return redirect(url_for("pagina_seguranca"))
 
 
@@ -3103,7 +3082,9 @@ def api_criar_usuario():
         return jsonify({"erro": "Já existe um usuário com esse nome."}), 400
 
     db.criar_usuario(username, password, role)
-    return jsonify({"ok": True}), 201
+    # A senha temporária é devolvida somente nesta resposta ao Administrador.
+    # No banco permanece apenas o hash; não há recuperação posterior em texto aberto.
+    return jsonify({"ok": True, "username": username, "senha_temporaria": password}), 201
 
 
 @app.route("/api/usuarios/<int:user_id>/forcar-troca-senha", methods=["POST"])
@@ -3128,7 +3109,7 @@ def api_reset_mfa_usuario(user_id):
         return jsonify({"erro": "Este usuário não possui MFA ativo."}), 400
     db.desativar_mfa_usuario(user_id)
     db.registrar_evento_login(alvo.get("username"), _client_ip(), "mfa_reset_admin", f"MFA resetado pelo administrador {session.get('username')}")
-    return jsonify({"ok": True, "mensagem": "MFA resetado. O usuário deverá configurar novamente no próximo acesso se for Administrador."})
+    return jsonify({"ok": True, "mensagem": "MFA resetado. O usuário deverá configurar novamente no próximo acesso."})
 
 
 @app.route("/api/usuarios/<int:user_id>", methods=["DELETE"])
