@@ -47,7 +47,7 @@ from reportlab.pdfgen import canvas
 import db
 
 app = Flask(__name__)
-APP_BUILD = "2026-09-04-gestao-dados-admin-v25"
+APP_BUILD = "2026-09-04-dashboard-fast-v26"
 app.secret_key = os.environ.get("SECRET_KEY", "troque-esta-chave-em-producao")
 app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
@@ -409,14 +409,18 @@ def _normalizar_exec(valor):
     texto=unicodedata.normalize("NFD",str(valor or "").strip().lower())
     return "".join(c for c in texto if unicodedata.category(c)!="Mn")
 
-def _calcular_visao_executiva():
+def _calcular_visao_executiva(itens=None, kit=None, filiais=None, meta=None):
     def _qtd_num(valor):
         try:return int(float(valor or 0))
         except Exception:return 0
-    itens=db.listar_itens()
-    kit=db.listar_kit_padrao_loja()
-    filiais=db.listar_filiais(incluir_inativas=True)
-    meta=db.obter_meta_lojas_expansao()
+    if itens is None:
+        itens=db.obter_dashboard_compacto(1).get("itens", [])
+    if kit is None:
+        kit=db.listar_kit_padrao_loja()
+    if filiais is None:
+        filiais=db.listar_filiais(incluir_inativas=True)
+    if meta is None:
+        meta=db.obter_meta_lojas_expansao()
     expansao=[x for x in itens if _normalizar_exec(x.get("tipo_estoque"))=="expansao" and _qtd_num(x.get("qtde"))>0]
     req=[]
     for k in kit:
@@ -486,6 +490,41 @@ def api_status_sistema():
 @login_required
 def api_visao_executiva():
     return jsonify(_calcular_visao_executiva())
+
+@app.route("/api/dashboard-resumo")
+@login_required
+def api_dashboard_resumo():
+    """Carga compacta do Dashboard em uma única chamada HTTP."""
+    base=db.obter_dashboard_compacto(20)
+    visao=_calcular_visao_executiva(
+        itens=base.get("itens") or [],
+        kit=base.get("kit") or [],
+        filiais=base.get("filiais") or [],
+        meta=base.get("meta_lojas") or 10,
+    )
+    try:
+        status=db.obter_saude_sistema()
+    except Exception as e:
+        status={"database":"indisponível","database_ok":False,"erro":str(e),"contagens":{},"inconsistencias":{"total":0}}
+    status.update({
+        "ultimo_backup":session.get("ultimo_backup"),
+        "build":APP_BUILD,
+    })
+    resposta=jsonify({
+        "itens":base.get("itens") or [],
+        "estoque_total":base.get("estoque_total") or 0,
+        "imobilizados_total":base.get("imobilizados_total") or 0,
+        "produtos":base.get("produtos") or [],
+        "produtos_total":base.get("produtos_total") or 0,
+        "kit":base.get("kit") or [],
+        "filiais_ativas":base.get("filiais_ativas") or 0,
+        "meta_lojas":base.get("meta_lojas") or 10,
+        "movimentacoes":base.get("movimentacoes") or [],
+        "status":status,
+        "visao":visao,
+    })
+    resposta.headers["Cache-Control"]="private, max-age=5"
+    return resposta
 
 @app.route("/api/importacoes-recentes")
 @admin_required

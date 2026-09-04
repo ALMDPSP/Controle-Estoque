@@ -681,6 +681,120 @@ def excluir_item_kit(item_id):
     ok = cur.rowcount > 0; conn.commit(); cur.close(); conn.close(); return ok
 
 
+def obter_dashboard_compacto(limite_movs=20):
+    """Retorna somente os dados necessários ao Dashboard.
+
+    Agrupa o Estoque por código/descrição/finalidade para evitar enviar milhares
+    de linhas individuais ao navegador e busca as referências das movimentações
+    em lote. Funciona em SQLite e PostgreSQL.
+    """
+    def qtd_num(valor):
+        try:
+            return int(float(valor or 0))
+        except (TypeError, ValueError):
+            return 0
+
+    conn = get_conn()
+    cur = get_cursor(conn)
+    try:
+        # Estoque compacto: somente 4 colunas e já agrupado em memória.
+        cur.execute("SELECT codigo, descricao, qtde, tipo_estoque FROM itens ORDER BY id")
+        agrupado = {}
+        total_estoque = 0
+        for row in cur.fetchall():
+            d = dict(row)
+            qtd = qtd_num(d.get("qtde"))
+            if qtd <= 0:
+                continue
+            total_estoque += qtd
+            key = (
+                str(d.get("codigo") or "").strip(),
+                str(d.get("descricao") or "").strip(),
+                str(d.get("tipo_estoque") or "").strip(),
+            )
+            if key not in agrupado:
+                agrupado[key] = {
+                    "codigo": key[0], "descricao": key[1],
+                    "tipo_estoque": key[2], "qtde": 0,
+                }
+            agrupado[key]["qtde"] += qtd
+        itens = list(agrupado.values())
+
+        # Imobilizados: o Dashboard precisa somente do total de unidades.
+        cur.execute("SELECT qtde FROM imobilizados")
+        imobilizados_total = sum(qtd_num(dict(r).get("qtde")) for r in cur.fetchall())
+
+        # Produtos: somente código e descrição são usados nos tooltips/flyouts.
+        cur.execute("SELECT codigo, descricao FROM produtos ORDER BY id")
+        produtos = [dict(r) for r in cur.fetchall()]
+        produtos_total = len(produtos)
+
+        # Kit padrão usado na simulação da meta.
+        cur.execute("SELECT id, codigo, descricao, quantidade FROM kit_padrao_loja ORDER BY id")
+        kit = [dict(r) for r in cur.fetchall()]
+
+        # Filiais: conjunto compacto para cálculo da visão executiva.
+        cur.execute("SELECT id, codigo, nome, uf, ativo, previsao_abertura FROM filiais ORDER BY codigo")
+        filiais = [dict(r) for r in cur.fetchall()]
+        filiais_ativas = sum(1 for f in filiais if str(f.get("ativo") or "") == "1")
+
+        # Meta persistida, reaproveitando a mesma conexão.
+        cur.execute(q("SELECT valor FROM configuracoes WHERE chave = ?"), ("meta_lojas_expansao",))
+        row = cur.fetchone()
+        if row:
+            rd = dict(row) if hasattr(row, "keys") else {"valor": row[0]}
+            try:
+                meta_lojas = max(1, min(int(rd.get("valor") or 10), 999))
+            except (TypeError, ValueError):
+                meta_lojas = 10
+        else:
+            meta_lojas = 10
+
+        # Últimas movimentações e referências somente dos IDs necessários.
+        limite_movs = max(1, min(int(limite_movs or 20), 100))
+        cur.execute(q("SELECT * FROM movimentacoes ORDER BY id DESC LIMIT ?"), (limite_movs,))
+        movs = [dict(r) for r in cur.fetchall()]
+        ids_itens = sorted({int(m.get("item_id")) for m in movs if (m.get("tabela") or "itens") == "itens" and m.get("item_id") is not None})
+        ids_imob = sorted({int(m.get("item_id")) for m in movs if m.get("tabela") == "imobilizados" and m.get("item_id") is not None})
+
+        refs_itens = {}
+        refs_imob = {}
+        if ids_itens:
+            ph = ",".join(["?"] * len(ids_itens))
+            cur.execute(q(f"SELECT id, codigo, descricao FROM itens WHERE id IN ({ph})"), ids_itens)
+            refs_itens = {str(dict(r).get("id")): dict(r) for r in cur.fetchall()}
+        if ids_imob:
+            ph = ",".join(["?"] * len(ids_imob))
+            cur.execute(q(f"SELECT id, codigo, descricao FROM imobilizados WHERE id IN ({ph})"), ids_imob)
+            refs_imob = {str(dict(r).get("id")): dict(r) for r in cur.fetchall()}
+
+        for m in movs:
+            tabela = m.get("tabela") or "itens"
+            if tabela == "sistema":
+                m["codigo"] = "META LOJAS"
+                m["descricao"] = "Meta do lote de inauguração"
+            else:
+                ref = (refs_imob if tabela == "imobilizados" else refs_itens).get(str(m.get("item_id")), {})
+                m["codigo"] = ref.get("codigo", "")
+                m["descricao"] = ref.get("descricao", "")
+
+        return {
+            "itens": itens,
+            "estoque_total": total_estoque,
+            "imobilizados_total": imobilizados_total,
+            "produtos": produtos,
+            "produtos_total": produtos_total,
+            "kit": kit,
+            "filiais": filiais,
+            "filiais_ativas": filiais_ativas,
+            "meta_lojas": meta_lojas,
+            "movimentacoes": movs,
+        }
+    finally:
+        cur.close()
+        conn.close()
+
+
 # ---------------------------------------------------------------------
 # Itens
 # ---------------------------------------------------------------------
