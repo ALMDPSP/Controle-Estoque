@@ -47,7 +47,7 @@ from reportlab.pdfgen import canvas
 import db
 
 app = Flask(__name__)
-APP_BUILD = "2026-09-04-versao-executiva-v24"
+APP_BUILD = "2026-09-04-gestao-dados-admin-v25"
 app.secret_key = os.environ.get("SECRET_KEY", "troque-esta-chave-em-producao")
 app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
@@ -134,6 +134,20 @@ def admin_required(view):
             return redirect(url_for("trocar_senha"))
         if session.get("role") != "admin":
             return jsonify({"erro": "Apenas administradores podem fazer isso."}), 403
+        return view(*args, **kwargs)
+    return wrapped
+
+
+def admin_page_required(view):
+    """Proteção para páginas administrativas com retorno amigável ao usuário."""
+    @wraps(view)
+    def wrapped(*args, **kwargs):
+        if not session.get("user_id"):
+            return redirect(url_for("login", proximo=request.path))
+        if session.get("precisa_trocar_senha"):
+            return redirect(url_for("trocar_senha"))
+        if session.get("role") != "admin":
+            return redirect(url_for("dashboard", acesso_admin="1"))
         return view(*args, **kwargs)
     return wrapped
 
@@ -474,12 +488,12 @@ def api_visao_executiva():
     return jsonify(_calcular_visao_executiva())
 
 @app.route("/api/importacoes-recentes")
-@login_required
+@admin_required
 def api_importacoes_recentes():
     return jsonify(db.listar_importacoes_recentes(30))
 
 @app.route("/gestao-dados")
-@login_required
+@admin_page_required
 def pagina_gestao_dados():
     return render_template("gestao_dados.html",username=session.get("username"),role=session.get("role") or "user",is_admin=session.get("role")=="admin")
 
