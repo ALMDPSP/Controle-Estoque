@@ -47,7 +47,7 @@ from reportlab.pdfgen import canvas
 import db
 
 app = Flask(__name__)
-APP_BUILD = "2026-09-04-relatorio-brand-layout-v22"
+APP_BUILD = "2026-09-04-relatorio-maior-inauguracao-v23"
 app.secret_key = os.environ.get("SECRET_KEY", "troque-esta-chave-em-producao")
 app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
@@ -691,11 +691,12 @@ def _gerar_pdf_projecao_lojas(dados):
     # Insights executivos no rodapé do painel esquerdo
     insight_y = content_y + 18
     insight_w = (left_w - 24 - 3 * 8) / 4.0
+    top_inauguracao = max(estados_ordenados, key=lambda e: int(e.get("inaugurar") or 0), default=None)
     insights = [
         ("Cobertura nacional", f"{cobertura}/27", f"{(cobertura/27)*100:.1f}% das UFs com lojas", "#63BAFF"),
         ("Operação ativa", f"{taxa_ativas:.1f}%", f"{totais.get('ativa',0)} lojas ativas", "#52D69A"),
         ("Maior presença", f"{top_estado.get('uf') if top_estado else '-'} · {top_estado.get('total') if top_estado else 0}", f"{top_estado.get('estado') if top_estado else 'Sem dados'} lidera a base", "#FFBE55"),
-        ("Top 5 estados", f"{(top5_total/total_base)*100:.1f}%", f"{top5_total} lojas concentradas", "#B197FC"),
+        ("Maior inauguração", f"{top_inauguracao.get('uf') if top_inauguracao else '-'} · {top_inauguracao.get('inaugurar') if top_inauguracao else 0}", f"{top_inauguracao.get('estado') if top_inauguracao else 'Sem dados'} possui mais inaugurações", "#B197FC"),
     ]
     for i, (titulo, valor, detalhe, cor) in enumerate(insights):
         x = margem + 12 + i * (insight_w + 8)
