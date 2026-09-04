@@ -47,7 +47,7 @@ from reportlab.pdfgen import canvas
 import db
 
 app = Flask(__name__)
-APP_BUILD = "2026-09-04-dashboard-operacional-v27"
+APP_BUILD = "2026-09-04-backup-auditoria-v28"
 app.secret_key = os.environ.get("SECRET_KEY", "troque-esta-chave-em-producao")
 app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
@@ -471,6 +471,18 @@ def _calcular_visao_executiva(itens=None, kit=None, filiais=None, meta=None):
         "planejadas":[{"id":f.get("id"),"codigo":f.get("codigo"),"nome":f.get("nome"),"uf":f.get("uf"),"previsao_abertura":f.get("previsao_abertura"),"situacao":"ATENDIDA" if i<capacidade else "RISCO"} for i,f in enumerate(planejadas)]
     }
 
+def _obter_ultimo_backup_info():
+    """Retorna o último backup persistido no banco para todos os usuários."""
+    try:
+        usuario = db.obter_configuracao("ultimo_backup_usuario")
+        data_hora = db.obter_configuracao("ultimo_backup_datahora")
+        arquivo = db.obter_configuracao("ultimo_backup_arquivo")
+        if data_hora:
+            return {"usuario": usuario or "-", "data_hora": data_hora, "arquivo": arquivo or ""}
+    except Exception:
+        pass
+    return None
+
 @app.route("/api/status-sistema")
 @login_required
 def api_status_sistema():
@@ -479,7 +491,7 @@ def api_status_sistema():
     except Exception as e:
         saude={"database":"indisponível","database_ok":False,"erro":str(e),"contagens":{},"inconsistencias":{"total":0}}
     saude.update({
-        "ultimo_backup":session.get("ultimo_backup"),
+        "ultimo_backup":_obter_ultimo_backup_info(),
         "perfil":session.get("role") or "user",
         "usuario":session.get("username"),
         "build":APP_BUILD,
@@ -507,7 +519,7 @@ def api_dashboard_resumo():
     except Exception as e:
         status={"database":"indisponível","database_ok":False,"erro":str(e),"contagens":{},"inconsistencias":{"total":0}}
     status.update({
-        "ultimo_backup":session.get("ultimo_backup"),
+        "ultimo_backup":_obter_ultimo_backup_info(),
         "build":APP_BUILD,
     })
     resposta=jsonify({
@@ -1238,6 +1250,10 @@ def exportar_movimentacoes():
 @app.route("/backup")
 @login_required
 def gerar_backup():
+    agora = datetime.now()
+    usuario = session.get("username") or "Usuário"
+    data_hora = agora.strftime("%d/%m/%Y %H:%M")
+    nome_arquivo = f"backup_controle_estoque_{agora.strftime('%Y%m%d_%H%M')}.zip"
     mem=io.BytesIO()
     with zipfile.ZipFile(mem,"w",zipfile.ZIP_DEFLATED) as z:
         wb=_workbook_consolidado()
@@ -1245,10 +1261,19 @@ def gerar_backup():
         z.writestr("estoque_backup.xlsx",x.read())
         if not db.IS_PG and os.path.exists(db.SQLITE_PATH):
             z.write(db.SQLITE_PATH,arcname="estoque.db")
-        z.writestr("LEIA-ME.txt",f"Backup gerado em {datetime.now().strftime('%d/%m/%Y %H:%M')} por {session.get('username')}.\nContém Estoque, Imobilizados, Produtos, Filiais, Projeção por UF, Kit padrão e Histórico de movimentações.\n")
-    session["ultimo_backup"]=datetime.now().strftime("%d/%m/%Y %H:%M")
+        z.writestr("LEIA-ME.txt",f"Backup gerado em {data_hora} por {usuario}.\nContém Estoque, Imobilizados, Produtos, Filiais, Projeção por UF, Kit padrão e Histórico de movimentações.\n")
+
+    # Registro persistente: permanece disponível após logout, novo login ou reinício da aplicação.
+    db.salvar_configuracao("ultimo_backup_usuario", usuario, usuario)
+    db.salvar_configuracao("ultimo_backup_datahora", data_hora, usuario)
+    db.salvar_configuracao("ultimo_backup_arquivo", nome_arquivo, usuario)
+    session["ultimo_backup"] = data_hora  # compatibilidade com versões anteriores
+
     mem.seek(0)
-    return send_file(mem,as_attachment=True,download_name=f"backup_controle_estoque_{datetime.now().strftime('%Y%m%d_%H%M')}.zip",mimetype="application/zip")
+    resposta = send_file(mem,as_attachment=True,download_name=nome_arquivo,mimetype="application/zip")
+    resposta.headers["X-Backup-Usuario"] = usuario
+    resposta.headers["X-Backup-DataHora"] = data_hora
+    return resposta
 
 
 @app.route("/produtos")
