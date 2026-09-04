@@ -1996,6 +1996,41 @@ input:focus-visible{
 }
 
 
+
+/* =========================================================
+   EXPERIÊNCIA DE LOGIN CORPORATIVA
+========================================================= */
+.access-badge{
+  display:inline-flex;align-items:center;gap:7px;width:max-content;max-width:100%;
+  margin:0 0 14px;padding:6px 9px;border:1px solid rgba(94,242,214,.18);
+  border-radius:999px;background:rgba(94,242,214,.055);color:#a7eadd;
+  font:700 9px var(--mono);letter-spacing:.08em;text-transform:uppercase;
+}
+.access-badge .shield{width:7px;height:7px;border-radius:50%;background:var(--cyan);box-shadow:0 0 10px rgba(94,242,214,.7)}
+.security-strip{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin:-12px 0 23px}
+.security-chip{min-width:0;border:1px solid rgba(255,255,255,.07);background:rgba(255,255,255,.025);border-radius:8px;padding:8px 7px;color:#8090a5;font-size:9px;line-height:1.25;text-align:center}
+.security-chip b{display:block;color:#bbcada;font-size:9px;font-weight:650;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.login-options{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:-3px 0 8px}
+.remember-user{display:flex!important;align-items:center;gap:8px!important;margin:0!important;color:#8996a8!important;font-size:10.5px!important;cursor:pointer;user-select:none}
+.remember-user input{appearance:none;-webkit-appearance:none;width:16px!important;height:16px!important;min-width:16px;margin:0!important;padding:0!important;border-radius:5px!important;border:1px solid rgba(255,255,255,.16)!important;background:#080d13!important;display:grid;place-content:center;cursor:pointer}
+.remember-user input::before{content:'';width:8px;height:8px;transform:scale(0);transition:.12s transform ease;border-radius:2px;background:linear-gradient(135deg,var(--blue),var(--cyan))}
+.remember-user input:checked::before{transform:scale(1)}
+.remember-user input:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.enter-hint{color:#566579;font:9px var(--mono);white-space:nowrap}
+.secure-note{display:flex;align-items:flex-start;gap:8px;margin-top:13px;padding:10px 11px;border-radius:8px;border:1px solid rgba(62,166,255,.10);background:rgba(62,166,255,.035);color:#738398;font-size:9.5px;line-height:1.45}
+.secure-note svg{width:14px;height:14px;min-width:14px;margin-top:1px;color:#4eaefb}
+.login-clock{display:flex;justify-content:center;gap:7px;margin-top:8px;color:#435166;font:9px var(--mono)}
+.login-clock span+span::before{content:'•';margin-right:7px;color:#2f4054}
+.login-status{min-height:14px;margin-top:9px;text-align:center;color:#6f8197;font-size:9.5px;line-height:1.35}
+.login-status.loading{color:#9fd2fb}
+.erro{position:relative;padding-left:35px!important}
+.erro::before{content:'!';position:absolute;left:12px;top:9px;width:15px;height:15px;display:grid;place-items:center;border:1px solid rgba(255,107,107,.45);border-radius:50%;font:700 9px var(--mono)}
+@media(max-width:480px){
+  .security-strip{grid-template-columns:1fr 1fr;margin-bottom:20px}
+  .security-chip:last-child{grid-column:1/-1}
+  .access-badge{font-size:8px}
+}
+
 /* =========================================================
    REFINAMENTOS DE ACESSIBILIDADE E SEGURANÇA
 ========================================================= */
@@ -2350,6 +2385,14 @@ button.loading .submit-spinner{display:inline-block;}
         Entre com suas credenciais para continuar.
       </p>
 
+      <div class="access-badge"><span class="shield"></span> Ambiente corporativo protegido</div>
+
+      <div class="security-strip" aria-label="Recursos de segurança">
+        <div class="security-chip"><b>Sessão protegida</b>Credenciais validadas</div>
+        <div class="security-chip"><b>Auditoria de acesso</b>Entradas registradas</div>
+        <div class="security-chip"><b>Controle de perfil</b>Acesso por permissão</div>
+      </div>
+
 
       {% if erro %}
 
@@ -2398,6 +2441,8 @@ button.loading .submit-spinner{display:inline-block;}
               name="username"
               placeholder="seu.usuario"
               autocomplete="username"
+              autocapitalize="none"
+              spellcheck="false"
               value="{{ username_value or '' }}"
               autofocus
               required
@@ -2455,12 +2500,25 @@ button.loading .submit-spinner{display:inline-block;}
 
         </div>
 
+        <div class="login-options">
+          <label class="remember-user" for="remember-user">
+            <input type="checkbox" id="remember-user">
+            <span>Lembrar meu usuário</span>
+          </label>
+          <span class="enter-hint">ENTER ↵</span>
+        </div>
 
         <button type="submit" id="login-submit">
-          <span class="submit-spinner" aria-hidden="true"></span><span class="submit-label">Entrar</span>
+          <span class="submit-spinner" aria-hidden="true"></span><span class="submit-label">Entrar com segurança</span>
         </button>
+        <div class="login-status" id="login-status" role="status" aria-live="polite"></div>
 
       </form>
+
+      <div class="secure-note">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 3 19 6v5c0 4.7-2.8 8.1-7 10-4.2-1.9-7-5.3-7-10V6l7-3Z"/><path d="m9 12 2 2 4-4"/></svg>
+        <span>Acesso de uso interno. As tentativas de autenticação são registradas para auditoria. A senha nunca é salva por esta tela.</span>
+      </div>
 
 
       <div class="credit">
@@ -2468,6 +2526,7 @@ button.loading .submit-spinner{display:inline-block;}
         © 2026 · Todos os direitos reservados ·
         Developed by
         <strong>Alexandre Martins</strong>
+        <div class="login-clock"><span id="login-date">--/--/----</span><span id="login-time">--:--</span></div>
 
       </div>
 
@@ -2553,13 +2612,43 @@ passwordInput?.addEventListener('blur',()=>capsLogin?.classList.remove('ativo'))
 
 const loginForm=document.getElementById('login-form');
 const loginSubmit=document.getElementById('login-submit');
+const usernameInput=document.getElementById('username');
+const rememberUser=document.getElementById('remember-user');
+const loginStatus=document.getElementById('login-status');
+const LOGIN_USER_KEY='controle_estoque_login_username';
+
+try{
+  const usuarioSalvo=localStorage.getItem(LOGIN_USER_KEY)||'';
+  if(usuarioSalvo && usernameInput && !usernameInput.value){ usernameInput.value=usuarioSalvo; }
+  if(rememberUser) rememberUser.checked=!!usuarioSalvo;
+}catch(_e){}
+
+{% if erro %}
+if(usernameInput?.value){ window.setTimeout(()=>passwordInput?.focus({preventScroll:true}),80); }
+{% endif %}
+
 loginForm?.addEventListener('submit',()=>{
   if(!loginForm.checkValidity()) return;
+  if(usernameInput) usernameInput.value=usernameInput.value.trim();
+  try{
+    if(rememberUser?.checked && usernameInput?.value) localStorage.setItem(LOGIN_USER_KEY,usernameInput.value);
+    else localStorage.removeItem(LOGIN_USER_KEY);
+  }catch(_e){}
   loginSubmit.disabled=true;
   loginSubmit.classList.add('loading');
   const label=loginSubmit.querySelector('.submit-label');
-  if(label) label.textContent='Entrando...';
+  if(label) label.textContent='Validando acesso...';
+  if(loginStatus){ loginStatus.textContent='Autenticando suas credenciais com segurança…'; loginStatus.classList.add('loading'); }
 });
+
+function atualizarRelogioLogin(){
+  const agora=new Date();
+  const d=document.getElementById('login-date'),t=document.getElementById('login-time');
+  if(d) d.textContent=agora.toLocaleDateString('pt-BR');
+  if(t) t.textContent=agora.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+}
+atualizarRelogioLogin();
+setInterval(atualizarRelogioLogin,30000);
 
 </script>
 
