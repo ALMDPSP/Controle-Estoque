@@ -1646,6 +1646,53 @@ def buscar_acompanhamento_expansao_por_id(registro_id):
         cur.close(); conn.close()
 
 
+def criar_acompanhamento_expansao(dados, usuario):
+    conn = get_conn(); cur = get_cursor(conn)
+    agora = datetime.now().strftime("%Y-%m-%d %H:%M")
+    filial = str(dados.get("filial") or "").strip()
+    if not filial:
+        cur.close(); conn.close()
+        raise ValueError("O campo Filial é obrigatório.")
+    try:
+        cur.execute(q("SELECT id FROM acompanhamento_expansao WHERE filial=?"), (filial,))
+        if cur.fetchone():
+            raise ValueError(f"Já existe um acompanhamento cadastrado para a filial {filial}.")
+        cur.execute(
+            q("""INSERT INTO acompanhamento_expansao
+                 (filial,bandeira,descricao_filial,uf,projeto,status_filial,term_obra,entrada_ti,inauguracao,observacao_ti,atualizado_por,atualizado_em)
+                 VALUES (?,?,?,?,?,?,?,?,?,?,?,?)"""),
+            (
+                filial,
+                str(dados.get("bandeira") or "").strip(),
+                str(dados.get("descricao_filial") or "").strip(),
+                str(dados.get("uf") or "").strip(),
+                str(dados.get("projeto") or "").strip(),
+                str(dados.get("status_filial") or "").strip(),
+                str(dados.get("term_obra") or "").strip(),
+                str(dados.get("entrada_ti") or "").strip(),
+                str(dados.get("inauguracao") or "").strip(),
+                str(dados.get("observacao_ti") or "").strip(),
+                usuario,
+                agora,
+            ),
+        )
+        conn.commit()
+        try:
+            registro_id = cur.lastrowid
+        except Exception:
+            registro_id = None
+        if not registro_id:
+            cur.execute(q("SELECT id FROM acompanhamento_expansao WHERE filial=?"), (filial,))
+            row = cur.fetchone()
+            registro_id = dict(row).get("id") if row else None
+        return buscar_acompanhamento_expansao_por_id(registro_id) if registro_id else None
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        cur.close(); conn.close()
+
+
 def atualizar_acompanhamento_expansao(registro_id, dados, usuario):
     conn = get_conn(); cur = get_cursor(conn)
     agora = datetime.now().strftime("%Y-%m-%d %H:%M")

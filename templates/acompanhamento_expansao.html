@@ -30,9 +30,10 @@ main{padding:24px 32px 54px;max-width:1500px;margin:auto}.kpis{display:grid;grid
 <header>
   <div><span class="tag">EXPANSÃO</span><h1>Acompanhamento de Expansão</h1><p>Visão consolidada do cronograma de obra, entrada de TI e inauguração, com acompanhamento de entregas e projeção geral de alcance.</p></div>
   <div class="head-actions">
+    {% if role != 'consulta' %}<button type="button" class="primary" id="btn-cadastrar">＋ Cadastrar loja</button>{% endif %}
     <a href="{{ url_for('relatorio_pdf_acompanhamento_expansao') }}">⭳ Relatório PDF</a>
     <a href="{{ url_for('exportar_acompanhamento_expansao') }}">⭳ Download Excel</a>
-    {% if role != 'consulta' %}<button type="button" class="primary" id="btn-upload">⭱ Upload Excel</button>{% endif %}
+    {% if role != 'consulta' %}<button type="button" id="btn-upload">⭱ Upload Excel</button>{% endif %}
     <a href="{{ url_for('pagina_projecao_lojas') }}">Projeção de abertura</a>
   </div>
 </header>
@@ -96,6 +97,29 @@ main{padding:24px 32px 54px;max-width:1500px;margin:auto}.kpis{display:grid;grid
 {% include '_footer.html' %}
 
 {% if role != 'consulta' %}
+<div class="modal-backdrop" id="create-modal">
+  <div class="modal edit-modal">
+    <h3>Cadastrar loja</h3>
+    <p class="edit-hint">Cadastre uma nova loja no Acompanhamento de Expansão utilizando os mesmos campos da planilha. A Situação é calculada automaticamente.</p>
+    <form id="create-form">
+      <div class="edit-grid">
+        <div><label for="create-filial">Filial *</label><input id="create-filial" required placeholder="Ex.: 2707"></div>
+        <div><label for="create-bandeira">Bandeira *</label><select id="create-bandeira" required><option value="">Selecione...</option><option>DSP</option><option>DPA</option></select></div>
+        <div class="full"><label for="create-descricao">Descrição filial *</label><input id="create-descricao" required placeholder="Nome / identificação da loja"></div>
+        <div><label for="create-uf">UF *</label><input id="create-uf" required maxlength="2" placeholder="SP"></div>
+        <div><label for="create-projeto">Projeto *</label><select id="create-projeto" required><option value="">Selecione...</option><option>EXPANSÃO</option><option>AMPLIAÇÃO</option><option>REALOCAÇÃO</option></select></div>
+        <div><label for="create-status">Status filial *</label><select id="create-status" required><option value="PENDENTE">PENDENTE</option><option value="INAUGURADA">INAUGURADA</option></select></div>
+        <div><label for="create-obra">Término da obra</label><input id="create-obra" placeholder="dd/mm/aaaa, A DEFINIR ou PENDENTE"></div>
+        <div><label for="create-ti">Entrada de TI</label><input id="create-ti" placeholder="dd/mm/aaaa, A DEFINIR ou ANO 2027"></div>
+        <div><label for="create-inauguracao">Inauguração</label><input id="create-inauguracao" placeholder="dd/mm/aaaa, A DEFINIR ou ANO 2027"></div>
+        <div class="full"><label for="create-observacao">Observação TI</label><textarea id="create-observacao" placeholder="Observações do acompanhamento"></textarea></div>
+      </div>
+      <div class="modal-status" id="create-status-msg"></div>
+      <div class="modal-actions"><button type="button" id="create-cancel">Cancelar</button><button type="submit" class="primary" id="create-save">Cadastrar loja</button></div>
+    </form>
+  </div>
+</div>
+
 <div class="modal-backdrop" id="edit-modal">
   <div class="modal edit-modal">
     <h3>Editar acompanhamento</h3>
@@ -160,6 +184,43 @@ const editModal=document.getElementById('edit-modal');
 const editForm=document.getElementById('edit-form');
 const editMsg=document.getElementById('edit-status-msg');
 const EDIT_CSRF='{{ csrf_token }}';
+const createModal=document.getElementById('create-modal');
+const createForm=document.getElementById('create-form');
+const createMsg=document.getElementById('create-status-msg');
+function abrirCadastro(){
+  createForm.reset();
+  document.getElementById('create-status').value='PENDENTE';
+  createMsg.textContent='';createMsg.className='modal-status';createModal.classList.add('open');
+  setTimeout(()=>document.getElementById('create-filial').focus(),80);
+}
+function fecharCadastro(){createModal.classList.remove('open')}
+document.getElementById('btn-cadastrar').addEventListener('click',abrirCadastro);
+document.getElementById('create-cancel').addEventListener('click',fecharCadastro);
+createModal.addEventListener('click',e=>{if(e.target===createModal)fecharCadastro()});
+createForm.addEventListener('submit',async e=>{
+  e.preventDefault();
+  const payload={
+    filial:document.getElementById('create-filial').value.trim(),
+    bandeira:document.getElementById('create-bandeira').value.trim(),
+    descricao_filial:document.getElementById('create-descricao').value.trim(),
+    uf:document.getElementById('create-uf').value.trim(),
+    projeto:document.getElementById('create-projeto').value.trim(),
+    status_filial:document.getElementById('create-status').value.trim(),
+    term_obra:document.getElementById('create-obra').value.trim(),
+    entrada_ti:document.getElementById('create-ti').value.trim(),
+    inauguracao:document.getElementById('create-inauguracao').value.trim(),
+    observacao_ti:document.getElementById('create-observacao').value.trim()
+  };
+  const obrigatorios=[['filial','Filial'],['bandeira','Bandeira'],['descricao_filial','Descrição filial'],['uf','UF'],['projeto','Projeto'],['status_filial','Status filial']].filter(([k])=>!payload[k]);
+  if(obrigatorios.length){createMsg.textContent='Preencha: '+obrigatorios.map(x=>x[1]).join(', ')+'.';createMsg.className='modal-status error';return}
+  const save=document.getElementById('create-save');save.disabled=true;createMsg.textContent='Cadastrando loja...';createMsg.className='modal-status';
+  try{
+    const r=await fetch('/api/acompanhamento-expansao/cadastrar',{method:'POST',headers:{'Content-Type':'application/json','X-CSRF-Token':EDIT_CSRF},body:JSON.stringify(payload)});
+    const d=await r.json();if(!r.ok)throw new Error(d.erro||'Não foi possível cadastrar a loja.');
+    createMsg.textContent='Loja cadastrada com sucesso.';createMsg.className='modal-status ok';window.appToast?.('Loja cadastrada no Acompanhamento de Expansão.','ok');
+    await init();setTimeout(fecharCadastro,500);
+  }catch(err){createMsg.textContent=err.message;createMsg.className='modal-status error'}finally{save.disabled=false}
+});
 function garantirOpcao(select,value){if(!value)return;if(![...select.options].some(o=>o.value===value)){const o=document.createElement('option');o.value=value;o.textContent=value;select.appendChild(o)}}
 function abrirEdicao(id){
   const x=dados.find(r=>Number(r.id)===Number(id));if(!x)return;

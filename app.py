@@ -53,7 +53,7 @@ import qrcode
 import db
 
 app = Flask(__name__)
-APP_BUILD = "2026-09-05-acompanhamento-expansao-pdf-v43"
+APP_BUILD = "2026-09-05-acompanhamento-expansao-cadastro-v44"
 app.secret_key = os.environ.get("SECRET_KEY", "troque-esta-chave-em-producao")
 app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
@@ -2171,6 +2171,59 @@ def pagina_acompanhamento_expansao():
 @login_required
 def api_acompanhamento_expansao():
     return jsonify(_dados_acompanhamento_expansao())
+
+
+@app.route("/api/acompanhamento-expansao/cadastrar", methods=["POST"])
+@edit_required
+def api_cadastrar_acompanhamento_expansao():
+    if not _csrf_ok():
+        return jsonify({"erro": "A sessão de segurança expirou. Atualize a página e tente novamente."}), 400
+
+    dados = request.get_json(silent=True) or {}
+    filial = str(dados.get("filial") or "").strip()
+    descricao = str(dados.get("descricao_filial") or "").strip()
+    bandeira = str(dados.get("bandeira") or "").strip().upper()
+    uf = str(dados.get("uf") or "").strip().upper()
+    projeto = str(dados.get("projeto") or "").strip().upper()
+    status_filial = str(dados.get("status_filial") or "").strip().upper()
+
+    obrigatorios = []
+    if not filial: obrigatorios.append("Filial")
+    if not descricao: obrigatorios.append("Descrição filial")
+    if not bandeira: obrigatorios.append("Bandeira")
+    if not uf: obrigatorios.append("UF")
+    if not projeto: obrigatorios.append("Projeto")
+    if not status_filial: obrigatorios.append("Status filial")
+    if obrigatorios:
+        return jsonify({"erro": "Preencha os campos obrigatórios: " + ", ".join(obrigatorios) + "."}), 400
+
+    payload = {
+        "filial": filial,
+        "bandeira": bandeira,
+        "descricao_filial": descricao,
+        "uf": uf,
+        "projeto": projeto,
+        "status_filial": status_filial,
+        "term_obra": str(dados.get("term_obra") or "").strip(),
+        "entrada_ti": str(dados.get("entrada_ti") or "").strip(),
+        "inauguracao": str(dados.get("inauguracao") or "").strip(),
+        "observacao_ti": str(dados.get("observacao_ti") or "").strip(),
+    }
+
+    try:
+        registro = db.criar_acompanhamento_expansao(payload, session.get("username"))
+    except ValueError as e:
+        return jsonify({"erro": str(e)}), 409
+    except Exception:
+        app.logger.exception("Erro ao cadastrar acompanhamento de expansão da filial %s", filial)
+        return jsonify({"erro": "Não foi possível cadastrar a loja. Verifique os dados e tente novamente."}), 500
+
+    db.registrar_movimentacao(
+        0, "cadastro_acompanhamento_expansao", "1", session.get("username"),
+        f"Nova loja cadastrada no Acompanhamento de Expansão · Filial {filial} · {descricao} · {projeto} · {status_filial}",
+        tabela="sistema"
+    )
+    return jsonify({"ok": True, "registro": registro}), 201
 
 
 @app.route("/api/acompanhamento-expansao/<int:registro_id>", methods=["PUT"])
