@@ -2066,6 +2066,31 @@ button.loading .submit-spinner{display:inline-block;}
    MFA - MESMO LAYOUT DO LOGIN, CONTEÚDO SIMPLIFICADO
 ========================================================= */
 .mfa-login{justify-content:center}
+.wrapper-mfa{width:min(1000px,100%)}
+.card-mfa{height:min(720px,calc(100vh - 48px));min-height:0}
+.card-mfa .visual{flex:1.18;min-width:500px}
+.card-mfa .warehouse{top:72px;transform:translateX(-50%) scale(.9);transform-origin:top center}
+.card-mfa .floor{bottom:-170px}
+.card-mfa .login{padding:36px 34px 24px;justify-content:flex-start;overflow:auto}
+.card-mfa .brand{margin-bottom:20px}
+.card-mfa h1{font-size:19px;margin:0 0 6px}
+.card-mfa .subtitle{font-size:12px;margin:0 0 16px;line-height:1.45}
+.card-mfa .mfa-badge,.card-mfa .access-badge{margin:0 0 10px}
+.card-mfa .mfa-user,.card-mfa .mfa-required,.card-mfa .mfa-erro{margin:0 0 10px}
+.card-mfa .field{margin-bottom:12px}
+.card-mfa .mfa-qr-panel{margin:0 0 10px;padding:10px}
+.card-mfa .mfa-qr{width:154px;height:154px;margin:0 auto 8px;padding:8px}
+.card-mfa .mfa-apps{gap:6px}
+.card-mfa .mfa-app{font-size:9px;padding:5px 8px}
+.card-mfa .mfa-secret{margin:0 0 12px;padding:9px 11px}
+.card-mfa .mfa-help{font-size:10px;margin-top:7px}
+.card-mfa .mfa-note{margin-top:12px;padding:10px 12px;font-size:10px}
+.card-mfa .credit{margin-top:12px;padding-top:10px}
+.card-mfa .login-clock{margin-top:6px}
+@media(max-height:820px) and (min-width:901px){.card-mfa{height:min(680px,calc(100vh - 36px))}.card-mfa .visual{flex:1.08}.card-mfa .warehouse{top:78px;transform:translateX(-50%) scale(.84)}.card-mfa .pallet{transform:scale(.9)}.card-mfa .forklift{transform:scale(.9)}.card-mfa .conveyor{transform:scale(.92)}.card-mfa .truck{transform:scale(.92)}.card-mfa .login{padding:30px 30px 20px}.card-mfa .brand{margin-bottom:16px}.card-mfa .mfa-qr{width:142px;height:142px}}
+@media(max-width:900px){.wrapper-mfa{width:min(720px,100%)}.card-mfa{height:auto}.card-mfa .login{overflow:visible}}
+@media(max-width:760px){.card-mfa .login{padding:28px 24px 22px}.card-mfa .mfa-qr{width:160px;height:160px}}
+@media(max-width:480px){.card-mfa .login{padding:24px 20px 20px}.card-mfa .mfa-qr{width:146px;height:146px}.card-mfa .mfa-secret code{font-size:10px;word-break:break-all}}
 .mfa-badge{display:inline-flex;align-items:center;gap:7px;width:max-content;max-width:100%;margin:0 0 14px;padding:6px 9px;border:1px solid rgba(94,242,214,.18);border-radius:999px;background:rgba(94,242,214,.055);color:#a7eadd;font:700 9px var(--mono);letter-spacing:.08em;text-transform:uppercase}
 .mfa-badge .shield{width:7px;height:7px;border-radius:50%;background:var(--cyan);box-shadow:0 0 10px rgba(94,242,214,.7)}
 .mfa-user{margin:0 0 14px;padding:10px 12px;border:1px solid rgba(255,255,255,.08);border-radius:9px;background:rgba(255,255,255,.025);color:#aebdce;font-size:11px}
@@ -2104,9 +2129,9 @@ button.loading .submit-spinner{display:inline-block;}
 <div id="particles"></div>
 
 
-<div class="wrapper">
+<div class="wrapper wrapper-mfa">
 
-  <div class="card">
+  <div class="card card-mfa">
 
 
     <!-- =====================================================
