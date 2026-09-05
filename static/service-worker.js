@@ -1,4 +1,4 @@
-const CACHE = 'controle-estoque-mobile-v37';
+const CACHE = 'controle-estoque-mobile-v38';
 const STATIC = [
   '/static/favicon.ico?v=7',
   '/static/favicon-32.png?v=7',
