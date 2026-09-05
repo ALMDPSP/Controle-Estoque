@@ -10,6 +10,7 @@ Postgres ao serviço web).
 
 import os
 import re
+import json
 from datetime import datetime
 
 from werkzeug.security import generate_password_hash
@@ -296,6 +297,98 @@ def init_db():
         else:
             cur.execute("ALTER TABLE filiais ADD COLUMN previsao_abertura TEXT")
         conn.commit()
+    except Exception:
+        conn.rollback()
+
+    # Acompanhamento operacional de Expansão / Ampliação / Realocação.
+    # A filial é a chave do acompanhamento e permite atualização por planilha.
+    if IS_PG:
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS acompanhamento_expansao (
+                id SERIAL PRIMARY KEY,
+                filial TEXT UNIQUE NOT NULL,
+                bandeira TEXT,
+                descricao_filial TEXT,
+                uf TEXT,
+                projeto TEXT,
+                status_filial TEXT,
+                term_obra TEXT,
+                entrada_ti TEXT,
+                inauguracao TEXT,
+                observacao_ti TEXT,
+                atualizado_por TEXT,
+                atualizado_em TEXT
+            )
+        """)
+    else:
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS acompanhamento_expansao (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                filial TEXT UNIQUE NOT NULL,
+                bandeira TEXT,
+                descricao_filial TEXT,
+                uf TEXT,
+                projeto TEXT,
+                status_filial TEXT,
+                term_obra TEXT,
+                entrada_ti TEXT,
+                inauguracao TEXT,
+                observacao_ti TEXT,
+                atualizado_por TEXT,
+                atualizado_em TEXT
+            )
+        """)
+    conn.commit()
+
+    # Índices leves para os filtros e gráficos do dashboard.
+    for nome_indice, coluna in (
+        ("idx_acomp_exp_status", "status_filial"),
+        ("idx_acomp_exp_projeto", "projeto"),
+        ("idx_acomp_exp_bandeira", "bandeira"),
+        ("idx_acomp_exp_uf", "uf"),
+    ):
+        try:
+            cur.execute(f"CREATE INDEX IF NOT EXISTS {nome_indice} ON acompanhamento_expansao ({coluna})")
+            conn.commit()
+        except Exception:
+            conn.rollback()
+
+    # Base inicial enviada para o acompanhamento. A carga ocorre somente
+    # quando a tabela está vazia; uploads posteriores nunca são sobrescritos.
+    try:
+        cur.execute("SELECT COUNT(*) FROM acompanhamento_expansao")
+        qtd_acomp = cur.fetchone()[0]
+        if int(qtd_acomp or 0) == 0:
+            seed_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "acompanhamento_expansao_inicial.json")
+            if os.path.exists(seed_path):
+                with open(seed_path, "r", encoding="utf-8") as arq_seed:
+                    seed = json.load(arq_seed)
+                agora_seed = datetime.now().strftime("%Y-%m-%d %H:%M")
+                valores = []
+                for item in seed:
+                    filial = str(item.get("FILIAL") or "").strip()
+                    if not filial:
+                        continue
+                    valores.append((
+                        filial,
+                        str(item.get("BANDEIRA") or "").strip(),
+                        str(item.get("DESCRIÇÃO FILIAL") or "").strip(),
+                        str(item.get("UF") or "").strip(),
+                        str(item.get("PROJETO") or "").strip(),
+                        str(item.get("STATUS FILIAL") or "").strip(),
+                        str(item.get("TERM. OBRA") or "").strip(),
+                        str(item.get("ENTRADA DE TI") or "").strip(),
+                        str(item.get("INAUGURAÇÃO") or "").strip(),
+                        str(item.get("OBSERVAÇÃO TI") or "").strip(),
+                        "carga inicial",
+                        agora_seed,
+                    ))
+                if valores:
+                    cur.executemany(
+                        q("INSERT INTO acompanhamento_expansao (filial,bandeira,descricao_filial,uf,projeto,status_filial,term_obra,entrada_ti,inauguracao,observacao_ti,atualizado_por,atualizado_em) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)"),
+                        valores,
+                    )
+                    conn.commit()
     except Exception:
         conn.rollback()
 
@@ -1518,6 +1611,83 @@ def excluir_filial(filial_id, desvincular_equipamentos=False):
     if not excluidas:
         return False, 0
     return True, int(excluidas[0].get("desvinculados") or 0)
+
+
+# ---------------------------------------------------------------------
+# Acompanhamento de Expansão
+# ---------------------------------------------------------------------
+
+def listar_acompanhamento_expansao():
+    conn = get_conn(); cur = get_cursor(conn)
+    try:
+        cur.execute("""
+            SELECT id, filial, bandeira, descricao_filial, uf, projeto, status_filial,
+                   term_obra, entrada_ti, inauguracao, observacao_ti, atualizado_por, atualizado_em
+            FROM acompanhamento_expansao
+            ORDER BY CASE WHEN UPPER(COALESCE(status_filial,'')) = 'PENDENTE' THEN 0 ELSE 1 END,
+                     filial
+        """)
+        return [dict(r) for r in cur.fetchall()]
+    finally:
+        cur.close(); conn.close()
+
+
+def importar_acompanhamento_expansao_em_lote(linhas, usuario):
+    conn = get_conn(); cur = get_cursor(conn)
+    agora = datetime.now().strftime("%Y-%m-%d %H:%M")
+    try:
+        cur.execute("""
+            SELECT id, filial, bandeira, descricao_filial, uf, projeto, status_filial,
+                   term_obra, entrada_ti, inauguracao, observacao_ti
+            FROM acompanhamento_expansao
+        """)
+        existentes = {str(dict(r).get("filial") or "").strip(): dict(r) for r in cur.fetchall()}
+        inserts, updates = [], []
+        criadas = atualizadas = sem_alteracao = 0
+        campos = ("bandeira","descricao_filial","uf","projeto","status_filial","term_obra","entrada_ti","inauguracao","observacao_ti")
+
+        for item in linhas:
+            filial = str(item.get("filial") or "").strip()
+            if not filial:
+                continue
+            dados = {campo: str(item.get(campo) or "").strip() for campo in campos}
+            atual = existentes.get(filial)
+            if atual:
+                mudou = any(str(atual.get(campo) or "").strip() != dados[campo] for campo in campos)
+                if mudou:
+                    updates.append((
+                        dados["bandeira"], dados["descricao_filial"], dados["uf"], dados["projeto"],
+                        dados["status_filial"], dados["term_obra"], dados["entrada_ti"], dados["inauguracao"],
+                        dados["observacao_ti"], usuario, agora, atual["id"],
+                    ))
+                    atualizadas += 1
+                else:
+                    sem_alteracao += 1
+            else:
+                inserts.append((
+                    filial, dados["bandeira"], dados["descricao_filial"], dados["uf"], dados["projeto"],
+                    dados["status_filial"], dados["term_obra"], dados["entrada_ti"], dados["inauguracao"],
+                    dados["observacao_ti"], usuario, agora,
+                ))
+                criadas += 1
+
+        if updates:
+            cur.executemany(
+                q("UPDATE acompanhamento_expansao SET bandeira=?, descricao_filial=?, uf=?, projeto=?, status_filial=?, term_obra=?, entrada_ti=?, inauguracao=?, observacao_ti=?, atualizado_por=?, atualizado_em=? WHERE id=?"),
+                updates,
+            )
+        if inserts:
+            cur.executemany(
+                q("INSERT INTO acompanhamento_expansao (filial,bandeira,descricao_filial,uf,projeto,status_filial,term_obra,entrada_ti,inauguracao,observacao_ti,atualizado_por,atualizado_em) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)"),
+                inserts,
+            )
+        conn.commit()
+        return {"criadas": criadas, "atualizadas": atualizadas, "sem_alteracao": sem_alteracao}
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        cur.close(); conn.close()
 
 
 # ---------------------------------------------------------------------

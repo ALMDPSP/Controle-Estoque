@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
+<title>Acompanhamento de Expansão · Controle de Estoque</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+{% include '_mobile_head.html' %}
+<style>
+:root{--bg:#12181f;--panel:#1a2029;--panel2:#212934;--line:#2b3444;--text:#e7ebf1;--muted:#8b96a8;--accent:#3ea6ff;--accent2:#ffb648;--green:#4cd792;--red:#ff6b6b;--purple:#a78bfa;--cyan:#56cfe1;--mono:Consolas,monospace}
+*{box-sizing:border-box}html,body{max-width:100%;overflow-x:hidden}body{margin:0;background:var(--bg);color:var(--text);font-family:"Segoe UI",Inter,system-ui,sans-serif}
+header{padding:26px 32px 18px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:16px;align-items:flex-end;flex-wrap:wrap}.tag{font:12px var(--mono);letter-spacing:.12em;color:var(--accent2);text-transform:uppercase;border:1px solid var(--accent2);padding:2px 8px;border-radius:3px}h1{font-size:23px;margin:7px 0 3px}header p{margin:0;color:var(--muted);font-size:13px;line-height:1.5;max-width:900px}.head-actions{display:flex;gap:8px;flex-wrap:wrap}.head-actions a,.head-actions button{border:1px solid var(--line);background:var(--panel2);color:var(--text);text-decoration:none;padding:9px 12px;border-radius:8px;font-size:11px;cursor:pointer;font-family:inherit}.head-actions .primary{background:var(--accent);border-color:var(--accent);color:#08131f;font-weight:700}.head-actions button:hover,.head-actions a:hover{border-color:#526079}
+main{padding:24px 32px 54px;max-width:1500px;margin:auto}.kpis{display:grid;grid-template-columns:repeat(6,minmax(130px,1fr));gap:11px}.kpi{position:relative;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;min-height:92px;overflow:hidden}.kpi::after{content:"";position:absolute;width:105px;height:105px;border-radius:50%;right:-46px;top:-52px;background:radial-gradient(circle,rgba(62,166,255,.14),transparent 68%)}.kpi span{display:block;font-size:9px;text-transform:uppercase;letter-spacing:.07em;color:#9eb3c8}.kpi strong{display:block;margin-top:7px;font:800 25px var(--mono)}.kpi small{display:block;margin-top:4px;color:#8da2b6;font-size:9px;line-height:1.35}.kpi.total strong{color:#fff}.kpi.green strong{color:var(--green)}.kpi.warn strong{color:var(--accent2)}.kpi.blue strong{color:var(--accent)}.kpi.purple strong{color:var(--purple)}.kpi.red strong{color:var(--red)}
+.grid{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(330px,.65fr);gap:14px;margin-top:14px;align-items:stretch}.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:15px;min-width:0}.panel h2{font-size:13px;margin:0}.panel-sub{font-size:10px;color:var(--muted);line-height:1.5;margin:5px 0 0}.reach-panel{display:grid;grid-template-columns:220px minmax(0,1fr);gap:18px;align-items:center}.reach-ring{--pct:0;position:relative;width:190px;height:190px;margin:auto;border-radius:50%;display:grid;place-items:center;background:conic-gradient(var(--green) calc(var(--pct)*1%),#0c1824 0);box-shadow:inset 0 0 0 1px rgba(255,255,255,.05)}.reach-ring::before{content:"";position:absolute;inset:16px;border-radius:50%;background:var(--panel);border:1px solid #2d3b4a}.reach-inner{position:relative;z-index:1;text-align:center}.reach-inner strong{display:block;font:800 36px var(--mono);color:var(--green)}.reach-inner span{display:block;margin-top:3px;color:#9cb0c4;font-size:9px;text-transform:uppercase;letter-spacing:.07em}.reach-copy h3{font-size:16px;margin:0 0 7px}.reach-copy p{color:#9db0c3;font-size:11px;line-height:1.6;margin:0}.reach-facts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin-top:14px}.fact{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px}.fact span{display:block;color:#8fa3b7;font-size:8px;text-transform:uppercase}.fact strong{display:block;margin-top:5px;font:800 16px var(--mono)}
+.stage-list{display:grid;gap:12px;margin-top:15px}.stage-row{padding:11px 12px;border:1px solid #2e3d4d;background:#141c24;border-radius:10px}.stage-head{display:flex;justify-content:space-between;gap:12px;align-items:center}.stage-head span{font-size:10px;color:#a8b7c6}.stage-head strong{font:800 12px var(--mono)}.stage-track{height:9px;background:#0b151f;border-radius:999px;overflow:hidden;margin-top:8px}.stage-track b{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,#3ea6ff,#4cd792)}.stage-row:nth-child(2) .stage-track b{background:linear-gradient(90deg,#56cfe1,#3ea6ff)}.stage-row:nth-child(3) .stage-track b{background:linear-gradient(90deg,#a78bfa,#4cd792)}
+.charts{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-top:14px}.chart-card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;min-width:0}.chart-card h3{font-size:11px;margin:0}.chart-card p{font-size:9px;color:var(--muted);margin:4px 0 10px}.chart-wrap{height:220px;position:relative}.chart-wrap.wide{height:240px}
+.filters{margin-top:14px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px}.filters-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-end;flex-wrap:wrap}.filters-head h2{font-size:13px;margin:0}.filters-head p{font-size:10px;color:var(--muted);margin:4px 0 0}.filter-grid{display:grid;grid-template-columns:2fr repeat(4,1fr);gap:9px;margin-top:12px}.filter-grid input,.filter-grid select{width:100%;background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:10px 11px;color:var(--text);outline:none;font-size:11px}.filter-grid input:focus,.filter-grid select:focus{border-color:var(--accent)}.table-wrap{margin-top:12px;overflow:auto;border:1px solid var(--line);border-radius:10px;max-height:610px}table{border-collapse:collapse;width:100%;min-width:1320px;background:#151c24}thead th{position:sticky;top:0;z-index:3;background:#202a36;color:#aab8c7;text-align:left;font-size:9px;text-transform:uppercase;letter-spacing:.04em;padding:10px;border-bottom:1px solid #364255;white-space:nowrap}tbody td{padding:9px 10px;border-bottom:1px solid rgba(63,74,90,.65);font-size:10px;color:#d9e2ec;vertical-align:top}tbody tr:hover{background:#1d2631}.mono{font-family:var(--mono)}.center{text-align:center}.badge{display:inline-flex;align-items:center;padding:4px 7px;border-radius:999px;font:700 8px var(--mono);border:1px solid #3a4655;background:#101822;white-space:nowrap}.badge.ok{border-color:rgba(76,215,146,.35);color:#79e2b1;background:rgba(76,215,146,.06)}.badge.warn{border-color:rgba(255,182,72,.35);color:#ffd083;background:rgba(255,182,72,.06)}.badge.blue{border-color:rgba(62,166,255,.35);color:#80c8ff;background:rgba(62,166,255,.06)}.badge.muted{color:#9aa9b8}.obs{max-width:300px;white-space:normal;line-height:1.45;color:#aebdca}.empty{text-align:center;color:var(--muted);padding:22px}.table-count{font:700 10px var(--mono);color:#9fcfff}
+.modal-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.70);z-index:500;align-items:center;justify-content:center;padding:18px}.modal-backdrop.open{display:flex}.modal{width:min(520px,100%);background:#151d27;border:1px solid #334154;border-radius:15px;padding:20px;box-shadow:0 25px 70px rgba(0,0,0,.55)}.modal h3{margin:0;font-size:16px}.modal p{font-size:11px;line-height:1.5;color:var(--muted)}.modal label{display:block;margin:13px 0 6px;color:#aab9c8;font-size:10px}.modal input{width:100%;background:#0e151d;border:1px solid var(--line);border-radius:9px;padding:11px;color:#fff}.modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}.modal-actions button{border:1px solid var(--line);background:var(--panel2);color:var(--text);padding:9px 12px;border-radius:8px;cursor:pointer}.modal-actions button.primary{background:var(--accent);color:#08131f;border-color:var(--accent);font-weight:700}.modal-status{margin-top:10px;font-size:10px;color:#aab9c8;line-height:1.5}.modal-status.error{color:#ff9c9c}.modal-status.ok{color:#8fe5ba}
+@media(max-width:1180px){.kpis{grid-template-columns:repeat(3,1fr)}.charts{grid-template-columns:repeat(2,1fr)}.grid{grid-template-columns:1fr}.reach-panel{grid-template-columns:200px minmax(0,1fr)}}
+@media(max-width:760px){header{padding:20px 16px 15px}main{padding:16px 12px 45px}.kpis{grid-template-columns:repeat(2,1fr)}.charts{grid-template-columns:1fr}.reach-panel{grid-template-columns:1fr}.reach-ring{width:165px;height:165px}.filter-grid{grid-template-columns:1fr 1fr}.filter-grid input{grid-column:1/-1}.head-actions{width:100%}.head-actions a,.head-actions button{flex:1;text-align:center;min-height:42px}.reach-facts{grid-template-columns:1fr 1fr 1fr}.table-wrap{max-height:68vh}}
+@media(max-width:430px){.kpis{grid-template-columns:1fr 1fr}.filter-grid{grid-template-columns:1fr}.filter-grid input{grid-column:auto}.reach-facts{grid-template-columns:1fr}.modal-actions{flex-direction:column}.modal-actions button{width:100%}}
+</style>
+</head>
+<body>
+{% include '_menu.html' %}
+<header>
+  <div><span class="tag">EXPANSÃO</span><h1>Acompanhamento de Expansão</h1><p>Visão consolidada do cronograma de obra, entrada de TI e inauguração, com acompanhamento de entregas e projeção geral de alcance.</p></div>
+  <div class="head-actions">
+    <a href="{{ url_for('exportar_acompanhamento_expansao') }}">⭳ Download Excel</a>
+    {% if role != 'consulta' %}<button type="button" class="primary" id="btn-upload">⭱ Upload Excel</button>{% endif %}
+    <a href="{{ url_for('pagina_projecao_lojas') }}">Projeção de abertura</a>
+  </div>
+</header>
+<main>
+  <section class="kpis">
+    <div class="kpi total"><span>Total acompanhado</span><strong id="k-total">0</strong><small>Filiais/projetos na base</small></div>
+    <div class="kpi green"><span>Inauguradas</span><strong id="k-inaug">0</strong><small id="k-inaug-sub">0% concluído</small></div>
+    <div class="kpi warn"><span>Pendentes</span><strong id="k-pend">0</strong><small>Aguardando conclusão</small></div>
+    <div class="kpi blue"><span>Inauguração definida</span><strong id="k-data">0</strong><small>Pendentes com data prevista</small></div>
+    <div class="kpi red"><span>A definir</span><strong id="k-semdata">0</strong><small>Pendentes sem data final</small></div>
+    <div class="kpi purple"><span>UFs acompanhadas</span><strong id="k-ufs">0</strong><small>Cobertura da planilha</small></div>
+  </section>
+
+  <section class="grid">
+    <div class="panel reach-panel">
+      <div class="reach-ring" id="reach-ring"><div class="reach-inner"><strong id="reach-pct">0%</strong><span>alcance projetado</span></div></div>
+      <div class="reach-copy">
+        <h3>Projeção de alcance de entrega</h3>
+        <p>Percentual geral considerando as filiais já inauguradas e as pendentes que já possuem uma data de inauguração definida.</p>
+        <div class="reach-facts">
+          <div class="fact"><span>Projetado</span><strong id="reach-qtd">0</strong></div>
+          <div class="fact"><span>Entrega realizada</span><strong id="done-pct">0%</strong></div>
+          <div class="fact"><span>Última atualização</span><strong id="last-update" style="font-size:11px">-</strong></div>
+        </div>
+      </div>
+    </div>
+    <div class="panel">
+      <h2>Alcance por etapa</h2><p class="panel-sub">Cobertura do cronograma considerando lojas entregues ou com cada marco definido.</p>
+      <div class="stage-list">
+        <div class="stage-row"><div class="stage-head"><span>Término de obra</span><strong id="st-obra-txt">0%</strong></div><div class="stage-track"><b id="st-obra" style="width:0%"></b></div></div>
+        <div class="stage-row"><div class="stage-head"><span>Entrada de TI</span><strong id="st-ti-txt">0%</strong></div><div class="stage-track"><b id="st-ti" style="width:0%"></b></div></div>
+        <div class="stage-row"><div class="stage-head"><span>Inauguração / entrega</span><strong id="st-inaug-txt">0%</strong></div><div class="stage-track"><b id="st-inaug" style="width:0%"></b></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="charts">
+    <div class="chart-card"><h3>Status das filiais</h3><p>Entregues x pendentes.</p><div class="chart-wrap"><canvas id="chart-status"></canvas></div></div>
+    <div class="chart-card"><h3>Projetos</h3><p>Distribuição por tipo de projeto.</p><div class="chart-wrap"><canvas id="chart-projeto"></canvas></div></div>
+    <div class="chart-card"><h3>Bandeiras</h3><p>Participação DSP / DPA.</p><div class="chart-wrap"><canvas id="chart-bandeira"></canvas></div></div>
+    <div class="chart-card"><h3>Distribuição por UF</h3><p>Estados/localidades com maior volume.</p><div class="chart-wrap"><canvas id="chart-uf"></canvas></div></div>
+  </section>
+
+  <section class="filters">
+    <div class="filters-head"><div><h2>Detalhamento da planilha</h2><p>Filtre os registros por status, projeto, bandeira e UF.</p></div><div class="table-count" id="table-count">0 registro(s)</div></div>
+    <div class="filter-grid">
+      <input id="f-busca" placeholder="Pesquisar filial, descrição ou observação...">
+      <select id="f-status"><option value="">Todos os status</option></select>
+      <select id="f-projeto"><option value="">Todos os projetos</option></select>
+      <select id="f-bandeira"><option value="">Todas as bandeiras</option></select>
+      <select id="f-uf"><option value="">Todas as UFs</option></select>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Filial</th><th>Bandeira</th><th>Descrição filial</th><th>UF</th><th>Projeto</th><th>Status filial</th><th>Term. obra</th><th>Entrada de TI</th><th>Inauguração</th><th>Situação</th><th>Observação TI</th></tr></thead>
+        <tbody id="tb"><tr><td colspan="11" class="empty">Carregando acompanhamento...</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+</main>
+{% include '_footer.html' %}
+
+{% if role != 'consulta' %}
+<div class="modal-backdrop" id="upload-modal">
+  <div class="modal">
+    <h3>Upload do acompanhamento</h3>
+    <p>Use a mesma estrutura da planilha baixada por esta página. A coluna <b>FILIAL</b> é usada como chave: filiais existentes serão atualizadas e novas serão criadas.</p>
+    <form id="upload-form">
+      <label for="upload-file">Arquivo Excel (.xlsx)</label>
+      <input type="file" id="upload-file" accept=".xlsx,.xlsm" required>
+      <label for="upload-pass">Sua senha</label>
+      <input type="password" id="upload-pass" autocomplete="current-password" required placeholder="Confirme sua senha">
+      <div class="modal-status" id="upload-status"></div>
+      <div class="modal-actions"><button type="button" id="upload-cancel">Cancelar</button><button type="submit" class="primary" id="upload-send">Importar planilha</button></div>
+    </form>
+  </div>
+</div>
+{% endif %}
+<script>
+const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+let dados=[],charts=[];
+const norm=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
+function badgeStatus(s){const n=norm(s);return n==='inaugurada'?'ok':n==='pendente'?'warn':'muted'}
+function badgeCrono(s){const n=norm(s);return n==='entregue'?'ok':n.includes('inauguracao')?'blue':n.includes('definir')?'warn':'muted'}
+function destroyCharts(){charts.forEach(c=>{try{c.destroy()}catch(_e){}});charts=[]}
+function makeChart(id,type,labels,values,opts={}){const el=document.getElementById(id);if(!el)return;const colors=['#3ea6ff','#4cd792','#ffb648','#a78bfa','#ff6b6b','#56cfe1','#82aaff','#c3e88d','#f07178','#89ddff'];const c=new Chart(el,{type,data:{labels,datasets:[{data:values,backgroundColor:colors.slice(0,values.length),borderWidth:0,borderRadius:type==='bar'?6:0}]},options:{responsive:true,maintainAspectRatio:false,indexAxis:opts.horizontal?'y':'x',plugins:{legend:{display:type!=='bar',position:'bottom',labels:{color:'#9fb0c1',boxWidth:10,font:{size:9}}},tooltip:{callbacks:{label:ctx=>`${ctx.label}: ${ctx.raw}`}}},scales:type==='bar'?{x:{beginAtZero:true,ticks:{precision:0,color:'#8b96a8'},grid:{color:'rgba(139,150,168,.08)'}},y:{ticks:{color:'#b3c0cd',font:{size:9}},grid:{display:false}}}:undefined}});charts.push(c)}
+function setSelect(id,values){const el=document.getElementById(id),cur=el.value;el.innerHTML=el.options[0].outerHTML+[...values].filter(Boolean).sort((a,b)=>a.localeCompare(b,'pt-BR',{numeric:true})).map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('');el.value=cur}
+function renderTable(){const q=norm(document.getElementById('f-busca').value),st=document.getElementById('f-status').value,pr=document.getElementById('f-projeto').value,bd=document.getElementById('f-bandeira').value,uf=document.getElementById('f-uf').value;const filtrados=dados.filter(x=>{if(st&&x.status_filial!==st)return false;if(pr&&x.projeto!==pr)return false;if(bd&&x.bandeira!==bd)return false;if(uf&&x.uf!==uf)return false;if(q){const alvo=norm([x.filial,x.descricao_filial,x.observacao_ti,x.projeto,x.status_filial].join(' '));if(!alvo.includes(q))return false}return true});document.getElementById('table-count').textContent=`${filtrados.length} registro(s)`;document.getElementById('tb').innerHTML=filtrados.length?filtrados.map(x=>`<tr><td class="mono"><strong>${esc(x.filial)}</strong></td><td class="center"><span class="badge blue">${esc(x.bandeira||'-')}</span></td><td>${esc(x.descricao_filial||'-')}</td><td class="center mono">${esc(x.uf||'-')}</td><td><span class="badge muted">${esc(x.projeto||'-')}</span></td><td><span class="badge ${badgeStatus(x.status_filial)}">${esc(x.status_filial||'-')}</span></td><td class="center mono">${esc(x.term_obra||'-')}</td><td class="center mono">${esc(x.entrada_ti||'-')}</td><td class="center mono">${esc(x.inauguracao||'-')}</td><td><span class="badge ${badgeCrono(x.situacao_cronograma)}">${esc(x.situacao_cronograma||'-')}</span></td><td class="obs">${esc(x.observacao_ti||'-')}</td></tr>`).join(''):'<tr><td colspan="11" class="empty">Nenhum registro encontrado com os filtros aplicados.</td></tr>'}
+async function init(){try{const r=await fetch('/api/acompanhamento-expansao');if(!r.ok)throw new Error('Falha ao carregar');const d=await r.json(),s=d.resumo||{};dados=d.linhas||[];document.getElementById('k-total').textContent=s.total||0;document.getElementById('k-inaug').textContent=s.inauguradas||0;document.getElementById('k-inaug-sub').textContent=`${(s.entrega_realizada_pct||0).toFixed(1)}% concluído`;document.getElementById('k-pend').textContent=s.pendentes||0;document.getElementById('k-data').textContent=s.pendentes_com_inauguracao_definida||0;document.getElementById('k-semdata').textContent=s.pendentes_sem_inauguracao_definida||0;document.getElementById('k-ufs').textContent=s.ufs||0;document.getElementById('reach-pct').textContent=`${(s.alcance_projetado_pct||0).toFixed(1)}%`;document.getElementById('reach-ring').style.setProperty('--pct',Math.max(0,Math.min(100,s.alcance_projetado_pct||0)));document.getElementById('reach-qtd').textContent=`${s.alcance_projetado||0} / ${s.total||0}`;document.getElementById('done-pct').textContent=`${(s.entrega_realizada_pct||0).toFixed(1)}%`;document.getElementById('last-update').textContent=s.ultima_atualizacao||'-';[['obra','st-obra'],['ti','st-ti'],['inauguracao','st-inaug']].forEach(([k,id])=>{const e=s.etapas?.[k]||{};document.getElementById(id).style.width=Math.min(100,e.pct||0)+'%';document.getElementById(id+'-txt').textContent=`${(e.pct||0).toFixed(1)}% · ${e.qtd||0}/${s.total||0}`});setSelect('f-status',new Set(dados.map(x=>x.status_filial)));setSelect('f-projeto',new Set(dados.map(x=>x.projeto)));setSelect('f-bandeira',new Set(dados.map(x=>x.bandeira)));setSelect('f-uf',new Set(dados.map(x=>x.uf)));renderTable();destroyCharts();const toPairs=o=>Object.entries(o||{});let p=toPairs(d.status);makeChart('chart-status','doughnut',p.map(x=>x[0]),p.map(x=>x[1]));p=toPairs(d.projetos);makeChart('chart-projeto','bar',p.map(x=>x[0]),p.map(x=>x[1]),{horizontal:true});p=toPairs(d.bandeiras);makeChart('chart-bandeira','doughnut',p.map(x=>x[0]),p.map(x=>x[1]));p=toPairs(d.ufs).slice(0,10);makeChart('chart-uf','bar',p.map(x=>x[0]),p.map(x=>x[1]),{horizontal:true})}catch(e){console.error(e);document.getElementById('tb').innerHTML='<tr><td colspan="11" class="empty">Não foi possível carregar o acompanhamento.</td></tr>'}}
+['f-busca','f-status','f-projeto','f-bandeira','f-uf'].forEach(id=>document.getElementById(id).addEventListener(id==='f-busca'?'input':'change',renderTable));
+{% if role != 'consulta' %}
+const modal=document.getElementById('upload-modal'),statusEl=document.getElementById('upload-status');document.getElementById('btn-upload').addEventListener('click',()=>{statusEl.textContent='';statusEl.className='modal-status';modal.classList.add('open')});document.getElementById('upload-cancel').addEventListener('click',()=>modal.classList.remove('open'));modal.addEventListener('click',e=>{if(e.target===modal)modal.classList.remove('open')});document.getElementById('upload-form').addEventListener('submit',async e=>{e.preventDefault();const file=document.getElementById('upload-file').files[0],pass=document.getElementById('upload-pass').value;if(!file){statusEl.textContent='Selecione um arquivo .xlsx.';statusEl.className='modal-status error';return}if(!pass){statusEl.textContent='Digite sua senha para confirmar.';statusEl.className='modal-status error';return}const btn=document.getElementById('upload-send');btn.disabled=true;statusEl.textContent='Importando e atualizando o acompanhamento...';statusEl.className='modal-status';const fd=new FormData();fd.append('arquivo',file);fd.append('senha',pass);fd.append('csrf_token','{{ csrf_token }}');try{const r=await fetch('/api/acompanhamento-expansao/importar',{method:'POST',body:fd});const d=await r.json();if(!r.ok)throw new Error(d.erro||'Falha na importação');statusEl.textContent=`Importação concluída: ${d.criadas||0} criado(s), ${d.atualizadas||0} atualizado(s), ${d.sem_alteracao||0} sem alteração e ${d.ignoradas||0} ignorado(s).`;statusEl.className='modal-status ok';window.appToast?.('Acompanhamento de Expansão atualizado.','ok');document.getElementById('upload-pass').value='';setTimeout(async()=>{modal.classList.remove('open');await init()},900)}catch(err){statusEl.textContent=err.message;statusEl.className='modal-status error'}finally{btn.disabled=false}});
+{% endif %}
+init();
+</script>
+</body>
+</html>

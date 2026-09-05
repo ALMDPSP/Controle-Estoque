@@ -27,6 +27,7 @@ body{overflow-x:hidden}header{padding-left:16px!important;padding-right:16px!imp
     <a href="{{ url_for('pagina_imobilizados') }}" class="{{ 'ativo' if request.endpoint == 'pagina_imobilizados' else '' }}">Imobilizados</a>
     <a href="{{ url_for('pagina_filiais') }}" class="{{ 'ativo' if request.endpoint == 'pagina_filiais' else '' }}">Filiais</a>
     <a href="{{ url_for('pagina_projecao_lojas') }}" class="{{ 'ativo' if request.endpoint == 'pagina_projecao_lojas' else '' }}">Projeção de abertura e lojas</a>
+    <a href="{{ url_for('pagina_acompanhamento_expansao') }}" class="{{ 'ativo' if request.endpoint == 'pagina_acompanhamento_expansao' else '' }}">Acompanhamento de Expansão</a>
     <a href="{{ url_for('pagina_leitor_codigo') }}" class="{{ 'ativo' if request.endpoint == 'pagina_leitor_codigo' else '' }}">Leitor</a>
     <a href="{{ url_for('pagina_loja_virtual') }}" class="{{ 'ativo' if request.endpoint == 'pagina_loja_virtual' else '' }}">Loja Virtual 3D</a>
     <a href="{{ url_for('pagina_acesso_celular') }}" class="{{ 'ativo' if request.endpoint == 'pagina_acesso_celular' else '' }}">Celular</a>

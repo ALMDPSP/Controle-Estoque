@@ -53,7 +53,7 @@ import qrcode
 import db
 
 app = Flask(__name__)
-APP_BUILD = "2026-09-04-mfa-layout-ajustado-v40"
+APP_BUILD = "2026-09-05-acompanhamento-expansao-v41"
 app.secret_key = os.environ.get("SECRET_KEY", "troque-esta-chave-em-producao")
 app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
@@ -1512,6 +1512,7 @@ def _workbook_consolidado():
         ("Imobilizados",db.listar_imobilizados()),
         ("Produtos",db.listar_produtos()),
         ("Filiais",projecao["filiais"]),
+        ("Acomp. Expansão",db.listar_acompanhamento_expansao()),
         ("Projeção por UF",projecao["estados"]),
         ("Kit padrão",db.listar_kit_padrao_loja()),
         ("Movimentações",db.listar_todas_movimentacoes()),
@@ -1691,6 +1692,336 @@ def pagina_projecao_lojas():
         role=session.get("role") or "user",
         is_admin=session.get("role") == "admin",
     )
+
+
+
+# ---------------------------------------------------------------------
+# Acompanhamento de Expansão
+# ---------------------------------------------------------------------
+
+def _acomp_valor_definido(valor):
+    texto = str(valor or "").strip().upper().replace("\\", "/")
+    if not texto:
+        return False
+    bloqueios = ("A DEFINIR", "PENDENTE", "ANO 2027")
+    if any(x in texto for x in bloqueios):
+        return False
+    if texto in ("N/T", "NT", "N T", "INAUGURADA"):
+        return False
+    return True
+
+
+def _dados_acompanhamento_expansao():
+    linhas = db.listar_acompanhamento_expansao()
+    total = len(linhas)
+    status = {}
+    projetos = {}
+    bandeiras = {}
+    ufs = {}
+    inauguradas = 0
+    pendentes = 0
+    obra_alcance = 0
+    ti_alcance = 0
+    inaug_alcance = 0
+    pendentes_com_data = 0
+
+    for item in linhas:
+        st = str(item.get("status_filial") or "").strip().upper() or "SEM STATUS"
+        projeto = str(item.get("projeto") or "").strip().upper() or "SEM PROJETO"
+        bandeira = str(item.get("bandeira") or "").strip().upper() or "SEM BANDEIRA"
+        uf = str(item.get("uf") or "").strip().upper() or "SEM UF"
+        status[st] = status.get(st, 0) + 1
+        projetos[projeto] = projetos.get(projeto, 0) + 1
+        bandeiras[bandeira] = bandeiras.get(bandeira, 0) + 1
+        ufs[uf] = ufs.get(uf, 0) + 1
+
+        concluida = st == "INAUGURADA"
+        if concluida:
+            inauguradas += 1
+        if st == "PENDENTE":
+            pendentes += 1
+
+        obra_ok = concluida or _acomp_valor_definido(item.get("term_obra"))
+        ti_ok = concluida or _acomp_valor_definido(item.get("entrada_ti"))
+        inaug_ok = concluida or _acomp_valor_definido(item.get("inauguracao"))
+        obra_alcance += 1 if obra_ok else 0
+        ti_alcance += 1 if ti_ok else 0
+        inaug_alcance += 1 if inaug_ok else 0
+        if st == "PENDENTE" and _acomp_valor_definido(item.get("inauguracao")):
+            pendentes_com_data += 1
+
+        if concluida:
+            item["situacao_cronograma"] = "Entregue"
+        elif _acomp_valor_definido(item.get("inauguracao")):
+            item["situacao_cronograma"] = "Inauguração definida"
+        elif _acomp_valor_definido(item.get("entrada_ti")):
+            item["situacao_cronograma"] = "Entrada TI definida"
+        elif _acomp_valor_definido(item.get("term_obra")):
+            item["situacao_cronograma"] = "Término de obra definido"
+        else:
+            item["situacao_cronograma"] = "A definir"
+
+    base = max(1, total)
+    ultima_atualizacao = max((str(x.get("atualizado_em") or "") for x in linhas), default="")
+    resumo = {
+        "total": total,
+        "ultima_atualizacao": ultima_atualizacao,
+        "inauguradas": inauguradas,
+        "pendentes": pendentes,
+        "ufs": len([k for k in ufs if k != "SEM UF"]),
+        "entrega_realizada_pct": round(inauguradas / base * 100, 1),
+        # Alcance projetado = lojas já entregues + pendentes com data de inauguração definida.
+        "alcance_projetado": inaug_alcance,
+        "alcance_projetado_pct": round(inaug_alcance / base * 100, 1),
+        "pendentes_com_inauguracao_definida": pendentes_com_data,
+        "pendentes_sem_inauguracao_definida": max(0, pendentes - pendentes_com_data),
+        "etapas": {
+            "obra": {"qtd": obra_alcance, "pct": round(obra_alcance / base * 100, 1)},
+            "ti": {"qtd": ti_alcance, "pct": round(ti_alcance / base * 100, 1)},
+            "inauguracao": {"qtd": inaug_alcance, "pct": round(inaug_alcance / base * 100, 1)},
+        },
+    }
+    return {
+        "resumo": resumo,
+        "status": status,
+        "projetos": projetos,
+        "bandeiras": bandeiras,
+        "ufs": dict(sorted(ufs.items(), key=lambda kv: (-kv[1], kv[0]))),
+        "linhas": linhas,
+    }
+
+
+def _cabecalho_acomp_normalizado(valor):
+    texto = unicodedata.normalize("NFD", str(valor or "").strip().upper())
+    texto = "".join(c for c in texto if unicodedata.category(c) != "Mn")
+    texto = texto.replace(".", " ").replace("_", " ").replace("-", " ")
+    texto = " ".join(texto.split())
+    mapa = {
+        "FILIAL": "filial",
+        "CODIGO FILIAL": "filial",
+        "BANDEIRA": "bandeira",
+        "DESCRICAO FILIAL": "descricao_filial",
+        "DESCRICAO": "descricao_filial",
+        "UF": "uf",
+        "PROJETO": "projeto",
+        "STATUS FILIAL": "status_filial",
+        "STATUS": "status_filial",
+        "TERM OBRA": "term_obra",
+        "TERMINO OBRA": "term_obra",
+        "TERMINO DE OBRA": "term_obra",
+        "ENTRADA DE TI": "entrada_ti",
+        "ENTRADA TI": "entrada_ti",
+        "INAUGURACAO": "inauguracao",
+        "OBSERVACAO TI": "observacao_ti",
+        "OBS TI": "observacao_ti",
+    }
+    return mapa.get(texto)
+
+
+def _valor_excel_acomp(valor):
+    if valor is None:
+        return ""
+    if hasattr(valor, "strftime"):
+        try:
+            return valor.strftime("%d/%m/%Y")
+        except Exception:
+            pass
+    if isinstance(valor, float) and valor.is_integer():
+        return str(int(valor))
+    return str(valor).strip()
+
+
+def _ler_planilha_acompanhamento(arquivo):
+    wb = load_workbook(arquivo, read_only=True, data_only=True)
+    ws = wb.active
+    if ws is None:
+        raise ValueError("A planilha não possui uma aba com dados.")
+    linhas_iter = ws.iter_rows(values_only=True)
+    mapa = {}
+    cab_row = 0
+    for numero_linha, valores in enumerate(linhas_iter, start=1):
+        if numero_linha > 10:
+            break
+        candidato = {}
+        for idx, valor in enumerate(valores or ()):
+            campo = _cabecalho_acomp_normalizado(valor)
+            if campo and campo not in candidato:
+                candidato[campo] = idx
+        if "filial" in candidato:
+            mapa = candidato
+            cab_row = numero_linha
+            break
+    obrigatorios = {
+        "filial", "bandeira", "descricao_filial", "uf", "projeto", "status_filial",
+        "term_obra", "entrada_ti", "inauguracao", "observacao_ti",
+    }
+    faltando = sorted(obrigatorios - set(mapa))
+    if faltando:
+        raise ValueError("Colunas obrigatórias não encontradas: " + ", ".join(faltando))
+
+    registros = []
+    erros = []
+    vistos = set()
+    total = 0
+    for numero_linha, valores in enumerate(linhas_iter, start=cab_row + 1):
+        valores = tuple(valores or ())
+        if not valores or all(v is None or str(v).strip() == "" for v in valores):
+            continue
+        total += 1
+        def ler(campo):
+            idx = mapa.get(campo)
+            return _valor_excel_acomp(valores[idx]) if idx is not None and idx < len(valores) else ""
+        filial = ler("filial").strip()
+        if not filial:
+            if len(erros) < 20:
+                erros.append(f"Linha {numero_linha}: FILIAL não informada.")
+            continue
+        if filial in vistos:
+            if len(erros) < 20:
+                erros.append(f"Linha {numero_linha}: FILIAL {filial} repetida no arquivo.")
+            continue
+        vistos.add(filial)
+        registros.append({
+            "filial": filial,
+            "bandeira": ler("bandeira").upper(),
+            "descricao_filial": ler("descricao_filial"),
+            "uf": ler("uf").upper(),
+            "projeto": ler("projeto").upper(),
+            "status_filial": ler("status_filial").upper(),
+            "term_obra": ler("term_obra"),
+            "entrada_ti": ler("entrada_ti"),
+            "inauguracao": ler("inauguracao"),
+            "observacao_ti": ler("observacao_ti"),
+        })
+    return registros, erros, total
+
+
+@app.route("/acompanhamento-expansao")
+@login_required
+def pagina_acompanhamento_expansao():
+    return render_template(
+        "acompanhamento_expansao.html",
+        username=session.get("username"),
+        role=session.get("role") or "user",
+        is_admin=session.get("role") == "admin",
+    )
+
+
+@app.route("/api/acompanhamento-expansao")
+@login_required
+def api_acompanhamento_expansao():
+    return jsonify(_dados_acompanhamento_expansao())
+
+
+@app.route("/export-acompanhamento-expansao")
+@login_required
+def exportar_acompanhamento_expansao():
+    dados = _dados_acompanhamento_expansao()
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Acompanhamento"
+    headers = ["FILIAL","BANDEIRA","DESCRIÇÃO FILIAL","UF","PROJETO","STATUS FILIAL","TERM. OBRA","ENTRADA DE TI","INAUGURAÇÃO","OBSERVAÇÃO TI"]
+    ws.append(headers)
+    for item in dados["linhas"]:
+        ws.append([
+            item.get("filial") or "", item.get("bandeira") or "", item.get("descricao_filial") or "",
+            item.get("uf") or "", item.get("projeto") or "", item.get("status_filial") or "",
+            item.get("term_obra") or "", item.get("entrada_ti") or "", item.get("inauguracao") or "",
+            item.get("observacao_ti") or "",
+        ])
+    header_fill = PatternFill("solid", fgColor="1F4E78")
+    for cell in ws[1]:
+        cell.font = Font(bold=True, color="FFFFFF")
+        cell.fill = header_fill
+        cell.alignment = Alignment(horizontal="center", vertical="center")
+    ws.freeze_panes = "A2"
+    ws.auto_filter.ref = f"A1:J{max(1,ws.max_row)}"
+    widths = [12,12,38,8,16,16,16,18,16,46]
+    for i,w in enumerate(widths,1):
+        ws.column_dimensions[get_column_letter(i)].width = w
+    for row in ws.iter_rows(min_row=2, max_col=10):
+        row[0].number_format = "@"
+        for c in (1,3,4,5,6,7,8):
+            row[c].alignment = Alignment(horizontal="center", vertical="center")
+        row[9].alignment = Alignment(wrap_text=True, vertical="top")
+
+    resumo = wb.create_sheet("Resumo")
+    r = dados["resumo"]
+    linhas_resumo = [
+        ("Indicador", "Valor"),
+        ("Total de projetos", r["total"]),
+        ("Inauguradas", r["inauguradas"]),
+        ("Pendentes", r["pendentes"]),
+        ("Entrega realizada", f'{r["entrega_realizada_pct"]:.1f}%'),
+        ("Alcance projetado", f'{r["alcance_projetado_pct"]:.1f}%'),
+        ("Pendentes com inauguração definida", r["pendentes_com_inauguracao_definida"]),
+        ("Pendentes sem inauguração definida", r["pendentes_sem_inauguracao_definida"]),
+        ("Alcance término de obra", f'{r["etapas"]["obra"]["pct"]:.1f}%'),
+        ("Alcance entrada de TI", f'{r["etapas"]["ti"]["pct"]:.1f}%'),
+        ("Alcance inauguração", f'{r["etapas"]["inauguracao"]["pct"]:.1f}%'),
+    ]
+    for linha in linhas_resumo:
+        resumo.append(linha)
+    for cell in resumo[1]:
+        cell.font = Font(bold=True, color="FFFFFF")
+        cell.fill = header_fill
+    resumo.column_dimensions["A"].width = 38
+    resumo.column_dimensions["B"].width = 18
+
+    buf = io.BytesIO(); wb.save(buf); buf.seek(0)
+    return send_file(
+        buf, as_attachment=True,
+        download_name=f"acompanhamento_expansao_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx",
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+
+
+@app.route("/api/acompanhamento-expansao/importar", methods=["POST"])
+@edit_required
+def api_importar_acompanhamento_expansao():
+    if not _csrf_ok():
+        return jsonify({"erro":"A sessão de segurança expirou. Atualize a página e tente novamente."}), 400
+    senha = request.form.get("senha", "")
+    usuario_atual = db.buscar_usuario_por_id(session["user_id"])
+    if not usuario_atual or not check_password_hash(usuario_atual["password_hash"], senha):
+        return jsonify({"erro":"Senha incorreta."}), 403
+    arquivo = request.files.get("arquivo")
+    if not arquivo or not arquivo.filename:
+        return jsonify({"erro":"Nenhum arquivo enviado."}), 400
+    if not arquivo.filename.lower().endswith((".xlsx", ".xlsm")):
+        return jsonify({"erro":"Envie um arquivo Excel (.xlsx ou .xlsm)."}), 400
+    try:
+        registros, erros, total = _ler_planilha_acompanhamento(arquivo)
+        if not registros:
+            return jsonify({"erro":"Nenhum registro válido foi encontrado na planilha.", "erros":erros}), 400
+        usuario = session.get("username")
+        resultado = db.importar_acompanhamento_expansao_em_lote(registros, usuario)
+        criadas = int(resultado.get("criadas") or 0)
+        atualizadas = int(resultado.get("atualizadas") or 0)
+        sem_alteracao = int(resultado.get("sem_alteracao") or 0)
+        ignoradas = max(0, total - len(registros))
+        try:
+            db.registrar_importacao(
+                "acompanhamento_expansao", arquivo.filename, total, len(registros), criadas,
+                atualizadas, ignoradas, usuario, "concluida", f"Sem alteração: {sem_alteracao}",
+            )
+            db.registrar_movimentacao(
+                0, "importacao_acompanhamento_expansao", str(criadas + atualizadas), usuario,
+                f"Acompanhamento de Expansão: {total} linha(s), {criadas} criada(s), {atualizadas} atualizada(s), {sem_alteracao} sem alteração e {ignoradas} ignorada(s).",
+                tabela="sistema",
+            )
+        except Exception as audit_err:
+            print(f"[aviso] Acompanhamento importado, mas falhou auditoria: {audit_err}")
+        return jsonify({
+            "ok":True, "arquivo":arquivo.filename, "total_linhas":total,
+            "processadas":len(registros), "criadas":criadas, "atualizadas":atualizadas,
+            "sem_alteracao":sem_alteracao, "ignoradas":ignoradas, "erros":erros,
+        })
+    except ValueError as e:
+        return jsonify({"erro":str(e)}), 400
+    except Exception as e:
+        print(f"[erro] Falha ao importar acompanhamento de expansão: {type(e).__name__}: {e}")
+        return jsonify({"erro":f"Erro ao processar a planilha ({type(e).__name__})."}), 500
 
 
 @app.route("/leitor-codigo")
