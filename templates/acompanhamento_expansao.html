@@ -19,6 +19,10 @@ main{padding:24px 32px 54px;max-width:1500px;margin:auto}.kpis{display:grid;grid
 @media(max-width:1180px){.kpis{grid-template-columns:repeat(3,1fr)}.charts{grid-template-columns:repeat(2,1fr)}.grid{grid-template-columns:1fr}.reach-panel{grid-template-columns:200px minmax(0,1fr)}}
 @media(max-width:760px){header{padding:20px 16px 15px}main{padding:16px 12px 45px}.kpis{grid-template-columns:repeat(2,1fr)}.charts{grid-template-columns:1fr}.reach-panel{grid-template-columns:1fr}.reach-ring{width:165px;height:165px}.filter-grid{grid-template-columns:1fr 1fr}.filter-grid input{grid-column:1/-1}.head-actions{width:100%}.head-actions a,.head-actions button{flex:1;text-align:center;min-height:42px}.reach-facts{grid-template-columns:1fr 1fr 1fr}.table-wrap{max-height:68vh}}
 @media(max-width:430px){.kpis{grid-template-columns:1fr 1fr}.filter-grid{grid-template-columns:1fr}.filter-grid input{grid-column:auto}.reach-facts{grid-template-columns:1fr}.modal-actions{flex-direction:column}.modal-actions button{width:100%}}
+
+.edit-btn{border:1px solid rgba(62,166,255,.35);background:rgba(62,166,255,.07);color:#83cbff;padding:6px 9px;border-radius:7px;font:700 9px var(--mono);cursor:pointer;white-space:nowrap}.edit-btn:hover{background:rgba(62,166,255,.14);border-color:var(--accent)}
+.edit-modal{width:min(820px,100%)}.edit-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.edit-grid .full{grid-column:1/-1}.edit-grid label{margin:0 0 6px}.edit-grid input,.edit-grid select,.edit-grid textarea{width:100%;background:#0e151d;border:1px solid var(--line);border-radius:9px;padding:10px 11px;color:#fff;font:inherit;font-size:11px;outline:none}.edit-grid textarea{min-height:86px;resize:vertical}.edit-grid input:focus,.edit-grid select:focus,.edit-grid textarea:focus{border-color:var(--accent);box-shadow:0 0 0 2px rgba(62,166,255,.08)}.edit-hint{margin:0 0 14px;color:var(--muted);font-size:10px;line-height:1.5}.edit-hint b{color:#dbe8f5}.saving{opacity:.65;pointer-events:none}
+@media(max-width:650px){.edit-grid{grid-template-columns:1fr}.edit-grid .full{grid-column:auto}}
 </style>
 </head>
 <body>
@@ -26,6 +30,7 @@ main{padding:24px 32px 54px;max-width:1500px;margin:auto}.kpis{display:grid;grid
 <header>
   <div><span class="tag">EXPANSÃO</span><h1>Acompanhamento de Expansão</h1><p>Visão consolidada do cronograma de obra, entrada de TI e inauguração, com acompanhamento de entregas e projeção geral de alcance.</p></div>
   <div class="head-actions">
+    <a href="{{ url_for('relatorio_pdf_acompanhamento_expansao') }}">⭳ Relatório PDF</a>
     <a href="{{ url_for('exportar_acompanhamento_expansao') }}">⭳ Download Excel</a>
     {% if role != 'consulta' %}<button type="button" class="primary" id="btn-upload">⭱ Upload Excel</button>{% endif %}
     <a href="{{ url_for('pagina_projecao_lojas') }}">Projeção de abertura</a>
@@ -82,8 +87,8 @@ main{padding:24px 32px 54px;max-width:1500px;margin:auto}.kpis{display:grid;grid
     </div>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Filial</th><th>Bandeira</th><th>Descrição filial</th><th>UF</th><th>Projeto</th><th>Status filial</th><th>Term. obra</th><th>Entrada de TI</th><th>Inauguração</th><th>Situação</th><th>Observação TI</th></tr></thead>
-        <tbody id="tb"><tr><td colspan="11" class="empty">Carregando acompanhamento...</td></tr></tbody>
+        <thead><tr><th>Filial</th><th>Bandeira</th><th>Descrição filial</th><th>UF</th><th>Projeto</th><th>Status filial</th><th>Term. obra</th><th>Entrada de TI</th><th>Inauguração</th><th>Situação</th><th>Observação TI</th>{% if role != 'consulta' %}<th>Ações</th>{% endif %}</tr></thead>
+        <tbody id="tb"><tr><td colspan="{% if role != 'consulta' %}12{% else %}11{% endif %}" class="empty">Carregando acompanhamento...</td></tr></tbody>
       </table>
     </div>
   </section>
@@ -91,6 +96,30 @@ main{padding:24px 32px 54px;max-width:1500px;margin:auto}.kpis{display:grid;grid
 {% include '_footer.html' %}
 
 {% if role != 'consulta' %}
+<div class="modal-backdrop" id="edit-modal">
+  <div class="modal edit-modal">
+    <h3>Editar acompanhamento</h3>
+    <p class="edit-hint">Altere os campos necessários e clique em <b>Salvar alterações</b>. O campo Situação é calculado automaticamente pelo sistema.</p>
+    <form id="edit-form">
+      <input type="hidden" id="edit-id">
+      <div class="edit-grid">
+        <div><label for="edit-filial">Filial</label><input id="edit-filial" required></div>
+        <div><label for="edit-bandeira">Bandeira</label><select id="edit-bandeira"><option value="">Selecione...</option><option>DSP</option><option>DPA</option></select></div>
+        <div class="full"><label for="edit-descricao">Descrição filial</label><input id="edit-descricao"></div>
+        <div><label for="edit-uf">UF</label><input id="edit-uf" maxlength="2" placeholder="SP"></div>
+        <div><label for="edit-projeto">Projeto</label><select id="edit-projeto"><option value="">Selecione...</option><option>EXPANSÃO</option><option>AMPLIAÇÃO</option><option>REALOCAÇÃO</option></select></div>
+        <div><label for="edit-status">Status filial</label><select id="edit-status"><option value="">Selecione...</option><option>INAUGURADA</option><option>PENDENTE</option></select></div>
+        <div><label for="edit-obra">Término da obra</label><input id="edit-obra" placeholder="dd/mm/aaaa ou A DEFINIR"></div>
+        <div><label for="edit-ti">Entrada de TI</label><input id="edit-ti" placeholder="dd/mm/aaaa ou A DEFINIR"></div>
+        <div><label for="edit-inauguracao">Inauguração</label><input id="edit-inauguracao" placeholder="dd/mm/aaaa ou A DEFINIR"></div>
+        <div class="full"><label for="edit-observacao">Observação TI</label><textarea id="edit-observacao" placeholder="Observações do acompanhamento"></textarea></div>
+      </div>
+      <div class="modal-status" id="edit-status-msg"></div>
+      <div class="modal-actions"><button type="button" id="edit-cancel">Cancelar</button><button type="submit" class="primary" id="edit-save">Salvar alterações</button></div>
+    </form>
+  </div>
+</div>
+
 <div class="modal-backdrop" id="upload-modal">
   <div class="modal">
     <h3>Upload do acompanhamento</h3>
@@ -115,10 +144,67 @@ function badgeCrono(s){const n=norm(s);return n==='entregue'?'ok':n.includes('in
 function destroyCharts(){charts.forEach(c=>{try{c.destroy()}catch(_e){}});charts=[]}
 function makeChart(id,type,labels,values,opts={}){const el=document.getElementById(id);if(!el)return;const colors=['#3ea6ff','#4cd792','#ffb648','#a78bfa','#ff6b6b','#56cfe1','#82aaff','#c3e88d','#f07178','#89ddff'];const c=new Chart(el,{type,data:{labels,datasets:[{data:values,backgroundColor:colors.slice(0,values.length),borderWidth:0,borderRadius:type==='bar'?6:0}]},options:{responsive:true,maintainAspectRatio:false,indexAxis:opts.horizontal?'y':'x',plugins:{legend:{display:type!=='bar',position:'bottom',labels:{color:'#9fb0c1',boxWidth:10,font:{size:9}}},tooltip:{callbacks:{label:ctx=>`${ctx.label}: ${ctx.raw}`}}},scales:type==='bar'?{x:{beginAtZero:true,ticks:{precision:0,color:'#8b96a8'},grid:{color:'rgba(139,150,168,.08)'}},y:{ticks:{color:'#b3c0cd',font:{size:9}},grid:{display:false}}}:undefined}});charts.push(c)}
 function setSelect(id,values){const el=document.getElementById(id),cur=el.value;el.innerHTML=el.options[0].outerHTML+[...values].filter(Boolean).sort((a,b)=>a.localeCompare(b,'pt-BR',{numeric:true})).map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('');el.value=cur}
-function renderTable(){const q=norm(document.getElementById('f-busca').value),st=document.getElementById('f-status').value,pr=document.getElementById('f-projeto').value,bd=document.getElementById('f-bandeira').value,uf=document.getElementById('f-uf').value;const filtrados=dados.filter(x=>{if(st&&x.status_filial!==st)return false;if(pr&&x.projeto!==pr)return false;if(bd&&x.bandeira!==bd)return false;if(uf&&x.uf!==uf)return false;if(q){const alvo=norm([x.filial,x.descricao_filial,x.observacao_ti,x.projeto,x.status_filial].join(' '));if(!alvo.includes(q))return false}return true});document.getElementById('table-count').textContent=`${filtrados.length} registro(s)`;document.getElementById('tb').innerHTML=filtrados.length?filtrados.map(x=>`<tr><td class="mono"><strong>${esc(x.filial)}</strong></td><td class="center"><span class="badge blue">${esc(x.bandeira||'-')}</span></td><td>${esc(x.descricao_filial||'-')}</td><td class="center mono">${esc(x.uf||'-')}</td><td><span class="badge muted">${esc(x.projeto||'-')}</span></td><td><span class="badge ${badgeStatus(x.status_filial)}">${esc(x.status_filial||'-')}</span></td><td class="center mono">${esc(x.term_obra||'-')}</td><td class="center mono">${esc(x.entrada_ti||'-')}</td><td class="center mono">${esc(x.inauguracao||'-')}</td><td><span class="badge ${badgeCrono(x.situacao_cronograma)}">${esc(x.situacao_cronograma||'-')}</span></td><td class="obs">${esc(x.observacao_ti||'-')}</td></tr>`).join(''):'<tr><td colspan="11" class="empty">Nenhum registro encontrado com os filtros aplicados.</td></tr>'}
-async function init(){try{const r=await fetch('/api/acompanhamento-expansao');if(!r.ok)throw new Error('Falha ao carregar');const d=await r.json(),s=d.resumo||{};dados=d.linhas||[];document.getElementById('k-total').textContent=s.total||0;document.getElementById('k-inaug').textContent=s.inauguradas||0;document.getElementById('k-inaug-sub').textContent=`${(s.entrega_realizada_pct||0).toFixed(1)}% concluído`;document.getElementById('k-pend').textContent=s.pendentes||0;document.getElementById('k-data').textContent=s.pendentes_com_inauguracao_definida||0;document.getElementById('k-semdata').textContent=s.pendentes_sem_inauguracao_definida||0;document.getElementById('k-ufs').textContent=s.ufs||0;document.getElementById('reach-pct').textContent=`${(s.alcance_projetado_pct||0).toFixed(1)}%`;document.getElementById('reach-ring').style.setProperty('--pct',Math.max(0,Math.min(100,s.alcance_projetado_pct||0)));document.getElementById('reach-qtd').textContent=`${s.alcance_projetado||0} / ${s.total||0}`;document.getElementById('done-pct').textContent=`${(s.entrega_realizada_pct||0).toFixed(1)}%`;document.getElementById('last-update').textContent=s.ultima_atualizacao||'-';[['obra','st-obra'],['ti','st-ti'],['inauguracao','st-inaug']].forEach(([k,id])=>{const e=s.etapas?.[k]||{};document.getElementById(id).style.width=Math.min(100,e.pct||0)+'%';document.getElementById(id+'-txt').textContent=`${(e.pct||0).toFixed(1)}% · ${e.qtd||0}/${s.total||0}`});setSelect('f-status',new Set(dados.map(x=>x.status_filial)));setSelect('f-projeto',new Set(dados.map(x=>x.projeto)));setSelect('f-bandeira',new Set(dados.map(x=>x.bandeira)));setSelect('f-uf',new Set(dados.map(x=>x.uf)));renderTable();destroyCharts();const toPairs=o=>Object.entries(o||{});let p=toPairs(d.status);makeChart('chart-status','doughnut',p.map(x=>x[0]),p.map(x=>x[1]));p=toPairs(d.projetos);makeChart('chart-projeto','bar',p.map(x=>x[0]),p.map(x=>x[1]),{horizontal:true});p=toPairs(d.bandeiras);makeChart('chart-bandeira','doughnut',p.map(x=>x[0]),p.map(x=>x[1]));p=toPairs(d.ufs).slice(0,10);makeChart('chart-uf','bar',p.map(x=>x[0]),p.map(x=>x[1]),{horizontal:true})}catch(e){console.error(e);document.getElementById('tb').innerHTML='<tr><td colspan="11" class="empty">Não foi possível carregar o acompanhamento.</td></tr>'}}
+function renderTable(){
+  const q=norm(document.getElementById('f-busca').value),st=document.getElementById('f-status').value,pr=document.getElementById('f-projeto').value,bd=document.getElementById('f-bandeira').value,uf=document.getElementById('f-uf').value;
+  const filtrados=dados.filter(x=>{if(st&&x.status_filial!==st)return false;if(pr&&x.projeto!==pr)return false;if(bd&&x.bandeira!==bd)return false;if(uf&&x.uf!==uf)return false;if(q){const alvo=norm([x.filial,x.descricao_filial,x.observacao_ti,x.projeto,x.status_filial].join(' '));if(!alvo.includes(q))return false}return true});
+  document.getElementById('table-count').textContent=`${filtrados.length} registro(s)`;
+  document.getElementById('tb').innerHTML=filtrados.length?filtrados.map(x=>`<tr><td class="mono"><strong>${esc(x.filial)}</strong></td><td class="center"><span class="badge blue">${esc(x.bandeira||'-')}</span></td><td>${esc(x.descricao_filial||'-')}</td><td class="center mono">${esc(x.uf||'-')}</td><td><span class="badge muted">${esc(x.projeto||'-')}</span></td><td><span class="badge ${badgeStatus(x.status_filial)}">${esc(x.status_filial||'-')}</span></td><td class="center mono">${esc(x.term_obra||'-')}</td><td class="center mono">${esc(x.entrada_ti||'-')}</td><td class="center mono">${esc(x.inauguracao||'-')}</td><td><span class="badge ${badgeCrono(x.situacao_cronograma)}">${esc(x.situacao_cronograma||'-')}</span></td><td class="obs">${esc(x.observacao_ti||'-')}</td>{% if role != 'consulta' %}<td class="center"><button type="button" class="edit-btn" data-edit-id="${x.id}">Editar</button></td>{% endif %}</tr>`).join(''):'<tr><td colspan="{% if role != 'consulta' %}12{% else %}11{% endif %}" class="empty">Nenhum registro encontrado com os filtros aplicados.</td></tr>';
+  {% if role != 'consulta' %}
+  document.querySelectorAll('[data-edit-id]').forEach(btn=>btn.addEventListener('click',()=>abrirEdicao(Number(btn.dataset.editId))));
+  {% endif %}
+}
+async function init(){try{const r=await fetch('/api/acompanhamento-expansao');if(!r.ok)throw new Error('Falha ao carregar');const d=await r.json(),s=d.resumo||{};dados=d.linhas||[];document.getElementById('k-total').textContent=s.total||0;document.getElementById('k-inaug').textContent=s.inauguradas||0;document.getElementById('k-inaug-sub').textContent=`${(s.entrega_realizada_pct||0).toFixed(1)}% concluído`;document.getElementById('k-pend').textContent=s.pendentes||0;document.getElementById('k-data').textContent=s.pendentes_com_inauguracao_definida||0;document.getElementById('k-semdata').textContent=s.pendentes_sem_inauguracao_definida||0;document.getElementById('k-ufs').textContent=s.ufs||0;document.getElementById('reach-pct').textContent=`${(s.alcance_projetado_pct||0).toFixed(1)}%`;document.getElementById('reach-ring').style.setProperty('--pct',Math.max(0,Math.min(100,s.alcance_projetado_pct||0)));document.getElementById('reach-qtd').textContent=`${s.alcance_projetado||0} / ${s.total||0}`;document.getElementById('done-pct').textContent=`${(s.entrega_realizada_pct||0).toFixed(1)}%`;document.getElementById('last-update').textContent=s.ultima_atualizacao||'-';[['obra','st-obra'],['ti','st-ti'],['inauguracao','st-inaug']].forEach(([k,id])=>{const e=s.etapas?.[k]||{};document.getElementById(id).style.width=Math.min(100,e.pct||0)+'%';document.getElementById(id+'-txt').textContent=`${(e.pct||0).toFixed(1)}% · ${e.qtd||0}/${s.total||0}`});setSelect('f-status',new Set(dados.map(x=>x.status_filial)));setSelect('f-projeto',new Set(dados.map(x=>x.projeto)));setSelect('f-bandeira',new Set(dados.map(x=>x.bandeira)));setSelect('f-uf',new Set(dados.map(x=>x.uf)));renderTable();destroyCharts();const toPairs=o=>Object.entries(o||{});let p=toPairs(d.status);makeChart('chart-status','doughnut',p.map(x=>x[0]),p.map(x=>x[1]));p=toPairs(d.projetos);makeChart('chart-projeto','bar',p.map(x=>x[0]),p.map(x=>x[1]),{horizontal:true});p=toPairs(d.bandeiras);makeChart('chart-bandeira','doughnut',p.map(x=>x[0]),p.map(x=>x[1]));p=toPairs(d.ufs).slice(0,10);makeChart('chart-uf','bar',p.map(x=>x[0]),p.map(x=>x[1]),{horizontal:true})}catch(e){console.error(e);document.getElementById('tb').innerHTML='<tr><td colspan="{% if role != 'consulta' %}12{% else %}11{% endif %}" class="empty">Não foi possível carregar o acompanhamento.</td></tr>'}}
 ['f-busca','f-status','f-projeto','f-bandeira','f-uf'].forEach(id=>document.getElementById(id).addEventListener(id==='f-busca'?'input':'change',renderTable));
 {% if role != 'consulta' %}
+const editModal=document.getElementById('edit-modal');
+const editForm=document.getElementById('edit-form');
+const editMsg=document.getElementById('edit-status-msg');
+const EDIT_CSRF='{{ csrf_token }}';
+function garantirOpcao(select,value){if(!value)return;if(![...select.options].some(o=>o.value===value)){const o=document.createElement('option');o.value=value;o.textContent=value;select.appendChild(o)}}
+function abrirEdicao(id){
+  const x=dados.find(r=>Number(r.id)===Number(id));if(!x)return;
+  document.getElementById('edit-id').value=x.id;
+  document.getElementById('edit-filial').value=x.filial||'';
+  const bandeira=document.getElementById('edit-bandeira');garantirOpcao(bandeira,x.bandeira||'');bandeira.value=x.bandeira||'';
+  document.getElementById('edit-descricao').value=x.descricao_filial||'';
+  document.getElementById('edit-uf').value=x.uf||'';
+  const projeto=document.getElementById('edit-projeto');garantirOpcao(projeto,x.projeto||'');projeto.value=x.projeto||'';
+  const status=document.getElementById('edit-status');garantirOpcao(status,x.status_filial||'');status.value=x.status_filial||'';
+  document.getElementById('edit-obra').value=x.term_obra||'';
+  document.getElementById('edit-ti').value=x.entrada_ti||'';
+  document.getElementById('edit-inauguracao').value=x.inauguracao||'';
+  document.getElementById('edit-observacao').value=x.observacao_ti||'';
+  editMsg.textContent='';editMsg.className='modal-status';editModal.classList.add('open');
+  setTimeout(()=>document.getElementById('edit-filial').focus(),80);
+}
+function fecharEdicao(){editModal.classList.remove('open')}
+document.getElementById('edit-cancel').addEventListener('click',fecharEdicao);
+editModal.addEventListener('click',e=>{if(e.target===editModal)fecharEdicao()});
+editForm.addEventListener('submit',async e=>{
+  e.preventDefault();
+  const id=Number(document.getElementById('edit-id').value);if(!id)return;
+  const payload={
+    filial:document.getElementById('edit-filial').value.trim(),
+    bandeira:document.getElementById('edit-bandeira').value.trim(),
+    descricao_filial:document.getElementById('edit-descricao').value.trim(),
+    uf:document.getElementById('edit-uf').value.trim(),
+    projeto:document.getElementById('edit-projeto').value.trim(),
+    status_filial:document.getElementById('edit-status').value.trim(),
+    term_obra:document.getElementById('edit-obra').value.trim(),
+    entrada_ti:document.getElementById('edit-ti').value.trim(),
+    inauguracao:document.getElementById('edit-inauguracao').value.trim(),
+    observacao_ti:document.getElementById('edit-observacao').value.trim()
+  };
+  if(!payload.filial){editMsg.textContent='Informe a filial.';editMsg.className='modal-status error';return}
+  const save=document.getElementById('edit-save');save.disabled=true;editForm.classList.add('saving');editMsg.textContent='Salvando alterações...';editMsg.className='modal-status';
+  try{
+    const r=await fetch(`/api/acompanhamento-expansao/${id}`,{method:'PUT',headers:{'Content-Type':'application/json','X-CSRF-Token':EDIT_CSRF},body:JSON.stringify(payload)});
+    const d=await r.json();if(!r.ok)throw new Error(d.erro||'Não foi possível salvar.');
+    editMsg.textContent='Alterações salvas com sucesso.';editMsg.className='modal-status ok';window.appToast?.('Acompanhamento atualizado com sucesso.','ok');
+    await init();setTimeout(fecharEdicao,450);
+  }catch(err){editMsg.textContent=err.message;editMsg.className='modal-status error'}finally{save.disabled=false;editForm.classList.remove('saving')}
+});
+
 const modal=document.getElementById('upload-modal'),statusEl=document.getElementById('upload-status');document.getElementById('btn-upload').addEventListener('click',()=>{statusEl.textContent='';statusEl.className='modal-status';modal.classList.add('open')});document.getElementById('upload-cancel').addEventListener('click',()=>modal.classList.remove('open'));modal.addEventListener('click',e=>{if(e.target===modal)modal.classList.remove('open')});document.getElementById('upload-form').addEventListener('submit',async e=>{e.preventDefault();const file=document.getElementById('upload-file').files[0],pass=document.getElementById('upload-pass').value;if(!file){statusEl.textContent='Selecione um arquivo .xlsx.';statusEl.className='modal-status error';return}if(!pass){statusEl.textContent='Digite sua senha para confirmar.';statusEl.className='modal-status error';return}const btn=document.getElementById('upload-send');btn.disabled=true;statusEl.textContent='Importando e atualizando o acompanhamento...';statusEl.className='modal-status';const fd=new FormData();fd.append('arquivo',file);fd.append('senha',pass);fd.append('csrf_token','{{ csrf_token }}');try{const r=await fetch('/api/acompanhamento-expansao/importar',{method:'POST',body:fd});const d=await r.json();if(!r.ok)throw new Error(d.erro||'Falha na importação');statusEl.textContent=`Importação concluída: ${d.criadas||0} criado(s), ${d.atualizadas||0} atualizado(s), ${d.sem_alteracao||0} sem alteração e ${d.ignoradas||0} ignorado(s).`;statusEl.className='modal-status ok';window.appToast?.('Acompanhamento de Expansão atualizado.','ok');document.getElementById('upload-pass').value='';setTimeout(async()=>{modal.classList.remove('open');await init()},900)}catch(err){statusEl.textContent=err.message;statusEl.className='modal-status error'}finally{btn.disabled=false}});
 {% endif %}
 init();

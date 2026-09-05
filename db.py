@@ -1632,6 +1632,55 @@ def listar_acompanhamento_expansao():
         cur.close(); conn.close()
 
 
+def buscar_acompanhamento_expansao_por_id(registro_id):
+    conn = get_conn(); cur = get_cursor(conn)
+    try:
+        cur.execute(q("""
+            SELECT id, filial, bandeira, descricao_filial, uf, projeto, status_filial,
+                   term_obra, entrada_ti, inauguracao, observacao_ti, atualizado_por, atualizado_em
+            FROM acompanhamento_expansao WHERE id=?
+        """), (registro_id,))
+        row = cur.fetchone()
+        return dict(row) if row else None
+    finally:
+        cur.close(); conn.close()
+
+
+def atualizar_acompanhamento_expansao(registro_id, dados, usuario):
+    conn = get_conn(); cur = get_cursor(conn)
+    agora = datetime.now().strftime("%Y-%m-%d %H:%M")
+    try:
+        cur.execute(
+            q("""UPDATE acompanhamento_expansao
+                 SET filial=?, bandeira=?, descricao_filial=?, uf=?, projeto=?, status_filial=?,
+                     term_obra=?, entrada_ti=?, inauguracao=?, observacao_ti=?, atualizado_por=?, atualizado_em=?
+                 WHERE id=?"""),
+            (
+                str(dados.get("filial") or "").strip(),
+                str(dados.get("bandeira") or "").strip(),
+                str(dados.get("descricao_filial") or "").strip(),
+                str(dados.get("uf") or "").strip(),
+                str(dados.get("projeto") or "").strip(),
+                str(dados.get("status_filial") or "").strip(),
+                str(dados.get("term_obra") or "").strip(),
+                str(dados.get("entrada_ti") or "").strip(),
+                str(dados.get("inauguracao") or "").strip(),
+                str(dados.get("observacao_ti") or "").strip(),
+                usuario, agora, registro_id,
+            ),
+        )
+        if cur.rowcount == 0:
+            conn.rollback()
+            return False
+        conn.commit()
+        return True
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        cur.close(); conn.close()
+
+
 def importar_acompanhamento_expansao_em_lote(linhas, usuario):
     conn = get_conn(); cur = get_cursor(conn)
     agora = datetime.now().strftime("%Y-%m-%d %H:%M")

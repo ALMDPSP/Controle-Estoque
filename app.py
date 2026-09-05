@@ -53,7 +53,7 @@ import qrcode
 import db
 
 app = Flask(__name__)
-APP_BUILD = "2026-09-05-acompanhamento-expansao-v41"
+APP_BUILD = "2026-09-05-acompanhamento-expansao-pdf-v43"
 app.secret_key = os.environ.get("SECRET_KEY", "troque-esta-chave-em-producao")
 app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
@@ -1791,6 +1791,266 @@ def _dados_acompanhamento_expansao():
     }
 
 
+
+def _gerar_pdf_acompanhamento_expansao(dados):
+    """Gera relatório executivo e detalhado do Acompanhamento de Expansão."""
+    buf = io.BytesIO()
+    page_size = landscape(A4)
+    pdf = canvas.Canvas(buf, pagesize=page_size)
+    larg, alt = page_size
+    margem = 14 * mm
+    r = dados.get("resumo") or {}
+    linhas = dados.get("linhas") or []
+
+    def _bg():
+        pdf.setFillColor(colors.HexColor("#0F1620"))
+        pdf.rect(0, 0, larg, alt, stroke=0, fill=1)
+
+    def _footer(page_no):
+        pdf.setStrokeColor(colors.HexColor("#283646"))
+        pdf.line(margem, 11 * mm, larg - margem, 11 * mm)
+        pdf.setFillColor(colors.HexColor("#8398AD"))
+        pdf.setFont("Helvetica", 7.2)
+        pdf.drawString(margem, 6.5 * mm, "© 2026 · Developed by Alexandre Martins · Acompanhamento de Expansão")
+        pdf.drawRightString(larg - margem, 6.5 * mm, f"Página {page_no}")
+
+    def _panel(x, y, w, h, title=None, subtitle=None):
+        pdf.setFillColor(colors.HexColor("#151D27"))
+        pdf.setStrokeColor(colors.HexColor("#2A3645"))
+        pdf.roundRect(x, y, w, h, 10, stroke=1, fill=1)
+        if title:
+            pdf.setFillColor(colors.white)
+            pdf.setFont("Helvetica-Bold", 11)
+            pdf.drawString(x + 12, y + h - 20, title)
+        if subtitle:
+            pdf.setFillColor(colors.HexColor("#8FA5BA"))
+            pdf.setFont("Helvetica", 7.5)
+            pdf.drawString(x + 12, y + h - 32, subtitle)
+
+    def _kpi(x, y, w, h, titulo, valor, detalhe, cor="#FFFFFF"):
+        pdf.setFillColor(colors.HexColor("#182230"))
+        pdf.setStrokeColor(colors.HexColor("#314255"))
+        pdf.roundRect(x, y, w, h, 10, stroke=1, fill=1)
+        pdf.setFillColor(colors.HexColor("#94A9BC"))
+        pdf.setFont("Helvetica-Bold", 7.1)
+        pdf.drawString(x + 9, y + h - 13, titulo.upper())
+        pdf.setFillColor(colors.HexColor(cor))
+        pdf.setFont("Helvetica-Bold", 16.5)
+        pdf.drawString(x + 9, y + 18, str(valor))
+        pdf.setFillColor(colors.HexColor("#7990A6"))
+        pdf.setFont("Helvetica", 6.6)
+        pdf.drawString(x + 9, y + 7, detalhe[:34])
+
+    def _progress(x, y, w, label, qtd, pct, cor):
+        pdf.setFillColor(colors.HexColor("#D9E5F0"))
+        pdf.setFont("Helvetica-Bold", 8)
+        pdf.drawString(x, y + 13, label)
+        pdf.setFillColor(colors.HexColor("#A0B3C4"))
+        pdf.setFont("Helvetica", 7.2)
+        pdf.drawRightString(x + w, y + 13, f"{pct:.1f}% · {qtd}/{int(r.get('total') or 0)}")
+        pdf.setFillColor(colors.HexColor("#0B141E"))
+        pdf.roundRect(x, y, w, 7, 3.5, stroke=0, fill=1)
+        barra = max(0, min(1, pct / 100.0)) * w
+        if barra > 0:
+            pdf.setFillColor(colors.HexColor(cor))
+            pdf.roundRect(x, y, max(5, barra), 7, 3.5, stroke=0, fill=1)
+
+    def _dist_rows(x, y, w, titulo, pares, cor="#3EA6FF", limite=6):
+        pdf.setFillColor(colors.white)
+        pdf.setFont("Helvetica-Bold", 9.5)
+        pdf.drawString(x, y, titulo)
+        total = max(1, sum(v for _, v in pares))
+        cy = y - 18
+        for nome, valor in pares[:limite]:
+            pct = valor / total * 100.0
+            pdf.setFillColor(colors.HexColor("#1B2531"))
+            pdf.roundRect(x, cy - 8, w, 16, 5, stroke=0, fill=1)
+            pdf.setFillColor(colors.HexColor("#D5E1ED"))
+            pdf.setFont("Helvetica", 7.3)
+            rot = str(nome or "-")
+            pdf.drawString(x + 7, cy - 1, rot[:24])
+            pdf.setFillColor(colors.HexColor(cor))
+            pdf.setFont("Helvetica-Bold", 7.3)
+            pdf.drawRightString(x + w - 7, cy - 1, f"{valor} · {pct:.1f}%")
+            cy -= 19
+        return cy
+
+    # Página 1 - resumo executivo
+    _bg()
+    pdf.setTitle("Acompanhamento de Expansão")
+    pdf.setFillColor(colors.white)
+    pdf.setFont("Helvetica-Bold", 20)
+    pdf.drawString(margem, alt - margem, "Acompanhamento de Expansão")
+    pdf.setFillColor(colors.HexColor("#9DB3C8"))
+    pdf.setFont("Helvetica", 8.5)
+    pdf.drawString(margem, alt - margem - 14, "Relatório executivo do cronograma de obra, entrada de TI e inauguração das filiais acompanhadas.")
+    pdf.drawRightString(larg - margem, alt - margem - 14, datetime.now().strftime("Gerado em %d/%m/%Y às %H:%M"))
+
+    total = int(r.get("total") or 0)
+    kpis = [
+        ("Total acompanhado", total, "Filiais/projetos", "#FFFFFF"),
+        ("Inauguradas", int(r.get("inauguradas") or 0), f"{float(r.get('entrega_realizada_pct') or 0):.1f}% concluído", "#4CD792"),
+        ("Pendentes", int(r.get("pendentes") or 0), "Aguardando conclusão", "#FFB648"),
+        ("Alcance projetado", f"{float(r.get('alcance_projetado_pct') or 0):.1f}%", f"{int(r.get('alcance_projetado') or 0)} de {total}", "#3EA6FF"),
+        ("A definir", int(r.get("pendentes_sem_inauguracao_definida") or 0), "Sem data final", "#FF6B6B"),
+        ("UFs", int(r.get("ufs") or 0), "Cobertura da base", "#A78BFA"),
+    ]
+    gap = 8
+    kpi_y = alt - margem - 66
+    kpi_h = 47
+    kpi_w = (larg - 2*margem - gap*5) / 6
+    for i, item in enumerate(kpis):
+        _kpi(margem + i*(kpi_w+gap), kpi_y, kpi_w, kpi_h, *item)
+
+    content_top = kpi_y - 14
+    content_y = 22 * mm
+    content_h = content_top - content_y
+    left_w = (larg - 2*margem - 10) * 0.58
+    right_x = margem + left_w + 10
+    right_w = larg - margem - right_x
+
+    _panel(margem, content_y, left_w, content_h, "Projeção de alcance de entrega", "Leitura geral do planejamento e dos principais marcos do cronograma.")
+    pdf.setFillColor(colors.HexColor("#4FB2FF"))
+    pdf.setFont("Helvetica-Bold", 30)
+    pdf.drawString(margem + 16, content_y + content_h - 80, f"{float(r.get('alcance_projetado_pct') or 0):.1f}%")
+    pdf.setFillColor(colors.HexColor("#C8D7E5"))
+    pdf.setFont("Helvetica-Bold", 9)
+    pdf.drawString(margem + 16, content_y + content_h - 96, "alcance projetado")
+    pdf.setFillColor(colors.HexColor("#8CA1B6"))
+    pdf.setFont("Helvetica", 7.5)
+    pdf.drawString(margem + 16, content_y + content_h - 110, f"{int(r.get('alcance_projetado') or 0)} de {total} filial(is) entregues ou com inauguração definida.")
+
+    prog_x = margem + 16
+    prog_w = left_w - 32
+    base_prog_y = content_y + content_h - 155
+    etapas = r.get("etapas") or {}
+    for idx, (nome, chave, cor) in enumerate([
+        ("Término de obra", "obra", "#A78BFA"),
+        ("Entrada de TI", "ti", "#56CFE1"),
+        ("Inauguração / entrega", "inauguracao", "#4CD792"),
+    ]):
+        etapa = etapas.get(chave) or {}
+        _progress(prog_x, base_prog_y - idx*40, prog_w, nome, int(etapa.get("qtd") or 0), float(etapa.get("pct") or 0), cor)
+
+    # Mensagem executiva simples
+    msg_y = content_y + 42
+    pdf.setFillColor(colors.white)
+    pdf.setFont("Helvetica-Bold", 9.5)
+    pdf.drawString(margem + 16, msg_y + 34, "Leitura executiva")
+    pdf.setFillColor(colors.HexColor("#B6C6D5"))
+    pdf.setFont("Helvetica", 7.4)
+    pend_data = int(r.get("pendentes_com_inauguracao_definida") or 0)
+    pend_sem = int(r.get("pendentes_sem_inauguracao_definida") or 0)
+    pdf.drawString(margem + 16, msg_y + 18, f"• {int(r.get('inauguradas') or 0)} filial(is) já inaugurada(s) e {pend_data} pendente(s) com data de inauguração definida.")
+    pdf.drawString(margem + 16, msg_y + 5, f"• {pend_sem} pendente(s) ainda precisam de definição de inauguração para ampliar o alcance projetado.")
+
+    _panel(right_x, content_y, right_w, content_h, "Distribuição da base", "Status, projetos, bandeiras e UFs com maior volume.")
+    status_pares = sorted((dados.get("status") or {}).items(), key=lambda kv: (-kv[1], kv[0]))
+    projetos_pares = sorted((dados.get("projetos") or {}).items(), key=lambda kv: (-kv[1], kv[0]))
+    bandeiras_pares = sorted((dados.get("bandeiras") or {}).items(), key=lambda kv: (-kv[1], kv[0]))
+    ufs_pares = sorted((dados.get("ufs") or {}).items(), key=lambda kv: (-kv[1], kv[0]))
+    cy = content_y + content_h - 54
+    cy = _dist_rows(right_x + 12, cy, right_w - 24, "Status", status_pares, "#4CD792", 3) - 8
+    cy = _dist_rows(right_x + 12, cy, right_w - 24, "Projetos", projetos_pares, "#A78BFA", 4) - 8
+    cy = _dist_rows(right_x + 12, cy, right_w - 24, "Bandeiras", bandeiras_pares, "#FFB648", 3) - 8
+    _dist_rows(right_x + 12, cy, right_w - 24, "Top UFs", ufs_pares, "#3EA6FF", 5)
+    _footer(1)
+    pdf.showPage()
+
+    # Páginas detalhadas
+    page_no = 2
+    cols = [
+        ("Filial", 42), ("Band.", 38), ("Descrição filial", 132), ("UF", 26),
+        ("Projeto", 64), ("Status", 65), ("Term. obra", 68), ("Entrada TI", 68),
+        ("Inauguração", 68), ("Situação", 94),
+    ]
+    table_w = sum(w for _, w in cols)
+    table_x = margem
+    row_h = 21
+
+    def _header_detail():
+        nonlocal page_no
+        _bg()
+        pdf.setFillColor(colors.white)
+        pdf.setFont("Helvetica-Bold", 16)
+        pdf.drawString(margem, alt - margem, "Detalhamento do Acompanhamento de Expansão")
+        pdf.setFillColor(colors.HexColor("#9DB3C8"))
+        pdf.setFont("Helvetica", 8)
+        pdf.drawString(margem, alt - margem - 13, "Dados consolidados por filial. Observações relevantes são exibidas abaixo de cada registro.")
+        pdf.drawRightString(larg - margem, alt - margem - 13, f"Base: {total} registro(s)")
+        y = alt - margem - 39
+        pdf.setFillColor(colors.HexColor("#234C74"))
+        pdf.roundRect(table_x, y, table_w, 20, 4, stroke=0, fill=1)
+        pdf.setFillColor(colors.white)
+        pdf.setFont("Helvetica-Bold", 7.1)
+        cx = table_x
+        for title, w in cols:
+            pdf.drawString(cx + 4, y + 6, title)
+            cx += w
+        return y - 4
+
+    y = _header_detail()
+    for item in linhas:
+        obs = str(item.get("observacao_ti") or "").strip()
+        has_obs = bool(obs and obs.upper().replace("\\", "/") not in ("N/T", "NT", "N T", "-"))
+        needed = row_h + (17 if has_obs else 0) + 3
+        if y - needed < 19 * mm:
+            _footer(page_no)
+            pdf.showPage()
+            page_no += 1
+            y = _header_detail()
+
+        y -= row_h
+        fill = "#182230" if (page_no + int((alt-y)//row_h)) % 2 == 0 else "#151D27"
+        pdf.setFillColor(colors.HexColor(fill))
+        pdf.roundRect(table_x, y, table_w, row_h - 1, 3, stroke=0, fill=1)
+        vals = [
+            item.get("filial"), item.get("bandeira"), item.get("descricao_filial"), item.get("uf"),
+            item.get("projeto"), item.get("status_filial"), item.get("term_obra"), item.get("entrada_ti"),
+            item.get("inauguracao"), item.get("situacao_cronograma"),
+        ]
+        pdf.setFillColor(colors.HexColor("#DCE6F0"))
+        pdf.setFont("Helvetica", 6.8)
+        cx = table_x
+        for (title, w), val in zip(cols, vals):
+            text = str(val or "-")
+            max_chars = max(4, int((w - 8) / 4.2))
+            if len(text) > max_chars:
+                text = text[:max(1, max_chars-1)] + "…"
+            if title == "Status":
+                st = str(val or "").upper()
+                if st == "INAUGURADA": pdf.setFillColor(colors.HexColor("#4CD792"))
+                elif st == "PENDENTE": pdf.setFillColor(colors.HexColor("#FFB648"))
+                else: pdf.setFillColor(colors.HexColor("#DCE6F0"))
+            elif title == "Situação":
+                sit = str(val or "").upper()
+                if "ENTREGUE" in sit: pdf.setFillColor(colors.HexColor("#4CD792"))
+                elif "DEFINIDA" in sit: pdf.setFillColor(colors.HexColor("#3EA6FF"))
+                else: pdf.setFillColor(colors.HexColor("#FFB648"))
+            else:
+                pdf.setFillColor(colors.HexColor("#DCE6F0"))
+            pdf.drawString(cx + 4, y + 7, text)
+            cx += w
+
+        if has_obs:
+            y -= 17
+            pdf.setFillColor(colors.HexColor("#101923"))
+            pdf.roundRect(table_x, y + 2, table_w, 14, 3, stroke=0, fill=1)
+            pdf.setFillColor(colors.HexColor("#91A7BD"))
+            pdf.setFont("Helvetica-Bold", 6.6)
+            pdf.drawString(table_x + 5, y + 6, "Obs. TI:")
+            pdf.setFillColor(colors.HexColor("#C4D3E1"))
+            pdf.setFont("Helvetica", 6.6)
+            texto_obs = obs if len(obs) <= 135 else obs[:132] + "…"
+            pdf.drawString(table_x + 40, y + 6, texto_obs)
+        y -= 3
+
+    _footer(page_no)
+    pdf.save()
+    buf.seek(0)
+    return buf
+
+
 def _cabecalho_acomp_normalizado(valor):
     texto = unicodedata.normalize("NFD", str(valor or "").strip().upper())
     texto = "".join(c for c in texto if unicodedata.category(c) != "Mn")
@@ -1913,6 +2173,63 @@ def api_acompanhamento_expansao():
     return jsonify(_dados_acompanhamento_expansao())
 
 
+@app.route("/api/acompanhamento-expansao/<int:registro_id>", methods=["PUT"])
+@edit_required
+def api_atualizar_acompanhamento_expansao(registro_id):
+    if not _csrf_ok():
+        return jsonify({"erro": "A sessão de segurança expirou. Atualize a página e tente novamente."}), 400
+
+    anterior = db.buscar_acompanhamento_expansao_por_id(registro_id)
+    if not anterior:
+        return jsonify({"erro": "Registro de acompanhamento não encontrado."}), 404
+
+    dados = request.get_json(silent=True) or {}
+    filial = str(dados.get("filial") or "").strip()
+    if not filial:
+        return jsonify({"erro": "O campo Filial é obrigatório."}), 400
+
+    payload = {
+        "filial": filial,
+        "bandeira": str(dados.get("bandeira") or "").strip().upper(),
+        "descricao_filial": str(dados.get("descricao_filial") or "").strip(),
+        "uf": str(dados.get("uf") or "").strip().upper(),
+        "projeto": str(dados.get("projeto") or "").strip().upper(),
+        "status_filial": str(dados.get("status_filial") or "").strip().upper(),
+        "term_obra": str(dados.get("term_obra") or "").strip(),
+        "entrada_ti": str(dados.get("entrada_ti") or "").strip(),
+        "inauguracao": str(dados.get("inauguracao") or "").strip(),
+        "observacao_ti": str(dados.get("observacao_ti") or "").strip(),
+    }
+
+    # Evita duplicidade da chave FILIAL caso o código seja alterado manualmente.
+    for existente in db.listar_acompanhamento_expansao():
+        if int(existente.get("id") or 0) != registro_id and str(existente.get("filial") or "").strip() == filial:
+            return jsonify({"erro": f"Já existe um acompanhamento cadastrado para a filial {filial}."}), 409
+
+    try:
+        ok = db.atualizar_acompanhamento_expansao(registro_id, payload, session.get("username"))
+    except Exception as e:
+        app.logger.exception("Erro ao atualizar acompanhamento de expansão %s", registro_id)
+        return jsonify({"erro": "Não foi possível salvar a alteração. Verifique os dados e tente novamente."}), 500
+    if not ok:
+        return jsonify({"erro": "Registro de acompanhamento não encontrado."}), 404
+
+    alteracoes = []
+    for campo, rotulo in (("filial","Filial"),("bandeira","Bandeira"),("descricao_filial","Descrição"),("uf","UF"),("projeto","Projeto"),("status_filial","Status"),("term_obra","Término obra"),("entrada_ti","Entrada TI"),("inauguracao","Inauguração"),("observacao_ti","Observação TI")):
+        antes = str(anterior.get(campo) or "").strip()
+        depois = str(payload.get(campo) or "").strip()
+        if antes != depois:
+            alteracoes.append(f"{rotulo}: {antes or '-'} -> {depois or '-'}")
+    if alteracoes:
+        db.registrar_movimentacao(
+            0, "alteracao_acompanhamento_expansao", "1", session.get("username"),
+            f"Acompanhamento filial {filial} alterado · " + " | ".join(alteracoes[:10]), tabela="sistema"
+        )
+
+    atualizado = db.buscar_acompanhamento_expansao_por_id(registro_id)
+    return jsonify({"ok": True, "registro": atualizado})
+
+
 @app.route("/export-acompanhamento-expansao")
 @login_required
 def exportar_acompanhamento_expansao():
@@ -1973,6 +2290,20 @@ def exportar_acompanhamento_expansao():
         buf, as_attachment=True,
         download_name=f"acompanhamento_expansao_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx",
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+
+
+
+@app.route("/pdf-acompanhamento-expansao")
+@login_required
+def relatorio_pdf_acompanhamento_expansao():
+    dados = _dados_acompanhamento_expansao()
+    buf = _gerar_pdf_acompanhamento_expansao(dados)
+    return send_file(
+        buf,
+        as_attachment=True,
+        download_name=f"acompanhamento_expansao_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
+        mimetype="application/pdf",
     )
 
 
