@@ -53,7 +53,7 @@ import qrcode
 import db
 
 app = Flask(__name__)
-APP_BUILD = "2026-09-04-mfa-layout-unificado-v36"
+APP_BUILD = "2026-09-04-primeiro-acesso-senha-mfa-v37"
 app.secret_key = os.environ.get("SECRET_KEY", "troque-esta-chave-em-producao")
 app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
@@ -257,6 +257,23 @@ def _set_pending_login(usuario, proximo):
     session["pending_next"] = proximo or url_for("dashboard")
 
 
+def _start_password_change_before_mfa(usuario, proximo):
+    """Cria uma sessão restrita apenas à troca da senha no primeiro acesso.
+
+    A senha já foi validada, mas o login ainda não é considerado concluído
+    enquanto o usuário não criar a senha pessoal e finalizar o MFA.
+    """
+    csrf = session.get("_csrf_token") or secrets.token_urlsafe(32)
+    session.clear()
+    session["_csrf_token"] = csrf
+    session["user_id"] = usuario["id"]
+    session["username"] = usuario["username"]
+    session["role"] = usuario["role"]
+    session["precisa_trocar_senha"] = True
+    session["primeiro_acesso_mfa_pendente"] = True
+    session["primeiro_acesso_next"] = proximo or url_for("dashboard")
+
+
 def _finalize_login(usuario=None):
     if usuario is None:
         user_id = session.get("pending_user_id")
@@ -379,8 +396,19 @@ def login():
     _clear_login_failures(username)
     proximo = request.args.get("proximo") or url_for("dashboard")
 
-    # MFA é obrigatório para todos os perfis: Administrador, Gestor, Operador e Consulta.
-    # O login só é concluído depois da validação do segundo fator.
+    # Primeiro acesso:
+    # senha temporária -> criação da senha pessoal -> configuração/validação do MFA -> sistema.
+    if usuario.get("precisa_trocar_senha") == "1":
+        _start_password_change_before_mfa(usuario, proximo)
+        db.registrar_evento_login(
+            usuario["username"],
+            _client_ip(),
+            "primeiro_acesso_senha_pendente",
+            "senha temporária validada; aguardando criação da senha pessoal antes do MFA",
+        )
+        return redirect(url_for("trocar_senha"))
+
+    # Demais acessos: MFA é obrigatório para todos os perfis.
     _set_pending_login(usuario, proximo)
     if usuario.get("mfa_enabled") == "1":
         db.registrar_evento_login(usuario["username"], _client_ip(), "mfa_pendente", "senha validada; aguardando segundo fator")
@@ -561,8 +589,46 @@ def trocar_senha():
         return render_template("trocar_senha.html", username=session.get("username"),
                                 erro="As senhas não conferem.")
 
-    db.trocar_senha(session["user_id"], nova)
-    db.registrar_evento_login(session.get("username"), _client_ip(), "senha_alterada", "senha atualizada pelo usuário")
+    user_id = session["user_id"]
+    username = session.get("username")
+    primeiro_acesso_mfa = bool(session.get("primeiro_acesso_mfa_pendente"))
+    proximo = session.get("primeiro_acesso_next") or url_for("dashboard")
+
+    db.trocar_senha(user_id, nova)
+    db.registrar_evento_login(
+        username,
+        _client_ip(),
+        "senha_alterada",
+        "senha pessoal criada no primeiro acesso; MFA será exigido em seguida" if primeiro_acesso_mfa else "senha atualizada pelo usuário",
+    )
+
+    if primeiro_acesso_mfa:
+        usuario = db.buscar_usuario_por_id(user_id)
+        if not usuario:
+            session.clear()
+            return redirect(url_for("login"))
+
+        # A sessão de troca de senha é encerrada e volta a ser uma sessão
+        # pendente de MFA. Assim não existe caminho para o Dashboard antes
+        # da conclusão do segundo fator.
+        _set_pending_login(usuario, proximo)
+        if usuario.get("mfa_enabled") == "1":
+            db.registrar_evento_login(
+                usuario["username"],
+                _client_ip(),
+                "mfa_pendente",
+                "senha pessoal criada; aguardando validação do MFA",
+            )
+            return redirect(url_for("mfa_verificar"))
+
+        db.registrar_evento_login(
+            usuario["username"],
+            _client_ip(),
+            "mfa_configuracao_exigida",
+            "senha pessoal criada; aguardando configuração do MFA obrigatório",
+        )
+        return redirect(url_for("mfa_configurar"))
+
     session["precisa_trocar_senha"] = False
     session["_csrf_token"] = secrets.token_urlsafe(32)
     return redirect(url_for("dashboard"))
