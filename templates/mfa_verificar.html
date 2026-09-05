@@ -2062,27 +2062,29 @@ button.loading .submit-spinner{display:inline-block;}
 }
 
 
-.mfa-badge{display:inline-flex;align-items:center;gap:10px;margin:14px 0 12px;padding:10px 14px;border-radius:999px;background:rgba(62,166,255,.08);color:#bfe4ff;border:1px solid rgba(62,166,255,.14);font-size:12px;font-weight:600}
-.mfa-badge .shield{margin-right:0}
-.user-box,.info-box,.erro,.required,.helper-note,.secret-box,.qr-panel{margin-top:14px;padding:12px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.08);background:#0c131b;font-size:12px;color:#d4deea;line-height:1.55}
-.user-box b{color:var(--blue)}
-.required{border-color:rgba(255,182,72,.28);background:rgba(255,182,72,.08);color:#ffd48d}
-.erro{border-color:rgba(255,107,107,.35);background:rgba(255,107,107,.09);color:#ffb3b3}
-.info-box{color:#aebdd0}
-.info-list{margin:0;padding-left:18px;color:#aebdd0}
-.info-list li+li{margin-top:6px}
-.qr-panel{text-align:center;padding:16px}
-.qr-img{display:block;width:min(220px,100%);margin:0 auto 12px;border-radius:16px;background:#fff;padding:12px;box-shadow:0 12px 24px rgba(0,0,0,.28)}
-.qr-img img{display:block;width:100%;height:auto}
-.chip-row{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:10px}
-.app-chip{border:1px solid var(--line);border-radius:999px;padding:7px 10px;color:#b4c3d2;font-size:10px}
-.secret-box span{display:block;color:#8ea1b5;font:700 10px var(--mono);letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px}
-.secret-box code{display:block;overflow-wrap:anywhere;font:700 12px var(--mono);color:#eef6ff}
-.helper-note{display:flex;gap:10px;align-items:flex-start;color:#aabacc}
-.helper-note svg{width:18px;height:18px;flex:0 0 18px;color:#82d4ff}
-.form-help{margin-top:8px;color:#7f8da1;font-size:11px;line-height:1.5}
-.simple-links{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
-.simple-links span{border:1px solid var(--line);border-radius:999px;padding:7px 10px;color:#b4c3d2;font-size:10px}
+/* =========================================================
+   MFA - MESMO LAYOUT DO LOGIN, CONTEÚDO SIMPLIFICADO
+========================================================= */
+.mfa-login{justify-content:center}
+.mfa-badge{display:inline-flex;align-items:center;gap:7px;width:max-content;max-width:100%;margin:0 0 14px;padding:6px 9px;border:1px solid rgba(94,242,214,.18);border-radius:999px;background:rgba(94,242,214,.055);color:#a7eadd;font:700 9px var(--mono);letter-spacing:.08em;text-transform:uppercase}
+.mfa-badge .shield{width:7px;height:7px;border-radius:50%;background:var(--cyan);box-shadow:0 0 10px rgba(94,242,214,.7)}
+.mfa-user{margin:0 0 14px;padding:10px 12px;border:1px solid rgba(255,255,255,.08);border-radius:9px;background:rgba(255,255,255,.025);color:#aebdce;font-size:11px}
+.mfa-user b{color:var(--blue)}
+.mfa-required{margin:0 0 14px;padding:9px 11px;border:1px solid rgba(255,182,72,.25);border-radius:9px;background:rgba(255,182,72,.07);color:#ffd08a;font-size:10.5px;line-height:1.45}
+.mfa-erro{margin:0 0 14px;padding:10px 12px;border-radius:8px;border:1px solid rgba(255,107,107,.3);background:rgba(255,107,107,.08);color:var(--red);font-size:11px;line-height:1.45}
+.mfa-qr-panel{margin:0 0 12px;padding:12px;border:1px solid rgba(255,255,255,.08);border-radius:12px;background:rgba(255,255,255,.025);text-align:center}
+.mfa-qr{width:176px;height:176px;margin:0 auto 10px;padding:10px;border-radius:14px;background:#fff;display:grid;place-items:center;box-shadow:0 12px 25px rgba(0,0,0,.22)}
+.mfa-qr img{display:block;max-width:100%;max-height:100%}
+.mfa-apps{display:flex;gap:6px;justify-content:center;flex-wrap:wrap}.mfa-app{padding:5px 8px;border:1px solid rgba(255,255,255,.08);border-radius:999px;color:#8fa0b4;font-size:8.5px}
+.mfa-secret{margin:0 0 12px;padding:9px 11px;border:1px solid rgba(255,255,255,.08);border-radius:9px;background:#080d13}.mfa-secret span{display:block;margin-bottom:5px;color:#6f8197;font:700 8.5px var(--mono);letter-spacing:.08em;text-transform:uppercase}.mfa-secret code{display:block;color:#c8d7e6;font:700 10px var(--mono);letter-spacing:.05em;overflow-wrap:anywhere}
+.mfa-help{margin:10px 0 0;color:#74859a;font-size:9.5px;line-height:1.5}
+.mfa-note{display:flex;align-items:flex-start;gap:8px;margin-top:12px;padding:9px 10px;border-radius:8px;border:1px solid rgba(62,166,255,.10);background:rgba(62,166,255,.035);color:#738398;font-size:9.5px;line-height:1.45}.mfa-note svg{width:14px;height:14px;min-width:14px;margin-top:1px;color:#4eaefb}
+.mfa-status{min-height:14px;margin-top:9px;text-align:center;color:#6f8197;font-size:9.5px;line-height:1.35}.mfa-status.loading{color:#9fd2fb}
+.mfa-inline-apps{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}.mfa-inline-apps span{padding:5px 8px;border:1px solid rgba(255,255,255,.08);border-radius:999px;color:#8fa0b4;font-size:8.5px}
+.mfa-login .field{margin-bottom:12px}
+.mfa-login .credit{margin-top:16px}
+@media(max-width:760px){.mfa-qr{width:165px;height:165px}.mfa-login{padding-top:28px!important;padding-bottom:26px!important}}
+@media(max-width:480px){.mfa-login{padding:26px 22px 24px!important}.mfa-qr{width:150px;height:150px}.mfa-badge{font-size:8px}.mfa-user,.mfa-required,.mfa-erro{font-size:10px}}
 
 </style>
 {% include '_mobile_head.html' %}
@@ -2348,7 +2350,7 @@ button.loading .submit-spinner{display:inline-block;}
          LOGIN
     ====================================================== -->
 
-    <section class="login">
+    <section class="login mfa-login">
 
       <div class="brand">
         <div class="logo">
@@ -2362,38 +2364,30 @@ button.loading .submit-spinner{display:inline-block;}
       </div>
 
       <h1>Validar dupla autenticação</h1>
-      <p class="subtitle">Informe o código atual do aplicativo autenticador para concluir seu acesso com segurança.</p>
+      <p class="subtitle">Informe o código atual do seu aplicativo autenticador para concluir o acesso.</p>
 
       <div class="mfa-badge"><span class="shield"></span> Site seguro · acesso protegido com dupla autenticação</div>
-      <div class="user-box">Usuário: <b>{{ username }}</b></div>
-      {% if erro %}<div class="erro">⚠ {{ erro }}</div>{% endif %}
+      <div class="mfa-user">Usuário: <b>{{ username }}</b></div>
+      {% if erro %}<div class="mfa-erro">⚠ {{ erro }}</div>{% endif %}
 
-      <div class="info-box">
-        <ul class="info-list">
-          <li>Abra o Microsoft Authenticator ou Google Authenticator.</li>
-          <li>Localize o código temporário de 6 dígitos da sua conta.</li>
-          <li>Se necessário, você também pode usar um código de recuperação.</li>
-        </ul>
-      </div>
-
-      <form method="POST" autocomplete="off" class="form">
+      <form method="POST" id="mfa-form" autocomplete="off">
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         <div class="field">
           <label for="codigo">Código do Authenticator ou recuperação</label>
           <div class="input-wrap">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 12h6"/><path d="M12 9v6"/><rect x="4.5" y="4.5" width="15" height="15" rx="3"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4.5" y="4.5" width="15" height="15" rx="3"/><path d="M8 12h8"/></svg>
             <input id="codigo" name="codigo" required autofocus maxlength="16" autocomplete="one-time-code" placeholder="000000">
           </div>
-          <div class="form-help">O código do aplicativo muda automaticamente a cada 30 segundos.</div>
+          <div class="mfa-help">O código de 6 dígitos muda a cada 30 segundos. Você também pode usar um código de recuperação.</div>
         </div>
-        <button type="submit" class="btn">Validar e entrar</button>
+        <button type="submit" id="mfa-submit"><span class="submit-spinner" aria-hidden="true"></span><span class="submit-label">Validar e entrar</span></button>
+        <div class="mfa-status" id="mfa-status" role="status" aria-live="polite"></div>
       </form>
 
-      <div class="simple-links"><span>Microsoft Authenticator</span><span>Google Authenticator</span></div>
-      <div class="helper-note"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 3 19 6v5c0 4.7-2.8 8.1-7 10-4.2-1.9-7-5.3-7-10V6l7-3Z"/><path d="m9 12 2 2 4-4"/></svg><span>Se o código estiver perto de expirar, aguarde a próxima atualização do aplicativo e tente novamente.</span></div>
+      <div class="mfa-inline-apps"><span>Microsoft Authenticator</span><span>Google Authenticator</span></div>
+      <div class="mfa-note"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3 19 6v5c0 4.7-2.8 8.1-7 10-4.2-1.9-7-5.3-7-10V6l7-3Z"/><path d="m9 12 2 2 4-4"/></svg><span>Se o código estiver perto de expirar, aguarde o próximo e tente novamente.</span></div>
 
       <div class="credit">© 2026 · Todos os direitos reservados · Developed by <strong>Alexandre Martins</strong><div class="login-clock"><span id="login-date">--/--/----</span><span id="login-time">--:--</span></div></div>
-
     </section>
 
   </div>
@@ -2506,6 +2500,10 @@ loginForm?.addEventListener('submit',()=>{
 });
 
 
+
+/* =========================================================
+   MFA: CAMPO, CARREGAMENTO E RELÓGIO
+========================================================= */
 const mfaCodeInput=document.getElementById('codigo');
 if(mfaCodeInput){
   mfaCodeInput.addEventListener('input',()=>{
@@ -2516,6 +2514,19 @@ if(mfaCodeInput){
     }
   });
 }
+const mfaForm=document.getElementById('mfa-form');
+const mfaSubmit=document.getElementById('mfa-submit');
+const mfaStatus=document.getElementById('mfa-status');
+mfaForm?.addEventListener('submit',()=>{
+  if(!mfaForm.checkValidity()) return;
+  if(mfaSubmit){
+    mfaSubmit.disabled=true;
+    mfaSubmit.classList.add('loading');
+    const label=mfaSubmit.querySelector('.submit-label');
+    if(label) label.textContent='Validando...';
+  }
+  if(mfaStatus){mfaStatus.textContent='Validando seu acesso com segurança…';mfaStatus.classList.add('loading');}
+});
 
 function atualizarRelogioLogin(){
   const agora=new Date();

@@ -2392,19 +2392,13 @@ button.loading .submit-spinner{display:inline-block;}
 
 
       <h1>
-        Defina uma nova senha
+        Criar senha pessoal
       </h1>
 
       <p class="subtitle">
-        Olá, {{ username }}. Atualize sua senha para continuar.
+        Olá, {{ username }}. Defina sua senha pessoal para continuar.
       </p>
-
-      <div class="aviso">
-        ⚠ Primeiro acesso: escolha uma nova senha com pelo menos 6 caracteres.
-      </div>
-
-
-      <div class="first-access-flow"><strong>Primeiro acesso:</strong> crie sua senha pessoal. Depois você será direcionado para configurar a dupla autenticação (MFA) antes de entrar no sistema.</div>
+<div class="first-access-flow"><strong>Primeiro acesso:</strong> após salvar sua senha pessoal, você será direcionado para configurar a dupla autenticação antes de entrar no sistema.</div>
 
       {% if erro %}
 
@@ -2521,7 +2515,7 @@ button.loading .submit-spinner{display:inline-block;}
 
 
         <button type="submit" id="senha-submit">
-          <span class="submit-spinner" aria-hidden="true"></span><span class="submit-label">Salvar nova senha</span>
+          <span class="submit-spinner" aria-hidden="true"></span><span class="submit-label">Salvar senha e continuar</span>
         </button>
 
       </form>
@@ -2674,7 +2668,7 @@ senhaForm?.addEventListener('submit',ev=>{
   senhaSubmit.disabled=true;
   senhaSubmit.classList.add('loading');
   const label=senhaSubmit.querySelector('.submit-label');
-  if(label) label.textContent='Salvando...';
+  if(label) label.textContent='Salvando senha...';
 });
 
 </script>
