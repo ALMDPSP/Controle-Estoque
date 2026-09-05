@@ -12,135 +12,120 @@
 }
 *{box-sizing:border-box}
 html,body{width:100%;min-height:100%}
-body{
-  margin:0; min-height:100vh; padding:24px; display:flex; align-items:center; justify-content:center;
-  background:radial-gradient(circle at 15% 20%,rgba(62,166,255,.08),transparent 30%),radial-gradient(circle at 85% 80%,rgba(94,242,214,.06),transparent 30%),var(--bg);
-  color:var(--text); font-family:"Segoe UI",Inter,system-ui,-apple-system,sans-serif; overflow:hidden;
-}
-.aurora{position:fixed;inset:0;overflow:hidden;pointer-events:none;z-index:0}
-.aurora span{position:absolute;border-radius:50%;filter:blur(100px);opacity:.18;animation:auroraMove 18s ease-in-out infinite}
-.aurora span:nth-child(1){width:520px;height:520px;left:-220px;top:-220px;background:#168cff}
-.aurora span:nth-child(2){width:450px;height:450px;right:-180px;bottom:-200px;background:#26d9c0;animation-delay:-7s}
-.aurora span:nth-child(3){width:320px;height:320px;left:48%;top:45%;background:#7054ff;opacity:.08;animation-delay:-12s}
-@keyframes auroraMove{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(30px,-35px) scale(1.08)}}
-.grid-bg{position:fixed;inset:0;pointer-events:none;z-index:0;background-image:linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px);background-size:46px 46px;mask-image:radial-gradient(ellipse 75% 70% at center,black 20%,transparent 90%)}
-#particles{position:fixed;inset:0;pointer-events:none;z-index:0}
-.particle{position:absolute;width:2px;height:2px;border-radius:50%;background:var(--blue);box-shadow:0 0 8px var(--blue);opacity:0;animation:particleUp linear infinite}
-@keyframes particleUp{0%{transform:translateY(20px);opacity:0}15%{opacity:.6}80%{opacity:.35}100%{transform:translateY(-100vh);opacity:0}}
-.wrapper{position:relative;z-index:2;width:min(1080px,100%);animation:cardIn .65s ease-out both}
-@keyframes cardIn{from{opacity:0;transform:translateY(18px) scale(.985)}to{opacity:1;transform:translateY(0) scale(1)}}
-.card{position:relative;display:flex;min-height:640px;overflow:hidden;border-radius:20px;background:linear-gradient(135deg,rgba(18,25,35,.98),rgba(9,13,19,.99));border:1px solid rgba(255,255,255,.09);box-shadow:0 35px 90px rgba(0,0,0,.65),0 0 0 1px rgba(255,255,255,.015) inset}
-.card::before{content:"";position:absolute;inset:0;padding:1px;border-radius:20px;background:conic-gradient(from 0deg,transparent 0deg,transparent 260deg,rgba(62,166,255,.8) 285deg,rgba(94,242,214,.7) 300deg,transparent 330deg);-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;animation:borderSpin 8s linear infinite;pointer-events:none;z-index:50}
-@keyframes borderSpin{to{transform:rotate(360deg)}}
-.visual{position:relative;flex:1.2;min-width:500px;overflow:hidden;border-right:1px solid var(--line);background:radial-gradient(ellipse at 50% 48%,rgba(62,166,255,.10),transparent 55%),linear-gradient(160deg,#0b121b,#070b11)}
-.visual-header{position:absolute;top:25px;left:28px;right:28px;z-index:5;display:flex;align-items:center;justify-content:space-between}
-.system-name{display:flex;align-items:center;gap:10px;font-family:var(--mono);font-size:10px;color:#93a1b4;letter-spacing:.08em}
-.status-dot{width:8px;height:8px;border-radius:50%;background:var(--cyan);box-shadow:0 0 10px rgba(94,242,214,.8);animation:statusPulse 1.8s ease-in-out infinite}
-@keyframes statusPulse{0%,100%{opacity:.45}50%{opacity:1}}
-.live{font-family:var(--mono);font-size:9px;color:var(--cyan);letter-spacing:.12em}
-.visual-body{position:absolute;inset:92px 34px 34px;display:flex;flex-direction:column;justify-content:center}
-.kicker{display:inline-flex;align-items:center;gap:8px;width:max-content;padding:8px 14px;border-radius:999px;border:1px solid rgba(94,242,214,.18);background:rgba(14,27,39,.7);font:700 11px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:#caeef1}
-.kicker::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--cyan);box-shadow:0 0 10px rgba(94,242,214,.8)}
-.visual h1{font-size:40px;line-height:1.07;margin:18px 0 14px;max-width:470px}
-.visual p{font-size:15px;line-height:1.7;color:#9fb0c3;max-width:500px;margin:0}
-.visual-list{margin:26px 0 0;padding:0;list-style:none;display:grid;gap:14px;max-width:500px}
-.visual-list li{display:flex;gap:12px;align-items:flex-start;padding:14px 16px;border-radius:14px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06)}
-.visual-list i{display:grid;place-items:center;flex:0 0 28px;height:28px;border-radius:50%;background:rgba(62,166,255,.14);border:1px solid rgba(62,166,255,.28);color:var(--blue);font:700 12px var(--mono);font-style:normal}
-.visual-list strong{display:block;font-size:13px;margin-bottom:4px}.visual-list span{display:block;color:#91a2b5;font-size:12px;line-height:1.55}
-.info-band{margin-top:22px;padding:12px 14px;border-radius:14px;background:linear-gradient(180deg,rgba(17,27,40,.9),rgba(10,16,24,.9));border:1px solid rgba(255,255,255,.08);font-size:12px;color:#dce6f2}
-.info-band b{color:#fff}.chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.chip{padding:6px 10px;border-radius:999px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.03);font-size:11px;color:#b7c4d1}
-.form-side{width:430px;padding:34px 30px 26px;display:flex;flex-direction:column;justify-content:center;position:relative;z-index:2}
-.form-head small{display:inline-block;padding:5px 10px;border-radius:999px;border:1px solid rgba(62,166,255,.22);color:#9bd5ff;background:rgba(62,166,255,.08);font:700 10px var(--mono);letter-spacing:.09em;text-transform:uppercase}
-.form-head h2{font-size:30px;line-height:1.12;margin:14px 0 10px}.form-head p{margin:0;color:var(--muted);line-height:1.6;font-size:13px}
-.required{margin-top:14px;padding:10px 12px;border:1px solid rgba(255,182,72,.3);border-radius:12px;background:rgba(255,182,72,.08);color:#ffd18c;font-size:12px;line-height:1.5}
-.erro{margin-top:16px;border:1px solid rgba(255,107,107,.35);background:rgba(255,107,107,.09);color:#ffb3b3;border-radius:12px;padding:10px 12px;font-size:12px;line-height:1.5}
-.qrbox{margin-top:18px;padding:16px;border-radius:18px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08)}
-.qr{display:grid;place-items:center;background:#fff;border-radius:18px;padding:14px;width:236px;height:236px;margin:0 auto 14px}.qr img{max-width:100%;max-height:100%}
-.apps{display:flex;justify-content:center;gap:8px;flex-wrap:wrap}.app{border:1px solid var(--line);border-radius:999px;padding:7px 10px;color:#b4c3d2;font-size:10px}
-.secret{margin-top:14px;border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:12px;background:#0c131b}.secret span{display:block;color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.08em}.secret code{display:block;margin-top:6px;color:#dce9f7;font:700 12px var(--mono);letter-spacing:.08em;word-break:break-all}
+body{margin:0;min-height:100vh;padding:24px;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at 15% 20%,rgba(62,166,255,.08),transparent 30%),radial-gradient(circle at 85% 80%,rgba(94,242,214,.06),transparent 30%),var(--bg);color:var(--text);font-family:"Segoe UI",Inter,system-ui,-apple-system,sans-serif;overflow:hidden}
+.aurora{position:fixed;inset:0;overflow:hidden;pointer-events:none;z-index:0}.aurora span{position:absolute;border-radius:50%;filter:blur(100px);opacity:.18;animation:auroraMove 18s ease-in-out infinite}.aurora span:nth-child(1){width:520px;height:520px;left:-220px;top:-220px;background:#168cff}.aurora span:nth-child(2){width:450px;height:450px;right:-180px;bottom:-200px;background:#26d9c0;animation-delay:-7s}.aurora span:nth-child(3){width:320px;height:320px;left:48%;top:45%;background:#7054ff;opacity:.08;animation-delay:-12s}@keyframes auroraMove{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(30px,-35px) scale(1.08)}}
+.grid{position:fixed;inset:0;pointer-events:none;z-index:0;background-image:linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px);background-size:46px 46px;mask-image:radial-gradient(ellipse 75% 70% at center,black 20%,transparent 90%)}
+#particles{position:fixed;inset:0;pointer-events:none;z-index:0}.particle{position:absolute;width:2px;height:2px;border-radius:50%;background:var(--blue);box-shadow:0 0 8px var(--blue);opacity:0;animation:particleUp linear infinite}@keyframes particleUp{0%{transform:translateY(20px);opacity:0}15%{opacity:.6}80%{opacity:.35}100%{transform:translateY(-100vh);opacity:0}}
+.wrapper{position:relative;z-index:2;width:min(1120px,100%);animation:cardIn .65s ease-out both}@keyframes cardIn{from{opacity:0;transform:translateY(18px) scale(.985)}to{opacity:1;transform:translateY(0) scale(1)}}
+.card{position:relative;display:flex;min-height:660px;overflow:hidden;border-radius:22px;background:linear-gradient(135deg,rgba(18,25,35,.98),rgba(9,13,19,.99));border:1px solid rgba(255,255,255,.09);box-shadow:0 35px 90px rgba(0,0,0,.65),0 0 0 1px rgba(255,255,255,.015) inset}.card::before{content:"";position:absolute;inset:0;padding:1px;border-radius:22px;background:conic-gradient(from 0deg,transparent 0deg,transparent 260deg,rgba(62,166,255,.8) 285deg,rgba(94,242,214,.7) 300deg,transparent 330deg);-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;animation:borderSpin 8s linear infinite;pointer-events:none;z-index:20}@keyframes borderSpin{to{transform:rotate(360deg)}}
+.hero{position:relative;flex:1.15;min-width:0;padding:36px 34px;border-right:1px solid var(--line);background:radial-gradient(ellipse at 50% 48%,rgba(62,166,255,.10),transparent 55%),linear-gradient(160deg,#0b121b,#070b11);display:flex;flex-direction:column;justify-content:space-between}
+.hero-top{display:flex;align-items:center;justify-content:space-between;gap:12px}.brand{display:flex;align-items:center;gap:14px}.logo{width:56px;height:56px;border-radius:18px;background:linear-gradient(160deg,rgba(19,32,47,.95),rgba(8,13,21,.95));border:1px solid rgba(255,255,255,.08);display:grid;place-items:center;box-shadow:0 12px 28px rgba(0,0,0,.35)}.logo svg{width:28px;height:28px}.brand-name{font-size:20px;font-weight:800;letter-spacing:.01em}.brand-name span{display:block;margin-top:3px;font-size:11px;color:#8ea0b5;letter-spacing:.14em;text-transform:uppercase;font-family:var(--mono)}
+.live{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border-radius:999px;border:1px solid rgba(94,242,214,.18);background:rgba(14,27,39,.7);font:700 10px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:#caeef1}.live::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--cyan);box-shadow:0 0 10px rgba(94,242,214,.8)}
+.hero-copy{margin:26px 0 24px}.hero-copy h1{font-size:40px;line-height:1.07;margin:0 0 14px;max-width:500px}.hero-copy p{font-size:15px;line-height:1.72;color:#9fb0c3;max-width:540px;margin:0}.access-badge{display:inline-flex;align-items:center;gap:10px;margin-bottom:18px;padding:10px 14px;border-radius:999px;background:rgba(62,166,255,.08);color:#bfe4ff;border:1px solid rgba(62,166,255,.14);font-size:12px;font-weight:600}.shield{width:16px;height:16px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#68ebd3,#22b8a4);box-shadow:0 0 14px rgba(94,242,214,.45);position:relative}.shield::after{content:"";position:absolute;left:4px;top:3px;width:6px;height:8px;border:2px solid #06251f;border-top:0;border-left:0;transform:rotate(45deg)}
+.feature-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.feature{padding:16px;border-radius:16px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06)}.feature b{display:block;font-size:13px;margin-bottom:5px}.feature span{display:block;color:#91a2b5;font-size:12px;line-height:1.55}
+.hero-bottom{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:28px}.mini{padding:14px 14px 12px;border-radius:16px;background:linear-gradient(180deg,rgba(17,27,40,.9),rgba(10,16,24,.9));border:1px solid rgba(255,255,255,.08)}.mini label{display:block;color:#8ea1b5;font:700 10px var(--mono);letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px}.mini strong{display:block;font-size:23px;line-height:1.1}.mini small{display:block;margin-top:6px;color:#93a6bb;font-size:11px}
+.login{width:430px;padding:34px 30px 26px;display:flex;flex-direction:column;justify-content:center;position:relative;z-index:2}
+.form-head small{display:inline-block;padding:5px 10px;border-radius:999px;border:1px solid rgba(62,166,255,.22);color:#9bd5ff;background:rgba(62,166,255,.08);font:700 10px var(--mono);letter-spacing:.09em;text-transform:uppercase}.form-head h2{font-size:30px;line-height:1.12;margin:14px 0 10px}.subtitle{margin:0;color:var(--muted);line-height:1.6;font-size:13px}
+.user-box,.required,.erro,.secret,.note,.secure-note{margin-top:14px;padding:12px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.08);background:#0c131b;font-size:12px;color:#d4deea;line-height:1.55}.user-box b{color:var(--blue)}.required{border-color:rgba(255,182,72,.3);background:rgba(255,182,72,.08);color:#ffd18c}.erro{border-color:rgba(255,107,107,.35);background:rgba(255,107,107,.09);color:#ffb3b3}.secure-note{display:flex;gap:10px;align-items:flex-start;color:#aabacc}.secure-note svg{width:18px;height:18px;flex:0 0 18px;color:#82d4ff}
+.qr-shell{margin-top:16px;padding:16px;border-radius:18px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08)}.qr{display:grid;place-items:center;background:#fff;border-radius:18px;padding:14px;width:236px;height:236px;margin:0 auto 14px}.qr img{max-width:100%;max-height:100%}.apps{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin-top:8px}.app{border:1px solid var(--line);border-radius:999px;padding:7px 10px;color:#b4c3d2;font-size:10px}.secret span{display:block;color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.08em}.secret code{display:block;margin-top:6px;color:#dce9f7;font:700 12px var(--mono);letter-spacing:.08em;word-break:break-all}
 .steps{margin-top:16px;display:grid;gap:10px}.step{display:grid;grid-template-columns:24px 1fr;gap:10px;align-items:start}.n{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;background:rgba(62,166,255,.12);border:1px solid rgba(62,166,255,.3);color:var(--blue);font:700 11px var(--mono)}.step b{font-size:12px;display:block;margin-bottom:2px}.step p{margin:0;color:var(--muted);font-size:11px;line-height:1.45}
-.form{margin-top:18px}.form label{display:block;color:#aec0d1;font-size:12px;margin-bottom:8px}.code{width:100%;background:#0b1219;border:1px solid var(--line);border-radius:12px;padding:14px;color:#fff;font:700 21px var(--mono);letter-spacing:.16em;outline:none;text-align:center}.code:focus{border-color:var(--blue);box-shadow:0 0 0 4px rgba(62,166,255,.12)}
-.btn{width:100%;margin-top:12px;border:0;border-radius:12px;padding:14px;background:linear-gradient(135deg,var(--blue),#65c8ff);color:#07121c;font-weight:800;cursor:pointer;font-size:14px}
-.note{margin-top:14px;color:#8fa1b4;font-size:11px;line-height:1.6}
-.footer-note{margin-top:auto;padding-top:18px;color:#7b8b9f;font-size:11px;border-top:1px solid rgba(255,255,255,.06)}
-@media (max-width:980px){body{padding:16px;overflow:auto}.wrapper{width:min(760px,100%)}.card{flex-direction:column;min-height:auto}.visual{min-width:0;border-right:0;border-bottom:1px solid var(--line)}.visual-body{position:relative;inset:auto;padding:90px 28px 28px}.visual h1{font-size:32px;max-width:none}.form-side{width:100%;padding:28px}.footer-note{margin-top:18px}}
-@media (max-width:560px){.visual-header{left:18px;right:18px;top:18px}.visual-body{padding:78px 18px 20px}.form-side{padding:20px 16px 18px}.form-head h2{font-size:24px}.qr{width:210px;height:210px}.code{font-size:18px;letter-spacing:.12em}}
+.form{margin-top:18px}.form label{display:block;color:#aec0d1;font-size:12px;margin-bottom:8px}.code{width:100%;background:#0b1219;border:1px solid var(--line);border-radius:12px;padding:14px;color:#fff;font:700 21px var(--mono);letter-spacing:.16em;outline:none;text-align:center}.code:focus{border-color:var(--blue);box-shadow:0 0 0 4px rgba(62,166,255,.12)}.btn{width:100%;margin-top:12px;border:0;border-radius:12px;padding:14px;background:linear-gradient(135deg,var(--blue),#65c8ff);color:#07121c;font-weight:800;cursor:pointer;font-size:14px}
+.credit{margin-top:auto;padding-top:18px;color:#7b8b9f;font-size:11px;border-top:1px solid rgba(255,255,255,.06)}.clock{display:flex;justify-content:center;gap:7px;margin-top:8px;color:#435166;font:9px var(--mono)}.clock span+span::before{content:'•';margin-right:7px;color:#2f4054}
+@media (max-width:980px){body{padding:16px;overflow:auto}.wrapper{width:min(760px,100%)}.card{flex-direction:column;min-height:auto}.hero{border-right:0;border-bottom:1px solid var(--line)}.hero-bottom{grid-template-columns:1fr}.login{width:100%;padding:28px}.credit{margin-top:18px}}@media (max-width:560px){.hero{padding:22px 18px}.login{padding:20px 16px 18px}.form-head h2{font-size:24px}.hero-copy h1{font-size:32px}.feature-grid,.hero-bottom{grid-template-columns:1fr}.qr{width:210px;height:210px}.code{font-size:18px;letter-spacing:.12em}}
 </style>
 </head>
 <body>
 <div class="aurora"><span></span><span></span><span></span></div>
-<div class="grid-bg"></div>
+<div class="grid"></div>
 <div id="particles"></div>
 <div class="wrapper">
   <div class="card">
-    <section class="visual">
-      <div class="visual-header">
-        <div class="system-name"><span class="status-dot"></span> CONTROLE DE ATIVOS - PRELOAD</div>
-        <div class="live">● ON LINE</div>
-      </div>
-      <div class="visual-body">
-        <span class="kicker">Site seguro com dupla autenticação</span>
-        <h1>Configure o acesso protegido ao sistema.</h1>
-        <p>Para concluir o primeiro acesso, associe sua conta ao <b>Microsoft Authenticator</b> ou <b>Google Authenticator</b>. O mesmo QR Code funciona nos dois aplicativos.</p>
-        <ul class="visual-list">
-          <li><i>1</i><div><strong>Escaneie o QR Code</strong><span>Abra o aplicativo autenticador no celular e adicione uma nova conta para ler o código exibido.</span></div></li>
-          <li><i>2</i><div><strong>Use a chave manual se precisar</strong><span>Se a câmera não estiver disponível, você pode cadastrar a conta usando a chave manual informada ao lado.</span></div></li>
-          <li><i>3</i><div><strong>Confirme com o código de 6 dígitos</strong><span>Depois de adicionar a conta, digite o primeiro código exibido no aplicativo para ativar o MFA.</span></div></li>
-        </ul>
-        <div class="info-band">
-          <b>Compatível com:</b>
-          <div class="chips"><span class="chip">Microsoft Authenticator</span><span class="chip">Google Authenticator</span><span class="chip">Acesso protegido</span></div>
+    <section class="hero">
+      <div>
+        <div class="hero-top">
+          <div class="brand">
+            <div class="logo">
+              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 2L21 7V17L12 22L3 17V7L12 2Z" stroke="#3ea6ff" stroke-width="1.6" stroke-linejoin="round"/>
+                <path d="M3 7L12 12L21 7" stroke="#5ef2d6" stroke-width="1.6" stroke-linejoin="round"/>
+                <path d="M12 12V22" stroke="#3ea6ff" stroke-width="1.6"/>
+              </svg>
+            </div>
+            <div class="brand-name">Controle de Ativos<span>Sistema interno</span></div>
+          </div>
+          <div class="live">MFA habilitado</div>
+        </div>
+        <div class="hero-copy">
+          <div class="access-badge"><span class="shield"></span> Site seguro · acesso protegido com dupla autenticação</div>
+          <h1>Cadastre o QR Code no mesmo padrão visual do login.</h1>
+          <p>Use o Microsoft Authenticator ou Google Authenticator para associar sua conta com segurança. Depois, valide o primeiro código para concluir a ativação do acesso.</p>
+        </div>
+        <div class="feature-grid">
+          <div class="feature"><b>1 · Escaneie o QR Code</b><span>Abra o aplicativo autenticador e adicione uma nova conta usando a câmera do celular.</span></div>
+          <div class="feature"><b>2 · Use a chave manual</b><span>Se preferir, cadastre a conta manualmente usando a chave secreta exibida na lateral.</span></div>
+          <div class="feature"><b>3 · Confirme o primeiro código</b><span>Digite o token de 6 dígitos gerado no app para concluir a configuração do MFA.</span></div>
+          <div class="feature"><b>Compatibilidade</b><span>Funciona com Microsoft Authenticator, Google Authenticator e códigos de recuperação do sistema.</span></div>
         </div>
       </div>
+      <div class="hero-bottom">
+        <div class="mini"><label>Autenticadores</label><strong>2</strong><small>Microsoft e Google</small></div>
+        <div class="mini"><label>Segurança</label><strong>MFA</strong><small>Obrigatório para acesso</small></div>
+        <div class="mini"><label>Status</label><strong>Ativo</strong><small>Configuração guiada</small></div>
+      </div>
     </section>
-    <section class="form-side">
+    <section class="login">
       <div class="form-head">
         <small>Configuração de acesso</small>
         <h2>Cadastre seu Authenticator</h2>
-        <p>Usuário: <b>{{ username }}</b><br>Escaneie o QR Code abaixo e confirme a ativação para continuar.</p>
+        <p class="subtitle">Escaneie o QR Code abaixo e confirme a ativação para liberar o acesso ao sistema.</p>
       </div>
-      {% if obrigatorio %}<div class="required">🔐 A dupla autenticação é obrigatória. Conclua a configuração para acessar o sistema.</div>{% endif %}
+      <div class="user-box">Usuário: <b>{{ username }}</b></div>
+      {% if obrigatorio %}<div class="required">🔐 A dupla autenticação é obrigatória. Conclua esta etapa para acessar o sistema.</div>{% endif %}
       {% if erro %}<div class="erro">⚠ {{ erro }}</div>{% endif %}
-      <div class="qrbox">
+
+      <div class="qr-shell">
         <div class="qr"><img src="{{ qr_data }}" alt="QR Code para configurar o Authenticator"></div>
         <div class="apps"><span class="app">Microsoft Authenticator</span><span class="app">Google Authenticator</span></div>
-        <div class="secret"><span>Chave manual</span><code>{{ secret }}</code></div>
       </div>
+      <div class="secret"><span>Chave manual</span><code>{{ secret }}</code></div>
+
       <div class="steps">
-        <div class="step"><span class="n">1</span><div><b>Abra o aplicativo</b><p>No Microsoft Authenticator, escolha adicionar conta. No Google Authenticator, toque em adicionar.</p></div></div>
-        <div class="step"><span class="n">2</span><div><b>Leia o QR Code</b><p>Se necessário, use a chave manual acima para concluir o cadastro da conta.</p></div></div>
+        <div class="step"><span class="n">1</span><div><b>Abra o aplicativo</b><p>Selecione adicionar conta e escolha a leitura do QR Code para iniciar.</p></div></div>
+        <div class="step"><span class="n">2</span><div><b>Confirme no sistema</b><p>Depois de escanear, informe o código gerado para concluir a configuração.</p></div></div>
       </div>
+
       <form method="POST" class="form" autocomplete="off">
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         <label for="codigo">Código de 6 dígitos</label>
         <input class="code" id="codigo" name="codigo" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" required autofocus placeholder="000000">
         <button type="submit" class="btn">Ativar dupla autenticação</button>
       </form>
-      <div class="note">Após a confirmação, o sistema mostrará os códigos de recuperação. Guarde-os em local seguro.</div>
-      <div class="footer-note">© 2026 · Todos os direitos reservados · Developed by <b>Alexandre Martins</b></div>
+
+      <div class="secure-note"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 3 19 6v5c0 4.7-2.8 8.1-7 10-4.2-1.9-7-5.3-7-10V6l7-3Z"/><path d="m9 12 2 2 4-4"/></svg><span>Após a confirmação, o sistema exibirá os códigos de recuperação. Guarde essas informações em local seguro.</span></div>
+
+      <div class="credit">© 2026 · Todos os direitos reservados · Developed by <strong>Alexandre Martins</strong><div class="clock"><span id="page-date">--/--/----</span><span id="page-time">--:--</span></div></div>
     </section>
   </div>
 </div>
 <script>
 (function(){
-  const container=document.getElementById('particles');
-  if(container){
-    const total=34;
-    for(let i=0;i<total;i++){
-      const p=document.createElement('span');
-      p.className='particle';
-      p.style.left=(Math.random()*100)+'vw';
-      p.style.top=(Math.random()*100)+'vh';
-      p.style.animationDuration=(10+Math.random()*16)+'s';
-      p.style.animationDelay=(-Math.random()*18)+'s';
-      p.style.opacity=Math.random()*.55;
-      container.appendChild(p);
-    }
+  const particleContainer = document.getElementById('particles');
+  const reduzirMovimento = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const particleCount = reduzirMovimento ? 0 : (window.innerWidth < 700 ? 7 : 18);
+  for(let i=0;i<particleCount;i++){
+    const particle=document.createElement('span');
+    particle.className='particle';
+    particle.style.left=Math.random()*100+'%';
+    particle.style.top=(80+Math.random()*30)+'%';
+    particle.style.animationDuration=(10+Math.random()*14)+'s';
+    particle.style.animationDelay=(-Math.random()*14)+'s';
+    const size=1+Math.random()*2; particle.style.width=size+'px'; particle.style.height=size+'px';
+    particleContainer.appendChild(particle);
   }
   const code=document.getElementById('codigo');
-  if(code){
-    code.addEventListener('input',()=>{ code.value = code.value.replace(/\D/g,'').slice(0,6); });
-  }
+  if(code){ code.addEventListener('input',()=>{ code.value = code.value.replace(/\D/g,'').slice(0,6); }); }
+  function atualizarRelogio(){ const agora=new Date(); const d=document.getElementById('page-date'),t=document.getElementById('page-time'); if(d) d.textContent=agora.toLocaleDateString('pt-BR'); if(t) t.textContent=agora.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}); }
+  atualizarRelogio(); setInterval(atualizarRelogio,30000);
 })();
 </script>
 </body>
