@@ -53,7 +53,7 @@ import qrcode
 import db
 
 app = Flask(__name__)
-APP_BUILD = "2026-09-05-acompanhamento-expansao-cadastro-v44"
+APP_BUILD = "2026-09-05-acompanhamento-expansao-exclusao-v45"
 app.secret_key = os.environ.get("SECRET_KEY", "troque-esta-chave-em-producao")
 app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
@@ -2281,6 +2281,76 @@ def api_atualizar_acompanhamento_expansao(registro_id):
 
     atualizado = db.buscar_acompanhamento_expansao_por_id(registro_id)
     return jsonify({"ok": True, "registro": atualizado})
+
+
+@app.route("/api/acompanhamento-expansao/<int:registro_id>", methods=["DELETE"])
+@edit_required
+def api_excluir_acompanhamento_expansao(registro_id):
+    if not _csrf_ok():
+        return jsonify({"erro": "A sessão de segurança expirou. Atualize a página e tente novamente."}), 400
+
+    registro = db.buscar_acompanhamento_expansao_por_id(registro_id)
+    if not registro:
+        return jsonify({"erro": "Registro de acompanhamento não encontrado."}), 404
+
+    try:
+        excluido = db.excluir_acompanhamento_expansao(registro_id)
+    except Exception:
+        app.logger.exception("Erro ao excluir acompanhamento de expansão %s", registro_id)
+        return jsonify({"erro": "Não foi possível excluir a loja selecionada."}), 500
+
+    if not excluido:
+        return jsonify({"erro": "Registro de acompanhamento não encontrado."}), 404
+
+    db.registrar_movimentacao(
+        0, "exclusao_acompanhamento_expansao", "1", session.get("username"),
+        f"Loja removida do Acompanhamento de Expansão · Filial {registro.get('filial') or registro_id}",
+        tabela="sistema"
+    )
+    return jsonify({"ok": True, "registro": registro, "build": APP_BUILD})
+
+
+@app.route("/api/acompanhamento-expansao/excluir-em-lote", methods=["POST"])
+@edit_required
+def api_excluir_acompanhamento_expansao_em_lote():
+    if not _csrf_ok():
+        return jsonify({"erro": "A sessão de segurança expirou. Atualize a página e tente novamente."}), 400
+
+    dados = request.get_json(silent=True) or {}
+    ids = dados.get("ids") or []
+    if not isinstance(ids, list) or not ids:
+        return jsonify({"erro": "Nenhum registro selecionado."}), 400
+
+    ids_limpos = []
+    for valor in ids:
+        try:
+            registro_id = int(valor)
+        except (TypeError, ValueError):
+            continue
+        if registro_id > 0 and registro_id not in ids_limpos:
+            ids_limpos.append(registro_id)
+    if not ids_limpos:
+        return jsonify({"erro": "Nenhum registro válido selecionado."}), 400
+
+    try:
+        excluidos, nao_encontrados = db.excluir_acompanhamento_expansao_em_lote(ids_limpos)
+    except Exception:
+        app.logger.exception("Erro ao excluir acompanhamentos de expansão em lote")
+        return jsonify({"erro": "Não foi possível excluir os registros selecionados."}), 500
+
+    for item in excluidos:
+        db.registrar_movimentacao(
+            0, "exclusao_acompanhamento_expansao", "1", session.get("username"),
+            f"Loja removida do Acompanhamento de Expansão · Filial {item.get('filial') or item.get('id')} (exclusão em massa)",
+            tabela="sistema"
+        )
+
+    return jsonify({
+        "ok": True,
+        "excluidos": len(excluidos),
+        "nao_encontradas": nao_encontrados,
+        "build": APP_BUILD,
+    })
 
 
 @app.route("/export-acompanhamento-expansao")

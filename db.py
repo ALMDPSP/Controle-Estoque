@@ -1786,6 +1786,57 @@ def importar_acompanhamento_expansao_em_lote(linhas, usuario):
         cur.close(); conn.close()
 
 
+def excluir_acompanhamento_expansao(registro_id):
+    conn = get_conn(); cur = get_cursor(conn)
+    try:
+        cur.execute(q("SELECT id, filial FROM acompanhamento_expansao WHERE id=?"), (registro_id,))
+        row = cur.fetchone()
+        if not row:
+            return None
+        registro = dict(row)
+        cur.execute(q("DELETE FROM acompanhamento_expansao WHERE id=?"), (registro_id,))
+        if cur.rowcount == 0:
+            conn.rollback()
+            return None
+        conn.commit()
+        return registro
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        cur.close(); conn.close()
+
+
+def excluir_acompanhamento_expansao_em_lote(ids):
+    ids_limpos = []
+    for valor in ids or []:
+        try:
+            registro_id = int(valor)
+        except (TypeError, ValueError):
+            continue
+        if registro_id > 0 and registro_id not in ids_limpos:
+            ids_limpos.append(registro_id)
+    if not ids_limpos:
+        return [], []
+
+    conn = get_conn(); cur = get_cursor(conn)
+    try:
+        placeholders = ",".join(["?"] * len(ids_limpos))
+        cur.execute(q(f"SELECT id, filial FROM acompanhamento_expansao WHERE id IN ({placeholders})"), tuple(ids_limpos))
+        encontrados = [dict(r) for r in cur.fetchall()]
+        encontrados_ids = {int(r.get('id') or 0) for r in encontrados}
+        nao_encontrados = [i for i in ids_limpos if i not in encontrados_ids]
+        if encontrados:
+            cur.execute(q(f"DELETE FROM acompanhamento_expansao WHERE id IN ({placeholders})"), tuple(ids_limpos))
+        conn.commit()
+        return encontrados, nao_encontrados
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        cur.close(); conn.close()
+
+
 # ---------------------------------------------------------------------
 # Auditoria de importações / saúde do sistema
 # ---------------------------------------------------------------------
