@@ -53,7 +53,7 @@ import qrcode
 import db
 
 app = Flask(__name__)
-APP_BUILD = "2026-09-06-filtro-historico-v49"
+APP_BUILD = "2026-09-06-historico-separado-v50"
 app.secret_key = os.environ.get("SECRET_KEY", "troque-esta-chave-em-producao")
 _RUNNING_HTTPS_HOSTED = bool(
     os.environ.get("KOYEB_PUBLIC_DOMAIN")
@@ -736,6 +736,31 @@ def api_movimentacoes_recentes():
             m["codigo"]=ref.get("codigo","")
             m["descricao"]=ref.get("descricao","")
     return jsonify(movs)
+
+
+@app.route("/api/movimentacoes/excluir-lote", methods=["POST"])
+@admin_required
+def api_excluir_movimentacoes_lote():
+    dados = request.get_json(silent=True) or {}
+    ids_brutos = dados.get("ids") or []
+    if not isinstance(ids_brutos, list):
+        return jsonify({"erro": "Lista de movimentações inválida."}), 400
+    try:
+        ids = sorted({int(x) for x in ids_brutos if int(x) > 0})
+    except (TypeError, ValueError):
+        return jsonify({"erro": "Um ou mais identificadores são inválidos."}), 400
+    if not ids:
+        return jsonify({"erro": "Selecione ao menos uma movimentação."}), 400
+    if len(ids) > 50000:
+        return jsonify({"erro": "O limite por exclusão é de 50.000 movimentações."}), 400
+    total = db.excluir_movimentacoes_por_ids(ids)
+    usuario = session.get("username") or "Administrador"
+    db.salvar_configuracao(
+        "ultima_exclusao_historico",
+        f"{datetime.now().strftime('%d/%m/%Y %H:%M:%S')} · {usuario} · {total} registro(s)",
+        usuario,
+    )
+    return jsonify({"ok": True, "excluidas": total})
 
 
 @app.route("/api/auditoria-login")
