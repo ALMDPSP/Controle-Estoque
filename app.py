@@ -53,7 +53,7 @@ import qrcode
 import db
 
 app = Flask(__name__)
-APP_BUILD = "2026-09-06-koyeb-neon-v47"
+APP_BUILD = "2026-09-06-retencao-movimentacoes-v48"
 app.secret_key = os.environ.get("SECRET_KEY", "troque-esta-chave-em-producao")
 _RUNNING_HTTPS_HOSTED = bool(
     os.environ.get("KOYEB_PUBLIC_DOMAIN")
@@ -934,6 +934,80 @@ def api_importacoes_recentes():
 @admin_page_required
 def pagina_gestao_dados():
     return render_template("gestao_dados.html",username=session.get("username"),role=session.get("role") or "user",is_admin=session.get("role")=="admin")
+
+
+@app.route("/api/expurgo-movimentacoes/status")
+@admin_required
+def api_status_expurgo_movimentacoes():
+    dias = db.obter_retencao_movimentacoes()
+    limite = (datetime.now() - timedelta(days=dias)).strftime("%Y-%m-%d")
+    antigos = db.listar_movimentacoes_anteriores(limite)
+    return jsonify({
+        "retencao_dias": dias,
+        "data_limite": limite,
+        "registros_elegiveis": len(antigos),
+        "ultimo_expurgo": db.obter_configuracao("ultimo_expurgo_movimentacoes", ""),
+    })
+
+
+@app.route("/api/expurgo-movimentacoes/config", methods=["POST"])
+@admin_required
+def api_config_expurgo_movimentacoes():
+    dados = request.get_json(silent=True) or request.form
+    try:
+        dias = int(dados.get("dias", 60))
+    except (TypeError, ValueError):
+        return jsonify({"erro": "Informe uma quantidade válida de dias."}), 400
+    if dias < 30 or dias > 3650:
+        return jsonify({"erro": "A retenção deve ficar entre 30 e 3650 dias."}), 400
+    dias = db.salvar_retencao_movimentacoes(dias, session.get("username"))
+    return jsonify({"ok": True, "retencao_dias": dias})
+
+
+@app.route("/expurgo-movimentacoes", methods=["POST"])
+@admin_required
+def executar_expurgo_movimentacoes():
+    dias = db.obter_retencao_movimentacoes()
+    limite = (datetime.now() - timedelta(days=dias)).strftime("%Y-%m-%d")
+    antigos = db.listar_movimentacoes_anteriores(limite)
+    if not antigos:
+        return jsonify({"erro": "Não existem movimentações anteriores ao limite configurado."}), 400
+
+    # O Excel é concluído em memória antes da exclusão.
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Movimentações expurgadas"
+    _preencher_planilha_dict(ws, antigos)
+    info = wb.create_sheet("Informações")
+    info.append(["Expurgo do histórico de movimentações"])
+    info.append(["Gerado em", datetime.now().strftime("%d/%m/%Y %H:%M:%S")])
+    info.append(["Executado por", session.get("username") or "Administrador"])
+    info.append(["Retenção", f"{dias} dias"])
+    info.append(["Data limite", limite])
+    info.append(["Registros arquivados", len(antigos)])
+
+    ids = [m["id"] for m in antigos]
+    excluidos = db.excluir_movimentacoes_por_ids(ids)
+    agora = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+    usuario = session.get("username") or "Administrador"
+    db.salvar_configuracao(
+        "ultimo_expurgo_movimentacoes",
+        f"{agora} · {usuario} · {excluidos} registro(s) · retenção {dias} dias",
+        usuario,
+    )
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    nome = f"arquivo_movimentacoes_expurgadas_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+    resposta = send_file(
+        buf,
+        as_attachment=True,
+        download_name=nome,
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+    resposta.headers["X-Registros-Expurgados"] = str(excluidos)
+    return resposta
 
 
 UF_NOMES = {

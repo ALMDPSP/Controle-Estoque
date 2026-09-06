@@ -1131,6 +1131,56 @@ def listar_todas_movimentacoes():
     return linhas
 
 
+def obter_retencao_movimentacoes():
+    """Quantidade de dias mantida no histórico online (padrão: 60)."""
+    try:
+        valor = int(obter_configuracao("retencao_movimentacoes_dias", "60") or 60)
+    except (TypeError, ValueError):
+        valor = 60
+    return max(30, min(valor, 3650))
+
+
+def salvar_retencao_movimentacoes(dias, usuario=None):
+    dias = max(30, min(int(dias), 3650))
+    salvar_configuracao("retencao_movimentacoes_dias", dias, usuario)
+    return dias
+
+
+def listar_movimentacoes_anteriores(data_limite):
+    """Lista registros com data ISO válida e anterior a YYYY-MM-DD."""
+    conn = get_conn()
+    cur = get_cursor(conn)
+    cur.execute(
+        q("SELECT * FROM movimentacoes "
+          "WHERE data_hora IS NOT NULL AND LENGTH(data_hora) >= 10 "
+          "AND SUBSTR(data_hora, 1, 10) < ? ORDER BY id ASC"),
+        (str(data_limite),),
+    )
+    linhas = [dict(r) for r in cur.fetchall()]
+    cur.close()
+    conn.close()
+    return linhas
+
+
+def excluir_movimentacoes_por_ids(ids):
+    """Exclui exatamente os IDs previamente incluídos no arquivo de auditoria."""
+    ids = [int(x) for x in ids]
+    if not ids:
+        return 0
+    conn = get_conn()
+    cur = get_cursor(conn)
+    total = 0
+    for inicio in range(0, len(ids), 500):
+        lote = ids[inicio:inicio + 500]
+        placeholders = ", ".join(["?"] * len(lote))
+        cur.execute(q(f"DELETE FROM movimentacoes WHERE id IN ({placeholders})"), lote)
+        total += int(cur.rowcount or 0)
+    conn.commit()
+    cur.close()
+    conn.close()
+    return total
+
+
 def excluir_itens_em_lote(ids):
     if not ids:
         return 0
