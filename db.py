@@ -2,10 +2,9 @@
 db.py — Camada de acesso a dados.
 
 Funciona com SQLite localmente (arquivo estoque.db, sem precisar
-configurar nada) e com PostgreSQL em produção no Render, bastando
-que a variável de ambiente DATABASE_URL esteja definida (o Render
-já cria essa variável automaticamente quando você conecta um banco
-Postgres ao serviço web).
+configurar nada) e com PostgreSQL em produção quando DATABASE_URL
+estiver definida. A configuração recomendada é Neon PostgreSQL com
+a aplicação publicada no Koyeb.
 """
 
 import os
@@ -15,14 +14,25 @@ from datetime import datetime
 
 from werkzeug.security import generate_password_hash
 
-DATABASE_URL = os.environ.get("DATABASE_URL", "")
+DATABASE_URL = os.environ.get("DATABASE_URL", "").strip()
+RUNNING_ON_KOYEB = bool(os.environ.get("KOYEB_SERVICE_ID") or os.environ.get("KOYEB_PUBLIC_DOMAIN"))
+REQUIRE_DATABASE_URL = os.environ.get("REQUIRE_DATABASE_URL", "1" if RUNNING_ON_KOYEB else "0") == "1"
+
+if REQUIRE_DATABASE_URL and not DATABASE_URL:
+    raise RuntimeError(
+        "DATABASE_URL não foi configurada. No Koyeb, defina DATABASE_URL com a connection string do Neon."
+    )
+
 IS_PG = DATABASE_URL.startswith("postgres")
 
 if IS_PG:
-    # Render às vezes fornece a URL como "postgres://", mas o driver
-    # psycopg2 exige "postgresql://".
+    # Alguns provedores ainda entregam URLs com postgres://. Psycopg2 aceita
+    # melhor o prefixo postgresql://.
     if DATABASE_URL.startswith("postgres://"):
         DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+    # Neon exige SSL. Se a URL Neon vier sem sslmode, adicionamos require.
+    if ".neon.tech" in DATABASE_URL and "sslmode=" not in DATABASE_URL:
+        DATABASE_URL += ("&" if "?" in DATABASE_URL else "?") + "sslmode=require"
     import psycopg2
     import psycopg2.extras
 else:
@@ -33,7 +43,11 @@ else:
 
 def get_conn():
     if IS_PG:
-        return psycopg2.connect(DATABASE_URL)
+        return psycopg2.connect(
+            DATABASE_URL,
+            connect_timeout=12,
+            application_name="controle_ativos",
+        )
     conn = sqlite3.connect(SQLITE_PATH)
     conn.row_factory = sqlite3.Row
     return conn
@@ -640,14 +654,23 @@ def init_db():
     total = row[0]
     if total == 0:
         admin_user = os.environ.get("ADMIN_USER", "admin")
-        admin_pass = os.environ.get("ADMIN_PASS", "admin123")
+        admin_pass = os.environ.get("ADMIN_PASS", "").strip()
+        if not admin_pass and IS_PG:
+            cur.close()
+            conn.close()
+            raise RuntimeError(
+                "Banco PostgreSQL vazio e ADMIN_PASS não foi definido. "
+                "Cadastre uma senha inicial segura nas variáveis de ambiente antes do primeiro deploy."
+            )
+        if not admin_pass:
+            admin_pass = "admin123"  # somente ambiente local/SQLite
         cur.execute(
             q("INSERT INTO usuarios (username, password_hash, role, criado_em) VALUES (?, ?, ?, ?)"),
             (admin_user, generate_password_hash(admin_pass), "admin", datetime.now().isoformat()),
         )
         conn.commit()
         print(f"[setup] Usuário administrador criado: '{admin_user}'. "
-              f"{'(senha definida por ADMIN_PASS)' if os.environ.get('ADMIN_PASS') else '(senha padrão admin123 — troque assim que possível!)'}")
+              f"{'(senha definida por ADMIN_PASS)' if os.environ.get('ADMIN_PASS') else '(senha local padrão admin123 — troque assim que possível!)'}")
 
     cur.close()
     conn.close()

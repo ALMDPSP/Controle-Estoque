@@ -5,8 +5,8 @@ Programa em Python (Flask) com interface web (HTTP).
 
 - Localmente: guarda os dados num banco SQLite (estoque.db), sem
   precisar configurar nada.
-- No Render (produção): usa o PostgreSQL do próprio Render, através
-  da variável de ambiente DATABASE_URL.
+- Em produção: usa PostgreSQL externo através da variável DATABASE_URL.
+  A configuração recomendada é Koyeb para a aplicação + Neon para o banco.
 
 Tem login por usuário/senha e um botão para exportar os dados para
 Excel (.xlsx) a qualquer momento.
@@ -53,12 +53,19 @@ import qrcode
 import db
 
 app = Flask(__name__)
-APP_BUILD = "2026-09-05-relatorios-expansao-v46"
+APP_BUILD = "2026-09-06-koyeb-neon-v47"
 app.secret_key = os.environ.get("SECRET_KEY", "troque-esta-chave-em-producao")
+_RUNNING_HTTPS_HOSTED = bool(
+    os.environ.get("KOYEB_PUBLIC_DOMAIN")
+    or os.environ.get("RENDER_EXTERNAL_HOSTNAME")
+)
 app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE="Lax",
-    SESSION_COOKIE_SECURE=os.environ.get("SESSION_COOKIE_SECURE", "0") == "1",
+    # Koyeb publica o serviço em HTTPS. Localmente permanece False por padrão.
+    SESSION_COOKIE_SECURE=os.environ.get(
+        "SESSION_COOKIE_SECURE", "1" if _RUNNING_HTTPS_HOSTED else "0"
+    ) == "1",
 )
 
 # Proteções leves de autenticação. O limite é mantido em memória do processo
@@ -3977,6 +3984,16 @@ def api_excluir_usuario(user_id):
     if not ok:
         return jsonify({"erro": "Usuário não encontrado."}), 404
     return jsonify({"ok": True})
+
+
+# ---------------------------------------------------------------------
+# Health check para provedores de hospedagem (não consulta o banco para
+# evitar acordar o Neon somente por causa do monitoramento do serviço).
+# ---------------------------------------------------------------------
+
+@app.route("/health")
+def health_check():
+    return jsonify({"status": "ok", "build": APP_BUILD}), 200
 
 
 # ---------------------------------------------------------------------

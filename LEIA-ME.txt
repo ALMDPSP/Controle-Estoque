@@ -37,7 +37,7 @@ No computador local:
 3. Conecte o celular na mesma rede Wi-Fi e abra esse endereço no navegador.
 4. Dentro do sistema, abra a opção "Celular" do menu para consultar/copiar o endereço.
 
-Se o sistema estiver publicado no Render ou outro servidor HTTPS, abra no celular o mesmo endereço público usado no computador.
+Se o sistema estiver publicado no Koyeb ou outro servidor HTTPS, abra no celular o mesmo endereço público usado no computador.
 
 Android/Chrome ou Edge: use "Instalar app" / "Adicionar à tela inicial".
 iPhone/Safari: Compartilhar > Adicionar à Tela de Início.
@@ -55,3 +55,8 @@ NOVOS RECURSOS — FILIAIS E LEITOR DE CÓDIGO
 - Para câmera ao vivo, navegadores normalmente exigem HTTPS. Em acesso local
   pelo endereço IP do computador via HTTP, use a opção "Fotografar código" ou
   digite o código manualmente caso o navegador bloqueie a câmera ao vivo.
+
+
+HOSPEDAGEM RECOMENDADA
+----------------------
+A versão v47 está preparada para Koyeb + Neon. Consulte KOYEB_NEON_LEIA-ME.md antes da migração.
