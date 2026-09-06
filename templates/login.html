@@ -2007,7 +2007,7 @@ input:focus-visible{
   font:700 9px var(--mono);letter-spacing:.08em;text-transform:uppercase;
 }
 .access-badge .shield{width:7px;height:7px;border-radius:50%;background:var(--cyan);box-shadow:0 0 10px rgba(94,242,214,.7)}
-.security-strip{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;margin:-12px 0 23px}
+.security-strip{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin:-12px 0 23px}
 .security-chip{min-width:0;border:1px solid rgba(255,255,255,.07);background:rgba(255,255,255,.025);border-radius:8px;padding:8px 7px;color:#8090a5;font-size:9px;line-height:1.25;text-align:center}
 .security-chip b{display:block;color:#bbcada;font-size:9px;font-weight:650;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .login-options{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:-3px 0 8px}
@@ -2023,12 +2023,19 @@ input:focus-visible{
 .login-clock span+span::before{content:'•';margin-right:7px;color:#2f4054}
 .login-status{min-height:14px;margin-top:9px;text-align:center;color:#6f8197;font-size:9.5px;line-height:1.35}
 .login-status.loading{color:#9fd2fb}
+.visual-summary{position:absolute;left:30px;right:30px;bottom:24px;z-index:40;padding:18px 20px;border:1px solid rgba(62,166,255,.16);border-radius:13px;background:linear-gradient(135deg,rgba(7,13,20,.91),rgba(12,24,35,.84));backdrop-filter:blur(12px);box-shadow:0 16px 38px rgba(0,0,0,.28)}
+.visual-summary .eyebrow{display:flex;align-items:center;gap:7px;margin-bottom:7px;color:#8bcaff;font:700 8px var(--mono);letter-spacing:.14em;text-transform:uppercase}
+.visual-summary .eyebrow::before{content:'';width:18px;height:1px;background:var(--blue);box-shadow:0 0 8px rgba(62,166,255,.6)}
+.visual-summary h2{margin:0 0 6px;color:#edf5fd;font-size:18px;line-height:1.25;letter-spacing:-.015em}
+.visual-summary p{margin:0;color:#8494a8;font-size:10.5px;line-height:1.5}
+.login-section-kicker{display:block;margin:0 0 7px;color:#77bfff;font:700 9px var(--mono);letter-spacing:.13em;text-transform:uppercase}
 .erro{position:relative;padding-left:35px!important}
 .erro::before{content:'!';position:absolute;left:12px;top:9px;width:15px;height:15px;display:grid;place-items:center;border:1px solid rgba(255,107,107,.45);border-radius:50%;font:700 9px var(--mono)}
 @media(max-width:480px){
   .security-strip{grid-template-columns:1fr 1fr;margin-bottom:20px}
   .access-badge{font-size:8px}
 }
+@media(max-width:760px){.visual-summary{left:18px;right:18px;bottom:16px;padding:13px 15px}.visual-summary h2{font-size:15px}.visual-summary p{font-size:9.5px}}
 
 /* =========================================================
    REFINAMENTOS DE ACESSIBILIDADE E SEGURANÇA
@@ -2097,12 +2104,12 @@ button.loading .submit-spinner{display:inline-block;}
 
           <span class="status-dot"></span>
 
-          CONTROLE DE ATIVOS - PRELOAD
+          CONTROLE DE ATIVOS · OPERAÇÃO CENTRALIZADA
 
         </div>
 
         <div class="live">
-          ● ON LINE
+          ● ONLINE
         </div>
 
       </div>
@@ -2318,6 +2325,12 @@ button.loading .submit-spinner{display:inline-block;}
 
       </div>
 
+      <div class="visual-summary">
+        <div class="eyebrow">Tecnologia e Expansão</div>
+        <h2>Gestão de ativos com visão completa da operação.</h2>
+        <p>Estoque, imobilizados, filiais e expansão reunidos em um ambiente seguro e centralizado.</p>
+      </div>
+
     </section>
 
 
@@ -2376,15 +2389,23 @@ button.loading .submit-spinner{display:inline-block;}
       </div>
 
 
+      <span class="login-section-kicker">Acesso corporativo</span>
+
       <h1>
-        Acessar o sistema
+        Acesso ao sistema
       </h1>
 
       <p class="subtitle">
-        Entre com suas credenciais para continuar. A dupla autenticação será solicitada em seguida.
+        Entre com suas credenciais corporativas. O segundo fator de autenticação será solicitado em seguida.
       </p>
 
       <div class="access-badge"><span class="shield"></span> Site seguro · acesso protegido com dupla autenticação</div>
+
+      <div class="security-strip" aria-label="Áreas integradas do sistema">
+        <div class="security-chip"><b>Estoque</b>Gestão centralizada</div>
+        <div class="security-chip"><b>Ativos</b>Rastreabilidade</div>
+        <div class="security-chip"><b>Expansão</b>Visão integrada</div>
+      </div>
 
 
       {% if erro %}
@@ -2502,7 +2523,7 @@ button.loading .submit-spinner{display:inline-block;}
         </div>
 
         <button type="submit" id="login-submit">
-          <span class="submit-spinner" aria-hidden="true"></span><span class="submit-label">Entrar com segurança</span>
+          <span class="submit-spinner" aria-hidden="true"></span><span class="submit-label">Entrar</span>
         </button>
         <div class="login-status" id="login-status" role="status" aria-live="polite"></div>
 
