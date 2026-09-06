@@ -53,7 +53,7 @@ import qrcode
 import db
 
 app = Flask(__name__)
-APP_BUILD = "2026-09-06-retencao-movimentacoes-v48"
+APP_BUILD = "2026-09-06-filtro-historico-v49"
 app.secret_key = os.environ.get("SECRET_KEY", "troque-esta-chave-em-producao")
 _RUNNING_HTTPS_HOSTED = bool(
     os.environ.get("KOYEB_PUBLIC_DOMAIN")
@@ -716,11 +716,14 @@ def pagina_usuarios():
 @app.route("/api/movimentacoes-recentes")
 @login_required
 def api_movimentacoes_recentes():
+    inicio = (request.args.get("inicio") or "").strip()
+    fim = (request.args.get("fim") or "").strip()
     try:
-        limite=max(1,min(int(request.args.get("limite", 80)),500))
+        limite=max(1,min(int(request.args.get("limite", 80)),50000 if (inicio or fim) else 500))
     except (TypeError,ValueError):
         limite=80
-    movs=db.listar_movimentacoes_recentes(limite)
+    movs=(db.listar_movimentacoes_periodo(inicio, fim, limite)
+          if (inicio or fim) else db.listar_movimentacoes_recentes(limite))
     itens={str(x.get("id")):x for x in db.listar_itens()}
     imobs={str(x.get("id")):x for x in db.listar_imobilizados()}
     for m in movs:

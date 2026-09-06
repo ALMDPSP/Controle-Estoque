@@ -1121,6 +1121,28 @@ def listar_movimentacoes_recentes(limite=100):
     return linhas
 
 
+def listar_movimentacoes_periodo(inicio=None, fim=None, limite=10000):
+    """Consulta o histórico diretamente no banco pela faixa YYYY-MM-DD."""
+    conn = get_conn()
+    cur = get_cursor(conn)
+    filtros = ["data_hora IS NOT NULL", "LENGTH(data_hora) >= 10"]
+    parametros = []
+    if inicio:
+        filtros.append("SUBSTR(data_hora, 1, 10) >= ?")
+        parametros.append(str(inicio))
+    if fim:
+        filtros.append("SUBSTR(data_hora, 1, 10) <= ?")
+        parametros.append(str(fim))
+    parametros.append(max(1, min(int(limite), 50000)))
+    sql = "SELECT * FROM movimentacoes WHERE " + " AND ".join(filtros)
+    sql += " ORDER BY id DESC LIMIT ?"
+    cur.execute(q(sql), tuple(parametros))
+    linhas = [dict(r) for r in cur.fetchall()]
+    cur.close()
+    conn.close()
+    return linhas
+
+
 def listar_todas_movimentacoes():
     conn = get_conn()
     cur = get_cursor(conn)
