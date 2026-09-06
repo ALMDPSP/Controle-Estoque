@@ -53,7 +53,7 @@ import qrcode
 import db
 
 app = Flask(__name__)
-APP_BUILD = "2026-09-06-historico-separado-v50"
+APP_BUILD = "2026-09-06-apagar-historico-v51"
 app.secret_key = os.environ.get("SECRET_KEY", "troque-esta-chave-em-producao")
 _RUNNING_HTTPS_HOSTED = bool(
     os.environ.get("KOYEB_PUBLIC_DOMAIN")
@@ -761,6 +761,51 @@ def api_excluir_movimentacoes_lote():
         usuario,
     )
     return jsonify({"ok": True, "excluidas": total})
+
+
+@app.route("/api/movimentacoes/excluir-tudo", methods=["POST"])
+@admin_required
+def api_excluir_todas_movimentacoes():
+    dados = request.get_json(silent=True) or {}
+    if dados.get("confirmacao") != "APAGAR TUDO":
+        return jsonify({"erro": "Confirmação inválida. Digite APAGAR TUDO."}), 400
+    movimentacoes = db.listar_todas_movimentacoes()
+    if not movimentacoes:
+        return jsonify({"erro": "O histórico de movimentações já está vazio."}), 400
+
+    # Gera o arquivo completo antes de remover qualquer registro.
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Histórico removido"
+    _preencher_planilha_dict(ws, movimentacoes)
+    info = wb.create_sheet("Informações")
+    agora = datetime.now()
+    usuario = session.get("username") or "Administrador"
+    info.append(["Backup anterior à exclusão total do histórico"])
+    info.append(["Gerado em", agora.strftime("%d/%m/%Y %H:%M:%S")])
+    info.append(["Executado por", usuario])
+    info.append(["Registros arquivados", len(movimentacoes)])
+
+    ids = [m["id"] for m in movimentacoes]
+    total = db.excluir_movimentacoes_por_ids(ids)
+    db.salvar_configuracao(
+        "ultima_exclusao_total_historico",
+        f"{agora.strftime('%d/%m/%Y %H:%M:%S')} · {usuario} · {total} registro(s)",
+        usuario,
+    )
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    nome = f"backup_historico_completo_{agora.strftime('%Y%m%d_%H%M%S')}.xlsx"
+    resposta = send_file(
+        buf,
+        as_attachment=True,
+        download_name=nome,
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+    resposta.headers["X-Registros-Excluidos"] = str(total)
+    return resposta
 
 
 @app.route("/api/auditoria-login")
