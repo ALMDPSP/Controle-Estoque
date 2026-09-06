@@ -53,7 +53,8 @@ import qrcode
 import db
 
 app = Flask(__name__)
-APP_BUILD = "2026-09-06-apagar-historico-v51"
+APP_BUILD = "2026-09-06-dashboard-rapido-v52"
+_DASHBOARD_CACHE = {"expira": 0.0, "dados": None}
 app.secret_key = os.environ.get("SECRET_KEY", "troque-esta-chave-em-producao")
 _RUNNING_HTTPS_HOSTED = bool(
     os.environ.get("KOYEB_PUBLIC_DOMAIN")
@@ -967,6 +968,12 @@ def api_visao_executiva():
 @login_required
 def api_dashboard_resumo():
     """Carga compacta do Dashboard em uma única chamada HTTP."""
+    agora_mono = time.monotonic()
+    if request.args.get("refresh") != "1" and _DASHBOARD_CACHE["dados"] is not None and agora_mono < _DASHBOARD_CACHE["expira"]:
+        resposta = jsonify(_DASHBOARD_CACHE["dados"])
+        resposta.headers["Cache-Control"] = "private, max-age=10"
+        resposta.headers["X-Dashboard-Cache"] = "HIT"
+        return resposta
     base=db.obter_dashboard_compacto(20)
     visao=_calcular_visao_executiva(
         itens=base.get("itens") or [],
@@ -974,15 +981,13 @@ def api_dashboard_resumo():
         filiais=base.get("filiais") or [],
         meta=base.get("meta_lojas") or 10,
     )
-    try:
-        status=db.obter_saude_sistema()
-    except Exception as e:
-        status={"database":"indisponível","database_ok":False,"erro":str(e),"contagens":{},"inconsistencias":{"total":0}}
-    status.update({
-        "ultimo_backup":_obter_ultimo_backup_info(),
+    status={
+        "database":"PostgreSQL" if db.IS_PG else "SQLite",
+        "database_ok":True,
+        "ultimo_backup":base.get("ultimo_backup"),
         "build":APP_BUILD,
-    })
-    resposta=jsonify({
+    }
+    dados={
         "itens":base.get("itens") or [],
         "estoque_total":base.get("estoque_total") or 0,
         "imobilizados_total":base.get("imobilizados_total") or 0,
@@ -994,8 +999,12 @@ def api_dashboard_resumo():
         "movimentacoes":base.get("movimentacoes") or [],
         "status":status,
         "visao":visao,
-    })
-    resposta.headers["Cache-Control"]="private, max-age=5"
+    }
+    _DASHBOARD_CACHE["dados"] = dados
+    _DASHBOARD_CACHE["expira"] = time.monotonic() + 15
+    resposta=jsonify(dados)
+    resposta.headers["Cache-Control"]="private, max-age=10"
+    resposta.headers["X-Dashboard-Cache"]="MISS"
     return resposta
 
 @app.route("/api/importacoes-recentes")

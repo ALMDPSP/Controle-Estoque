@@ -830,32 +830,34 @@ def obter_dashboard_compacto(limite_movs=20):
     conn = get_conn()
     cur = get_cursor(conn)
     try:
-        # Estoque compacto: somente 4 colunas e já agrupado em memória.
-        cur.execute("SELECT codigo, descricao, qtde, tipo_estoque FROM itens ORDER BY id")
-        agrupado = {}
+        # O agrupamento acontece no banco para não transferir milhares de linhas.
+        if IS_PG:
+            qtd_sql = ("CASE WHEN TRIM(COALESCE(qtde,'')) ~ '^[0-9]+([.][0-9]+)?$' "
+                       "THEN CAST(qtde AS NUMERIC) ELSE 0 END")
+        else:
+            qtd_sql = "CAST(COALESCE(NULLIF(TRIM(qtde),''),'0') AS NUMERIC)"
+        cur.execute(
+            "SELECT codigo, descricao, tipo_estoque, "
+            f"SUM({qtd_sql}) AS qtde FROM itens "
+            "GROUP BY codigo, descricao, tipo_estoque"
+        )
+        itens = []
         total_estoque = 0
         for row in cur.fetchall():
             d = dict(row)
             qtd = qtd_num(d.get("qtde"))
-            if qtd <= 0:
-                continue
-            total_estoque += qtd
-            key = (
-                str(d.get("codigo") or "").strip(),
-                str(d.get("descricao") or "").strip(),
-                str(d.get("tipo_estoque") or "").strip(),
-            )
-            if key not in agrupado:
-                agrupado[key] = {
-                    "codigo": key[0], "descricao": key[1],
-                    "tipo_estoque": key[2], "qtde": 0,
-                }
-            agrupado[key]["qtde"] += qtd
-        itens = list(agrupado.values())
+            if qtd > 0:
+                itens.append({
+                    "codigo": str(d.get("codigo") or "").strip(),
+                    "descricao": str(d.get("descricao") or "").strip(),
+                    "tipo_estoque": str(d.get("tipo_estoque") or "").strip(),
+                    "qtde": qtd,
+                })
+                total_estoque += qtd
 
         # Imobilizados: o Dashboard precisa somente do total de unidades.
-        cur.execute("SELECT qtde FROM imobilizados")
-        imobilizados_total = sum(qtd_num(dict(r).get("qtde")) for r in cur.fetchall())
+        cur.execute(f"SELECT SUM({qtd_sql}) AS total FROM imobilizados")
+        imobilizados_total = qtd_num(dict(cur.fetchone()).get("total"))
 
         # Produtos: somente código e descrição são usados nos tooltips/flyouts.
         cur.execute("SELECT codigo, descricao FROM produtos ORDER BY id")
@@ -866,22 +868,27 @@ def obter_dashboard_compacto(limite_movs=20):
         cur.execute("SELECT id, codigo, descricao, quantidade FROM kit_padrao_loja ORDER BY id")
         kit = [dict(r) for r in cur.fetchall()]
 
-        # Filiais: conjunto compacto para cálculo da visão executiva.
-        cur.execute("SELECT id, codigo, nome, uf, ativo, previsao_abertura FROM filiais ORDER BY codigo")
+        # Para a visão executiva bastam as filiais que ainda serão inauguradas.
+        cur.execute("SELECT id, codigo, nome, uf, ativo, previsao_abertura FROM filiais WHERE ativo = 'inaugurar' ORDER BY codigo")
         filiais = [dict(r) for r in cur.fetchall()]
-        filiais_ativas = sum(1 for f in filiais if str(f.get("ativo") or "") == "1")
+        cur.execute("SELECT COUNT(*) AS total FROM filiais WHERE ativo = '1'")
+        filiais_ativas = int(dict(cur.fetchone()).get("total") or 0)
 
         # Meta persistida, reaproveitando a mesma conexão.
-        cur.execute(q("SELECT valor FROM configuracoes WHERE chave = ?"), ("meta_lojas_expansao",))
-        row = cur.fetchone()
-        if row:
-            rd = dict(row) if hasattr(row, "keys") else {"valor": row[0]}
-            try:
-                meta_lojas = max(1, min(int(rd.get("valor") or 10), 999))
-            except (TypeError, ValueError):
-                meta_lojas = 10
-        else:
+        chaves = ("meta_lojas_expansao", "ultimo_backup_usuario", "ultimo_backup_datahora", "ultimo_backup_arquivo")
+        cur.execute(q("SELECT chave, valor FROM configuracoes WHERE chave IN (?, ?, ?, ?)"), chaves)
+        configs = {str(dict(r).get("chave")): dict(r).get("valor") for r in cur.fetchall()}
+        try:
+            meta_lojas = max(1, min(int(configs.get("meta_lojas_expansao") or 10), 999))
+        except (TypeError, ValueError):
             meta_lojas = 10
+        ultimo_backup = None
+        if configs.get("ultimo_backup_datahora"):
+            ultimo_backup = {
+                "usuario": configs.get("ultimo_backup_usuario") or "-",
+                "data_hora": configs.get("ultimo_backup_datahora"),
+                "arquivo": configs.get("ultimo_backup_arquivo") or "",
+            }
 
         # Últimas movimentações e referências somente dos IDs necessários.
         limite_movs = max(1, min(int(limite_movs or 20), 100))
@@ -922,6 +929,7 @@ def obter_dashboard_compacto(limite_movs=20):
             "filiais_ativas": filiais_ativas,
             "meta_lojas": meta_lojas,
             "movimentacoes": movs,
+            "ultimo_backup": ultimo_backup,
         }
     finally:
         cur.close()
