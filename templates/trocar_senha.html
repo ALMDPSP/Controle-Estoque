@@ -2076,6 +2076,82 @@ button.loading .submit-spinner{display:inline-block;}
 }
 .first-access-flow strong{color:#eef6ff}
 
+/* Ciclo operacional sincronizado: recebimento, coleta, leitura e armazenagem */
+.login-section-kicker{display:block;margin:0 0 7px;color:#77bfff;font:700 9px var(--mono);letter-spacing:.13em;text-transform:uppercase}
+.access-badge{display:inline-flex;align-items:center;gap:7px;width:max-content;max-width:100%;margin:0 0 14px;padding:6px 9px;border:1px solid rgba(94,242,214,.18);border-radius:999px;background:rgba(94,242,214,.055);color:#a7eadd;font:700 9px var(--mono);letter-spacing:.08em;text-transform:uppercase}
+.access-badge .shield{width:7px;height:7px;border-radius:50%;background:var(--cyan);box-shadow:0 0 10px rgba(94,242,214,.7)}
+.truck{animation-duration:14s}
+.truck-wheel{animation:vehicleWheel 1s linear infinite}
+@keyframes vehicleWheel{to{transform:rotate(360deg)}}
+
+.forklift{animation:forkliftOperation 14s ease-in-out infinite}
+.fork-cargo{
+  position:absolute;right:-27px;bottom:19px;width:28px;height:22px;
+  border:1px solid rgba(94,242,214,.55);border-radius:2px;
+  background:linear-gradient(135deg,#1d425f,#0c1d2c);
+  box-shadow:0 0 13px rgba(94,242,214,.18);
+  opacity:0;animation:forkCargoCycle 14s ease-in-out infinite;
+}
+.fork-cargo::after{content:'RX-01';position:absolute;inset:0;display:grid;place-items:center;color:#7bc8ff;font:5px var(--mono)}
+@keyframes forkliftOperation{
+  0%,24%,100%{transform:translateX(-70px)}
+  31%,37%{transform:translateX(-70px)}
+  48%,58%{transform:translateX(76px)}
+  68%,82%{transform:translateX(0)}
+}
+@keyframes forkCargoCycle{
+  0%,29%,61%,100%{opacity:0;transform:translateY(7px)}
+  34%,55%{opacity:1;transform:translateY(0)}
+}
+
+.scan-station{
+  position:absolute;left:197px;bottom:27px;width:58px;height:64px;z-index:5;
+  border-left:2px solid rgba(94,242,214,.55);border-right:2px solid rgba(94,242,214,.55);
+  border-top:2px solid rgba(62,166,255,.65);border-radius:6px 6px 0 0;
+  box-shadow:0 0 16px rgba(62,166,255,.12);
+}
+.scan-station::before{
+  content:'';position:absolute;left:5px;right:5px;top:10px;height:2px;
+  background:linear-gradient(90deg,transparent,var(--cyan),transparent);
+  box-shadow:0 0 12px var(--cyan);animation:scannerSweep 1.65s ease-in-out infinite;
+}
+.scan-station::after{
+  content:'SCAN';position:absolute;left:50%;top:-13px;transform:translateX(-50%);
+  color:#77c9ff;font:6px var(--mono);letter-spacing:.13em;
+}
+@keyframes scannerSweep{0%,100%{top:9px;opacity:.35}50%{top:50px;opacity:1}}
+
+.moving-box{z-index:3}
+.moving-box::before{
+  content:attr(data-code);position:absolute;left:4px;bottom:3px;
+  color:#91a6ba;font:5px var(--mono);letter-spacing:.04em;
+}
+.moving-box.box-one{animation:smartBoxMove 7s linear infinite}
+.moving-box.box-two{animation:smartBoxMove 7s linear -2.33s infinite}
+.moving-box.box-three{animation:smartBoxMove 7s linear -4.66s infinite}
+@keyframes smartBoxMove{
+  0%{left:-50px;opacity:0;filter:none}
+  10%{opacity:1}
+  53%{filter:none}
+  56%,62%{filter:brightness(1.65) drop-shadow(0 0 7px rgba(94,242,214,.8));border-color:var(--cyan)}
+  68%{filter:none}
+  90%{opacity:1}
+  100%{left:365px;opacity:0;filter:none}
+}
+.operation-status{
+  position:absolute;right:27px;bottom:23px;z-index:31;display:flex;gap:6px;
+  color:#60758b;font:6px var(--mono);letter-spacing:.07em;text-transform:uppercase;
+}
+.operation-status span{display:flex;align-items:center;gap:4px;animation:stageStatus 14s ease-in-out infinite}
+.operation-status span::before{content:'';width:4px;height:4px;border-radius:50%;background:#375066;box-shadow:0 0 0 transparent}
+.operation-status span:nth-child(2){animation-delay:1.4s}.operation-status span:nth-child(3){animation-delay:2.8s}
+.operation-status span:nth-child(1)::before{animation:statusDot 14s ease-in-out infinite}
+.operation-status span:nth-child(2)::before{animation:statusDot 14s 1.4s ease-in-out infinite}
+.operation-status span:nth-child(3)::before{animation:statusDot 14s 2.8s ease-in-out infinite}
+@keyframes stageStatus{0%,18%,92%,100%{color:#60758b}38%,72%{color:#a8e9dc}}
+@keyframes statusDot{0%,18%,92%,100%{background:#375066;box-shadow:none}38%,72%{background:var(--cyan);box-shadow:0 0 8px var(--cyan)}}
+
+
 </style>
 {% include '_mobile_head.html' %}
 </head>
@@ -2112,12 +2188,12 @@ button.loading .submit-spinner{display:inline-block;}
 
           <span class="status-dot"></span>
 
-          CONTROLE DE ATIVOS - PRELOAD
+          CONTROLE DE ATIVOS · OPERAÇÃO CENTRALIZADA
 
         </div>
 
         <div class="live">
-          ● ON LINE
+          ● ONLINE
         </div>
 
       </div>
@@ -2263,6 +2339,8 @@ button.loading .submit-spinner{display:inline-block;}
 
           <div class="fork-arm"></div>
 
+          <div class="fork-cargo"></div>
+
           <div class="fork-wheel one"></div>
           <div class="fork-wheel two"></div>
 
@@ -2286,16 +2364,19 @@ button.loading .submit-spinner{display:inline-block;}
           <div class="roller"></div>
 
 
-          <div class="moving-box">
-            CAIXA
+          <div class="scan-station" aria-hidden="true"></div>
+
+
+          <div class="moving-box box-one" data-code="ATV-1042">
+            ITEM
           </div>
 
-          <div class="moving-box">
-            CAIXA
+          <div class="moving-box box-two" data-code="ATV-2078">
+            ITEM
           </div>
 
-          <div class="moving-box">
-            CAIXA
+          <div class="moving-box box-three" data-code="ATV-3156">
+            ITEM
           </div>
 
         </div>
@@ -2327,8 +2408,14 @@ button.loading .submit-spinner{display:inline-block;}
 
           <span class="hud-line"></span>
 
-          LOGISTICS SYSTEM
+          RECEBIMENTO → VALIDAÇÃO → RASTREABILIDADE
 
+        </div>
+
+        <div class="operation-status" aria-hidden="true">
+          <span>Recebido</span>
+          <span>Validado</span>
+          <span>Armazenado</span>
         </div>
 
       </div>
@@ -2391,6 +2478,8 @@ button.loading .submit-spinner{display:inline-block;}
       </div>
 
 
+      <span class="login-section-kicker">Primeiro acesso</span>
+
       <h1>
         Criar senha pessoal
       </h1>
@@ -2398,6 +2487,7 @@ button.loading .submit-spinner{display:inline-block;}
       <p class="subtitle">
         Olá, {{ username }}. Defina sua senha pessoal para continuar.
       </p>
+      <div class="access-badge"><span class="shield"></span> Alteração protegida · senha criptografada</div>
 <div class="first-access-flow"><strong>Primeiro acesso:</strong> após salvar sua senha pessoal, você será direcionado para configurar a dupla autenticação antes de entrar no sistema.</div>
 
       {% if erro %}

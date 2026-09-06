@@ -2003,17 +2003,6 @@ input:focus-visible{
 /* Ciclo operacional sincronizado: recebimento, coleta, leitura e armazenagem */
 .truck{animation-duration:14s}
 .truck-wheel{animation:vehicleWheel 1s linear infinite}
-.truck-door{
-  position:absolute;left:7px;top:5px;width:98px;height:31px;
-  border:1px solid rgba(94,242,214,.18);border-radius:2px;
-  background:linear-gradient(135deg,rgba(10,24,36,.92),rgba(18,52,73,.92));
-  transform-origin:left center;animation:truckDoorCycle 14s ease-in-out infinite;
-}
-.truck-door::after{content:'CARGA  •  CD';position:absolute;left:20px;top:11px;color:#75bff5;font:6px var(--mono);letter-spacing:.12em}
-@keyframes truckDoorCycle{
-  0%,27%,60%,100%{transform:perspective(120px) rotateY(0);opacity:1}
-  33%,54%{transform:perspective(120px) rotateY(-72deg);opacity:.45}
-}
 @keyframes vehicleWheel{to{transform:rotate(360deg)}}
 
 .forklift{animation:forkliftOperation 14s ease-in-out infinite}
@@ -2383,7 +2372,6 @@ button.loading .submit-spinner{display:inline-block;}
         <div class="truck">
 
           <div class="truck-body">
-            <div class="truck-door"></div>
             <span>DPSP</span>
           </div>
 
