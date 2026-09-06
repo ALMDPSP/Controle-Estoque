@@ -2023,11 +2023,6 @@ input:focus-visible{
 .login-clock span+span::before{content:'•';margin-right:7px;color:#2f4054}
 .login-status{min-height:14px;margin-top:9px;text-align:center;color:#6f8197;font-size:9.5px;line-height:1.35}
 .login-status.loading{color:#9fd2fb}
-.visual-summary{position:absolute;left:30px;right:30px;bottom:24px;z-index:40;padding:18px 20px;border:1px solid rgba(62,166,255,.16);border-radius:13px;background:linear-gradient(135deg,rgba(7,13,20,.91),rgba(12,24,35,.84));backdrop-filter:blur(12px);box-shadow:0 16px 38px rgba(0,0,0,.28)}
-.visual-summary .eyebrow{display:flex;align-items:center;gap:7px;margin-bottom:7px;color:#8bcaff;font:700 8px var(--mono);letter-spacing:.14em;text-transform:uppercase}
-.visual-summary .eyebrow::before{content:'';width:18px;height:1px;background:var(--blue);box-shadow:0 0 8px rgba(62,166,255,.6)}
-.visual-summary h2{margin:0 0 6px;color:#edf5fd;font-size:18px;line-height:1.25;letter-spacing:-.015em}
-.visual-summary p{margin:0;color:#8494a8;font-size:10.5px;line-height:1.5}
 .login-section-kicker{display:block;margin:0 0 7px;color:#77bfff;font:700 9px var(--mono);letter-spacing:.13em;text-transform:uppercase}
 .erro{position:relative;padding-left:35px!important}
 .erro::before{content:'!';position:absolute;left:12px;top:9px;width:15px;height:15px;display:grid;place-items:center;border:1px solid rgba(255,107,107,.45);border-radius:50%;font:700 9px var(--mono)}
@@ -2035,7 +2030,6 @@ input:focus-visible{
   .security-strip{grid-template-columns:1fr 1fr;margin-bottom:20px}
   .access-badge{font-size:8px}
 }
-@media(max-width:760px){.visual-summary{left:18px;right:18px;bottom:16px;padding:13px 15px}.visual-summary h2{font-size:15px}.visual-summary p{font-size:9.5px}}
 
 /* =========================================================
    REFINAMENTOS DE ACESSIBILIDADE E SEGURANÇA
@@ -2323,12 +2317,6 @@ button.loading .submit-spinner{display:inline-block;}
 
         </div>
 
-      </div>
-
-      <div class="visual-summary">
-        <div class="eyebrow">Tecnologia e Expansão</div>
-        <h2>Gestão de ativos com visão completa da operação.</h2>
-        <p>Estoque, imobilizados, filiais e expansão reunidos em um ambiente seguro e centralizado.</p>
       </div>
 
     </section>
