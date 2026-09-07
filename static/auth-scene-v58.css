@@ -1,0 +1,77 @@
+/* Cena corporativa das telas de autenticação */
+.visual{
+  background:
+    radial-gradient(circle at 48% 38%,rgba(27,103,153,.16),transparent 38%),
+    linear-gradient(160deg,#08131e 0%,#071019 52%,#050a10 100%);
+}
+.scene::after{
+  content:"";position:absolute;inset:0;pointer-events:none;z-index:28;
+  background:linear-gradient(180deg,transparent 65%,rgba(2,8,13,.26));
+}
+.floor{opacity:.82;background-size:38px 38px;filter:drop-shadow(0 -8px 24px rgba(35,141,211,.08))}
+.warehouse{filter:drop-shadow(0 25px 30px rgba(0,0,0,.48))}
+.roof{background:linear-gradient(180deg,#29445e,#101d2a);border-color:rgba(80,184,255,.42)}
+.building{
+  background:
+    linear-gradient(90deg,rgba(77,171,234,.045) 1px,transparent 1px),
+    linear-gradient(180deg,#142536,#09121c);
+  background-size:45px 45px;
+  border-color:rgba(130,198,242,.16);
+}
+.building::after{
+  content:"";position:absolute;left:0;right:0;bottom:0;height:42%;pointer-events:none;
+  background:linear-gradient(180deg,transparent,rgba(7,14,21,.32));
+}
+.box{background:linear-gradient(135deg,#285674,#10293d);border-color:rgba(73,179,247,.58)}
+.dock{box-shadow:inset 0 0 18px rgba(0,0,0,.48)}
+
+/* Caminhão fechado, com acabamento mais limpo */
+.truck-body{
+  color:#18364e;background:linear-gradient(145deg,#dce6ed,#94a9b8);
+  border-color:rgba(231,247,255,.7);box-shadow:0 12px 22px rgba(0,0,0,.52);
+}
+.truck-body span{color:#164d73;font-size:9px;font-weight:900;text-shadow:0 1px rgba(255,255,255,.7)}
+.truck-cab{background:linear-gradient(145deg,#d8e5ed,#829baa);border-color:rgba(224,244,255,.7)}
+.truck-window{background:linear-gradient(145deg,#163247,#071722);border-color:rgba(75,183,247,.72)}
+.truck-wheel{border-color:#71808b;box-shadow:inset 0 0 0 3px #111820}
+
+/* Empilhadeira industrial */
+.fork-body{background:linear-gradient(145deg,#ffba38,#a86608);border-color:rgba(255,210,104,.75)}
+.fork-cabin{border-color:#9babb7;background:rgba(5,13,20,.84)}
+.fork-roof,.fork-mast,.fork-arm{filter:brightness(1.16)}
+.fork-wheel{border-color:#65717a;animation:vehicleWheel 1s linear infinite}
+.fork-cargo,.moving-box{
+  color:#21313b;background:linear-gradient(135deg,#d5aa67,#8b6333);
+  border-color:rgba(247,205,133,.76);box-shadow:0 8px 16px rgba(0,0,0,.42);
+}
+.fork-cargo::after,.moving-box::before{color:#253743;font-weight:900}
+
+/* Portal de leitura */
+.scan-station{
+  border-color:rgba(59,236,224,.8);background:rgba(5,24,31,.18);
+  box-shadow:0 0 18px rgba(31,216,225,.22),inset 0 0 16px rgba(31,216,225,.08);
+}
+.scan-station::before{height:3px;background:linear-gradient(90deg,transparent,#85fff2,transparent)}
+
+/* Confirmação contextual, sem cobrir a operação */
+.scene-auth-badge{
+  position:absolute;left:28px;top:8px;z-index:32;display:flex;align-items:center;gap:8px;
+  min-width:142px;padding:8px 12px;border:1px solid rgba(69,236,212,.32);border-radius:8px;
+  background:rgba(6,30,35,.72);backdrop-filter:blur(8px);color:#7df4df;
+  font:800 7px var(--mono);letter-spacing:.11em;text-transform:uppercase;
+  box-shadow:0 0 20px rgba(54,225,207,.1);animation:authBadgeBreath 3.4s ease-in-out infinite;
+}
+.scene-auth-badge::before{
+  content:"✓";display:grid;place-items:center;width:16px;height:16px;border-radius:50%;
+  color:#06251f;background:#5ef2d6;box-shadow:0 0 10px rgba(94,242,214,.55);
+}
+.scene-auth-badge.is-processing::before{content:"";border:2px solid rgba(6,37,31,.35);border-top-color:#06251f;animation:authBadgeSpin .7s linear infinite}
+@keyframes authBadgeBreath{50%{border-color:rgba(69,236,212,.62);box-shadow:0 0 24px rgba(54,225,207,.2)}}
+@keyframes authBadgeSpin{to{transform:rotate(360deg)}}
+
+.operation-status{bottom:20px}
+.operation-status span{padding:4px 6px;border-radius:999px;background:rgba(7,18,28,.48)}
+
+@media(max-width:980px){.scene-auth-badge{left:18px;top:7px;min-width:0;padding:7px 9px}}
+@media(max-width:760px){.scene-auth-badge{font-size:6px}.scene-auth-badge::before{width:14px;height:14px}}
+@media(prefers-reduced-motion:reduce){.scene-auth-badge{animation:none}.fork-wheel{animation:none}}

@@ -2195,6 +2195,7 @@ button.loading .submit-spinner{display:inline-block;}
 @media(max-width:480px){.recovery-codes{grid-template-columns:1fr}.recovery-actions{grid-template-columns:1fr}}
 
 </style>
+<link rel="stylesheet" href="{{ url_for('static', filename='auth-scene-v58.css') }}">
 {% include '_mobile_head.html' %}
 </head>
 
@@ -2244,6 +2245,8 @@ button.loading .submit-spinner{display:inline-block;}
       <div class="scene">
 
         <div class="scene-glow"></div>
+
+        <div class="scene-auth-badge" data-progress="PROTEGENDO CÓDIGOS" aria-live="polite">CÓDIGOS PROTEGIDOS</div>
 
         <div class="floor"></div>
 
@@ -2665,5 +2668,6 @@ async function copiarCodigos(){
 }
 </script>
 
+<script src="{{ url_for('static', filename='auth-scene-v58.js') }}" defer></script>
 </body>
 </html>

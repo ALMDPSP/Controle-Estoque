@@ -2153,6 +2153,7 @@ button.loading .submit-spinner{display:inline-block;}
 
 
 </style>
+<link rel="stylesheet" href="{{ url_for('static', filename='auth-scene-v58.css') }}">
 {% include '_mobile_head.html' %}
 </head>
 
@@ -2202,6 +2203,8 @@ button.loading .submit-spinner{display:inline-block;}
       <div class="scene">
 
         <div class="scene-glow"></div>
+
+        <div class="scene-auth-badge" data-progress="PROTEGENDO NOVA SENHA" aria-live="polite">SENHA PROTEGIDA</div>
 
         <div class="floor"></div>
 
@@ -2763,5 +2766,6 @@ senhaForm?.addEventListener('submit',ev=>{
 
 </script>
 
+<script src="{{ url_for('static', filename='auth-scene-v58.js') }}" defer></script>
 </body>
 </html>
