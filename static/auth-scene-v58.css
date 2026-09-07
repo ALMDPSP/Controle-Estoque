@@ -110,3 +110,14 @@
 .operation-status span{padding:6px 9px;background:rgba(3,13,21,.78);border:1px solid rgba(76,186,224,.14);backdrop-filter:blur(7px)}
 @media(max-width:980px){.visual{background-position:center 58%}}
 @media(prefers-reduced-motion:reduce){.scene::before,.scene::after{animation:none}}
+
+/* V60: utiliza exatamente o painel aprovado pelo usuário */
+.visual{
+  background-image:url("auth-approved-exact-v60.webp");
+  background-size:100% 100%;
+  background-position:center;
+  background-repeat:no-repeat;
+}
+.visual::after,.visual-header,.scene::before,.scene::after,
+.scene-auth-badge,.operation-status{display:none!important}
+.scene{inset:0}
