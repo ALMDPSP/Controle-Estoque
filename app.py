@@ -54,7 +54,7 @@ import qrcode
 import db
 
 app = Flask(__name__)
-APP_BUILD = "2026-09-11-orcamento-pepi-v61"
+APP_BUILD = "2026-09-11-orcamento-pedido-sugerido-v62"
 _DASHBOARD_CACHE = {"expira": 0.0, "dados": None}
 app.secret_key = os.environ.get("SECRET_KEY", "troque-esta-chave-em-producao")
 _RUNNING_HTTPS_HOSTED = bool(
@@ -3350,6 +3350,25 @@ def _calcular_orcamento_pepi():
     if pepi > 0:
         percentual = min(Decimal("999.99"), (total_previsto / pepi * Decimal("100")).quantize(Decimal("0.01")))
     linhas.sort(key=lambda x: (x["comprar"] <= 0, -int(x["comprar"]), str(x["descricao"]).lower()))
+
+    # Sugestão operacional de pedido de compra: somente o que falta para cobrir
+    # as lojas da projeção (ou a meta provisória quando ainda não há filiais marcadas).
+    pedido_linhas = [dict(x) for x in linhas if int(x.get("comprar") or 0) > 0]
+    total_unidades_pedido = sum(int(x.get("comprar") or 0) for x in pedido_linhas)
+    lojas_consideradas = []
+    por_uf = {}
+    for filial in lojas_planejadas:
+        uf = str(filial.get("uf") or "").strip().upper() or "--"
+        por_uf[uf] = por_uf.get(uf, 0) + 1
+        lojas_consideradas.append({
+            "id": filial.get("id"),
+            "codigo": str(filial.get("codigo") or "").strip(),
+            "nome": str(filial.get("nome") or "").strip(),
+            "uf": uf,
+            "previsao_abertura": str(filial.get("previsao_abertura") or "").strip(),
+        })
+    lojas_consideradas.sort(key=lambda x: (x.get("previsao_abertura") or "9999-99-99", x.get("uf") or "", x.get("codigo") or ""))
+
     return {
         "pepi_consolidado": format(pepi, ".2f"),
         "total_previsto": format(total_previsto, ".2f"),
@@ -3357,11 +3376,17 @@ def _calcular_orcamento_pepi():
         "percentual_comprometido": format(percentual, ".2f"),
         "itens_sem_custo": itens_sem_custo,
         "itens_para_comprar": itens_para_comprar,
+        "total_unidades_pedido": total_unidades_pedido,
         "lojas_planejadas": len(lojas_planejadas),
+        "lojas_consideradas": lojas_consideradas,
+        "lojas_por_uf": [{"uf": uf, "quantidade": qtd} for uf, qtd in sorted(por_uf.items())],
+        "base_origem": "projecao_lojas" if lojas_planejadas else "meta_expansao",
         "meta_lojas": int(meta or 10),
         "lojas_base": lojas_base,
         "orcamento_completo": itens_sem_custo == 0,
         "orcamento_suficiente": saldo >= 0 and itens_sem_custo == 0,
+        "pedido_pronto": bool(pedido_linhas) and itens_sem_custo == 0,
+        "pedido_linhas": pedido_linhas,
         "linhas": linhas,
     }
 

@@ -6,15 +6,15 @@
 <title>Orçamento · PEPI</title>
 <style>
 :root{--bg:#12181f;--panel:#1a2029;--panel-2:#212934;--line:#2b3444;--text:#e7ebf1;--muted:#8b96a8;--accent:#3ea6ff;--accent-2:#ffb648;--ok:#4cd792;--danger:#ff6b6b;--mono:"SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:"Segoe UI",Inter,system-ui,sans-serif}header{padding:28px 32px 18px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap}header .tag{display:inline-flex;font:700 11px var(--mono);letter-spacing:.1em;color:var(--accent-2);text-transform:uppercase;border:1px solid rgba(255,182,72,.6);padding:4px 9px;border-radius:999px;background:rgba(255,182,72,.07)}h1{font-size:24px;margin:9px 0 4px;font-weight:650}header p{margin:0;color:var(--muted);font-size:13px;max-width:780px;line-height:1.5}.validation{font:700 10px var(--mono);text-transform:uppercase;letter-spacing:.08em;padding:7px 10px;border:1px solid rgba(255,182,72,.35);border-radius:8px;color:var(--accent-2);background:rgba(255,182,72,.07)}main{padding:24px 32px 60px;max-width:1440px;margin:auto}.pepi-panel{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(260px,.6fr);gap:16px;margin-bottom:18px}.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:19px 20px;box-shadow:0 14px 30px rgba(0,0,0,.08)}.panel h2{font-size:12px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin:0 0 14px}.pepi-box{display:flex;gap:10px;align-items:end;flex-wrap:wrap}.field{display:flex;flex-direction:column;gap:6px;flex:1;min-width:220px}.field label{font-size:11px;color:var(--muted)}input,select{background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:11px 12px;color:var(--text);font-size:14px;outline:none}input:focus,select:focus{border-color:var(--accent)}button,.btn{font-family:inherit;font-size:13px;border:1px solid var(--line);border-radius:8px;padding:10px 14px;cursor:pointer;background:var(--panel-2);color:var(--text);text-decoration:none}.primary{background:var(--accent);color:#08131f;border-color:var(--accent);font-weight:750}.pepi-meta{margin-top:10px;color:var(--muted);font-size:11px;line-height:1.5}.rule{display:grid;gap:9px;font-size:12px;color:var(--muted);line-height:1.45}.rule strong{color:var(--text)}.cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:13px;margin-bottom:18px}.card{background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:16px 17px}.card span{display:block;color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.08em}.card strong{display:block;margin-top:9px;font:800 24px var(--mono);letter-spacing:-.03em}.card small{display:block;color:var(--muted);font-size:10px;margin-top:6px}.card.pepi strong{color:var(--accent)}.card.compra strong{color:var(--accent-2)}.card.saldo.ok strong{color:var(--ok)}.card.saldo.neg strong{color:var(--danger)}.status-box{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:18px;padding:13px 15px;border-radius:11px;border:1px solid var(--line);background:var(--panel)}.status-main{display:flex;gap:10px;align-items:center}.dot{width:10px;height:10px;border-radius:50%;background:var(--muted);box-shadow:0 0 16px currentColor}.status-box.ok .dot{background:var(--ok);color:var(--ok)}.status-box.warn .dot{background:var(--accent-2);color:var(--accent-2)}.status-box.danger .dot{background:var(--danger);color:var(--danger)}.status-title{font-weight:750;font-size:13px}.status-sub{font-size:11px;color:var(--muted);margin-top:2px}.progress{height:10px;background:#111923;border:1px solid rgba(82,99,123,.42);border-radius:999px;overflow:hidden;min-width:220px;flex:1;max-width:500px}.progress span{display:block;height:100%;width:0;background:linear-gradient(90deg,#3ea6ff,#4cd792);border-radius:inherit;transition:width .3s ease}.progress.warn span{background:linear-gradient(90deg,#ffb648,#ffd27d)}.progress.danger span{background:linear-gradient(90deg,#ff6b6b,#ff9a73)}.toolbar{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:13px}.toolbar-left,.toolbar-right{display:flex;gap:9px;align-items:center;flex-wrap:wrap}.toolbar input{min-width:260px}.contador{font-size:11px;color:var(--muted)}.table-wrap{overflow:auto;border:1px solid var(--line);border-radius:10px}table{width:100%;border-collapse:collapse;min-width:1040px}th,td{text-align:left;padding:11px 10px;border-bottom:1px solid var(--line);font-size:12px}th{color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.04em;background:rgba(255,255,255,.015);position:sticky;top:0}tbody tr:hover{background:rgba(62,166,255,.035)}.code{font:700 11px var(--mono);color:var(--accent)}.num{text-align:right;font-family:var(--mono)}.money{text-align:right;font:700 12px var(--mono)}.buy{color:var(--accent-2);font-weight:750}.ok-text{color:var(--ok)}.danger-text{color:var(--danger)}.missing{display:inline-flex;padding:4px 7px;border-radius:999px;border:1px solid rgba(255,107,107,.32);background:rgba(255,107,107,.07);color:var(--danger);font-size:9px;font-weight:750}.linked{font-size:9px;color:var(--muted);display:block;margin-top:3px}.empty{text-align:center;padding:30px;color:var(--muted)}.note{margin-top:13px;padding:11px 13px;background:rgba(62,166,255,.06);border:1px solid rgba(62,166,255,.18);border-radius:9px;color:var(--muted);font-size:11px;line-height:1.5}.note strong{color:var(--text)}
-@media(max-width:1050px){.cards{grid-template-columns:1fr 1fr}.pepi-panel{grid-template-columns:1fr}}
-@media(max-width:650px){header,main{padding-left:12px;padding-right:12px}.cards{grid-template-columns:1fr}.toolbar input{min-width:0;width:100%}.toolbar-left,.toolbar-right{width:100%}.pepi-box button{width:100%}.progress{min-width:100%;max-width:none}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:"Segoe UI",Inter,system-ui,sans-serif}header{padding:28px 32px 18px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap}header .tag{display:inline-flex;font:700 11px var(--mono);letter-spacing:.1em;color:var(--accent-2);text-transform:uppercase;border:1px solid rgba(255,182,72,.6);padding:4px 9px;border-radius:999px;background:rgba(255,182,72,.07)}h1{font-size:24px;margin:9px 0 4px;font-weight:650}header p{margin:0;color:var(--muted);font-size:13px;max-width:840px;line-height:1.5}.validation{font:700 10px var(--mono);text-transform:uppercase;letter-spacing:.08em;padding:7px 10px;border:1px solid rgba(255,182,72,.35);border-radius:8px;color:var(--accent-2);background:rgba(255,182,72,.07)}main{padding:24px 32px 60px;max-width:1440px;margin:auto}.pepi-panel{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(260px,.6fr);gap:16px;margin-bottom:18px}.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:19px 20px;box-shadow:0 14px 30px rgba(0,0,0,.08)}.panel h2{font-size:12px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin:0 0 14px}.pepi-box{display:flex;gap:10px;align-items:end;flex-wrap:wrap}.field{display:flex;flex-direction:column;gap:6px;flex:1;min-width:220px}.field label{font-size:11px;color:var(--muted)}input,select{background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:11px 12px;color:var(--text);font-size:14px;outline:none}input:focus,select:focus{border-color:var(--accent)}button,.btn{font-family:inherit;font-size:13px;border:1px solid var(--line);border-radius:8px;padding:10px 14px;cursor:pointer;background:var(--panel-2);color:var(--text);text-decoration:none}.primary{background:var(--accent);color:#08131f;border-color:var(--accent);font-weight:750}.pepi-meta{margin-top:10px;color:var(--muted);font-size:11px;line-height:1.5}.rule{display:grid;gap:9px;font-size:12px;color:var(--muted);line-height:1.45}.rule strong{color:var(--text)}.cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:13px;margin-bottom:18px}.card{background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:16px 17px}.card span{display:block;color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.08em}.card strong{display:block;margin-top:9px;font:800 24px var(--mono);letter-spacing:-.03em}.card small{display:block;color:var(--muted);font-size:10px;margin-top:6px}.card.pepi strong{color:var(--accent)}.card.compra strong{color:var(--accent-2)}.card.saldo.ok strong{color:var(--ok)}.card.saldo.neg strong{color:var(--danger)}.status-box{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:18px;padding:13px 15px;border-radius:11px;border:1px solid var(--line);background:var(--panel)}.status-main{display:flex;gap:10px;align-items:center}.dot{width:10px;height:10px;border-radius:50%;background:var(--muted);box-shadow:0 0 16px currentColor}.status-box.ok .dot{background:var(--ok);color:var(--ok)}.status-box.warn .dot{background:var(--accent-2);color:var(--accent-2)}.status-box.danger .dot{background:var(--danger);color:var(--danger)}.status-title{font-weight:750;font-size:13px}.status-sub{font-size:11px;color:var(--muted);margin-top:2px}.progress{height:10px;background:#111923;border:1px solid rgba(82,99,123,.42);border-radius:999px;overflow:hidden;min-width:220px;flex:1;max-width:500px}.progress span{display:block;height:100%;width:0;background:linear-gradient(90deg,#3ea6ff,#4cd792);border-radius:inherit;transition:width .3s ease}.progress.warn span{background:linear-gradient(90deg,#ffb648,#ffd27d)}.progress.danger span{background:linear-gradient(90deg,#ff6b6b,#ff9a73)}.pedido-panel{margin-bottom:18px;border-color:rgba(255,182,72,.28);background:linear-gradient(180deg,rgba(255,182,72,.035),var(--panel) 120px)}.pedido-head{display:flex;justify-content:space-between;gap:14px;align-items:flex-start;flex-wrap:wrap;margin-bottom:15px}.pedido-title-wrap h2{color:var(--accent-2);margin-bottom:7px;font-size:13px}.pedido-title-wrap p{margin:0;color:var(--muted);font-size:11px;line-height:1.5;max-width:760px}.pedido-actions{display:flex;gap:8px;flex-wrap:wrap}.pedido-cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:14px}.pedido-kpi{background:rgba(0,0,0,.12);border:1px solid var(--line);border-radius:10px;padding:12px 13px}.pedido-kpi span{display:block;color:var(--muted);font-size:9px;text-transform:uppercase;letter-spacing:.07em}.pedido-kpi strong{display:block;font:800 20px var(--mono);margin-top:7px}.pedido-kpi.highlight strong{color:var(--accent-2)}.pedido-contexto{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:13px}.pedido-contexto .label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}.chip{display:inline-flex;align-items:center;gap:5px;padding:5px 8px;border:1px solid var(--line);border-radius:999px;font-size:10px;color:var(--text);background:rgba(255,255,255,.025)}.chip b{color:var(--accent)}.pedido-alerta{padding:10px 12px;border-radius:9px;margin-bottom:13px;font-size:11px;line-height:1.45;border:1px solid rgba(62,166,255,.18);background:rgba(62,166,255,.05);color:var(--muted)}.pedido-alerta strong{color:var(--text)}.pedido-alerta.warn{border-color:rgba(255,182,72,.25);background:rgba(255,182,72,.06)}.formula{font:700 10px var(--mono);color:var(--muted)}.formula strong{color:var(--accent-2)}.toolbar{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:13px}.toolbar-left,.toolbar-right{display:flex;gap:9px;align-items:center;flex-wrap:wrap}.toolbar input{min-width:260px}.contador{font-size:11px;color:var(--muted)}.table-wrap{overflow:auto;border:1px solid var(--line);border-radius:10px}table{width:100%;border-collapse:collapse;min-width:1040px}th,td{text-align:left;padding:11px 10px;border-bottom:1px solid var(--line);font-size:12px}th{color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.04em;background:rgba(255,255,255,.015);position:sticky;top:0}tbody tr:hover{background:rgba(62,166,255,.035)}.code{font:700 11px var(--mono);color:var(--accent)}.num{text-align:right;font-family:var(--mono)}.money{text-align:right;font:700 12px var(--mono)}.buy{color:var(--accent-2);font-weight:750}.ok-text{color:var(--ok)}.danger-text{color:var(--danger)}.missing{display:inline-flex;padding:4px 7px;border-radius:999px;border:1px solid rgba(255,107,107,.32);background:rgba(255,107,107,.07);color:var(--danger);font-size:9px;font-weight:750}.linked{font-size:9px;color:var(--muted);display:block;margin-top:3px}.empty{text-align:center;padding:30px;color:var(--muted)}.note{margin-top:13px;padding:11px 13px;background:rgba(62,166,255,.06);border:1px solid rgba(62,166,255,.18);border-radius:9px;color:var(--muted);font-size:11px;line-height:1.5}.note strong{color:var(--text)}.section-gap{margin-top:18px}
+@media(max-width:1050px){.cards,.pedido-cards{grid-template-columns:1fr 1fr}.pepi-panel{grid-template-columns:1fr}}
+@media(max-width:650px){header,main{padding-left:12px;padding-right:12px}.cards,.pedido-cards{grid-template-columns:1fr}.toolbar input{min-width:0;width:100%}.toolbar-left,.toolbar-right,.pedido-actions{width:100%}.pepi-box button,.pedido-actions button{width:100%}.progress{min-width:100%;max-width:none}}
 </style>
 {% include '_mobile_head.html' %}
 </head>
 <body>
 <header>
-  <div><span class="tag">Financeiro · Expansão</span><h1>Orçamento</h1><p>Cruzamento automático entre custos cadastrados, necessidade do kit padrão, estoque disponível para Expansão e o valor consolidado disponível na PEPI.</p></div>
+  <div><span class="tag">Financeiro · Expansão</span><h1>Orçamento</h1><p>Planejamento de compra baseado no estoque atual, kit padrão e projeção de lojas a inaugurar, com validação financeira pelo valor consolidado disponível na PEPI.</p></div>
   <span class="validation">Validação · somente Administrador</span>
 </header>
 {% include '_menu.html' %}
@@ -29,11 +29,11 @@
       <div class="pepi-meta">O valor fica gravado no banco e será reutilizado nos próximos acessos. Alterações ficam registradas no histórico do sistema.</div>
     </div>
     <div class="panel">
-      <h2>Critério de cálculo</h2>
+      <h2>Critério da sugestão de compra</h2>
       <div class="rule">
-        <div><strong>1.</strong> Usa as lojas marcadas para inauguração; se não houver, usa a meta padrão.</div>
-        <div><strong>2.</strong> Calcula o kit necessário e desconta o estoque com finalidade Expansão.</div>
-        <div><strong>3.</strong> Multiplica a quantidade faltante pelo custo unitário do Cadastro de Produtos.</div>
+        <div><strong>1.</strong> Identifica quantas lojas estão marcadas como <strong>Inaugurar</strong> na projeção.</div>
+        <div><strong>2.</strong> Multiplica o Kit Padrão pela quantidade de lojas e desconta o estoque disponível para Expansão.</div>
+        <div><strong>3.</strong> O saldo faltante vira a <strong>Sugestão de Pedido de Compra</strong> e é valorizado pelo custo cadastrado.</div>
       </div>
     </div>
   </section>
@@ -50,11 +50,37 @@
     <div class="progress" id="progress"><span id="progress-bar"></span></div>
   </section>
 
-  <section class="panel">
+  <section class="panel pedido-panel">
+    <div class="pedido-head">
+      <div class="pedido-title-wrap">
+        <h2>Sugestão de Pedido de Compra</h2>
+        <p>Lista recomendada para atender as lojas a serem inauguradas sem comprar o que já está disponível no estoque de Expansão.</p>
+      </div>
+      <div class="pedido-actions"><button id="copiar-pedido">Copiar sugestão</button><button id="atualizar-pedido" class="primary">Recalcular pedido</button></div>
+    </div>
+    <div class="pedido-cards">
+      <div class="pedido-kpi"><span>Lojas atendidas</span><strong id="pedido-lojas">0</strong></div>
+      <div class="pedido-kpi"><span>Itens / SKUs no pedido</span><strong id="pedido-skus">0</strong></div>
+      <div class="pedido-kpi highlight"><span>Unidades para comprar</span><strong id="pedido-unidades">0</strong></div>
+      <div class="pedido-kpi highlight"><span>Valor estimado</span><strong id="pedido-valor">R$ 0,00</strong></div>
+    </div>
+    <div class="pedido-contexto" id="pedido-contexto"><span class="label">Projeção:</span><span class="chip">Carregando...</span></div>
+    <div class="pedido-alerta" id="pedido-alerta"><strong>Cálculo automático:</strong> quantidade necessária para as inaugurações menos o estoque de Expansão disponível.</div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Código</th><th>Item</th><th class="num">Qtd./loja</th><th class="num">Necessidade total</th><th class="num">Estoque disponível</th><th class="num">Pedido sugerido</th><th class="money">Custo unitário</th><th class="money">Valor do pedido</th><th>Cálculo</th></tr></thead>
+        <tbody id="pedido-tbody"><tr><td colspan="9" class="empty">Carregando sugestão...</td></tr></tbody>
+      </table>
+    </div>
+    <div class="note"><strong>Regra:</strong> o sistema nunca sugere quantidade negativa. Se o estoque já cobre a necessidade, o item não entra no pedido. Itens sem custo continuam aparecendo na sugestão de quantidade, mas deixam o valor financeiro do orçamento como incompleto.</div>
+  </section>
+
+  <section class="panel section-gap">
     <div class="toolbar">
       <div class="toolbar-left"><input id="pesquisa" type="search" placeholder="Pesquisar código ou item..."><select id="filtro"><option value="comprar">Somente itens para comprar</option><option value="todos">Todos os itens do kit</option><option value="sem-custo">Itens sem custo</option></select></div>
       <div class="toolbar-right"><span class="contador" id="contador"></span><a class="btn" href="{{ url_for('pagina_produtos') }}">Atualizar custos</a><button id="atualizar">Atualizar cálculo</button></div>
     </div>
+    <h2>Detalhamento do cálculo Estoque × Projeção</h2>
     <div class="table-wrap"><table><thead><tr><th>Código</th><th>Item / vínculo</th><th class="num">Qtd./loja</th><th class="num">Necessário</th><th class="num">Estoque Expansão</th><th class="num">Comprar</th><th class="money">Custo unitário</th><th class="money">Valor projetado</th></tr></thead><tbody id="tbody"><tr><td colspan="8" class="empty">Carregando...</td></tr></tbody></table></div>
     <div class="note"><strong>Importante:</strong> itens sem custo não entram no total projetado. Enquanto houver item para compra sem valor cadastrado, o orçamento será marcado como <strong>incompleto</strong> para evitar uma leitura financeira incorreta.</div>
   </section>
@@ -69,7 +95,7 @@ function inputMoeda(v){return numero(v).toLocaleString('pt-BR',{minimumFractionD
 async function carregar(){
   const r=await fetch('/api/orcamento',{cache:'no-store'});
   if(!r.ok){document.getElementById('status-title').textContent='Não foi possível carregar o orçamento';return}
-  dados=await r.json();renderResumo();renderTabela();
+  dados=await r.json();renderResumo();renderPedido();renderTabela();
 }
 function renderResumo(){
   if(!dados)return;
@@ -80,13 +106,35 @@ function renderResumo(){
   document.getElementById('card-saldo').textContent=moeda(dados.saldo);
   document.getElementById('card-percentual').textContent=`${numero(dados.percentual_comprometido).toLocaleString('pt-BR',{maximumFractionDigits:1})}% comprometido`;
   document.getElementById('card-lojas').textContent=dados.lojas_base;
-  document.getElementById('card-base').textContent=dados.lojas_planejadas?`${dados.lojas_planejadas} loja(s) prevista(s) para inauguração`:`meta padrão de ${dados.meta_lojas} loja(s)`;
+  document.getElementById('card-base').textContent=dados.lojas_planejadas?`${dados.lojas_planejadas} loja(s) prevista(s) para inauguração`:`meta provisória de ${dados.meta_lojas} loja(s)`;
   const saldo=numero(dados.saldo), wrap=document.getElementById('card-saldo-wrap');wrap.classList.toggle('neg',saldo<0);wrap.classList.toggle('ok',saldo>=0);
   const box=document.getElementById('status-box'), title=document.getElementById('status-title'), sub=document.getElementById('status-sub'), prog=document.getElementById('progress');box.className='status-box';prog.className='progress';
-  if(dados.itens_sem_custo>0){box.classList.add('warn');prog.classList.add('warn');title.textContent='Orçamento incompleto';sub.textContent=`${dados.itens_sem_custo} item(ns) com necessidade de compra ainda estão sem custo cadastrado.`}
-  else if(saldo<0){box.classList.add('danger');prog.classList.add('danger');title.textContent='PEPI insuficiente para a compra projetada';sub.textContent=`Déficit financeiro estimado de ${moeda(Math.abs(saldo))}.`}
-  else{box.classList.add('ok');title.textContent='PEPI suficiente para a compra projetada';sub.textContent=`Saldo estimado após a compra: ${moeda(saldo)}.`}
+  if(dados.itens_sem_custo>0){box.classList.add('warn');prog.classList.add('warn');title.textContent='Pedido calculado · orçamento incompleto';sub.textContent=`As quantidades foram sugeridas, porém ${dados.itens_sem_custo} item(ns) ainda estão sem custo cadastrado.`}
+  else if(saldo<0){box.classList.add('danger');prog.classList.add('danger');title.textContent='Pedido sugerido acima da PEPI disponível';sub.textContent=`Déficit financeiro estimado de ${moeda(Math.abs(saldo))}.`}
+  else{box.classList.add('ok');title.textContent='Pedido sugerido coberto pela PEPI';sub.textContent=`Saldo estimado após a compra: ${moeda(saldo)}.`}
   const pct=Math.max(0,Math.min(100,numero(dados.percentual_comprometido)));document.getElementById('progress-bar').style.width=pct+'%';
+}
+function renderPedido(){
+  if(!dados)return;
+  const linhas=dados.pedido_linhas||[];
+  document.getElementById('pedido-lojas').textContent=dados.lojas_base||0;
+  document.getElementById('pedido-skus').textContent=linhas.length;
+  document.getElementById('pedido-unidades').textContent=Number(dados.total_unidades_pedido||0).toLocaleString('pt-BR');
+  document.getElementById('pedido-valor').textContent=moeda(dados.total_previsto);
+  const contexto=document.getElementById('pedido-contexto');
+  if(dados.base_origem==='projecao_lojas'){
+    const ufs=(dados.lojas_por_uf||[]).map(x=>`<span class="chip"><b>${esc(x.uf)}</b> ${Number(x.quantidade)||0} loja(s)</span>`).join('');
+    contexto.innerHTML=`<span class="label">Projeção de inauguração:</span><span class="chip"><b>${dados.lojas_planejadas}</b> loja(s)</span>${ufs}`;
+  }else{
+    contexto.innerHTML=`<span class="label">Base provisória:</span><span class="chip"><b>${dados.meta_lojas}</b> loja(s) da meta de expansão</span>`;
+  }
+  const alerta=document.getElementById('pedido-alerta');alerta.className='pedido-alerta';
+  if(dados.base_origem!=='projecao_lojas'){alerta.classList.add('warn');alerta.innerHTML='<strong>Atenção:</strong> não há filial marcada como Inaugurar. A sugestão abaixo usa temporariamente a meta de expansão. Ao cadastrar as inaugurações, o pedido será recalculado automaticamente.'}
+  else if(dados.itens_sem_custo>0){alerta.classList.add('warn');alerta.innerHTML=`<strong>Quantidades prontas para validação.</strong> Existem ${dados.itens_sem_custo} item(ns) sem custo. Eles entram na quantidade sugerida, mas não no valor financeiro até o custo ser cadastrado.`}
+  else{alerta.innerHTML=`<strong>Sugestão pronta:</strong> pedido calculado para atender ${dados.lojas_base} loja(s), usando o estoque disponível antes de recomendar novas compras.`}
+  const tb=document.getElementById('pedido-tbody');
+  if(!linhas.length){tb.innerHTML='<tr><td colspan="9" class="empty">O estoque atual já cobre toda a necessidade desta projeção. Nenhuma compra sugerida.</td></tr>';return}
+  tb.innerHTML=linhas.map(x=>`<tr><td class="code">${esc(x.codigo||'-')}</td><td><strong>${esc(x.descricao)}</strong></td><td class="num">${x.qtd_por_loja}</td><td class="num">${x.necessario}</td><td class="num">${x.estoque_expansao}</td><td class="num buy">${x.comprar}</td><td class="money">${x.custo_informado?moeda(x.custo):'<span class="missing">SEM CUSTO</span>'}</td><td class="money buy">${x.custo_informado?moeda(x.subtotal):'—'}</td><td class="formula">${x.necessario} − ${x.estoque_expansao} = <strong>${x.comprar}</strong></td></tr>`).join('');
 }
 function renderTabela(){
   if(!dados)return;const termo=(document.getElementById('pesquisa').value||'').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');const filtro=document.getElementById('filtro').value;
@@ -94,8 +142,16 @@ function renderTabela(){
   document.getElementById('contador').textContent=`${linhas.length} item(ns)`;const tb=document.getElementById('tbody');if(!linhas.length){tb.innerHTML='<tr><td colspan="8" class="empty">Nenhum item encontrado para este filtro.</td></tr>';return}
   tb.innerHTML=linhas.map(x=>`<tr><td class="code">${esc(x.codigo||'-')}</td><td><strong>${esc(x.descricao)}</strong>${x.produto_id?`<span class="linked">Custo vinculado ao produto: ${esc(x.produto_descricao||x.descricao)}</span>`:'<span class="linked danger-text">Sem vínculo com Cadastro de Produtos</span>'}</td><td class="num">${x.qtd_por_loja}</td><td class="num">${x.necessario}</td><td class="num">${x.estoque_expansao}</td><td class="num buy">${x.comprar}</td><td class="money">${x.custo_informado?moeda(x.custo):'<span class="missing">SEM CUSTO</span>'}</td><td class="money ${x.comprar>0?'buy':'ok-text'}">${x.custo_informado?moeda(x.subtotal):'—'}</td></tr>`).join('');
 }
-document.getElementById('salvar-pepi').addEventListener('click',async()=>{const btn=document.getElementById('salvar-pepi');btn.disabled=true;try{const r=await fetch('/api/orcamento/pepi',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({valor:document.getElementById('pepi-valor').value})});const x=await r.json();if(!r.ok){alert(x.erro||'Erro ao salvar');return}dados=x.orcamento;window.appToast('Valor consolidado da PEPI atualizado.','ok');renderResumo();renderTabela()}finally{btn.disabled=false}});
-document.getElementById('atualizar').addEventListener('click',carregar);document.getElementById('pesquisa').addEventListener('input',renderTabela);document.getElementById('filtro').addEventListener('change',renderTabela);carregar();
+function textoPedido(){
+  if(!dados)return '';
+  const linhas=dados.pedido_linhas||[];
+  const cab=`SUGESTÃO DE PEDIDO DE COMPRA\nBase: ${dados.lojas_base} loja(s)\nUnidades sugeridas: ${dados.total_unidades_pedido||0}\nValor estimado: ${moeda(dados.total_previsto)}\n\n`;
+  const itens=linhas.map(x=>`${x.codigo||'-'} | ${x.descricao} | Comprar: ${x.comprar} | Custo: ${x.custo_informado?moeda(x.custo):'SEM CUSTO'} | Total: ${x.custo_informado?moeda(x.subtotal):'-'}`).join('\n');
+  return cab+itens;
+}
+async function copiarPedido(){const txt=textoPedido();if(!txt)return;try{await navigator.clipboard.writeText(txt);window.appToast('Sugestão de pedido copiada.','ok')}catch(e){window.appToast('Não foi possível copiar automaticamente.','erro')}}
+document.getElementById('salvar-pepi').addEventListener('click',async()=>{const btn=document.getElementById('salvar-pepi');btn.disabled=true;try{const r=await fetch('/api/orcamento/pepi',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({valor:document.getElementById('pepi-valor').value})});const x=await r.json();if(!r.ok){alert(x.erro||'Erro ao salvar');return}dados=x.orcamento;window.appToast('Valor consolidado da PEPI atualizado.','ok');renderResumo();renderPedido();renderTabela()}finally{btn.disabled=false}});
+document.getElementById('atualizar').addEventListener('click',carregar);document.getElementById('atualizar-pedido').addEventListener('click',carregar);document.getElementById('copiar-pedido').addEventListener('click',copiarPedido);document.getElementById('pesquisa').addEventListener('input',renderTabela);document.getElementById('filtro').addEventListener('change',renderTabela);carregar();
 </script>
 </body>
 </html>
