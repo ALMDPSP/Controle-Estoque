@@ -192,6 +192,7 @@ def init_db():
                 codigo TEXT UNIQUE NOT NULL,
                 descricao TEXT NOT NULL,
                 qtde_por_loja INTEGER NOT NULL DEFAULT 1,
+                custo TEXT NOT NULL DEFAULT '0.00',
                 criado_por TEXT,
                 criado_em TEXT
             )
@@ -203,6 +204,7 @@ def init_db():
                 codigo TEXT UNIQUE NOT NULL,
                 descricao TEXT NOT NULL,
                 qtde_por_loja INTEGER NOT NULL DEFAULT 1,
+                custo TEXT NOT NULL DEFAULT '0.00',
                 criado_por TEXT,
                 criado_em TEXT
             )
@@ -519,6 +521,28 @@ def init_db():
     except Exception:
         conn.rollback()
 
+    # Migração: custo unitário de cada produto para o módulo de Orçamento.
+    # Mantemos como texto decimal canônico para preservar centavos de forma igual
+    # no SQLite local e no PostgreSQL/Neon.
+    try:
+        if IS_PG:
+            cur.execute("ALTER TABLE produtos ADD COLUMN IF NOT EXISTS custo TEXT NOT NULL DEFAULT '0.00'")
+        else:
+            cur.execute("ALTER TABLE produtos ADD COLUMN custo TEXT NOT NULL DEFAULT '0.00'")
+        conn.commit()
+    except Exception:
+        conn.rollback()
+
+    # Valor consolidado disponível na PEPI. O orçamento começa zerado e somente
+    # o Administrador pode informar/alterar esse valor pela aplicação.
+    cur.execute(q("SELECT valor FROM configuracoes WHERE chave = ?"), ("orcamento_pepi_consolidado",))
+    if cur.fetchone() is None:
+        cur.execute(
+            q("INSERT INTO configuracoes (chave, valor, atualizado_por, atualizado_em) VALUES (?, ?, ?, ?)"),
+            ("orcamento_pepi_consolidado", "0.00", "sistema", datetime.now().strftime("%Y-%m-%d %H:%M")),
+        )
+        conn.commit()
+
     # Migração: adiciona as colunas novas em bancos que já existiam antes
     # (sem apagar nenhum dado já cadastrado).
     novas_colunas = [
@@ -698,17 +722,17 @@ def buscar_produto_por_codigo(codigo):
     row = cur.fetchone(); result = dict(row) if row else None
     cur.close(); conn.close(); return result
 
-def criar_produto(codigo, descricao, qtde_por_loja, usuario):
+def criar_produto(codigo, descricao, qtde_por_loja, custo, usuario):
     conn = get_conn(); cur = get_cursor(conn)
     agora = datetime.now().strftime("%Y-%m-%d %H:%M")
     try:
         if IS_PG:
-            cur.execute(q("INSERT INTO produtos (codigo, descricao, qtde_por_loja, criado_por, criado_em) VALUES (?, ?, ?, ?, ?) RETURNING id"),
-                        (codigo, descricao, qtde_por_loja, usuario, agora))
+            cur.execute(q("INSERT INTO produtos (codigo, descricao, qtde_por_loja, custo, criado_por, criado_em) VALUES (?, ?, ?, ?, ?, ?) RETURNING id"),
+                        (codigo, descricao, qtde_por_loja, custo, usuario, agora))
             new_id = cur.fetchone()["id"]
         else:
-            cur.execute(q("INSERT INTO produtos (codigo, descricao, qtde_por_loja, criado_por, criado_em) VALUES (?, ?, ?, ?, ?)"),
-                        (codigo, descricao, qtde_por_loja, usuario, agora))
+            cur.execute(q("INSERT INTO produtos (codigo, descricao, qtde_por_loja, custo, criado_por, criado_em) VALUES (?, ?, ?, ?, ?, ?)"),
+                        (codigo, descricao, qtde_por_loja, custo, usuario, agora))
             new_id = cur.lastrowid
         conn.commit(); return new_id
     except Exception:
@@ -716,10 +740,10 @@ def criar_produto(codigo, descricao, qtde_por_loja, usuario):
     finally:
         cur.close(); conn.close()
 
-def atualizar_produto(produto_id, codigo, descricao, qtde_por_loja):
+def atualizar_produto(produto_id, codigo, descricao, qtde_por_loja, custo):
     conn = get_conn(); cur = get_cursor(conn)
-    cur.execute(q("UPDATE produtos SET codigo = ?, descricao = ?, qtde_por_loja = ? WHERE id = ?"),
-                (codigo, descricao, qtde_por_loja, produto_id))
+    cur.execute(q("UPDATE produtos SET codigo = ?, descricao = ?, qtde_por_loja = ?, custo = ? WHERE id = ?"),
+                (codigo, descricao, qtde_por_loja, custo, produto_id))
     ok = cur.rowcount > 0; conn.commit(); cur.close(); conn.close(); return ok
 
 def excluir_produto(produto_id):
@@ -771,6 +795,14 @@ def salvar_meta_lojas_expansao(valor, usuario=None):
     valor = max(1, min(int(valor), 999))
     salvar_configuracao("meta_lojas_expansao", valor, usuario)
     return valor
+
+
+def obter_orcamento_pepi_consolidado():
+    return str(obter_configuracao("orcamento_pepi_consolidado", "0.00") or "0.00")
+
+def salvar_orcamento_pepi_consolidado(valor, usuario=None):
+    salvar_configuracao("orcamento_pepi_consolidado", valor, usuario)
+    return str(valor)
 
 
 # ---------------------------------------------------------------------

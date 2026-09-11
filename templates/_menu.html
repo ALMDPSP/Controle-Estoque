@@ -24,6 +24,11 @@ body{overflow-x:hidden}header{padding-left:16px!important;padding-right:16px!imp
     <a href="{{ url_for('dashboard') }}" class="{{ 'ativo' if request.endpoint == 'dashboard' else '' }}">Dashboard</a>
     <a href="{{ url_for('index') }}" class="{{ 'ativo' if request.endpoint == 'index' else '' }}">Estoque</a>
     <a href="{{ url_for('pagina_produtos') }}" class="{{ 'ativo' if request.endpoint == 'pagina_produtos' else '' }}">Cadastro de Produtos</a>
+    {% if is_admin %}
+    <a href="{{ url_for('pagina_orcamento') }}" class="{{ 'ativo' if request.endpoint == 'pagina_orcamento' else '' }}">Orçamento</a>
+    {% else %}
+    <a href="#" class="app-admin-locked" data-admin-only="Orçamento" title="Em validação · acesso exclusivo do Administrador">🔒 Orçamento</a>
+    {% endif %}
     <a href="{{ url_for('pagina_imobilizados') }}" class="{{ 'ativo' if request.endpoint == 'pagina_imobilizados' else '' }}">Imobilizados</a>
     <a href="{{ url_for('pagina_filiais') }}" class="{{ 'ativo' if request.endpoint == 'pagina_filiais' else '' }}">Filiais</a>
     <a href="{{ url_for('pagina_projecao_lojas') }}" class="{{ 'ativo' if request.endpoint == 'pagina_projecao_lojas' else '' }}">Projeção de abertura e lojas</a>
@@ -60,7 +65,7 @@ body{overflow-x:hidden}header{padding-left:16px!important;padding-right:16px!imp
   if(toggle&&menu){toggle.addEventListener('click',()=>{const aberto=menu.classList.toggle('mobile-open');toggle.setAttribute('aria-expanded',aberto?'true':'false');});document.addEventListener('click',e=>{if(window.innerWidth<=850&&menu.classList.contains('mobile-open')&&!e.target.closest('#app-menu')){menu.classList.remove('mobile-open');toggle.setAttribute('aria-expanded','false');}});}
   window.appToast=function(msg,tipo='info'){const wrap=document.getElementById('app-toasts');if(!wrap)return;const el=document.createElement('div');el.className='app-toast '+(tipo==='erro'?'erro':tipo==='ok'?'ok':'');el.textContent=String(msg);wrap.appendChild(el);setTimeout(()=>el.remove(),4200)};
   window.alert=function(msg){window.appToast(msg,'info')};
-  document.querySelectorAll('[data-admin-only]').forEach(link=>link.addEventListener('click',e=>{e.preventDefault();window.appToast('Acesso restrito. A Gestão de Dados é exclusiva do perfil Administrador. Solicite acesso a um Administrador.','erro');}));
+  document.querySelectorAll('[data-admin-only]').forEach(link=>link.addEventListener('click',e=>{e.preventDefault();const area=link.getAttribute('data-admin-only')||'Esta área';window.appToast(`Acesso restrito. ${area} está disponível apenas para o perfil Administrador durante a validação.`, 'erro');}));
   try{const params=new URLSearchParams(window.location.search);if(params.get('acesso_admin')==='1'){window.appToast('Acesso restrito. Esta área é exclusiva do Administrador.','erro');params.delete('acesso_admin');const q=params.toString();history.replaceState(null,'',window.location.pathname+(q?'?'+q:'')+window.location.hash);}}catch(e){}
   const inp=document.querySelector('[data-global-search]'), box=document.querySelector('[data-global-results]'); if(!inp||!box)return;
   let timer;

@@ -32,6 +32,7 @@ import hashlib
 import struct
 import json
 from datetime import datetime, timedelta
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from functools import wraps
 
 from flask import (
@@ -53,7 +54,7 @@ import qrcode
 import db
 
 app = Flask(__name__)
-APP_BUILD = "2026-09-07-autenticacao-cinematica-v58"
+APP_BUILD = "2026-09-11-orcamento-pepi-v61"
 _DASHBOARD_CACHE = {"expira": 0.0, "dados": None}
 app.secret_key = os.environ.get("SECRET_KEY", "troque-esta-chave-em-producao")
 _RUNNING_HTTPS_HOSTED = bool(
@@ -821,6 +822,23 @@ def api_auditoria_login():
     for evento in eventos:
         evento.pop("ip", None)
     return jsonify(eventos)
+
+
+def _decimal_moeda(valor, padrao="0.00"):
+    """Converte moeda em formato BR/US para Decimal com 2 casas."""
+    if valor is None or str(valor).strip() == "":
+        valor = padrao
+    texto = str(valor).strip().replace("R$", "").replace(" ", "")
+    if "," in texto:
+        texto = texto.replace(".", "").replace(",", ".")
+    try:
+        numero = Decimal(texto)
+    except (InvalidOperation, ValueError, TypeError):
+        raise ValueError("Valor monetário inválido.")
+    return numero.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+def _moeda_canonica(valor, padrao="0.00"):
+    return format(_decimal_moeda(valor, padrao), ".2f")
 
 
 @app.route("/api/busca-global")
@@ -1824,6 +1842,17 @@ def gerar_backup():
 @login_required
 def pagina_produtos():
     return render_template("produtos.html", username=session.get("username"), role=session.get("role") or "user", is_admin=session.get("role") == "admin")
+
+
+@app.route("/orcamento")
+@admin_page_required
+def pagina_orcamento():
+    return render_template(
+        "orcamento.html",
+        username=session.get("username"),
+        role=session.get("role") or "admin",
+        is_admin=True,
+    )
 
 
 @app.route("/filiais")
@@ -3186,12 +3215,18 @@ def api_criar_produto():
         qtde_por_loja = int(dados.get("qtde_por_loja") or 1)
     except (TypeError, ValueError):
         qtde_por_loja = 0
+    try:
+        custo = _moeda_canonica(dados.get("custo"), "0.00")
+    except ValueError:
+        return jsonify({"erro": "Informe um custo válido para o produto."}), 400
     if not codigo or not descricao:
         return jsonify({"erro": "Código de cadastro e descrição são obrigatórios."}), 400
     if qtde_por_loja < 1:
         return jsonify({"erro": "A quantidade necessária por loja deve ser no mínimo 1."}), 400
+    if _decimal_moeda(custo) < 0:
+        return jsonify({"erro": "O custo do produto não pode ser negativo."}), 400
     try:
-        novo_id = db.criar_produto(codigo, descricao, qtde_por_loja, session.get("username"))
+        novo_id = db.criar_produto(codigo, descricao, qtde_por_loja, custo, session.get("username"))
     except Exception:
         return jsonify({"erro": "Já existe um produto cadastrado com este código."}), 409
     return jsonify({"ok": True, "id": novo_id}), 201
@@ -3207,12 +3242,18 @@ def api_atualizar_produto(produto_id):
         qtde_por_loja = int(dados.get("qtde_por_loja") or 1)
     except (TypeError, ValueError):
         qtde_por_loja = 0
+    try:
+        custo = _moeda_canonica(dados.get("custo"), "0.00")
+    except ValueError:
+        return jsonify({"erro": "Informe um custo válido para o produto."}), 400
     if not codigo or not descricao:
         return jsonify({"erro": "Código de cadastro e descrição são obrigatórios."}), 400
     if qtde_por_loja < 1:
         return jsonify({"erro": "A quantidade necessária por loja deve ser no mínimo 1."}), 400
+    if _decimal_moeda(custo) < 0:
+        return jsonify({"erro": "O custo do produto não pode ser negativo."}), 400
     try:
-        ok = db.atualizar_produto(produto_id, codigo, descricao, qtde_por_loja)
+        ok = db.atualizar_produto(produto_id, codigo, descricao, qtde_por_loja, custo)
     except Exception:
         return jsonify({"erro": "Já existe outro produto com este código."}), 409
     return (jsonify({"ok": True}) if ok else (jsonify({"erro": "Produto não encontrado."}), 404))
@@ -3223,6 +3264,136 @@ def api_atualizar_produto(produto_id):
 def api_excluir_produto(produto_id):
     ok = db.excluir_produto(produto_id)
     return (jsonify({"ok": True}) if ok else (jsonify({"erro": "Produto não encontrado."}), 404))
+
+
+def _calcular_orcamento_pepi():
+    """Cruza PEPI, custos dos produtos, kit padrão, estoque de Expansão e lojas planejadas."""
+    def qtd_num(valor):
+        try:
+            return int(float(valor or 0))
+        except (TypeError, ValueError):
+            return 0
+
+    produtos = db.listar_produtos()
+    kit = db.listar_kit_padrao_loja()
+    base = db.obter_dashboard_compacto(1)
+    itens = base.get("itens") or []
+    filiais = db.listar_filiais(incluir_inativas=True)
+    meta = db.obter_meta_lojas_expansao()
+    lojas_planejadas = [f for f in filiais if _status_filial_normalizado(f.get("ativo")) == "inaugurar"]
+    lojas_base = max(1, len(lojas_planejadas) or int(meta or 1))
+
+    expansao = [
+        x for x in itens
+        if _normalizar_exec(x.get("tipo_estoque")) == "expansao" and qtd_num(x.get("qtde")) > 0
+    ]
+    produtos_codigo = {str(p.get("codigo") or "").strip().lower(): p for p in produtos if str(p.get("codigo") or "").strip()}
+
+    def produto_para_kit(k):
+        codigo = str(k.get("codigo") or "").strip().lower()
+        if codigo and codigo in produtos_codigo:
+            return produtos_codigo[codigo]
+        desc = _normalizar_exec(k.get("descricao"))
+        candidatos = []
+        for p in produtos:
+            pd = _normalizar_exec(p.get("descricao"))
+            if desc and pd and (desc == pd or desc in pd or pd in desc):
+                candidatos.append((0 if desc == pd else abs(len(desc)-len(pd)), p))
+        return sorted(candidatos, key=lambda x: x[0])[0][1] if candidatos else None
+
+    linhas = []
+    total_previsto = Decimal("0.00")
+    itens_sem_custo = 0
+    itens_para_comprar = 0
+    for k in kit:
+        qtd_por_loja = max(1, qtd_num(k.get("quantidade")))
+        codigo_k = str(k.get("codigo") or "").strip()
+        desc_k = _normalizar_exec(k.get("descricao"))
+        disponivel = 0
+        for item in expansao:
+            codigo_i = str(item.get("codigo") or "").strip()
+            desc_i = _normalizar_exec(item.get("descricao"))
+            combina = (codigo_k and codigo_i == codigo_k) or (desc_k and desc_i and (desc_k in desc_i or desc_i in desc_k))
+            if combina:
+                disponivel += qtd_num(item.get("qtde"))
+        necessario = qtd_por_loja * lojas_base
+        comprar = max(0, necessario - disponivel)
+        prod = produto_para_kit(k)
+        custo = _decimal_moeda((prod or {}).get("custo"), "0.00") if prod else Decimal("0.00")
+        custo_informado = bool(prod) and custo > 0
+        subtotal = (custo * comprar).quantize(Decimal("0.01")) if custo_informado else Decimal("0.00")
+        if comprar > 0:
+            itens_para_comprar += 1
+            if not custo_informado:
+                itens_sem_custo += 1
+            else:
+                total_previsto += subtotal
+        linhas.append({
+            "kit_id": k.get("id"),
+            "codigo": (prod or {}).get("codigo") or codigo_k,
+            "descricao": k.get("descricao") or (prod or {}).get("descricao") or "",
+            "produto_id": (prod or {}).get("id"),
+            "produto_descricao": (prod or {}).get("descricao") or "",
+            "qtd_por_loja": qtd_por_loja,
+            "lojas_base": lojas_base,
+            "necessario": necessario,
+            "estoque_expansao": disponivel,
+            "comprar": comprar,
+            "custo": format(custo, ".2f"),
+            "custo_informado": custo_informado,
+            "subtotal": format(subtotal, ".2f"),
+        })
+
+    pepi = _decimal_moeda(db.obter_orcamento_pepi_consolidado(), "0.00")
+    saldo = (pepi - total_previsto).quantize(Decimal("0.01"))
+    percentual = Decimal("0.00")
+    if pepi > 0:
+        percentual = min(Decimal("999.99"), (total_previsto / pepi * Decimal("100")).quantize(Decimal("0.01")))
+    linhas.sort(key=lambda x: (x["comprar"] <= 0, -int(x["comprar"]), str(x["descricao"]).lower()))
+    return {
+        "pepi_consolidado": format(pepi, ".2f"),
+        "total_previsto": format(total_previsto, ".2f"),
+        "saldo": format(saldo, ".2f"),
+        "percentual_comprometido": format(percentual, ".2f"),
+        "itens_sem_custo": itens_sem_custo,
+        "itens_para_comprar": itens_para_comprar,
+        "lojas_planejadas": len(lojas_planejadas),
+        "meta_lojas": int(meta or 10),
+        "lojas_base": lojas_base,
+        "orcamento_completo": itens_sem_custo == 0,
+        "orcamento_suficiente": saldo >= 0 and itens_sem_custo == 0,
+        "linhas": linhas,
+    }
+
+
+@app.route("/api/orcamento", methods=["GET"])
+@admin_required
+def api_orcamento():
+    return jsonify(_calcular_orcamento_pepi())
+
+
+@app.route("/api/orcamento/pepi", methods=["PUT"])
+@admin_required
+def api_salvar_orcamento_pepi():
+    dados = request.get_json(force=True) or {}
+    try:
+        valor = _decimal_moeda(dados.get("valor"), "0.00")
+    except ValueError:
+        return jsonify({"erro": "Informe um valor consolidado válido para a PEPI."}), 400
+    if valor < 0:
+        return jsonify({"erro": "O valor consolidado da PEPI não pode ser negativo."}), 400
+    anterior = _decimal_moeda(db.obter_orcamento_pepi_consolidado(), "0.00")
+    db.salvar_orcamento_pepi_consolidado(format(valor, ".2f"), session.get("username"))
+    if anterior != valor:
+        db.registrar_movimentacao(
+            0,
+            "orcamento_pepi",
+            format(valor, ".2f"),
+            session.get("username"),
+            f"Valor consolidado da PEPI alterado de R$ {anterior:.2f} para R$ {valor:.2f}.",
+            tabela="sistema",
+        )
+    return jsonify({"ok": True, "valor": format(valor, ".2f"), "orcamento": _calcular_orcamento_pepi()})
 
 
 # ---------------------------------------------------------------------
