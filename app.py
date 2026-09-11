@@ -57,7 +57,7 @@ import qrcode
 import db
 
 app = Flask(__name__)
-APP_BUILD = "2026-09-11-orcamento-relatorios-scroll-v63"
+APP_BUILD = "2026-09-11-orcamento-pdf-executivo-v64"
 _DASHBOARD_CACHE = {"expira": 0.0, "dados": None}
 app.secret_key = os.environ.get("SECRET_KEY", "troque-esta-chave-em-producao")
 _RUNNING_HTTPS_HOSTED = bool(
@@ -3533,78 +3533,473 @@ def _gerar_excel_orcamento(dados):
 
 
 def _gerar_pdf_orcamento(dados):
+    """Gera relatório executivo de Orçamento no mesmo padrão visual dos demais PDFs."""
     buf = io.BytesIO()
-    doc = SimpleDocTemplate(buf, pagesize=landscape(A4), leftMargin=12*mm, rightMargin=12*mm, topMargin=12*mm, bottomMargin=12*mm)
-    styles = getSampleStyleSheet()
-    titulo = ParagraphStyle("orc_titulo", parent=styles["Title"], fontName="Helvetica-Bold", fontSize=16, leading=19, textColor=colors.HexColor("#1F4E78"), alignment=TA_LEFT, spaceAfter=4)
-    subtitulo = ParagraphStyle("orc_sub", parent=styles["Normal"], fontName="Helvetica", fontSize=8.5, leading=11, textColor=colors.HexColor("#555555"), spaceAfter=8)
-    cab = ParagraphStyle("orc_cab", parent=styles["Normal"], fontName="Helvetica-Bold", fontSize=7.2, leading=8.5, textColor=colors.white, alignment=TA_CENTER)
-    cel = ParagraphStyle("orc_cel", parent=styles["Normal"], fontName="Helvetica", fontSize=7.1, leading=8.5, alignment=TA_LEFT)
-    cel_right = ParagraphStyle("orc_cel_right", parent=cel, alignment=TA_RIGHT)
-    sec = ParagraphStyle("orc_sec", parent=styles["Heading2"], fontName="Helvetica-Bold", fontSize=10, leading=12, textColor=colors.HexColor("#1F4E78"), spaceBefore=7, spaceAfter=5)
-    story = [
-        Paragraph("Relatório de Orçamento · PEPI e Sugestão de Pedido de Compra", titulo),
-        Paragraph(f"Gerado em {datetime.now().strftime('%d/%m/%Y %H:%M')} por {session.get('username') or 'Administrador'} · Base: {'lojas marcadas como Inaugurar' if dados.get('base_origem') == 'projecao_lojas' else 'meta de Expansão (provisória)'}. ", subtitulo),
-    ]
+    page_size = landscape(A4)
+    pdf = canvas.Canvas(buf, pagesize=page_size)
+    larg, alt = page_size
+    margem = 14 * mm
 
     def brl(v):
         val = float(_decimal_moeda(v, "0.00"))
         s = f"{val:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
         return f"R$ {s}"
 
-    status = _status_orcamento_texto(dados)
-    resumo_data = [
-        [Paragraph("PEPI disponível", cab), Paragraph("Compra projetada", cab), Paragraph("Saldo", cab), Paragraph("% comprometido", cab), Paragraph("Lojas", cab), Paragraph("Unidades sugeridas", cab), Paragraph("Itens sem custo", cab)],
-        [Paragraph(brl(dados.get("pepi_consolidado")), cel_right), Paragraph(brl(dados.get("total_previsto")), cel_right), Paragraph(brl(dados.get("saldo")), cel_right), Paragraph(f"{_decimal_moeda(dados.get('percentual_comprometido'),'0.00')}%", cel_right), Paragraph(str(dados.get("lojas_base") or 0), cel_right), Paragraph(str(dados.get("total_unidades_pedido") or 0), cel_right), Paragraph(str(dados.get("itens_sem_custo") or 0), cel_right)],
-    ]
-    resumo_table = Table(resumo_data, colWidths=[36*mm,36*mm,36*mm,30*mm,20*mm,32*mm,27*mm], repeatRows=1)
-    resumo_table.setStyle(TableStyle([
-        ("BACKGROUND", (0,0), (-1,0), colors.HexColor("#1F4E78")), ("TEXTCOLOR", (0,0), (-1,0), colors.white),
-        ("GRID", (0,0), (-1,-1), 0.35, colors.HexColor("#B8C6D1")), ("VALIGN", (0,0), (-1,-1), "MIDDLE"),
-        ("BACKGROUND", (0,1), (-1,1), colors.HexColor("#F5F8FB")), ("TOPPADDING", (0,0), (-1,-1), 5), ("BOTTOMPADDING", (0,0), (-1,-1), 5),
-    ]))
-    story += [resumo_table, Spacer(1, 5), Paragraph(f"<b>Status:</b> {status}", subtitulo)]
+    def _bg():
+        pdf.setFillColor(colors.HexColor("#0F1620"))
+        pdf.rect(0, 0, larg, alt, stroke=0, fill=1)
 
-    if dados.get("lojas_por_uf"):
-        uf_txt = " · ".join(f"{x.get('uf')}: {x.get('quantidade')} loja(s)" for x in dados.get("lojas_por_uf") or [])
-        story.append(Paragraph(f"<b>Distribuição das inaugurações:</b> {uf_txt}", subtitulo))
+    def _footer(page_no, secao="Orçamento e Pedido de Compra"):
+        pdf.setStrokeColor(colors.HexColor("#283646"))
+        pdf.line(margem, 11 * mm, larg - margem, 11 * mm)
+        pdf.setFillColor(colors.HexColor("#8398AD"))
+        pdf.setFont("Helvetica", 7.2)
+        pdf.drawString(margem, 6.5 * mm, f"© 2026 · Developed by Alexandre Martins · {secao}")
+        pdf.drawRightString(larg - margem, 6.5 * mm, f"Página {page_no}")
 
-    story.append(Paragraph("Sugestão de Pedido de Compra", sec))
-    headers = ["Código", "Item", "Qtd./loja", "Necessário", "Estoque", "Comprar", "Custo unit.", "Valor projetado"]
-    table_data = [[Paragraph(h, cab) for h in headers]]
+    def _panel(x, y, w, h, title=None, subtitle=None):
+        pdf.setFillColor(colors.HexColor("#151D27"))
+        pdf.setStrokeColor(colors.HexColor("#2A3645"))
+        pdf.roundRect(x, y, w, h, 10, stroke=1, fill=1)
+        if title:
+            pdf.setFillColor(colors.white)
+            pdf.setFont("Helvetica-Bold", 11)
+            pdf.drawString(x + 12, y + h - 20, title)
+        if subtitle:
+            pdf.setFillColor(colors.HexColor("#8FA5BA"))
+            pdf.setFont("Helvetica", 7.5)
+            pdf.drawString(x + 12, y + h - 32, subtitle[:108])
+
+    def _kpi(x, y, w, h, titulo, valor, detalhe, cor="#FFFFFF"):
+        pdf.setFillColor(colors.HexColor("#182230"))
+        pdf.setStrokeColor(colors.HexColor("#314255"))
+        pdf.roundRect(x, y, w, h, 10, stroke=1, fill=1)
+        pdf.setFillColor(colors.HexColor("#94A9BC"))
+        pdf.setFont("Helvetica-Bold", 6.9)
+        pdf.drawString(x + 9, y + h - 13, str(titulo).upper()[:24])
+        pdf.setFillColor(colors.HexColor(cor))
+        pdf.setFont("Helvetica-Bold", 15.2 if len(str(valor)) <= 14 else 12.3)
+        pdf.drawString(x + 9, y + 18, str(valor))
+        pdf.setFillColor(colors.HexColor("#7990A6"))
+        pdf.setFont("Helvetica", 6.5)
+        pdf.drawString(x + 9, y + 7, str(detalhe)[:34])
+
+    def _fit(texto, width, font="Helvetica", size=6.7):
+        texto = str(texto or "-")
+        if pdf.stringWidth(texto, font, size) <= width:
+            return texto
+        while len(texto) > 1 and pdf.stringWidth(texto + "…", font, size) > width:
+            texto = texto[:-1]
+        return texto + "…"
+
+    pepi = float(_decimal_moeda(dados.get("pepi_consolidado"), "0.00"))
+    total_previsto = float(_decimal_moeda(dados.get("total_previsto"), "0.00"))
+    saldo = float(_decimal_moeda(dados.get("saldo"), "0.00"))
+    comprometido = float(_decimal_moeda(dados.get("percentual_comprometido"), "0.00"))
+    lojas_base = int(dados.get("lojas_base") or 0)
+    unidades = int(dados.get("total_unidades_pedido") or 0)
+    skus = int(dados.get("itens_para_comprar") or 0)
+    sem_custo = int(dados.get("itens_sem_custo") or 0)
     pedido = dados.get("pedido_linhas") or []
-    if pedido:
-        for x in pedido:
-            custo_ok = bool(x.get("custo_informado"))
-            table_data.append([
-                Paragraph(str(x.get("codigo") or "-"), cel), Paragraph(str(x.get("descricao") or ""), cel),
-                Paragraph(str(x.get("qtd_por_loja") or 0), cel_right), Paragraph(str(x.get("necessario") or 0), cel_right),
-                Paragraph(str(x.get("estoque_expansao") or 0), cel_right), Paragraph(str(x.get("comprar") or 0), cel_right),
-                Paragraph(brl(x.get("custo")) if custo_ok else "SEM CUSTO", cel_right), Paragraph(brl(x.get("subtotal")) if custo_ok else "-", cel_right),
-            ])
+    linhas = dados.get("linhas") or []
+    lojas = dados.get("lojas_consideradas") or []
+    base_projecao = dados.get("base_origem") == "projecao_lojas"
+    origem = "Filiais com status Inaugurar" if base_projecao else "Meta de Expansão provisória"
+    status = _status_orcamento_texto(dados)
+
+    if sem_custo > 0:
+        status_cor = "#FFB648"
+        status_detalhe = f"{sem_custo} item(ns) ainda precisam de custo cadastrado."
+    elif saldo < 0:
+        status_cor = "#FF6B6B"
+        status_detalhe = f"Déficit estimado de {brl(abs(saldo))} para cobrir o pedido sugerido."
+    elif unidades <= 0:
+        status_cor = "#4CD792"
+        status_detalhe = "O estoque de Expansão cobre a necessidade projetada."
     else:
-        table_data.append([Paragraph("O estoque atual cobre toda a necessidade da projeção. Nenhuma compra sugerida.", cel)] + [""]*7)
-    t = Table(table_data, colWidths=[22*mm,68*mm,20*mm,23*mm,23*mm,22*mm,30*mm,32*mm], repeatRows=1)
-    t.setStyle(TableStyle([
-        ("BACKGROUND", (0,0), (-1,0), colors.HexColor("#1F4E78")), ("GRID", (0,0), (-1,-1), 0.3, colors.HexColor("#C8D2DC")),
-        ("VALIGN", (0,0), (-1,-1), "TOP"), ("ROWBACKGROUNDS", (0,1), (-1,-1), [colors.white, colors.HexColor("#F7F9FB")]),
-        ("TOPPADDING", (0,0), (-1,-1), 4), ("BOTTOMPADDING", (0,0), (-1,-1), 4),
-    ]))
-    story.append(t)
-    story.append(Spacer(1, 7))
-    story.append(Paragraph("Regra do cálculo: quantidade do Kit Padrão × lojas a inaugurar − estoque disponível de Expansão = pedido sugerido. Itens sem custo entram na quantidade do pedido, mas não no total financeiro até o custo ser cadastrado.", subtitulo))
+        status_cor = "#4CD792"
+        status_detalhe = f"Saldo estimado de {brl(saldo)} após o pedido sugerido."
 
-    def rodape(canvas_obj, doc_obj):
-        canvas_obj.saveState()
-        canvas_obj.setStrokeColor(colors.HexColor("#D5DCE3"))
-        canvas_obj.line(12*mm, 8*mm, landscape(A4)[0]-12*mm, 8*mm)
-        canvas_obj.setFont("Helvetica", 7)
-        canvas_obj.setFillColor(colors.HexColor("#777777"))
-        canvas_obj.drawString(12*mm, 4.8*mm, "Controle de Estoque · Orçamento")
-        canvas_obj.drawRightString(landscape(A4)[0]-12*mm, 4.8*mm, f"Página {doc_obj.page}")
-        canvas_obj.restoreState()
+    # Página 1 - resumo executivo
+    _bg()
+    pdf.setTitle("Orçamento - PEPI e Pedido de Compra")
+    pdf.setFillColor(colors.white)
+    pdf.setFont("Helvetica-Bold", 20)
+    pdf.drawString(margem, alt - margem, "Orçamento - PEPI e Pedido de Compra")
+    pdf.setFillColor(colors.HexColor("#9DB3C8"))
+    pdf.setFont("Helvetica", 8.5)
+    pdf.drawString(margem, alt - margem - 14, "Relatório executivo do orçamento, cobertura de estoque e sugestão de compra para as lojas a inaugurar.")
+    pdf.drawRightString(larg - margem, alt - margem - 14, datetime.now().strftime("Gerado em %d/%m/%Y às %H:%M"))
 
-    doc.build(story, onFirstPage=rodape, onLaterPages=rodape)
+    gap = 8
+    kpi_y = alt - margem - 66
+    kpi_h = 47
+    kpi_w = (larg - 2*margem - gap*5) / 6
+    kpis = [
+        ("PEPI disponível", brl(pepi), "Valor consolidado", "#3EA6FF"),
+        ("Compra projetada", brl(total_previsto), f"{skus} SKU(s) para comprar", "#FFB648"),
+        ("Saldo estimado", brl(saldo), "Após pedido sugerido", "#4CD792" if saldo >= 0 else "#FF6B6B"),
+        ("PEPI comprometida", f"{comprometido:.1f}%", "Percentual do orçamento", "#A78BFA"),
+        ("Lojas consideradas", lojas_base, origem, "#56CFE1"),
+        ("Unidades sugeridas", unidades, "Quantidade total a comprar", "#FFFFFF"),
+    ]
+    for i, item in enumerate(kpis):
+        _kpi(margem + i*(kpi_w+gap), kpi_y, kpi_w, kpi_h, *item)
+
+    content_top = kpi_y - 14
+    content_y = 22 * mm
+    content_h = content_top - content_y
+    left_w = (larg - 2*margem - 10) * 0.60
+    right_x = margem + left_w + 10
+    right_w = larg - margem - right_x
+
+    _panel(margem, content_y, left_w, content_h, "Situação do orçamento", "Leitura consolidada da PEPI frente à necessidade calculada para a expansão.")
+    pdf.setFillColor(colors.HexColor(status_cor))
+    pdf.setFont("Helvetica-Bold", 13.5)
+    pdf.drawString(margem + 16, content_y + content_h - 62, status[:58])
+    pdf.setFillColor(colors.HexColor("#C6D5E3"))
+    pdf.setFont("Helvetica", 7.8)
+    pdf.drawString(margem + 16, content_y + content_h - 79, status_detalhe[:100])
+
+    prog_x = margem + 16
+    prog_y = content_y + content_h - 112
+    prog_w = left_w - 32
+    pdf.setFillColor(colors.HexColor("#D8E4EF"))
+    pdf.setFont("Helvetica-Bold", 8)
+    pdf.drawString(prog_x, prog_y + 15, "Comprometimento da PEPI")
+    pdf.setFillColor(colors.HexColor("#95A8BA"))
+    pdf.setFont("Helvetica", 7.2)
+    pdf.drawRightString(prog_x + prog_w, prog_y + 15, f"{comprometido:.2f}%")
+    pdf.setFillColor(colors.HexColor("#0B141E"))
+    pdf.roundRect(prog_x, prog_y, prog_w, 8, 4, stroke=0, fill=1)
+    barra_pct = max(0.0, min(100.0, comprometido)) / 100.0
+    if barra_pct > 0:
+        pdf.setFillColor(colors.HexColor("#4CD792" if comprometido <= 80 else ("#FFB648" if comprometido <= 100 else "#FF6B6B")))
+        pdf.roundRect(prog_x, prog_y, max(6, prog_w * barra_pct), 8, 4, stroke=0, fill=1)
+
+    resumo_y = prog_y - 33
+    pdf.setFillColor(colors.white)
+    pdf.setFont("Helvetica-Bold", 9.2)
+    pdf.drawString(margem + 16, resumo_y, "Composição do cálculo")
+    composicao = [
+        f"• Base considerada: {lojas_base} loja(s) - {origem}.",
+        f"• {skus} SKU(s) precisam de compra, totalizando {unidades} unidade(s).",
+        f"• Valor projetado do pedido: {brl(total_previsto)}.",
+        f"• Itens sem custo cadastrado: {sem_custo}.",
+    ]
+    pdf.setFont("Helvetica", 7.4)
+    pdf.setFillColor(colors.HexColor("#B7C7D6"))
+    for idx, linha in enumerate(composicao):
+        pdf.drawString(margem + 16, resumo_y - 16 - idx*14, linha[:105])
+
+    top_pedido = sorted(
+        pedido,
+        key=lambda x: (float(_decimal_moeda(x.get("subtotal"), "0.00")), int(x.get("comprar") or 0)),
+        reverse=True,
+    )[:5]
+    top_y = content_y + 20
+    pdf.setFillColor(colors.white)
+    pdf.setFont("Helvetica-Bold", 9.2)
+    pdf.drawString(margem + 16, top_y + 68, "Principais itens do pedido")
+    if not top_pedido:
+        pdf.setFillColor(colors.HexColor("#4CD792"))
+        pdf.setFont("Helvetica-Bold", 8.2)
+        pdf.drawString(margem + 16, top_y + 47, "Nenhuma compra sugerida: estoque suficiente para a projeção atual.")
+    else:
+        ry = top_y + 49
+        for x in top_pedido:
+            custo_ok = bool(x.get("custo_informado"))
+            pdf.setFillColor(colors.HexColor("#1B2531"))
+            pdf.roundRect(margem + 16, ry - 8, left_w - 32, 15, 5, stroke=0, fill=1)
+            pdf.setFillColor(colors.HexColor("#D9E5F0"))
+            pdf.setFont("Helvetica", 7.1)
+            nome = _fit(x.get("descricao") or "-", left_w - 170, "Helvetica", 7.1)
+            pdf.drawString(margem + 23, ry - 1, nome)
+            pdf.setFillColor(colors.HexColor("#3EA6FF"))
+            pdf.setFont("Helvetica-Bold", 7.1)
+            pdf.drawRightString(margem + left_w - 112, ry - 1, f"Comprar {int(x.get('comprar') or 0)}")
+            pdf.setFillColor(colors.HexColor("#FFB648" if not custo_ok else "#4CD792"))
+            pdf.drawRightString(margem + left_w - 23, ry - 1, brl(x.get("subtotal")) if custo_ok else "SEM CUSTO")
+            ry -= 18
+
+    _panel(right_x, content_y, right_w, content_h, "Base da projeção", "Lojas e UFs utilizadas para dimensionar o pedido sugerido.")
+    pdf.setFillColor(colors.HexColor("#3EA6FF"))
+    pdf.setFont("Helvetica-Bold", 27)
+    pdf.drawString(right_x + 14, content_y + content_h - 72, str(lojas_base))
+    pdf.setFillColor(colors.HexColor("#C9D7E4"))
+    pdf.setFont("Helvetica-Bold", 8.5)
+    pdf.drawString(right_x + 14, content_y + content_h - 86, "loja(s) consideradas")
+    pdf.setFillColor(colors.HexColor("#8FA4B8"))
+    pdf.setFont("Helvetica", 7.2)
+    pdf.drawString(right_x + 14, content_y + content_h - 100, origem[:45])
+
+    cy = content_y + content_h - 132
+    pdf.setFillColor(colors.white)
+    pdf.setFont("Helvetica-Bold", 9)
+    pdf.drawString(right_x + 14, cy, "Distribuição por UF")
+    cy -= 18
+    por_uf = dados.get("lojas_por_uf") or []
+    if por_uf:
+        total_uf = max(1, sum(int(x.get("quantidade") or 0) for x in por_uf))
+        for item in por_uf[:7]:
+            uf = str(item.get("uf") or "--")
+            qtd = int(item.get("quantidade") or 0)
+            pct = qtd / total_uf * 100.0
+            pdf.setFillColor(colors.HexColor("#1B2531"))
+            pdf.roundRect(right_x + 14, cy - 8, right_w - 28, 16, 5, stroke=0, fill=1)
+            pdf.setFillColor(colors.HexColor("#D6E2ED"))
+            pdf.setFont("Helvetica-Bold", 7.4)
+            pdf.drawString(right_x + 21, cy - 1, uf)
+            pdf.setFillColor(colors.HexColor("#56CFE1"))
+            pdf.drawRightString(right_x + right_w - 21, cy - 1, f"{qtd} loja(s) · {pct:.1f}%")
+            cy -= 19
+    else:
+        pdf.setFillColor(colors.HexColor("#8FA4B8"))
+        pdf.setFont("Helvetica", 7.2)
+        pdf.drawString(right_x + 14, cy, "Sem filiais marcadas como Inaugurar; usando a meta provisória.")
+
+    cy -= 8
+    pdf.setFillColor(colors.white)
+    pdf.setFont("Helvetica-Bold", 9)
+    pdf.drawString(right_x + 14, cy, "Regra aplicada")
+    pdf.setFillColor(colors.HexColor("#B9C8D6"))
+    pdf.setFont("Helvetica", 7.1)
+    regra = [
+        "Kit padrão x lojas projetadas",
+        "menos estoque disponível de Expansão",
+        "igual a quantidade sugerida para compra.",
+    ]
+    for idx, linha in enumerate(regra):
+        pdf.drawString(right_x + 14, cy - 15 - idx*13, linha)
+
+    _footer(1)
+    pdf.showPage()
+
+    # Página(s) 2+ - pedido sugerido detalhado
+    page_no = 2
+    cols = [
+        ("Código", 57), ("Item", 170), ("Qtd/loja", 50), ("Lojas", 38),
+        ("Necessário", 58), ("Estoque", 52), ("Comprar", 50), ("Custo unit.", 72), ("Valor", 78),
+    ]
+    table_w = sum(w for _, w in cols)
+    row_h = 21
+
+    def _header_pedido(titulo="Sugestão de Pedido de Compra", subt="Dimensionamento automático pela projeção de lojas e estoque de Expansão."):
+        _bg()
+        pdf.setFillColor(colors.white)
+        pdf.setFont("Helvetica-Bold", 16)
+        pdf.drawString(margem, alt - margem, titulo)
+        pdf.setFillColor(colors.HexColor("#9DB3C8"))
+        pdf.setFont("Helvetica", 8)
+        pdf.drawString(margem, alt - margem - 13, subt)
+        pdf.drawRightString(larg - margem, alt - margem - 13, f"Base: {lojas_base} loja(s) · {unidades} unidade(s) sugeridas")
+        y0 = alt - margem - 40
+        pdf.setFillColor(colors.HexColor("#234C74"))
+        pdf.roundRect(margem, y0, table_w, 20, 4, stroke=0, fill=1)
+        pdf.setFillColor(colors.white)
+        pdf.setFont("Helvetica-Bold", 6.8)
+        cx = margem
+        for title, w in cols:
+            pdf.drawString(cx + 4, y0 + 6, title)
+            cx += w
+        return y0 - 4
+
+    y = _header_pedido()
+    if pedido:
+        for idx, item in enumerate(pedido):
+            if y - row_h < 20 * mm:
+                _footer(page_no)
+                pdf.showPage()
+                page_no += 1
+                y = _header_pedido()
+            y -= row_h
+            pdf.setFillColor(colors.HexColor("#182230" if idx % 2 == 0 else "#151D27"))
+            pdf.roundRect(margem, y, table_w, row_h - 1, 3, stroke=0, fill=1)
+            custo_ok = bool(item.get("custo_informado"))
+            vals = [
+                str(item.get("codigo") or "-"), str(item.get("descricao") or "-"), str(item.get("qtd_por_loja") or 0),
+                str(item.get("lojas_base") or lojas_base), str(item.get("necessario") or 0), str(item.get("estoque_expansao") or 0),
+                str(item.get("comprar") or 0), brl(item.get("custo")) if custo_ok else "SEM CUSTO",
+                brl(item.get("subtotal")) if custo_ok else "-",
+            ]
+            cx = margem
+            for col_idx, ((title, w), val) in enumerate(zip(cols, vals)):
+                if title == "Comprar":
+                    pdf.setFillColor(colors.HexColor("#3EA6FF"))
+                    pdf.setFont("Helvetica-Bold", 6.9)
+                elif title in ("Custo unit.", "Valor") and not custo_ok:
+                    pdf.setFillColor(colors.HexColor("#FFB648"))
+                    pdf.setFont("Helvetica-Bold", 6.5)
+                elif title == "Valor":
+                    pdf.setFillColor(colors.HexColor("#4CD792"))
+                    pdf.setFont("Helvetica-Bold", 6.7)
+                else:
+                    pdf.setFillColor(colors.HexColor("#DCE6F0"))
+                    pdf.setFont("Helvetica", 6.7)
+                shown = _fit(val, w - 8, "Helvetica-Bold" if title in ("Comprar", "Valor") else "Helvetica", 6.7)
+                if col_idx >= 2:
+                    pdf.drawRightString(cx + w - 4, y + 7, shown)
+                else:
+                    pdf.drawString(cx + 4, y + 7, shown)
+                cx += w
+    else:
+        y -= 34
+        pdf.setFillColor(colors.HexColor("#4CD792"))
+        pdf.setFont("Helvetica-Bold", 10)
+        pdf.drawString(margem + 8, y + 8, "O estoque atual cobre toda a necessidade da projeção. Nenhuma compra sugerida.")
+
+    if y - 45 < 20 * mm:
+        _footer(page_no)
+        pdf.showPage()
+        page_no += 1
+        _bg()
+        y = alt - margem - 50
+    pdf.setFillColor(colors.HexColor("#151D27"))
+    pdf.setStrokeColor(colors.HexColor("#2A3645"))
+    pdf.roundRect(margem, y - 37, table_w, 32, 7, stroke=1, fill=1)
+    pdf.setFillColor(colors.HexColor("#9BB0C4"))
+    pdf.setFont("Helvetica-Bold", 7.3)
+    pdf.drawString(margem + 10, y - 18, "TOTAL DO PEDIDO SUGERIDO")
+    pdf.setFillColor(colors.white)
+    pdf.setFont("Helvetica-Bold", 10.5)
+    pdf.drawRightString(margem + table_w - 10, y - 18, f"{unidades} unidade(s) · {brl(total_previsto)}")
+    _footer(page_no)
+    pdf.showPage()
+    page_no += 1
+
+    # Conciliação completa do kit x estoque x projeção
+    cols2 = [
+        ("Código", 60), ("Item do kit", 198), ("Qtd/loja", 55), ("Necessário", 65),
+        ("Estoque", 58), ("Comprar", 55), ("Situação", 100), ("Valor projetado", 105),
+    ]
+    table_w2 = sum(w for _, w in cols2)
+
+    def _header_conciliacao():
+        _bg()
+        pdf.setFillColor(colors.white)
+        pdf.setFont("Helvetica-Bold", 16)
+        pdf.drawString(margem, alt - margem, "Conciliação - Kit Padrão x Estoque x Projeção")
+        pdf.setFillColor(colors.HexColor("#9DB3C8"))
+        pdf.setFont("Helvetica", 8)
+        pdf.drawString(margem, alt - margem - 13, "Visão completa dos itens do kit, incluindo materiais já cobertos pelo estoque e itens que exigem compra.")
+        pdf.drawRightString(larg - margem, alt - margem - 13, f"{len(linhas)} item(ns) do Kit Padrão")
+        y0 = alt - margem - 40
+        pdf.setFillColor(colors.HexColor("#234C74"))
+        pdf.roundRect(margem, y0, table_w2, 20, 4, stroke=0, fill=1)
+        pdf.setFillColor(colors.white)
+        pdf.setFont("Helvetica-Bold", 6.8)
+        cx = margem
+        for title, w in cols2:
+            pdf.drawString(cx + 4, y0 + 6, title)
+            cx += w
+        return y0 - 4
+
+    y = _header_conciliacao()
+    for idx, item in enumerate(linhas):
+        if y - row_h < 20 * mm:
+            _footer(page_no, "Conciliação de Orçamento")
+            pdf.showPage()
+            page_no += 1
+            y = _header_conciliacao()
+        y -= row_h
+        pdf.setFillColor(colors.HexColor("#182230" if idx % 2 == 0 else "#151D27"))
+        pdf.roundRect(margem, y, table_w2, row_h - 1, 3, stroke=0, fill=1)
+        comprar = int(item.get("comprar") or 0)
+        custo_ok = bool(item.get("custo_informado"))
+        if comprar <= 0:
+            situacao = "Coberto pelo estoque"
+            sit_cor = "#4CD792"
+        elif not custo_ok:
+            situacao = "Comprar - sem custo"
+            sit_cor = "#FFB648"
+        else:
+            situacao = "Comprar"
+            sit_cor = "#3EA6FF"
+        vals = [
+            str(item.get("codigo") or "-"), str(item.get("descricao") or "-"), str(item.get("qtd_por_loja") or 0),
+            str(item.get("necessario") or 0), str(item.get("estoque_expansao") or 0), str(comprar), situacao,
+            brl(item.get("subtotal")) if comprar > 0 and custo_ok else ("SEM CUSTO" if comprar > 0 else "R$ 0,00"),
+        ]
+        cx = margem
+        for col_idx, ((title, w), val) in enumerate(zip(cols2, vals)):
+            if title == "Situação":
+                pdf.setFillColor(colors.HexColor(sit_cor))
+                pdf.setFont("Helvetica-Bold", 6.7)
+            elif title == "Valor projetado" and comprar > 0 and custo_ok:
+                pdf.setFillColor(colors.HexColor("#4CD792"))
+                pdf.setFont("Helvetica-Bold", 6.7)
+            elif title == "Valor projetado" and comprar > 0 and not custo_ok:
+                pdf.setFillColor(colors.HexColor("#FFB648"))
+                pdf.setFont("Helvetica-Bold", 6.7)
+            else:
+                pdf.setFillColor(colors.HexColor("#DCE6F0"))
+                pdf.setFont("Helvetica", 6.7)
+            shown = _fit(val, w - 8, "Helvetica-Bold" if title in ("Situação", "Valor projetado") else "Helvetica", 6.7)
+            if col_idx >= 2 and title != "Situação":
+                pdf.drawRightString(cx + w - 4, y + 7, shown)
+            else:
+                pdf.drawString(cx + 4, y + 7, shown)
+            cx += w
+
+    _footer(page_no, "Conciliação de Orçamento")
+
+    # Página adicional com as filiais consideradas, quando houver base real de projeção.
+    if lojas:
+        pdf.showPage()
+        page_no += 1
+        _bg()
+        pdf.setFillColor(colors.white)
+        pdf.setFont("Helvetica-Bold", 16)
+        pdf.drawString(margem, alt - margem, "Lojas consideradas no orçamento")
+        pdf.setFillColor(colors.HexColor("#9DB3C8"))
+        pdf.setFont("Helvetica", 8)
+        pdf.drawString(margem, alt - margem - 13, "Filiais com status Inaugurar utilizadas para dimensionar o Kit Padrão e o pedido sugerido.")
+        pdf.drawRightString(larg - margem, alt - margem - 13, f"Total: {len(lojas)} loja(s)")
+
+        cols3 = [("Filial", 85), ("Nome", 300), ("UF", 55), ("Previsão de abertura", 135)]
+        table_w3 = sum(w for _, w in cols3)
+        y = alt - margem - 40
+        pdf.setFillColor(colors.HexColor("#234C74"))
+        pdf.roundRect(margem, y, table_w3, 20, 4, stroke=0, fill=1)
+        pdf.setFillColor(colors.white)
+        pdf.setFont("Helvetica-Bold", 7)
+        cx = margem
+        for title, w in cols3:
+            pdf.drawString(cx + 4, y + 6, title)
+            cx += w
+        y -= 4
+        for idx, item in enumerate(lojas):
+            if y - row_h < 20 * mm:
+                _footer(page_no, "Lojas consideradas no Orçamento")
+                pdf.showPage()
+                page_no += 1
+                _bg()
+                pdf.setFillColor(colors.white)
+                pdf.setFont("Helvetica-Bold", 15)
+                pdf.drawString(margem, alt - margem, "Lojas consideradas no orçamento - continuação")
+                y = alt - margem - 34
+                pdf.setFillColor(colors.HexColor("#234C74"))
+                pdf.roundRect(margem, y, table_w3, 20, 4, stroke=0, fill=1)
+                pdf.setFillColor(colors.white)
+                pdf.setFont("Helvetica-Bold", 7)
+                cx = margem
+                for title, w in cols3:
+                    pdf.drawString(cx + 4, y + 6, title)
+                    cx += w
+                y -= 4
+            y -= row_h
+            pdf.setFillColor(colors.HexColor("#182230" if idx % 2 == 0 else "#151D27"))
+            pdf.roundRect(margem, y, table_w3, row_h - 1, 3, stroke=0, fill=1)
+            vals = [item.get("codigo") or "-", item.get("nome") or "-", item.get("uf") or "--", item.get("previsao_abertura") or "-"]
+            cx = margem
+            for (title, w), val in zip(cols3, vals):
+                pdf.setFillColor(colors.HexColor("#DCE6F0"))
+                pdf.setFont("Helvetica", 6.9)
+                pdf.drawString(cx + 4, y + 7, _fit(val, w - 8, "Helvetica", 6.9))
+                cx += w
+        _footer(page_no, "Lojas consideradas no Orçamento")
+
+    pdf.save()
     buf.seek(0)
     return buf
 
