@@ -57,7 +57,7 @@ import qrcode
 import db
 
 app = Flask(__name__)
-APP_BUILD = "2026-09-11-orcamento-pdf-executivo-v64"
+APP_BUILD = "2026-09-11-orcamento-cadastro-produtos-v65"
 _DASHBOARD_CACHE = {"expira": 0.0, "dados": None}
 app.secret_key = os.environ.get("SECRET_KEY", "troque-esta-chave-em-producao")
 _RUNNING_HTTPS_HOSTED = bool(
@@ -3270,7 +3270,12 @@ def api_excluir_produto(produto_id):
 
 
 def _calcular_orcamento_pepi():
-    """Cruza PEPI, custos dos produtos, kit padrão, estoque de Expansão e lojas planejadas."""
+    """Cruza Cadastro de Produtos, PEPI, Kit Padrão, Estoque de Expansão e lojas planejadas.
+
+    O Cadastro de Produtos é a fonte mestre de código, descrição e custo do Orçamento.
+    O Kit Padrão informa somente a quantidade necessária por loja; o Estoque informa a
+    disponibilidade que será descontada antes da sugestão de compra.
+    """
     def qtd_num(valor):
         try:
             return int(float(valor or 0))
@@ -3290,9 +3295,13 @@ def _calcular_orcamento_pepi():
         x for x in itens
         if _normalizar_exec(x.get("tipo_estoque")) == "expansao" and qtd_num(x.get("qtde")) > 0
     ]
-    produtos_codigo = {str(p.get("codigo") or "").strip().lower(): p for p in produtos if str(p.get("codigo") or "").strip()}
+    produtos_codigo = {
+        str(p.get("codigo") or "").strip().lower(): p
+        for p in produtos if str(p.get("codigo") or "").strip()
+    }
 
     def produto_para_kit(k):
+        """Localiza no cadastro mestre o produto correspondente ao item do Kit Padrão."""
         codigo = str(k.get("codigo") or "").strip().lower()
         if codigo and codigo in produtos_codigo:
             return produtos_codigo[codigo]
@@ -3301,42 +3310,72 @@ def _calcular_orcamento_pepi():
         for p in produtos:
             pd = _normalizar_exec(p.get("descricao"))
             if desc and pd and (desc == pd or desc in pd or pd in desc):
-                candidatos.append((0 if desc == pd else abs(len(desc)-len(pd)), p))
+                candidatos.append((0 if desc == pd else abs(len(desc) - len(pd)), p))
         return sorted(candidatos, key=lambda x: x[0])[0][1] if candidatos else None
+
+    def estoque_disponivel(prod, k):
+        """Soma o estoque de Expansão usando primeiro os dados do Cadastro de Produtos."""
+        codigos = {
+            str(v or "").strip().lower()
+            for v in ((prod or {}).get("codigo"), k.get("codigo"))
+            if str(v or "").strip()
+        }
+        descricoes = {
+            _normalizar_exec(v)
+            for v in ((prod or {}).get("descricao"), k.get("descricao"))
+            if _normalizar_exec(v)
+        }
+        total = 0
+        for item in expansao:
+            codigo_i = str(item.get("codigo") or "").strip().lower()
+            desc_i = _normalizar_exec(item.get("descricao"))
+            combina_codigo = bool(codigo_i and codigo_i in codigos)
+            combina_desc = bool(desc_i and any(d == desc_i or d in desc_i or desc_i in d for d in descricoes))
+            if combina_codigo or combina_desc:
+                total += qtd_num(item.get("qtde"))
+        return total
 
     linhas = []
     total_previsto = Decimal("0.00")
     itens_sem_custo = 0
+    itens_sem_cadastro = 0
     itens_para_comprar = 0
+
     for k in kit:
-        qtd_por_loja = max(1, qtd_num(k.get("quantidade")))
-        codigo_k = str(k.get("codigo") or "").strip()
-        desc_k = _normalizar_exec(k.get("descricao"))
-        disponivel = 0
-        for item in expansao:
-            codigo_i = str(item.get("codigo") or "").strip()
-            desc_i = _normalizar_exec(item.get("descricao"))
-            combina = (codigo_k and codigo_i == codigo_k) or (desc_k and desc_i and (desc_k in desc_i or desc_i in desc_k))
-            if combina:
-                disponivel += qtd_num(item.get("qtde"))
+        prod = produto_para_kit(k)
+        qtd_kit = qtd_num(k.get("quantidade"))
+        qtd_produto = qtd_num((prod or {}).get("qtde_por_loja"))
+        qtd_por_loja = max(1, qtd_kit or qtd_produto or 1)
+        disponivel = estoque_disponivel(prod, k)
         necessario = qtd_por_loja * lojas_base
         comprar = max(0, necessario - disponivel)
-        prod = produto_para_kit(k)
+
+        # Código, descrição e custo exibidos no Orçamento vêm do Cadastro de Produtos.
+        codigo_produto = str((prod or {}).get("codigo") or "").strip()
+        descricao_produto = str((prod or {}).get("descricao") or "").strip()
         custo = _decimal_moeda((prod or {}).get("custo"), "0.00") if prod else Decimal("0.00")
         custo_informado = bool(prod) and custo > 0
         subtotal = (custo * comprar).quantize(Decimal("0.01")) if custo_informado else Decimal("0.00")
+
         if comprar > 0:
             itens_para_comprar += 1
+            if not prod:
+                itens_sem_cadastro += 1
             if not custo_informado:
                 itens_sem_custo += 1
             else:
                 total_previsto += subtotal
+
         linhas.append({
             "kit_id": k.get("id"),
-            "codigo": (prod or {}).get("codigo") or codigo_k,
-            "descricao": k.get("descricao") or (prod or {}).get("descricao") or "",
+            "codigo": codigo_produto or str(k.get("codigo") or "").strip(),
+            "descricao": descricao_produto or str(k.get("descricao") or "").strip(),
             "produto_id": (prod or {}).get("id"),
-            "produto_descricao": (prod or {}).get("descricao") or "",
+            "produto_descricao": descricao_produto,
+            "kit_codigo": str(k.get("codigo") or "").strip(),
+            "kit_descricao": str(k.get("descricao") or "").strip(),
+            "cadastro_produto_ok": bool(prod),
+            "fonte_cadastro": "Cadastro de Produtos" if prod else "Kit Padrão (cadastro pendente)",
             "qtd_por_loja": qtd_por_loja,
             "lojas_base": lojas_base,
             "necessario": necessario,
@@ -3354,8 +3393,6 @@ def _calcular_orcamento_pepi():
         percentual = min(Decimal("999.99"), (total_previsto / pepi * Decimal("100")).quantize(Decimal("0.01")))
     linhas.sort(key=lambda x: (x["comprar"] <= 0, -int(x["comprar"]), str(x["descricao"]).lower()))
 
-    # Sugestão operacional de pedido de compra: somente o que falta para cobrir
-    # as lojas da projeção (ou a meta provisória quando ainda não há filiais marcadas).
     pedido_linhas = [dict(x) for x in linhas if int(x.get("comprar") or 0) > 0]
     total_unidades_pedido = sum(int(x.get("comprar") or 0) for x in pedido_linhas)
     lojas_consideradas = []
@@ -3378,17 +3415,20 @@ def _calcular_orcamento_pepi():
         "saldo": format(saldo, ".2f"),
         "percentual_comprometido": format(percentual, ".2f"),
         "itens_sem_custo": itens_sem_custo,
+        "itens_sem_cadastro": itens_sem_cadastro,
         "itens_para_comprar": itens_para_comprar,
         "total_unidades_pedido": total_unidades_pedido,
         "lojas_planejadas": len(lojas_planejadas),
         "lojas_consideradas": lojas_consideradas,
         "lojas_por_uf": [{"uf": uf, "quantidade": qtd} for uf, qtd in sorted(por_uf.items())],
         "base_origem": "projecao_lojas" if lojas_planejadas else "meta_expansao",
+        "fonte_produtos": "cadastro_produtos",
+        "produtos_cadastrados": len(produtos),
         "meta_lojas": int(meta or 10),
         "lojas_base": lojas_base,
-        "orcamento_completo": itens_sem_custo == 0,
-        "orcamento_suficiente": saldo >= 0 and itens_sem_custo == 0,
-        "pedido_pronto": bool(pedido_linhas) and itens_sem_custo == 0,
+        "orcamento_completo": itens_sem_custo == 0 and itens_sem_cadastro == 0,
+        "orcamento_suficiente": saldo >= 0 and itens_sem_custo == 0 and itens_sem_cadastro == 0,
+        "pedido_pronto": bool(pedido_linhas) and itens_sem_custo == 0 and itens_sem_cadastro == 0,
         "pedido_linhas": pedido_linhas,
         "linhas": linhas,
     }
@@ -3474,6 +3514,8 @@ def _gerar_excel_orcamento(dados):
         ("SKUs para comprar", int(dados.get("itens_para_comprar") or 0)),
         ("Unidades sugeridas", int(dados.get("total_unidades_pedido") or 0)),
         ("Itens sem custo", int(dados.get("itens_sem_custo") or 0)),
+        ("Itens sem Cadastro de Produtos", int(dados.get("itens_sem_cadastro") or 0)),
+        ("Fonte mestre dos itens", "Cadastro de Produtos"),
         ("Gerado em", datetime.now().strftime("%d/%m/%Y %H:%M")),
         ("Gerado por", session.get("username") or "Administrador"),
     ]
@@ -3489,7 +3531,7 @@ def _gerar_excel_orcamento(dados):
     ws["B6"].number_format = '0.00%'
     ws["B2"].font = Font(bold=True, color="C65911" if int(dados.get("itens_sem_custo") or 0) else ("C00000" if _decimal_moeda(dados.get("saldo"), "0.00") < 0 else "008000"))
 
-    headers = ["Código", "Item", "Qtd./loja", "Lojas", "Necessário", "Estoque Expansão", "Comprar", "Custo unitário", "Valor projetado", "Custo informado"]
+    headers = ["Código", "Produto (Cadastro)", "Qtd./loja", "Lojas", "Necessário", "Estoque Expansão", "Comprar", "Custo unitário", "Valor projetado", "Custo informado"]
     linhas_pedido = []
     for x in dados.get("pedido_linhas") or []:
         custo_ok = bool(x.get("custo_informado"))
@@ -3510,14 +3552,14 @@ def _gerar_excel_orcamento(dados):
     for x in dados.get("linhas") or []:
         custo_ok = bool(x.get("custo_informado"))
         linhas_det.append([
-            x.get("codigo") or "-", x.get("descricao") or "", x.get("produto_descricao") or "", int(x.get("qtd_por_loja") or 0),
+            x.get("codigo") or "-", x.get("descricao") or "", x.get("kit_descricao") or "", int(x.get("qtd_por_loja") or 0),
             int(x.get("necessario") or 0), int(x.get("estoque_expansao") or 0), int(x.get("comprar") or 0),
             float(_decimal_moeda(x.get("custo"), "0.00")) if custo_ok else None,
             float(_decimal_moeda(x.get("subtotal"), "0.00")) if custo_ok else None,
             "SIM" if custo_ok else "NÃO",
         ])
     det = wb.create_sheet("Detalhamento")
-    _preparar_planilha_orcamento(det, ["Código", "Item do kit", "Produto vinculado", "Qtd./loja", "Necessário", "Estoque Expansão", "Comprar", "Custo unitário", "Valor projetado", "Custo informado"], linhas_det, [15, 36, 36, 11, 12, 18, 11, 17, 18, 15])
+    _preparar_planilha_orcamento(det, ["Código", "Produto (Cadastro)", "Referência do Kit", "Qtd./loja", "Necessário", "Estoque Expansão", "Comprar", "Custo unitário", "Valor projetado", "Custo informado"], linhas_det, [15, 36, 36, 11, 12, 18, 11, 17, 18, 15])
     for row in range(2, det.max_row + 1):
         det[f"H{row}"].number_format = 'R$ #,##0.00'
         det[f"I{row}"].number_format = 'R$ #,##0.00'
@@ -3765,9 +3807,9 @@ def _gerar_pdf_orcamento(dados):
     pdf.setFillColor(colors.HexColor("#B9C8D6"))
     pdf.setFont("Helvetica", 7.1)
     regra = [
-        "Kit padrão x lojas projetadas",
-        "menos estoque disponível de Expansão",
-        "igual a quantidade sugerida para compra.",
+        "Cadastro de Produtos define item e custo",
+        "Kit Padrão define a quantidade por loja",
+        "e o Estoque reduz a compra sugerida.",
     ]
     for idx, linha in enumerate(regra):
         pdf.drawString(right_x + 14, cy - 15 - idx*13, linha)
@@ -3869,7 +3911,7 @@ def _gerar_pdf_orcamento(dados):
 
     # Conciliação completa do kit x estoque x projeção
     cols2 = [
-        ("Código", 60), ("Item do kit", 198), ("Qtd/loja", 55), ("Necessário", 65),
+        ("Código", 60), ("Produto (Cadastro)", 198), ("Qtd/loja", 55), ("Necessário", 65),
         ("Estoque", 58), ("Comprar", 55), ("Situação", 100), ("Valor projetado", 105),
     ]
     table_w2 = sum(w for _, w in cols2)
@@ -3878,11 +3920,11 @@ def _gerar_pdf_orcamento(dados):
         _bg()
         pdf.setFillColor(colors.white)
         pdf.setFont("Helvetica-Bold", 16)
-        pdf.drawString(margem, alt - margem, "Conciliação - Kit Padrão x Estoque x Projeção")
+        pdf.drawString(margem, alt - margem, "Conciliação - Cadastro de Produtos x Estoque x Projeção")
         pdf.setFillColor(colors.HexColor("#9DB3C8"))
         pdf.setFont("Helvetica", 8)
-        pdf.drawString(margem, alt - margem - 13, "Visão completa dos itens do kit, incluindo materiais já cobertos pelo estoque e itens que exigem compra.")
-        pdf.drawRightString(larg - margem, alt - margem - 13, f"{len(linhas)} item(ns) do Kit Padrão")
+        pdf.drawString(margem, alt - margem - 13, "Produtos do cadastro mestre cruzados com Kit Padrão, estoque de Expansão e projeção de lojas.")
+        pdf.drawRightString(larg - margem, alt - margem - 13, f"{len(linhas)} item(ns) analisado(s)")
         y0 = alt - margem - 40
         pdf.setFillColor(colors.HexColor("#234C74"))
         pdf.roundRect(margem, y0, table_w2, 20, 4, stroke=0, fill=1)

@@ -14,7 +14,7 @@
 </head>
 <body>
 <header>
-  <div><span class="tag">Financeiro · Expansão</span><h1>Orçamento</h1><p>Planejamento de compra baseado no estoque atual, kit padrão e projeção de lojas a inaugurar, com validação financeira pelo valor consolidado disponível na PEPI.</p></div>
+  <div><span class="tag">Financeiro · Expansão</span><h1>Orçamento</h1><p>Planejamento de compra com código, descrição e custo vindos diretamente do Cadastro de Produtos, cruzados com Kit Padrão, estoque de Expansão e projeção de lojas a inaugurar.</p></div>
   <span class="validation">Validação · somente Administrador</span>
 </header>
 {% include '_menu.html' %}
@@ -32,7 +32,7 @@
       <h2>Critério da sugestão de compra</h2>
       <div class="rule">
         <div><strong>1.</strong> Identifica quantas lojas estão marcadas como <strong>Inaugurar</strong> na projeção.</div>
-        <div><strong>2.</strong> Multiplica o Kit Padrão pela quantidade de lojas e desconta o estoque disponível para Expansão.</div>
+        <div><strong>2.</strong> Usa o Cadastro de Produtos como fonte mestre do item e custo; o Kit Padrão informa a quantidade por loja e o Estoque reduz a necessidade de compra.</div>
         <div><strong>3.</strong> O saldo faltante vira a <strong>Sugestão de Pedido de Compra</strong> e é valorizado pelo custo cadastrado.</div>
       </div>
     </div>
@@ -68,7 +68,7 @@
     <div class="pedido-alerta" id="pedido-alerta"><strong>Cálculo automático:</strong> quantidade necessária para as inaugurações menos o estoque de Expansão disponível.</div>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Código</th><th>Item</th><th class="num">Qtd./loja</th><th class="num">Necessidade total</th><th class="num">Estoque disponível</th><th class="num">Pedido sugerido</th><th class="money">Custo unitário</th><th class="money">Valor do pedido</th><th>Cálculo</th></tr></thead>
+        <thead><tr><th>Código</th><th>Produto (Cadastro)</th><th class="num">Qtd./loja</th><th class="num">Necessidade total</th><th class="num">Estoque disponível</th><th class="num">Pedido sugerido</th><th class="money">Custo unitário</th><th class="money">Valor do pedido</th><th>Cálculo</th></tr></thead>
         <tbody id="pedido-tbody"><tr><td colspan="9" class="empty">Carregando sugestão...</td></tr></tbody>
       </table>
     </div>
@@ -80,9 +80,9 @@
       <div class="toolbar-left"><input id="pesquisa" type="search" placeholder="Pesquisar código ou item..."><select id="filtro"><option value="comprar">Somente itens para comprar</option><option value="todos">Todos os itens do kit</option><option value="sem-custo">Itens sem custo</option></select></div>
       <div class="toolbar-right"><span class="contador" id="contador"></span><a class="btn" href="{{ url_for('pagina_produtos') }}">Atualizar custos</a><button id="atualizar">Atualizar cálculo</button></div>
     </div>
-    <h2>Detalhamento do cálculo Estoque × Projeção</h2>
-    <div class="table-wrap"><table><thead><tr><th>Código</th><th>Item / vínculo</th><th class="num">Qtd./loja</th><th class="num">Necessário</th><th class="num">Estoque Expansão</th><th class="num">Comprar</th><th class="money">Custo unitário</th><th class="money">Valor projetado</th></tr></thead><tbody id="tbody"><tr><td colspan="8" class="empty">Carregando...</td></tr></tbody></table></div>
-    <div class="note"><strong>Importante:</strong> itens sem custo não entram no total projetado. Enquanto houver item para compra sem valor cadastrado, o orçamento será marcado como <strong>incompleto</strong> para evitar uma leitura financeira incorreta.</div>
+    <h2>Detalhamento · Cadastro de Produtos × Estoque × Projeção</h2>
+    <div class="table-wrap"><table><thead><tr><th>Código</th><th>Produto / fonte</th><th class="num">Qtd./loja</th><th class="num">Necessário</th><th class="num">Estoque Expansão</th><th class="num">Comprar</th><th class="money">Custo unitário</th><th class="money">Valor projetado</th></tr></thead><tbody id="tbody"><tr><td colspan="8" class="empty">Carregando...</td></tr></tbody></table></div>
+    <div class="note"><strong>Fonte dos dados:</strong> código, descrição e custo vêm do <strong>Cadastro de Produtos</strong>. O Kit Padrão fornece somente a quantidade necessária por loja. Itens sem cadastro ou sem custo deixam o orçamento como <strong>incompleto</strong>.</div>
   </section>
 </main>
 {% include '_footer.html' %}
@@ -130,7 +130,8 @@ function renderPedido(){
   }
   const alerta=document.getElementById('pedido-alerta');alerta.className='pedido-alerta';
   if(dados.base_origem!=='projecao_lojas'){alerta.classList.add('warn');alerta.innerHTML='<strong>Atenção:</strong> não há filial marcada como Inaugurar. A sugestão abaixo usa temporariamente a meta de expansão. Ao cadastrar as inaugurações, o pedido será recalculado automaticamente.'}
-  else if(dados.itens_sem_custo>0){alerta.classList.add('warn');alerta.innerHTML=`<strong>Quantidades prontas para validação.</strong> Existem ${dados.itens_sem_custo} item(ns) sem custo. Eles entram na quantidade sugerida, mas não no valor financeiro até o custo ser cadastrado.`}
+  else if((dados.itens_sem_cadastro||0)>0){alerta.classList.add('warn');alerta.innerHTML=`<strong>Cadastro incompleto.</strong> Existem ${dados.itens_sem_cadastro} item(ns) do Kit Padrão sem correspondência no Cadastro de Produtos. Cadastre-os para que código, descrição e custo sejam usados corretamente no orçamento.`}
+  else if(dados.itens_sem_custo>0){alerta.classList.add('warn');alerta.innerHTML=`<strong>Quantidades prontas para validação.</strong> Existem ${dados.itens_sem_custo} item(ns) sem custo no Cadastro de Produtos. Eles entram na quantidade sugerida, mas não no valor financeiro até o custo ser informado.`}
   else{alerta.innerHTML=`<strong>Sugestão pronta:</strong> pedido calculado para atender ${dados.lojas_base} loja(s), usando o estoque disponível antes de recomendar novas compras.`}
   const tb=document.getElementById('pedido-tbody');
   if(!linhas.length){tb.innerHTML='<tr><td colspan="9" class="empty">O estoque atual já cobre toda a necessidade desta projeção. Nenhuma compra sugerida.</td></tr>';return}
@@ -140,7 +141,7 @@ function renderTabela(){
   if(!dados)return;const termo=(document.getElementById('pesquisa').value||'').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');const filtro=document.getElementById('filtro').value;
   const linhas=(dados.linhas||[]).filter(x=>{if(filtro==='comprar'&&Number(x.comprar)<=0)return false;if(filtro==='sem-custo'&&!(Number(x.comprar)>0&&!x.custo_informado))return false;const alvo=`${x.codigo||''} ${x.descricao||''} ${x.produto_descricao||''}`.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');return !termo||alvo.includes(termo)});
   document.getElementById('contador').textContent=`${linhas.length} item(ns)`;const tb=document.getElementById('tbody');if(!linhas.length){tb.innerHTML='<tr><td colspan="8" class="empty">Nenhum item encontrado para este filtro.</td></tr>';return}
-  tb.innerHTML=linhas.map(x=>`<tr><td class="code">${esc(x.codigo||'-')}</td><td><strong>${esc(x.descricao)}</strong>${x.produto_id?`<span class="linked">Custo vinculado ao produto: ${esc(x.produto_descricao||x.descricao)}</span>`:'<span class="linked danger-text">Sem vínculo com Cadastro de Produtos</span>'}</td><td class="num">${x.qtd_por_loja}</td><td class="num">${x.necessario}</td><td class="num">${x.estoque_expansao}</td><td class="num buy">${x.comprar}</td><td class="money">${x.custo_informado?moeda(x.custo):'<span class="missing">SEM CUSTO</span>'}</td><td class="money ${x.comprar>0?'buy':'ok-text'}">${x.custo_informado?moeda(x.subtotal):'—'}</td></tr>`).join('');
+  tb.innerHTML=linhas.map(x=>`<tr><td class="code">${esc(x.codigo||'-')}</td><td><strong>${esc(x.descricao)}</strong>${x.produto_id?`<span class="linked">Fonte: Cadastro de Produtos · Referência Kit: ${esc(x.kit_descricao||'-')}</span>`:'<span class="linked danger-text">Item do Kit sem correspondência no Cadastro de Produtos</span>'}</td><td class="num">${x.qtd_por_loja}</td><td class="num">${x.necessario}</td><td class="num">${x.estoque_expansao}</td><td class="num buy">${x.comprar}</td><td class="money">${x.custo_informado?moeda(x.custo):'<span class="missing">SEM CUSTO</span>'}</td><td class="money ${x.comprar>0?'buy':'ok-text'}">${x.custo_informado?moeda(x.subtotal):'—'}</td></tr>`).join('');
 }
 function textoPedido(){
   if(!dados)return '';
