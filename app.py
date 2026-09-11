@@ -48,13 +48,16 @@ from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.units import mm
 from reportlab.lib.utils import ImageReader
 from reportlab.pdfgen import canvas
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak
 from cryptography.fernet import Fernet, InvalidToken
 import qrcode
 
 import db
 
 app = Flask(__name__)
-APP_BUILD = "2026-09-11-orcamento-pedido-sugerido-v62"
+APP_BUILD = "2026-09-11-orcamento-relatorios-scroll-v63"
 _DASHBOARD_CACHE = {"expira": 0.0, "dados": None}
 app.secret_key = os.environ.get("SECRET_KEY", "troque-esta-chave-em-producao")
 _RUNNING_HTTPS_HOSTED = bool(
@@ -3419,6 +3422,207 @@ def api_salvar_orcamento_pepi():
             tabela="sistema",
         )
     return jsonify({"ok": True, "valor": format(valor, ".2f"), "orcamento": _calcular_orcamento_pepi()})
+
+
+def _status_orcamento_texto(dados):
+    if int(dados.get("itens_sem_custo") or 0) > 0:
+        return "INCOMPLETO - EXISTEM ITENS SEM CUSTO"
+    if _decimal_moeda(dados.get("saldo"), "0.00") < 0:
+        return "PEPI INSUFICIENTE PARA O PEDIDO SUGERIDO"
+    if int(dados.get("total_unidades_pedido") or 0) <= 0:
+        return "ESTOQUE SUFICIENTE - SEM COMPRA SUGERIDA"
+    return "PEDIDO SUGERIDO COBERTO PELA PEPI"
+
+
+def _preparar_planilha_orcamento(ws, headers, linhas, larguras=None):
+    ws.append(headers)
+    fill = PatternFill("solid", fgColor="1F4E78")
+    side = Side(style="thin", color="D9E2F3")
+    for cell in ws[1]:
+        cell.font = Font(bold=True, color="FFFFFF")
+        cell.fill = fill
+        cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+        cell.border = Border(bottom=side)
+    for linha in linhas:
+        ws.append(linha)
+    ws.freeze_panes = "A2"
+    ws.auto_filter.ref = f"A1:{get_column_letter(len(headers))}{max(1, ws.max_row)}"
+    if larguras:
+        for idx, largura in enumerate(larguras, 1):
+            ws.column_dimensions[get_column_letter(idx)].width = largura
+    for row in ws.iter_rows(min_row=2):
+        for c in row:
+            c.alignment = Alignment(vertical="top", wrap_text=True)
+    return ws
+
+
+def _gerar_excel_orcamento(dados):
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Resumo"
+    status = _status_orcamento_texto(dados)
+    origem = "Lojas marcadas como Inaugurar" if dados.get("base_origem") == "projecao_lojas" else "Meta de Expansão (provisória)"
+    resumo = [
+        ("Indicador", "Valor"),
+        ("Status", status),
+        ("PEPI consolidada", float(_decimal_moeda(dados.get("pepi_consolidado"), "0.00"))),
+        ("Valor projetado da compra", float(_decimal_moeda(dados.get("total_previsto"), "0.00"))),
+        ("Saldo estimado da PEPI", float(_decimal_moeda(dados.get("saldo"), "0.00"))),
+        ("PEPI comprometida", float(_decimal_moeda(dados.get("percentual_comprometido"), "0.00")) / 100),
+        ("Lojas consideradas", int(dados.get("lojas_base") or 0)),
+        ("Origem da projeção", origem),
+        ("SKUs para comprar", int(dados.get("itens_para_comprar") or 0)),
+        ("Unidades sugeridas", int(dados.get("total_unidades_pedido") or 0)),
+        ("Itens sem custo", int(dados.get("itens_sem_custo") or 0)),
+        ("Gerado em", datetime.now().strftime("%d/%m/%Y %H:%M")),
+        ("Gerado por", session.get("username") or "Administrador"),
+    ]
+    for row in resumo:
+        ws.append(row)
+    for cell in ws[1]:
+        cell.font = Font(bold=True, color="FFFFFF")
+        cell.fill = PatternFill("solid", fgColor="1F4E78")
+    ws.column_dimensions["A"].width = 31
+    ws.column_dimensions["B"].width = 42
+    for row in (3, 4, 5):
+        ws[f"B{row}"].number_format = 'R$ #,##0.00'
+    ws["B6"].number_format = '0.00%'
+    ws["B2"].font = Font(bold=True, color="C65911" if int(dados.get("itens_sem_custo") or 0) else ("C00000" if _decimal_moeda(dados.get("saldo"), "0.00") < 0 else "008000"))
+
+    headers = ["Código", "Item", "Qtd./loja", "Lojas", "Necessário", "Estoque Expansão", "Comprar", "Custo unitário", "Valor projetado", "Custo informado"]
+    linhas_pedido = []
+    for x in dados.get("pedido_linhas") or []:
+        custo_ok = bool(x.get("custo_informado"))
+        linhas_pedido.append([
+            x.get("codigo") or "-", x.get("descricao") or "", int(x.get("qtd_por_loja") or 0), int(x.get("lojas_base") or dados.get("lojas_base") or 0),
+            int(x.get("necessario") or 0), int(x.get("estoque_expansao") or 0), int(x.get("comprar") or 0),
+            float(_decimal_moeda(x.get("custo"), "0.00")) if custo_ok else None,
+            float(_decimal_moeda(x.get("subtotal"), "0.00")) if custo_ok else None,
+            "SIM" if custo_ok else "NÃO",
+        ])
+    pedido = wb.create_sheet("Pedido sugerido")
+    _preparar_planilha_orcamento(pedido, headers, linhas_pedido, [15, 40, 11, 9, 12, 18, 11, 17, 18, 15])
+    for row in range(2, pedido.max_row + 1):
+        pedido[f"H{row}"].number_format = 'R$ #,##0.00'
+        pedido[f"I{row}"].number_format = 'R$ #,##0.00'
+
+    linhas_det = []
+    for x in dados.get("linhas") or []:
+        custo_ok = bool(x.get("custo_informado"))
+        linhas_det.append([
+            x.get("codigo") or "-", x.get("descricao") or "", x.get("produto_descricao") or "", int(x.get("qtd_por_loja") or 0),
+            int(x.get("necessario") or 0), int(x.get("estoque_expansao") or 0), int(x.get("comprar") or 0),
+            float(_decimal_moeda(x.get("custo"), "0.00")) if custo_ok else None,
+            float(_decimal_moeda(x.get("subtotal"), "0.00")) if custo_ok else None,
+            "SIM" if custo_ok else "NÃO",
+        ])
+    det = wb.create_sheet("Detalhamento")
+    _preparar_planilha_orcamento(det, ["Código", "Item do kit", "Produto vinculado", "Qtd./loja", "Necessário", "Estoque Expansão", "Comprar", "Custo unitário", "Valor projetado", "Custo informado"], linhas_det, [15, 36, 36, 11, 12, 18, 11, 17, 18, 15])
+    for row in range(2, det.max_row + 1):
+        det[f"H{row}"].number_format = 'R$ #,##0.00'
+        det[f"I{row}"].number_format = 'R$ #,##0.00'
+
+    lojas = wb.create_sheet("Lojas consideradas")
+    linhas_lojas = [[x.get("codigo") or "", x.get("nome") or "", x.get("uf") or "", x.get("previsao_abertura") or ""] for x in dados.get("lojas_consideradas") or []]
+    _preparar_planilha_orcamento(lojas, ["Filial", "Nome", "UF", "Previsão de abertura"], linhas_lojas, [16, 42, 8, 22])
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    return buf
+
+
+def _gerar_pdf_orcamento(dados):
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=landscape(A4), leftMargin=12*mm, rightMargin=12*mm, topMargin=12*mm, bottomMargin=12*mm)
+    styles = getSampleStyleSheet()
+    titulo = ParagraphStyle("orc_titulo", parent=styles["Title"], fontName="Helvetica-Bold", fontSize=16, leading=19, textColor=colors.HexColor("#1F4E78"), alignment=TA_LEFT, spaceAfter=4)
+    subtitulo = ParagraphStyle("orc_sub", parent=styles["Normal"], fontName="Helvetica", fontSize=8.5, leading=11, textColor=colors.HexColor("#555555"), spaceAfter=8)
+    cab = ParagraphStyle("orc_cab", parent=styles["Normal"], fontName="Helvetica-Bold", fontSize=7.2, leading=8.5, textColor=colors.white, alignment=TA_CENTER)
+    cel = ParagraphStyle("orc_cel", parent=styles["Normal"], fontName="Helvetica", fontSize=7.1, leading=8.5, alignment=TA_LEFT)
+    cel_right = ParagraphStyle("orc_cel_right", parent=cel, alignment=TA_RIGHT)
+    sec = ParagraphStyle("orc_sec", parent=styles["Heading2"], fontName="Helvetica-Bold", fontSize=10, leading=12, textColor=colors.HexColor("#1F4E78"), spaceBefore=7, spaceAfter=5)
+    story = [
+        Paragraph("Relatório de Orçamento · PEPI e Sugestão de Pedido de Compra", titulo),
+        Paragraph(f"Gerado em {datetime.now().strftime('%d/%m/%Y %H:%M')} por {session.get('username') or 'Administrador'} · Base: {'lojas marcadas como Inaugurar' if dados.get('base_origem') == 'projecao_lojas' else 'meta de Expansão (provisória)'}. ", subtitulo),
+    ]
+
+    def brl(v):
+        val = float(_decimal_moeda(v, "0.00"))
+        s = f"{val:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+        return f"R$ {s}"
+
+    status = _status_orcamento_texto(dados)
+    resumo_data = [
+        [Paragraph("PEPI disponível", cab), Paragraph("Compra projetada", cab), Paragraph("Saldo", cab), Paragraph("% comprometido", cab), Paragraph("Lojas", cab), Paragraph("Unidades sugeridas", cab), Paragraph("Itens sem custo", cab)],
+        [Paragraph(brl(dados.get("pepi_consolidado")), cel_right), Paragraph(brl(dados.get("total_previsto")), cel_right), Paragraph(brl(dados.get("saldo")), cel_right), Paragraph(f"{_decimal_moeda(dados.get('percentual_comprometido'),'0.00')}%", cel_right), Paragraph(str(dados.get("lojas_base") or 0), cel_right), Paragraph(str(dados.get("total_unidades_pedido") or 0), cel_right), Paragraph(str(dados.get("itens_sem_custo") or 0), cel_right)],
+    ]
+    resumo_table = Table(resumo_data, colWidths=[36*mm,36*mm,36*mm,30*mm,20*mm,32*mm,27*mm], repeatRows=1)
+    resumo_table.setStyle(TableStyle([
+        ("BACKGROUND", (0,0), (-1,0), colors.HexColor("#1F4E78")), ("TEXTCOLOR", (0,0), (-1,0), colors.white),
+        ("GRID", (0,0), (-1,-1), 0.35, colors.HexColor("#B8C6D1")), ("VALIGN", (0,0), (-1,-1), "MIDDLE"),
+        ("BACKGROUND", (0,1), (-1,1), colors.HexColor("#F5F8FB")), ("TOPPADDING", (0,0), (-1,-1), 5), ("BOTTOMPADDING", (0,0), (-1,-1), 5),
+    ]))
+    story += [resumo_table, Spacer(1, 5), Paragraph(f"<b>Status:</b> {status}", subtitulo)]
+
+    if dados.get("lojas_por_uf"):
+        uf_txt = " · ".join(f"{x.get('uf')}: {x.get('quantidade')} loja(s)" for x in dados.get("lojas_por_uf") or [])
+        story.append(Paragraph(f"<b>Distribuição das inaugurações:</b> {uf_txt}", subtitulo))
+
+    story.append(Paragraph("Sugestão de Pedido de Compra", sec))
+    headers = ["Código", "Item", "Qtd./loja", "Necessário", "Estoque", "Comprar", "Custo unit.", "Valor projetado"]
+    table_data = [[Paragraph(h, cab) for h in headers]]
+    pedido = dados.get("pedido_linhas") or []
+    if pedido:
+        for x in pedido:
+            custo_ok = bool(x.get("custo_informado"))
+            table_data.append([
+                Paragraph(str(x.get("codigo") or "-"), cel), Paragraph(str(x.get("descricao") or ""), cel),
+                Paragraph(str(x.get("qtd_por_loja") or 0), cel_right), Paragraph(str(x.get("necessario") or 0), cel_right),
+                Paragraph(str(x.get("estoque_expansao") or 0), cel_right), Paragraph(str(x.get("comprar") or 0), cel_right),
+                Paragraph(brl(x.get("custo")) if custo_ok else "SEM CUSTO", cel_right), Paragraph(brl(x.get("subtotal")) if custo_ok else "-", cel_right),
+            ])
+    else:
+        table_data.append([Paragraph("O estoque atual cobre toda a necessidade da projeção. Nenhuma compra sugerida.", cel)] + [""]*7)
+    t = Table(table_data, colWidths=[22*mm,68*mm,20*mm,23*mm,23*mm,22*mm,30*mm,32*mm], repeatRows=1)
+    t.setStyle(TableStyle([
+        ("BACKGROUND", (0,0), (-1,0), colors.HexColor("#1F4E78")), ("GRID", (0,0), (-1,-1), 0.3, colors.HexColor("#C8D2DC")),
+        ("VALIGN", (0,0), (-1,-1), "TOP"), ("ROWBACKGROUNDS", (0,1), (-1,-1), [colors.white, colors.HexColor("#F7F9FB")]),
+        ("TOPPADDING", (0,0), (-1,-1), 4), ("BOTTOMPADDING", (0,0), (-1,-1), 4),
+    ]))
+    story.append(t)
+    story.append(Spacer(1, 7))
+    story.append(Paragraph("Regra do cálculo: quantidade do Kit Padrão × lojas a inaugurar − estoque disponível de Expansão = pedido sugerido. Itens sem custo entram na quantidade do pedido, mas não no total financeiro até o custo ser cadastrado.", subtitulo))
+
+    def rodape(canvas_obj, doc_obj):
+        canvas_obj.saveState()
+        canvas_obj.setStrokeColor(colors.HexColor("#D5DCE3"))
+        canvas_obj.line(12*mm, 8*mm, landscape(A4)[0]-12*mm, 8*mm)
+        canvas_obj.setFont("Helvetica", 7)
+        canvas_obj.setFillColor(colors.HexColor("#777777"))
+        canvas_obj.drawString(12*mm, 4.8*mm, "Controle de Estoque · Orçamento")
+        canvas_obj.drawRightString(landscape(A4)[0]-12*mm, 4.8*mm, f"Página {doc_obj.page}")
+        canvas_obj.restoreState()
+
+    doc.build(story, onFirstPage=rodape, onLaterPages=rodape)
+    buf.seek(0)
+    return buf
+
+
+@app.route("/export-orcamento")
+@admin_required
+def exportar_orcamento_excel():
+    dados = _calcular_orcamento_pepi()
+    buf = _gerar_excel_orcamento(dados)
+    return send_file(buf, as_attachment=True, download_name=f"orcamento_pepi_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx", mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+
+@app.route("/pdf-orcamento")
+@admin_required
+def relatorio_pdf_orcamento():
+    dados = _calcular_orcamento_pepi()
+    buf = _gerar_pdf_orcamento(dados)
+    return send_file(buf, as_attachment=True, download_name=f"orcamento_pepi_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf", mimetype="application/pdf")
 
 
 # ---------------------------------------------------------------------
