@@ -38,14 +38,14 @@ O menu do sistema inclui a página **Celular**, que mostra o endereço de acesso
 - Consulta: somente leitura nas áreas operacionais; Orçamento, Relatórios, downloads/exports/backup e Gestão de Dados bloqueados.
 
 
-## Agente IA (v72)
+## Agente IA (v73 - Groq gratuito)
 
-- Nova aba **Agente IA** integrada ao menu do sistema.
+- Aba **Agente IA** integrada ao menu do sistema.
 - Consulta, em tempo real e somente leitura, Estoque, Imobilizados, Cadastro de Produtos, Kit Padrão, Filiais, Projeção e Acompanhamento de Expansão.
 - Administrador, Gestor e Operador também podem consultar Orçamento/PEPI/pedido sugerido pelo agente.
 - O perfil Consulta não recebe acesso a custos, PEPI, pedido sugerido, Relatórios ou Gestão de Dados.
 - O agente não possui ferramentas de gravação: não cadastra, edita nem exclui registros.
 
-### Configuração da OpenAI
+### Configuração do Groq
 
-No serviço onde o Flask está publicado, crie a variável de ambiente `OPENAI_API_KEY` com a chave da API. Não grave a chave no GitHub nem no código. Opcionalmente, use `OPENAI_MODEL`; o padrão desta versão é `gpt-5.6-luna`, escolhido para reduzir custo de uso. Após salvar a variável, faça um novo deploy para instalar o SDK `openai` presente no `requirements.txt`.
+No Render, crie a variável de ambiente `GROQ_API_KEY` com a chave criada em `https://console.groq.com/keys`. Não grave a chave no GitHub nem no código. Opcionalmente, use `GROQ_MODEL`; o padrão desta versão é `qwen/qwen3.6-27b`. A integração usa HTTPS diretamente pela biblioteca padrão do Python, sem SDK da OpenAI.

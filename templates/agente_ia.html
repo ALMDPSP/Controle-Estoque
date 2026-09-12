@@ -77,7 +77,7 @@
 
       <section class="side-card warn" id="setup-warning">
         <strong>Configuração necessária</strong>
-        <p>A tela já está instalada. Falta apenas configurar <code>OPENAI_API_KEY</code> no servidor e publicar o novo deploy.</p>
+        <p>A tela já está instalada. Falta apenas configurar <code>GROQ_API_KEY</code> no servidor. A integração usa o plano gratuito do Groq.</p>
       </section>
     </aside>
   </div>
@@ -122,7 +122,7 @@ async function loadStatus(){
     configured=!!d.configurado;document.getElementById('model-name').textContent=d.modelo||'-';
     document.getElementById('access-info').textContent=d.orcamento_disponivel?'Operacional + Orçamento':'Operacional';
     const dot=document.getElementById('status-dot'),txt=document.getElementById('status-text');
-    dot.classList.add(configured?'ok':'err');txt.textContent=configured?'Agente disponível':'Falta configurar API';
+    dot.classList.add(configured?'ok':'err');txt.textContent=configured?'Agente Groq disponível':'Falta configurar Groq';
     document.getElementById('setup-warning').classList.toggle('active',!configured);
   }catch(e){document.getElementById('status-text').textContent='Status indisponível';document.getElementById('status-dot').classList.add('err')}
 }

@@ -31,6 +31,8 @@ import base64
 import hashlib
 import struct
 import json
+import urllib.request as urlrequest
+import urllib.error as urlerror
 from datetime import datetime, timedelta
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from functools import wraps
@@ -57,7 +59,7 @@ import qrcode
 import db
 
 app = Flask(__name__)
-APP_BUILD = "2026-09-12-agente-ia-v72"
+APP_BUILD = "2026-09-12-agente-ia-groq-v73"
 _DASHBOARD_CACHE = {"expira": 0.0, "dados": None}
 app.secret_key = os.environ.get("SECRET_KEY", "troque-esta-chave-em-producao")
 _RUNNING_HTTPS_HOSTED = bool(
@@ -5028,7 +5030,8 @@ def api_excluir_usuario(user_id):
 # Agente IA — consultas seguras, somente leitura
 # ---------------------------------------------------------------------
 
-AI_MODEL = os.environ.get("OPENAI_MODEL", "gpt-5.6-luna").strip() or "gpt-5.6-luna"
+AI_MODEL = os.environ.get("GROQ_MODEL", "qwen/qwen3.6-27b").strip() or "qwen/qwen3.6-27b"
+GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
 AI_MAX_HISTORY = 10
 AI_MAX_TOOL_ROUNDS = 6
 AI_MAX_OUTPUT_TOKENS = 1200
@@ -5293,22 +5296,23 @@ def _agente_consultar_movimentacoes(args, role):
 
 
 def _agente_tools(role):
-    tools = [
-        {"type": "function", "name": "resumo_executivo", "description": "Obtém um resumo executivo atual do sistema, estoque e capacidade de expansão.", "parameters": {"type": "object", "properties": {}, "additionalProperties": False}},
-        {"type": "function", "name": "consultar_estoque", "description": "Consulta o estoque atual agrupado por código, descrição e finalidade.", "parameters": {"type": "object", "properties": {"termo": {"type": "string", "description": "Código ou parte da descrição; vazio para todos."}, "finalidade": {"type": "string", "description": "Ex.: Expansão, Sustentação, Requalificação; vazio para todas."}, "limite": {"type": "integer", "minimum": 1, "maximum": 80}}, "additionalProperties": False}},
-        {"type": "function", "name": "consultar_imobilizados", "description": "Pesquisa imobilizados por código, descrição, serial, patrimônio, localização ou filial.", "parameters": {"type": "object", "properties": {"termo": {"type": "string"}, "limite": {"type": "integer", "minimum": 1, "maximum": 60}}, "additionalProperties": False}},
-        {"type": "function", "name": "consultar_produtos", "description": "Consulta o Cadastro de Produtos e quantidades por loja. Custos obedecem ao perfil do usuário.", "parameters": {"type": "object", "properties": {"termo": {"type": "string"}, "limite": {"type": "integer", "minimum": 1, "maximum": 80}}, "additionalProperties": False}},
-        {"type": "function", "name": "consultar_kit_padrao", "description": "Consulta o kit padrão necessário para uma loja.", "parameters": {"type": "object", "properties": {"termo": {"type": "string"}}, "additionalProperties": False}},
-        {"type": "function", "name": "consultar_filiais", "description": "Consulta filiais por status, estado ou texto.", "parameters": {"type": "object", "properties": {"status": {"type": "string", "description": "Ex.: ativa, inaugurar, pendente ou inativa."}, "uf": {"type": "string"}, "termo": {"type": "string"}, "limite": {"type": "integer", "minimum": 1, "maximum": 100}}, "additionalProperties": False}},
-        {"type": "function", "name": "consultar_projecao", "description": "Obtém a projeção de lojas por estado e a capacidade/risco do estoque de expansão.", "parameters": {"type": "object", "properties": {}, "additionalProperties": False}},
-        {"type": "function", "name": "consultar_acompanhamento_expansao", "description": "Consulta o acompanhamento e cronograma das lojas de expansão.", "parameters": {"type": "object", "properties": {"status": {"type": "string"}, "uf": {"type": "string"}, "limite": {"type": "integer", "minimum": 1, "maximum": 100}}, "additionalProperties": False}},
+    """Ferramentas no formato de tool calling da API Groq / Chat Completions."""
+    funcoes = [
+        {"name": "resumo_executivo", "description": "Obtém um resumo executivo atual do sistema, estoque e capacidade de expansão.", "parameters": {"type": "object", "properties": {}, "additionalProperties": False}},
+        {"name": "consultar_estoque", "description": "Consulta o estoque atual agrupado por código, descrição e finalidade.", "parameters": {"type": "object", "properties": {"termo": {"type": "string", "description": "Código ou parte da descrição; vazio para todos."}, "finalidade": {"type": "string", "description": "Ex.: Expansão, Sustentação, Requalificação; vazio para todas."}, "limite": {"type": "integer", "minimum": 1, "maximum": 80}}, "additionalProperties": False}},
+        {"name": "consultar_imobilizados", "description": "Pesquisa imobilizados por código, descrição, serial, patrimônio, localização ou filial.", "parameters": {"type": "object", "properties": {"termo": {"type": "string"}, "limite": {"type": "integer", "minimum": 1, "maximum": 60}}, "additionalProperties": False}},
+        {"name": "consultar_produtos", "description": "Consulta o Cadastro de Produtos e quantidades por loja. Custos obedecem ao perfil do usuário.", "parameters": {"type": "object", "properties": {"termo": {"type": "string"}, "limite": {"type": "integer", "minimum": 1, "maximum": 80}}, "additionalProperties": False}},
+        {"name": "consultar_kit_padrao", "description": "Consulta o kit padrão necessário para uma loja.", "parameters": {"type": "object", "properties": {"termo": {"type": "string"}}, "additionalProperties": False}},
+        {"name": "consultar_filiais", "description": "Consulta filiais por status, estado ou texto.", "parameters": {"type": "object", "properties": {"status": {"type": "string", "description": "Ex.: ativa, inaugurar, pendente ou inativa."}, "uf": {"type": "string"}, "termo": {"type": "string"}, "limite": {"type": "integer", "minimum": 1, "maximum": 100}}, "additionalProperties": False}},
+        {"name": "consultar_projecao", "description": "Obtém a projeção de lojas por estado e a capacidade/risco do estoque de expansão.", "parameters": {"type": "object", "properties": {}, "additionalProperties": False}},
+        {"name": "consultar_acompanhamento_expansao", "description": "Consulta o acompanhamento e cronograma das lojas de expansão.", "parameters": {"type": "object", "properties": {"status": {"type": "string"}, "uf": {"type": "string"}, "limite": {"type": "integer", "minimum": 1, "maximum": 100}}, "additionalProperties": False}},
     ]
     if role != "consulta":
-        tools.extend([
-            {"type": "function", "name": "consultar_movimentacoes_recentes", "description": "Consulta as movimentações recentes do sistema/Relatórios.", "parameters": {"type": "object", "properties": {"limite": {"type": "integer", "minimum": 1, "maximum": 50}}, "additionalProperties": False}},
-            {"type": "function", "name": "consultar_orcamento_pedido", "description": "Consulta a PEPI, o orçamento e a sugestão de pedido de compra calculada pelo sistema.", "parameters": {"type": "object", "properties": {}, "additionalProperties": False}},
+        funcoes.extend([
+            {"name": "consultar_movimentacoes_recentes", "description": "Consulta as movimentações recentes do sistema/Relatórios.", "parameters": {"type": "object", "properties": {"limite": {"type": "integer", "minimum": 1, "maximum": 50}}, "additionalProperties": False}},
+            {"name": "consultar_orcamento_pedido", "description": "Consulta a PEPI, o orçamento e a sugestão de pedido de compra calculada pelo sistema.", "parameters": {"type": "object", "properties": {}, "additionalProperties": False}},
         ])
-    return tools
+    return [{"type": "function", "function": f} for f in funcoes]
 
 
 def _agente_executar_tool(nome, args, role):
@@ -5385,12 +5389,51 @@ def api_agente_ia_status():
     role = _agente_role()
     return jsonify({
         "ok": True,
-        "configurado": bool(os.environ.get("OPENAI_API_KEY", "").strip()),
+        "configurado": bool(os.environ.get("GROQ_API_KEY", "").strip()),
         "modelo": AI_MODEL,
+        "provedor": "Groq",
         "modo": "somente leitura",
         "perfil": role,
         "orcamento_disponivel": role != "consulta",
     })
+
+
+def _groq_chat(api_key, payload):
+    """Executa uma chamada HTTPS na API Groq sem depender de SDK externo."""
+    corpo = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+    req = urlrequest.Request(
+        GROQ_API_URL,
+        data=corpo,
+        method="POST",
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+            "User-Agent": "Controle-Estoque-Agente-IA/73",
+        },
+    )
+    with urlrequest.urlopen(req, timeout=40) as resp:
+        return json.loads(resp.read().decode("utf-8"))
+
+
+def _groq_erro_amigavel(exc):
+    codigo = getattr(exc, "code", None)
+    detalhe = ""
+    try:
+        bruto = exc.read().decode("utf-8", errors="replace")
+        dado = json.loads(bruto)
+        detalhe = str((dado.get("error") or {}).get("message") or "").strip()
+    except Exception:
+        detalhe = ""
+
+    if codigo == 401:
+        return "A chave GROQ_API_KEY não foi aceita. Confira a chave criada no Groq e salve novamente no Render."
+    if codigo == 429:
+        return "O limite gratuito do Groq foi atingido temporariamente. Aguarde a renovação do limite e tente novamente."
+    if codigo in (400, 404) and ("model" in detalhe.lower() or codigo == 404):
+        return "O modelo configurado no Groq não está disponível. Remova GROQ_MODEL para usar o modelo padrão ou escolha outro modelo compatível."
+    if codigo and codigo >= 500:
+        return "O Groq está temporariamente indisponível. Tente novamente em alguns instantes."
+    return "Não foi possível consultar o Agente IA agora. Verifique a chave do Groq e a conexão do servidor."
 
 
 @app.route("/api/agente-ia/chat", methods=["POST"])
@@ -5399,10 +5442,10 @@ def api_agente_ia_chat():
     if not _csrf_ok():
         return jsonify({"erro": "Token de segurança inválido. Atualize a página e tente novamente."}), 400
 
-    api_key = os.environ.get("OPENAI_API_KEY", "").strip()
+    api_key = os.environ.get("GROQ_API_KEY", "").strip()
     if not api_key:
         return jsonify({
-            "erro": "Agente IA ainda não está configurado. Defina OPENAI_API_KEY nas variáveis de ambiente do servidor."
+            "erro": "Agente IA gratuito ainda não está configurado. Defina GROQ_API_KEY nas variáveis de ambiente do servidor."
         }), 503
 
     dados = request.get_json(silent=True) or {}
@@ -5413,59 +5456,76 @@ def api_agente_ia_chat():
         return jsonify({"erro": "A pergunta é muito longa. Limite: 4.000 caracteres."}), 400
 
     role = _agente_role()
-    input_items = _agente_historico_seguro(dados.get("historico"))
-    input_items.append({"role": "user", "content": pergunta})
+    historico = _agente_historico_seguro(dados.get("historico"))
+    mensagens = [{"role": "system", "content": _agente_instrucoes(role)}]
+    mensagens.extend(historico)
+    mensagens.append({"role": "user", "content": pergunta})
     tools = _agente_tools(role)
+    ferramentas_usadas = []
 
     try:
-        from openai import OpenAI
-        client = OpenAI(api_key=api_key, timeout=35.0, max_retries=1)
-        response = None
-        ferramentas_usadas = []
-
         for _ in range(AI_MAX_TOOL_ROUNDS):
-            response = client.responses.create(
-                model=AI_MODEL,
-                instructions=_agente_instrucoes(role),
-                input=input_items,
-                tools=tools,
-                max_output_tokens=AI_MAX_OUTPUT_TOKENS,
-            )
-            chamadas = [x for x in response.output if getattr(x, "type", None) == "function_call"]
+            resposta = _groq_chat(api_key, {
+                "model": AI_MODEL,
+                "messages": mensagens,
+                "tools": tools,
+                "tool_choice": "auto",
+                "temperature": 0.2,
+                "max_completion_tokens": AI_MAX_OUTPUT_TOKENS,
+            })
+            escolhas = resposta.get("choices") or []
+            if not escolhas:
+                return jsonify({"erro": "O Groq não retornou uma resposta válida. Tente novamente."}), 502
+
+            mensagem = (escolhas[0] or {}).get("message") or {}
+            chamadas = mensagem.get("tool_calls") or []
             if not chamadas:
-                texto = (getattr(response, "output_text", "") or "").strip()
+                texto = str(mensagem.get("content") or "").strip()
                 if not texto:
                     texto = "Não consegui gerar uma resposta conclusiva com os dados disponíveis."
                 return jsonify({
                     "ok": True,
                     "resposta": texto,
                     "modelo": AI_MODEL,
+                    "provedor": "Groq",
                     "ferramentas": ferramentas_usadas,
                 })
 
-            # A documentação da Responses API orienta preservar a saída do modelo
-            # e adicionar cada function_call_output antes da chamada seguinte.
-            input_items += response.output
+            # Preserva a mensagem do assistente com as chamadas para que o Groq
+            # consiga relacionar corretamente cada resultado pelo tool_call_id.
+            mensagens.append({
+                "role": "assistant",
+                "content": mensagem.get("content"),
+                "tool_calls": chamadas,
+            })
+
             for chamada in chamadas:
+                func = chamada.get("function") or {}
+                nome = str(func.get("name") or "").strip()
                 try:
-                    args = json.loads(chamada.arguments or "{}")
+                    args = json.loads(func.get("arguments") or "{}")
                 except Exception:
                     args = {}
-                resultado = _agente_executar_tool(chamada.name, args, role)
-                ferramentas_usadas.append(chamada.name)
-                input_items.append({
-                    "type": "function_call_output",
-                    "call_id": chamada.call_id,
-                    "output": json.dumps(_agente_json(resultado), ensure_ascii=False, default=str),
+                resultado = _agente_executar_tool(nome, args, role)
+                ferramentas_usadas.append(nome)
+                mensagens.append({
+                    "role": "tool",
+                    "tool_call_id": chamada.get("id"),
+                    "name": nome,
+                    "content": json.dumps(_agente_json(resultado), ensure_ascii=False, default=str),
                 })
 
         return jsonify({"erro": "A consulta exigiu etapas demais. Tente fazer uma pergunta mais específica."}), 422
 
-    except ImportError:
-        return jsonify({"erro": "Dependência OpenAI não instalada no servidor. Execute o novo requirements.txt no deploy."}), 500
+    except urlerror.HTTPError as e:
+        print(f"[agente-ia] Falha HTTP Groq: {getattr(e, 'code', '?')} {e}")
+        return jsonify({"erro": _groq_erro_amigavel(e)}), 502
+    except (urlerror.URLError, TimeoutError) as e:
+        print(f"[agente-ia] Falha de rede Groq: {type(e).__name__}: {e}")
+        return jsonify({"erro": "Não foi possível conectar ao Groq agora. Verifique a conexão do servidor e tente novamente."}), 502
     except Exception as e:
-        print(f"[agente-ia] Falha ao consultar OpenAI: {type(e).__name__}: {e}")
-        return jsonify({"erro": "Não foi possível consultar o Agente IA agora. Verifique a chave da API e a conexão do servidor."}), 502
+        print(f"[agente-ia] Falha ao consultar Groq: {type(e).__name__}: {e}")
+        return jsonify({"erro": "Não foi possível consultar o Agente IA agora. Verifique a configuração do Groq."}), 502
 
 
 # ---------------------------------------------------------------------
