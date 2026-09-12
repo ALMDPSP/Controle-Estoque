@@ -84,7 +84,7 @@
 </main>
 {% include '_footer.html' %}
 <script>
-const CSRF={{ csrf_token()|tojson }};
+const CSRF={{ csrf_token|tojson }};
 const ROLE={{ role|tojson }};
 const messagesEl=document.getElementById('messages');
 const input=document.getElementById('message-input');

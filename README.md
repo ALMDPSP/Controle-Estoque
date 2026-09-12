@@ -38,7 +38,7 @@ O menu do sistema inclui a página **Celular**, que mostra o endereço de acesso
 - Consulta: somente leitura nas áreas operacionais; Orçamento, Relatórios, downloads/exports/backup e Gestão de Dados bloqueados.
 
 
-## Agente IA (v71)
+## Agente IA (v72)
 
 - Nova aba **Agente IA** integrada ao menu do sistema.
 - Consulta, em tempo real e somente leitura, Estoque, Imobilizados, Cadastro de Produtos, Kit Padrão, Filiais, Projeção e Acompanhamento de Expansão.
