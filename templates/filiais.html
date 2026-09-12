@@ -57,10 +57,10 @@ dialog{border:1px solid var(--line);background:var(--panel);color:var(--text);bo
 </div>
 
 <div class="toolbar-actions">
-  <a class="download" href="{{ url_for('exportar_filiais_excel') }}">↓ Download Excel</a>
-  {% if role in ['admin','gestor'] %}<button type="button" class="upload" id="btn-upload-filiais">↑ Importar Excel</button>{% endif %}
+  {% if role != 'consulta' %}<a class="download" href="{{ url_for('exportar_filiais_excel') }}">↓ Download Excel</a>{% endif %}
+  {% if role in ['admin','gestor','operador','user'] %}<button type="button" class="upload" id="btn-upload-filiais">↑ Importar Excel</button>{% endif %}
   <a href="{{ url_for('pagina_projecao_lojas') }}">Abrir projeção de lojas</a>
-  {% if role in ['admin','gestor'] %}<button type="button" class="danger-fill" id="btn-excluir-selecionadas" style="display:none">Excluir selecionadas</button>{% endif %}
+  {% if role in ['admin','gestor','operador','user'] %}<button type="button" class="danger-fill" id="btn-excluir-selecionadas" style="display:none">Excluir selecionadas</button>{% endif %}
   <span class="toolbar-spacer"></span>
   <span class="selection-count" id="selection-count"></span>
   <span class="contador" id="contador"></span>
@@ -69,7 +69,7 @@ dialog{border:1px solid var(--line);background:var(--panel);color:var(--text);bo
 <div class="data-grid">
   <div class="table-wrap">
     <table>
-      <thead><tr>{% if role in ['admin','gestor'] %}<th class="check-col"><input type="checkbox" id="check-all" title="Selecionar lojas desta página"></th>{% endif %}<th>Código</th><th>Nome</th><th>Cidade</th><th>UF</th><th>Bandeira</th><th>Status</th><th>Previsão</th><th>Criado por</th><th>Ações</th></tr></thead>
+      <thead><tr>{% if role in ['admin','gestor','operador','user'] %}<th class="check-col"><input type="checkbox" id="check-all" title="Selecionar lojas desta página"></th>{% endif %}<th>Código</th><th>Nome</th><th>Cidade</th><th>UF</th><th>Bandeira</th><th>Status</th><th>Previsão</th><th>Criado por</th><th>Ações</th></tr></thead>
       <tbody id="tbody"></tbody>
     </table>
   </div>
@@ -80,7 +80,7 @@ dialog{border:1px solid var(--line);background:var(--panel);color:var(--text);bo
 </div>
 </section>
 
-{% if role in ['admin','gestor'] %}
+{% if role in ['admin','gestor','operador','user'] %}
 <dialog id="importar-filiais-dialog" style="width:min(480px,94vw)">
   <div class="dlg-body">
     <h3>Importar planilha de filiais</h3>
@@ -108,7 +108,7 @@ dialog{border:1px solid var(--line);background:var(--panel);color:var(--text);bo
 {% include '_footer.html' %}
 <script>
 const PERFIL={{ (role or 'user')|tojson }};
-const PODE_GERENCIAR=['admin','gestor'].includes(PERFIL);
+const PODE_GERENCIAR=['admin','gestor','operador','user'].includes(PERFIL);
 let filiais=[];
 let filtradas=[];
 let paginaAtual=1;

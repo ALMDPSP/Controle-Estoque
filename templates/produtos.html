@@ -11,7 +11,7 @@
 {% include '_footer.html' %}
 <script>
 const PERFIL_USUARIO={{ (role or "user")|tojson }};
-const PODE_GERENCIAR=["admin","gestor"].includes(PERFIL_USUARIO);
+const PODE_GERENCIAR=["admin","gestor","operador","user"].includes(PERFIL_USUARIO);
 let produtos=[];
 function compararCodigos(a,b){return String(a||'').localeCompare(String(b||''),'pt-BR',{numeric:true,sensitivity:'base'});}
 async function carregar(){const r=await fetch('/api/produtos');produtos=(await r.json()).sort((a,b)=>compararCodigos(a.codigo,b.codigo));render()}
@@ -26,7 +26,7 @@ function render(){
 function esc(v){return String(v).replace(/[&<>"']/g,s=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]))}
 function numeroMoeda(v){const s=String(v??'0').trim();if(!s)return 0;if(s.includes(','))return Number(s.replace(/\./g,'').replace(',','.'))||0;return Number(s)||0}
 function moeda(v){return numeroMoeda(v).toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}
-if(!PODE_GERENCIAR){const f=document.getElementById('produto-form');if(f){f.querySelectorAll('input,button').forEach(el=>el.disabled=true);f.insertAdjacentHTML('beforebegin','<div class="hint" style="margin-bottom:12px">Seu perfil pode consultar os produtos, mas somente Gestor ou Administrador pode alterar o cadastro mestre.</div>');}}
+if(!PODE_GERENCIAR){const f=document.getElementById('produto-form');if(f){f.querySelectorAll('input,button').forEach(el=>el.disabled=true);f.insertAdjacentHTML('beforebegin','<div class="hint" style="margin-bottom:12px">Seu perfil pode consultar os produtos, mas somente os perfis Administrador, Gestor ou Operador podem alterar o cadastro mestre.</div>');}}
 document.getElementById('produto-form').addEventListener('submit',async e=>{e.preventDefault();const r=await fetch('/api/produtos',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({codigo:document.getElementById('produto-codigo').value,descricao:document.getElementById('produto-descricao').value,custo:document.getElementById('produto-custo').value,qtde_por_loja:1})});if(r.ok){e.target.reset();carregar()}else{const x=await r.json();alert(x.erro||'Erro ao cadastrar')}});
 async function editar(id){const p=produtos.find(x=>x.id===id);if(!p)return;const codigo=prompt('Código de cadastro do item:',p.codigo);if(codigo===null)return;const descricao=prompt('Descrição:',p.descricao);if(descricao===null)return;const custo=prompt('Custo unitário (R$):',numeroMoeda(p.custo).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}));if(custo===null)return;const qtde_por_loja=Number(p.qtde_por_loja)||1;const r=await fetch('/api/produtos/'+id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({codigo,descricao,custo,qtde_por_loja})});if(r.ok)carregar();else{const x=await r.json();alert(x.erro||'Erro ao editar')}}
 async function excluir(id){const p=produtos.find(x=>x.id===id);if(!confirm('Excluir o produto '+(p?p.codigo:'')+'? Os itens já cadastrados não serão apagados.'))return;const r=await fetch('/api/produtos/'+id,{method:'DELETE'});if(r.ok)carregar();else{const x=await r.json();alert(x.erro||'Erro ao excluir')}}

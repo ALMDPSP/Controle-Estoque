@@ -694,8 +694,8 @@
             </div>
             <button type="button" class="btn-ghost" id="btn-kit-padrao">Kit padrão por loja</button>
             <button type="button" class="btn-simulador" id="btn-simular-lojas">Simular lote</button>
-            <button type="button" class="btn-download" id="btn-baixar-relatorio">Baixar relatório PDF</button>
-            <button type="button" class="btn-excel" id="btn-baixar-relatorio-excel">Baixar relatório Excel</button>
+            {% if role != 'consulta' %}<button type="button" class="btn-download" id="btn-baixar-relatorio">Baixar relatório PDF</button>
+            <button type="button" class="btn-excel" id="btn-baixar-relatorio-excel">Baixar relatório Excel</button>{% endif %}
           </div>
         </div>
         <div class="meta-lote-destaque" id="config-meta-lojas">
@@ -1098,7 +1098,7 @@
 <script>
 const PERFIL_USUARIO={{ (role or "user")|tojson }};
 const PODE_EDITAR=["admin","gestor","operador","user"].includes(PERFIL_USUARIO);
-const PODE_GERENCIAR=["admin","gestor"].includes(PERFIL_USUARIO);
+const PODE_GERENCIAR=["admin","gestor","operador","user"].includes(PERFIL_USUARIO);
 function normalizarTexto(str){
   return (str || '').toString().trim().toLowerCase()
     .normalize('NFD').replace(/[\u0300-\u036f]/g, '');

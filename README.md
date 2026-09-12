@@ -19,3 +19,20 @@
 A interface é responsiva e o servidor local é iniciado em `0.0.0.0:5000`, permitindo acesso de dispositivos na mesma rede. Ao executar `python app.py`, o terminal informa o IP local. No celular, conectado ao mesmo Wi-Fi, abra `http://IP-DO-PC:5000`.
 
 O menu do sistema inclui a página **Celular**, que mostra o endereço de acesso e instruções para instalar o sistema na tela inicial como PWA. Em hospedagem pública (por exemplo, Render), basta usar no celular a mesma URL HTTPS do computador.
+
+
+- Perfis de acesso:
+  - `admin`: acesso total, gestão de usuários e dados.
+  - `gestor`: movimentação de estoque e gestão de cadastro mestre/Kit padrão; pode alterar PEPI e custos usados no Orçamento.
+  - `operador`: entrada, saída e manutenção operacional de estoque e imobilizados; Orçamento em visualização.
+  - `consulta`: somente leitura, incluindo Orçamento e relatórios.
+  - `user`: mantido por compatibilidade e tratado como operador.
+- Orçamento:
+  - visualização e relatórios Excel/PDF liberados para todos os usuários autenticados;
+  - alteração do valor PEPI e dos custos do Cadastro de Produtos restrita a `admin` e `gestor`.
+
+## Permissões v69
+- Administrador: acesso total, incluindo Gestão de Dados, Orçamento e Relatórios.
+- Gestor: acesso operacional completo e relatórios; Gestão de Dados bloqueada.
+- Operador: acesso operacional completo e relatórios; Gestão de Dados bloqueada.
+- Consulta: somente leitura nas áreas operacionais; Orçamento, Relatórios, downloads/exports/backup e Gestão de Dados bloqueados.

@@ -15,7 +15,7 @@
 <body>
 <header>
   <div><span class="tag">Financeiro · Expansão</span><h1>Orçamento</h1><p>Planejamento de compra com código, descrição e custo vindos diretamente do Cadastro de Produtos, cruzados com Kit Padrão, estoque de Expansão e projeção de lojas a inaugurar.</p></div>
-  <span class="validation">Validação · somente Administrador</span>
+  {% if pode_gerenciar_orcamento %}<span class="validation">Edição liberada · {{ {'admin':'Administrador','gestor':'Gestor','operador':'Operador','user':'Operador'}.get(role,'Operador') }}</span>{% else %}<span class="validation">Visualização · Consulta</span>{% endif %}
 </header>
 {% include '_menu.html' %}
 <main>
@@ -23,10 +23,10 @@
     <div class="panel">
       <h2>Valor consolidado disponível para compra</h2>
       <div class="pepi-box">
-        <div class="field"><label>PEPI consolidada (R$)</label><input id="pepi-valor" inputmode="decimal" placeholder="Ex.: 500.000,00"></div>
-        <button class="primary" id="salvar-pepi">Salvar valor PEPI</button>
+        <div class="field"><label>PEPI consolidada (R$)</label><input id="pepi-valor" inputmode="decimal" placeholder="Ex.: 500.000,00" {% if not pode_gerenciar_orcamento %}readonly aria-readonly="true" title="Seu perfil possui acesso de visualização ao Orçamento."{% endif %}></div>
+        {% if pode_gerenciar_orcamento %}<button class="primary" id="salvar-pepi">Salvar valor PEPI</button>{% endif %}
       </div>
-      <div class="pepi-meta">O valor fica gravado no banco e será reutilizado nos próximos acessos. Alterações ficam registradas no histórico do sistema.</div>
+      <div class="pepi-meta">{% if pode_gerenciar_orcamento %}O valor fica gravado no banco e será reutilizado nos próximos acessos. Alterações ficam registradas no histórico do sistema.{% else %}Seu perfil pode consultar o valor consolidado e os cálculos do Orçamento. Alterações da PEPI e dos custos são permitidas para Administrador, Gestor e Operador. O perfil Consulta permanece somente leitura.{% endif %}</div>
     </div>
     <div class="panel">
       <h2>Critério da sugestão de compra</h2>
@@ -78,7 +78,7 @@
   <section class="panel section-gap">
     <div class="toolbar">
       <div class="toolbar-left"><input id="pesquisa" type="search" placeholder="Pesquisar código ou item..."><select id="filtro"><option value="comprar">Somente itens para comprar</option><option value="todos">Todos os itens do kit</option><option value="sem-custo">Itens sem custo</option></select></div>
-      <div class="toolbar-right"><span class="contador" id="contador"></span><a class="btn" href="{{ url_for('pagina_produtos') }}">Atualizar custos</a><button id="atualizar">Atualizar cálculo</button></div>
+      <div class="toolbar-right"><span class="contador" id="contador"></span><a class="btn" href="{{ url_for('pagina_produtos') }}">{{ 'Atualizar custos' if pode_gerenciar_orcamento else 'Ver Cadastro de Produtos' }}</a><button id="atualizar">Atualizar cálculo</button></div>
     </div>
     <h2>Detalhamento · Cadastro de Produtos × Estoque × Projeção</h2>
     <div class="table-wrap"><table><thead><tr><th>Código</th><th>Produto / fonte</th><th class="num">Qtd./loja</th><th class="num">Necessário</th><th class="num">Estoque Expansão</th><th class="num">Comprar</th><th class="money">Custo unitário</th><th class="money">Valor projetado</th></tr></thead><tbody id="tbody"><tr><td colspan="8" class="empty">Carregando...</td></tr></tbody></table></div>
@@ -151,7 +151,7 @@ function textoPedido(){
   return cab+itens;
 }
 async function copiarPedido(){const txt=textoPedido();if(!txt)return;try{await navigator.clipboard.writeText(txt);window.appToast('Sugestão de pedido copiada.','ok')}catch(e){window.appToast('Não foi possível copiar automaticamente.','erro')}}
-document.getElementById('salvar-pepi').addEventListener('click',async()=>{const btn=document.getElementById('salvar-pepi');btn.disabled=true;try{const r=await fetch('/api/orcamento/pepi',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({valor:document.getElementById('pepi-valor').value})});const x=await r.json();if(!r.ok){alert(x.erro||'Erro ao salvar');return}dados=x.orcamento;window.appToast('Valor consolidado da PEPI atualizado.','ok');renderResumo();renderPedido();renderTabela()}finally{btn.disabled=false}});
+document.getElementById('salvar-pepi')?.addEventListener('click',async()=>{const btn=document.getElementById('salvar-pepi');btn.disabled=true;try{const r=await fetch('/api/orcamento/pepi',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({valor:document.getElementById('pepi-valor').value})});const x=await r.json();if(!r.ok){alert(x.erro||'Erro ao salvar');return}dados=x.orcamento;window.appToast('Valor consolidado da PEPI atualizado.','ok');renderResumo();renderPedido();renderTabela()}finally{btn.disabled=false}});
 document.getElementById('atualizar').addEventListener('click',carregar);document.getElementById('atualizar-pedido').addEventListener('click',carregar);document.getElementById('copiar-pedido').addEventListener('click',copiarPedido);document.getElementById('pesquisa').addEventListener('input',renderTabela);document.getElementById('filtro').addEventListener('change',renderTabela);carregar();
 </script>
 </body>

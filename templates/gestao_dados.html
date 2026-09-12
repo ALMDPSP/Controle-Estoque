@@ -9,7 +9,7 @@
 </style>
 {% include '_mobile_head.html' %}
 </head><body>
-<header><span class="tag">Administração</span><h1>Gestão de Dados</h1><p>Área restrita ao perfil Administrador · saúde do sistema, integridade da base, backups, exportações e histórico de importações.</p></header>
+<header><span class="tag">Administração</span><h1>Gestão de Dados</h1><p>{% if pode_gerenciar_dados %}Administrador · saúde do sistema, integridade da base, backups, exportações e histórico de importações.{% else %}Modo Consulta · visualização da saúde, integridade e histórico da base. Alterações administrativas permanecem bloqueadas.{% endif %}</p></header>
 {% include '_menu.html' %}
 <main>
 <section class="grid">
@@ -18,8 +18,8 @@
   <div class="card"><span>Imobilizados</span><strong class="accent" id="cnt-imob">0</strong></div>
   <div class="card"><span>Inconsistências</span><strong id="cnt-inc">0</strong></div>
 </section>
-<section class="panel"><h2>Ações de dados</h2><p class="sub">Centraliza os principais recursos de manutenção, conferência e segurança da base.</p><div class="actions"><a class="primary" href="/backup">Gerar backup completo</a><a href="/export-consolidado">Exportar consolidado</a><a href="/export-filiais">Exportar filiais</a><a href="/export">Exportar estoque</a><a href="/export-imobilizados">Exportar imobilizados</a></div></section>
-<section class="panel"><h2>Retenção do histórico de movimentações</h2><p class="sub">Mantém o período operacional no banco. Ao executar, o Excel de auditoria é criado antes da exclusão e baixado automaticamente.</p><div class="expurgo"><label>Dias de retenção<input id="retencao-dias" type="number" min="30" max="3650" value="60"></label><button class="secondary" type="button" onclick="salvarRetencao()">Salvar período</button><button class="danger-btn" type="button" onclick="executarExpurgo()">Executar expurgo agora</button></div><p class="expurgo-status" id="expurgo-status">Consultando histórico...</p></section>
+<section class="panel"><h2>Ações de dados</h2><p class="sub">Centraliza os principais recursos de manutenção, conferência e segurança da base.</p>{% if pode_gerenciar_dados %}<div class="actions"><a class="primary" href="/backup">Gerar backup completo</a><a href="/export-consolidado">Exportar consolidado</a><a href="/export-filiais">Exportar filiais</a><a href="/export">Exportar estoque</a><a href="/export-imobilizados">Exportar imobilizados</a></div>{% else %}<div class="health-row"><span>Permissão</span><b>Somente visualização</b></div>{% endif %}</section>
+<section class="panel"><h2>Retenção do histórico de movimentações</h2><p class="sub">{% if pode_gerenciar_dados %}Mantém o período operacional no banco. Ao executar, o Excel de auditoria é criado antes da exclusão e baixado automaticamente.{% else %}Consulta da política de retenção atual. Alterações e expurgo ficam disponíveis somente para o Administrador.{% endif %}</p><div class="expurgo"><label>Dias de retenção<input id="retencao-dias" type="number" min="30" max="3650" value="60" {% if not pode_gerenciar_dados %}disabled aria-disabled="true"{% endif %}></label>{% if pode_gerenciar_dados %}<button class="secondary" type="button" onclick="salvarRetencao()">Salvar período</button><button class="danger-btn" type="button" onclick="executarExpurgo()">Executar expurgo agora</button>{% endif %}</div><p class="expurgo-status" id="expurgo-status">Consultando histórico...</p></section>
 <section class="panel"><h2>Saúde e integridade</h2><p class="sub">Itens que merecem conferência antes de importações, auditorias ou ciclos de inauguração.</p><div class="health-grid">
 <div class="health-row"><span>Versão do sistema</span><b id="build">-</b></div><div class="health-row"><span>Último backup registrado</span><b id="backup">-</b></div>
 <div class="health-row"><span>Última movimentação</span><b id="mov">-</b></div><div class="health-row"><span>Última importação</span><b id="imp">-</b></div>

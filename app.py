@@ -57,7 +57,7 @@ import qrcode
 import db
 
 app = Flask(__name__)
-APP_BUILD = "2026-09-11-orcamento-cadastro-produtos-v65"
+APP_BUILD = "2026-09-12-permissoes-perfis-v68"
 _DASHBOARD_CACHE = {"expira": 0.0, "dados": None}
 app.secret_key = os.environ.get("SECRET_KEY", "troque-esta-chave-em-producao")
 _RUNNING_HTTPS_HOSTED = bool(
@@ -368,12 +368,33 @@ def role_required(*roles):
     return decorator
 
 
+def page_role_required(*roles):
+    permitidos=set(roles)
+    def decorator(view):
+        @wraps(view)
+        def wrapped(*args, **kwargs):
+            if not session.get("user_id"):
+                return redirect(url_for("login", proximo=request.path))
+            if session.get("precisa_trocar_senha"):
+                return redirect(url_for("trocar_senha"))
+            role=session.get("role") or "user"
+            if role == "user":
+                role = "operador"
+            if role not in permitidos:
+                return redirect(url_for("dashboard", acesso_negado="1"))
+            return view(*args, **kwargs)
+        return wrapped
+    return decorator
+
+
 def edit_required(view):
     return role_required("admin", "gestor", "operador")(view)
 
 
 def manager_required(view):
-    return role_required("admin", "gestor")(view)
+    # Gestor e Operador possuem as mesmas permissões de edição/inclusão
+    # nas áreas operacionais. O perfil Consulta permanece somente leitura.
+    return role_required("admin", "gestor", "operador")(view)
 
 
 @app.route("/login", methods=["GET", "POST"])
@@ -696,7 +717,7 @@ def pagina_historico():
 
 
 @app.route("/relatorios")
-@login_required
+@page_role_required("admin", "gestor", "operador")
 def pagina_relatorios():
     return render_template(
         "relatorios.html",
@@ -1036,7 +1057,13 @@ def api_importacoes_recentes():
 @app.route("/gestao-dados")
 @admin_page_required
 def pagina_gestao_dados():
-    return render_template("gestao_dados.html",username=session.get("username"),role=session.get("role") or "user",is_admin=session.get("role")=="admin")
+    return render_template(
+        "gestao_dados.html",
+        username=session.get("username"),
+        role="admin",
+        is_admin=True,
+        pode_gerenciar_dados=True,
+    )
 
 
 @app.route("/api/expurgo-movimentacoes/status")
@@ -1720,7 +1747,7 @@ def _workbook_consolidado():
 
 
 @app.route("/export-consolidado")
-@login_required
+@role_required("admin", "gestor", "operador")
 def exportar_consolidado():
     wb=_workbook_consolidado()
     buf=io.BytesIO(); wb.save(buf); buf.seek(0)
@@ -1728,7 +1755,7 @@ def exportar_consolidado():
 
 
 @app.route("/export-projecao-lojas")
-@login_required
+@role_required("admin", "gestor", "operador")
 def exportar_projecao_lojas():
     dados = _dados_projecao_lojas()
     wb = Workbook()
@@ -1773,7 +1800,7 @@ def exportar_projecao_lojas():
 
 
 @app.route("/export-projecao-lojas-pdf")
-@login_required
+@role_required("admin", "gestor", "operador")
 def exportar_projecao_lojas_pdf():
     dados = _dados_projecao_lojas()
     pdf_buffer = _gerar_pdf_projecao_lojas(dados)
@@ -1786,7 +1813,7 @@ def exportar_projecao_lojas_pdf():
 
 
 @app.route("/export-movimentacoes")
-@login_required
+@role_required("admin", "gestor", "operador")
 def exportar_movimentacoes():
     inicio=(request.args.get("inicio") or "").strip()
     fim=(request.args.get("fim") or "").strip()
@@ -1813,7 +1840,7 @@ def exportar_movimentacoes():
 
 
 @app.route("/backup")
-@login_required
+@role_required("admin", "gestor", "operador")
 def gerar_backup():
     agora = datetime.now()
     usuario = session.get("username") or "Usuário"
@@ -1848,13 +1875,17 @@ def pagina_produtos():
 
 
 @app.route("/orcamento")
-@admin_page_required
+@page_role_required("admin", "gestor", "operador")
 def pagina_orcamento():
+    role = session.get("role") or "user"
+    if role == "user":
+        role = "operador"
     return render_template(
         "orcamento.html",
         username=session.get("username"),
-        role=session.get("role") or "admin",
-        is_admin=True,
+        role=role,
+        is_admin=role == "admin",
+        pode_gerenciar_orcamento=role in ("admin", "gestor", "operador"),
     )
 
 
@@ -2549,7 +2580,7 @@ def api_excluir_acompanhamento_expansao_em_lote():
 
 
 @app.route("/export-acompanhamento-expansao")
-@login_required
+@role_required("admin", "gestor", "operador")
 def exportar_acompanhamento_expansao():
     dados = _dados_acompanhamento_expansao()
     wb = Workbook()
@@ -2613,7 +2644,7 @@ def exportar_acompanhamento_expansao():
 
 
 @app.route("/pdf-acompanhamento-expansao")
-@login_required
+@role_required("admin", "gestor", "operador")
 def relatorio_pdf_acompanhamento_expansao():
     dados = _dados_acompanhamento_expansao()
     buf = _gerar_pdf_acompanhamento_expansao(dados)
@@ -2795,7 +2826,7 @@ def _data_filial_iso(valor):
 
 
 @app.route("/export-filiais")
-@login_required
+@role_required("admin", "gestor", "operador")
 def exportar_filiais_excel():
     filiais = db.listar_filiais(incluir_inativas=True)
     wb = Workbook()
@@ -3435,13 +3466,13 @@ def _calcular_orcamento_pepi():
 
 
 @app.route("/api/orcamento", methods=["GET"])
-@admin_required
+@role_required("admin", "gestor", "operador")
 def api_orcamento():
     return jsonify(_calcular_orcamento_pepi())
 
 
 @app.route("/api/orcamento/pepi", methods=["PUT"])
-@admin_required
+@manager_required
 def api_salvar_orcamento_pepi():
     dados = request.get_json(force=True) or {}
     try:
@@ -4047,7 +4078,7 @@ def _gerar_pdf_orcamento(dados):
 
 
 @app.route("/export-orcamento")
-@admin_required
+@role_required("admin", "gestor", "operador")
 def exportar_orcamento_excel():
     dados = _calcular_orcamento_pepi()
     buf = _gerar_excel_orcamento(dados)
@@ -4055,7 +4086,7 @@ def exportar_orcamento_excel():
 
 
 @app.route("/pdf-orcamento")
-@admin_required
+@role_required("admin", "gestor", "operador")
 def relatorio_pdf_orcamento():
     dados = _calcular_orcamento_pepi()
     buf = _gerar_pdf_orcamento(dados)
@@ -4299,7 +4330,7 @@ def api_enviar_estoque_em_lote():
 
 
 @app.route("/export-imobilizados")
-@login_required
+@role_required("admin", "gestor", "operador")
 def exportar_imobilizados_excel():
     itens = db.listar_imobilizados()
     wb = Workbook()
@@ -4342,7 +4373,7 @@ def exportar_imobilizados_excel():
 
 
 @app.route("/export-relatorio-lojas", methods=["POST"])
-@login_required
+@role_required("admin", "gestor", "operador")
 def exportar_relatorio_lojas_excel():
     """Gera um relatório gerencial em Excel com o mesmo resumo usado no PDF."""
     dados = request.get_json(force=True) or {}
@@ -4657,7 +4688,7 @@ def api_movimentacoes(item_id):
 
 
 @app.route("/export")
-@login_required
+@role_required("admin", "gestor", "operador")
 def exportar_excel():
     itens = db.listar_itens()
     wb = Workbook()

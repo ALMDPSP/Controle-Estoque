@@ -24,11 +24,7 @@ body{overflow-x:hidden}header{padding-left:16px!important;padding-right:16px!imp
     <a href="{{ url_for('dashboard') }}" class="{{ 'ativo' if request.endpoint == 'dashboard' else '' }}">Dashboard</a>
     <a href="{{ url_for('index') }}" class="{{ 'ativo' if request.endpoint == 'index' else '' }}">Estoque</a>
     <a href="{{ url_for('pagina_produtos') }}" class="{{ 'ativo' if request.endpoint == 'pagina_produtos' else '' }}">Cadastro de Produtos</a>
-    {% if is_admin %}
-    <a href="{{ url_for('pagina_orcamento') }}" class="{{ 'ativo' if request.endpoint == 'pagina_orcamento' else '' }}">Orçamento</a>
-    {% else %}
-    <a href="#" class="app-admin-locked" data-admin-only="Orçamento" title="Em validação · acesso exclusivo do Administrador">🔒 Orçamento</a>
-    {% endif %}
+    {% if role != 'consulta' %}<a href="{{ url_for('pagina_orcamento') }}" class="{{ 'ativo' if request.endpoint == 'pagina_orcamento' else '' }}">Orçamento</a>{% endif %}
     <a href="{{ url_for('pagina_imobilizados') }}" class="{{ 'ativo' if request.endpoint == 'pagina_imobilizados' else '' }}">Imobilizados</a>
     <a href="{{ url_for('pagina_filiais') }}" class="{{ 'ativo' if request.endpoint == 'pagina_filiais' else '' }}">Filiais</a>
     <a href="{{ url_for('pagina_projecao_lojas') }}" class="{{ 'ativo' if request.endpoint == 'pagina_projecao_lojas' else '' }}">Projeção de abertura e lojas</a>
@@ -37,15 +33,15 @@ body{overflow-x:hidden}header{padding-left:16px!important;padding-right:16px!imp
     <a href="{{ url_for('pagina_loja_virtual') }}" class="{{ 'ativo' if request.endpoint == 'pagina_loja_virtual' else '' }}">Loja Virtual 3D</a>
     <a href="{{ url_for('pagina_acesso_celular') }}" class="{{ 'ativo' if request.endpoint == 'pagina_acesso_celular' else '' }}">Celular</a>
     <a href="{{ url_for('pagina_historico') }}" class="{{ 'ativo' if request.endpoint == 'pagina_historico' else '' }}">Histórico</a>
-    <a href="{{ url_for('pagina_relatorios') }}" class="{{ 'ativo' if request.endpoint == 'pagina_relatorios' else '' }}">Relatórios</a>
+    {% if role != 'consulta' %}<a href="{{ url_for('pagina_relatorios') }}" class="{{ 'ativo' if request.endpoint == 'pagina_relatorios' else '' }}">Relatórios</a>{% endif %}
     {% if is_admin %}
     <a href="{{ url_for('pagina_gestao_dados') }}" class="{{ 'ativo' if request.endpoint == 'pagina_gestao_dados' else '' }}">Gestão de Dados</a>
-    {% else %}
-    <a href="#" class="app-admin-locked" data-admin-only="Gestão de Dados" title="Acesso exclusivo do Administrador">🔒 Gestão de Dados</a>
+    {% elif role != 'consulta' %}
+    <a href="#" class="app-admin-locked" data-admin-only="Gestão de Dados" title="Gestão de Dados disponível somente para Administrador">🔒 Gestão de Dados</a>
     {% endif %}
     {% if is_admin %}<a href="{{ url_for('pagina_usuarios') }}" class="{{ 'ativo' if request.endpoint == 'pagina_usuarios' else '' }}">Usuários</a>{% endif %}
-    {% if request.endpoint == 'index' %}<a href="/export">⭳ Excel</a>{% if role != 'consulta' %}<a href="#" id="abrir-importar">⭱ Importar</a>{% endif %}{% endif %}
-    {% if request.endpoint == 'pagina_imobilizados' %}<a href="/export-imobilizados">⭳ Excel</a>{% if role != 'consulta' %}<a href="#" id="abrir-importar">⭱ Importar</a>{% endif %}{% endif %}
+    {% if request.endpoint == 'index' and role != 'consulta' %}<a href="/export">⭳ Excel</a><a href="#" id="abrir-importar">⭱ Importar</a>{% endif %}
+    {% if request.endpoint == 'pagina_imobilizados' and role != 'consulta' %}<a href="/export-imobilizados">⭳ Excel</a><a href="#" id="abrir-importar">⭱ Importar</a>{% endif %}
   </div>
   <div class="app-menu-right">
     <div class="global-search-wrap">

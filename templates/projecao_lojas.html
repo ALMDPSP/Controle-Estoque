@@ -31,8 +31,8 @@ main{padding:24px 32px 54px;max-width:1450px;margin:auto}.kpis{display:grid;grid
   </div>
   <div class="head-actions">
     <a href="{{ url_for('pagina_filiais') }}">Gerenciar filiais</a>
-    <a class="primary" href="{{ url_for('exportar_projecao_lojas') }}">Exportar Excel</a>
-    <a href="{{ url_for('exportar_projecao_lojas_pdf') }}">Baixar PDF</a>
+    {% if role != 'consulta' %}<a class="primary" href="{{ url_for('exportar_projecao_lojas') }}">Exportar Excel</a>
+    <a href="{{ url_for('exportar_projecao_lojas_pdf') }}">Baixar PDF</a>{% endif %}
   </div>
 </header>
 {% include '_menu.html' %}

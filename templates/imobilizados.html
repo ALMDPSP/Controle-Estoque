@@ -764,7 +764,7 @@
 <script>
 const PERFIL_USUARIO={{ (role or "user")|tojson }};
 const PODE_EDITAR=["admin","gestor","operador","user"].includes(PERFIL_USUARIO);
-const PODE_GERENCIAR=["admin","gestor"].includes(PERFIL_USUARIO);
+const PODE_GERENCIAR=["admin","gestor","operador","user"].includes(PERFIL_USUARIO);
 function normalizarTexto(str){
   return (str || '').toString().trim().toLowerCase()
     .normalize('NFD').replace(/[\u0300-\u036f]/g, '');

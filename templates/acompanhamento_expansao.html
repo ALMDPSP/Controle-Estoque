@@ -31,8 +31,8 @@ main{padding:24px 32px 54px;max-width:1500px;margin:auto}.kpis{display:grid;grid
   <div><span class="tag">EXPANSÃO</span><h1>Acompanhamento de Expansão</h1><p>Visão consolidada do cronograma de obra, entrada de TI e inauguração, com acompanhamento de entregas e projeção geral de alcance.</p></div>
   <div class="head-actions">
     {% if role != 'consulta' %}<button type="button" class="primary" id="btn-cadastrar">＋ Cadastrar loja</button>{% endif %}
-    <a href="{{ url_for('relatorio_pdf_acompanhamento_expansao') }}">⭳ Relatório PDF</a>
-    <a href="{{ url_for('exportar_acompanhamento_expansao') }}">⭳ Download Excel</a>
+    {% if role != 'consulta' %}<a href="{{ url_for('relatorio_pdf_acompanhamento_expansao') }}">⭳ Relatório PDF</a>
+    <a href="{{ url_for('exportar_acompanhamento_expansao') }}">⭳ Download Excel</a>{% endif %}
     {% if role != 'consulta' %}<button type="button" id="btn-upload">⭱ Upload Excel</button>{% endif %}
     <a href="{{ url_for('pagina_projecao_lojas') }}">Projeção de abertura</a>
   </div>
