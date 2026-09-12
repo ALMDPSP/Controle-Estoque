@@ -57,7 +57,7 @@ import qrcode
 import db
 
 app = Flask(__name__)
-APP_BUILD = "2026-09-12-permissoes-perfis-v68"
+APP_BUILD = "2026-09-12-agente-ia-v71"
 _DASHBOARD_CACHE = {"expira": 0.0, "dados": None}
 app.secret_key = os.environ.get("SECRET_KEY", "troque-esta-chave-em-producao")
 _RUNNING_HTTPS_HOSTED = bool(
@@ -702,6 +702,20 @@ def dashboard():
         username=session.get("username"),
         role=session.get("role") or "user",
         is_admin=session.get("role") == "admin",
+    )
+
+
+@app.route("/agente-ia")
+@login_required
+def pagina_agente_ia():
+    role = session.get("role") or "user"
+    if role == "user":
+        role = "operador"
+    return render_template(
+        "agente_ia.html",
+        username=session.get("username"),
+        role=role,
+        is_admin=role == "admin",
     )
 
 
@@ -5008,6 +5022,450 @@ def api_excluir_usuario(user_id):
     if not ok:
         return jsonify({"erro": "Usuário não encontrado."}), 404
     return jsonify({"ok": True})
+
+
+# ---------------------------------------------------------------------
+# Agente IA — consultas seguras, somente leitura
+# ---------------------------------------------------------------------
+
+AI_MODEL = os.environ.get("OPENAI_MODEL", "gpt-5.6-luna").strip() or "gpt-5.6-luna"
+AI_MAX_HISTORY = 10
+AI_MAX_TOOL_ROUNDS = 6
+AI_MAX_OUTPUT_TOKENS = 1200
+
+
+def _agente_role():
+    role = session.get("role") or "user"
+    return "operador" if role == "user" else role
+
+
+def _agente_limite(valor, padrao=30, maximo=100):
+    try:
+        n = int(valor or padrao)
+    except (TypeError, ValueError):
+        n = padrao
+    return max(1, min(n, maximo))
+
+
+def _agente_json(valor):
+    """Converte resultados do banco em estruturas serializáveis pela API de IA."""
+    if isinstance(valor, Decimal):
+        return format(valor, "f")
+    if isinstance(valor, (datetime,)):
+        return valor.isoformat(sep=" ")
+    if isinstance(valor, dict):
+        return {str(k): _agente_json(v) for k, v in valor.items()}
+    if isinstance(valor, (list, tuple)):
+        return [_agente_json(v) for v in valor]
+    return valor
+
+
+def _agente_texto_normalizado(valor):
+    return _normalizar_exec(valor)
+
+
+def _agente_resumo_executivo(role):
+    base = db.obter_dashboard_compacto(12)
+    visao = _calcular_visao_executiva(
+        itens=base.get("itens") or [],
+        kit=base.get("kit") or [],
+        filiais=base.get("filiais") or [],
+        meta=base.get("meta_lojas") or 10,
+    )
+    resultado = {
+        "fonte": "Dashboard / banco atual",
+        "estoque_total_unidades": base.get("estoque_total") or 0,
+        "imobilizados_total_unidades": base.get("imobilizados_total") or 0,
+        "produtos_cadastrados": base.get("produtos_total") or 0,
+        "filiais_ativas": base.get("filiais_ativas") or 0,
+        "meta_lojas": base.get("meta_lojas") or 10,
+        "expansao": visao,
+        "ultimo_backup": base.get("ultimo_backup"),
+    }
+    # Orçamento é uma área bloqueada para Consulta; não deve vazar pelo agente.
+    if role != "consulta":
+        orc = _calcular_orcamento_pepi()
+        resultado["orcamento_resumo"] = {
+            "pepi_consolidado": orc.get("pepi_consolidado"),
+            "total_previsto": orc.get("total_previsto"),
+            "saldo": orc.get("saldo"),
+            "itens_para_comprar": orc.get("itens_para_comprar"),
+            "total_unidades_pedido": orc.get("total_unidades_pedido"),
+            "orcamento_suficiente": orc.get("orcamento_suficiente"),
+        }
+    return resultado
+
+
+def _agente_consultar_estoque(args):
+    termo = _agente_texto_normalizado(args.get("termo"))
+    finalidade = _agente_texto_normalizado(args.get("finalidade"))
+    limite = _agente_limite(args.get("limite"), 30, 80)
+    itens = db.obter_dashboard_compacto(1).get("itens") or []
+    filtrados = []
+    for item in itens:
+        alvo = _agente_texto_normalizado(f"{item.get('codigo','')} {item.get('descricao','')}")
+        tipo = _agente_texto_normalizado(item.get("tipo_estoque"))
+        if termo and termo not in alvo:
+            continue
+        if finalidade and finalidade not in tipo:
+            continue
+        filtrados.append({
+            "codigo": item.get("codigo"),
+            "descricao": item.get("descricao"),
+            "finalidade": item.get("tipo_estoque"),
+            "quantidade": int(item.get("qtde") or 0),
+        })
+    filtrados.sort(key=lambda x: (-int(x.get("quantidade") or 0), str(x.get("codigo") or "")))
+    return {
+        "fonte": "Estoque atual",
+        "filtros": {"termo": args.get("termo") or "", "finalidade": args.get("finalidade") or ""},
+        "grupos_encontrados": len(filtrados),
+        "quantidade_total": sum(int(x.get("quantidade") or 0) for x in filtrados),
+        "itens": filtrados[:limite],
+        "resultado_limitado": len(filtrados) > limite,
+    }
+
+
+def _agente_consultar_imobilizados(args):
+    termo = _agente_texto_normalizado(args.get("termo"))
+    limite = _agente_limite(args.get("limite"), 30, 60)
+    linhas = db.listar_imobilizados()
+    achados = []
+    for x in linhas:
+        alvo = _agente_texto_normalizado(" ".join(str(x.get(k) or "") for k in (
+            "codigo", "descricao", "nro_serie", "nro_patrimonio", "nro_imobilizado", "localizacao", "filial_destino"
+        )))
+        if termo and termo not in alvo:
+            continue
+        achados.append({
+            "id": x.get("id"), "codigo": x.get("codigo"), "descricao": x.get("descricao"),
+            "quantidade": x.get("qtde"), "localizacao": x.get("localizacao"),
+            "serial": x.get("nro_serie"), "patrimonio": x.get("nro_patrimonio"),
+            "filial_destino": x.get("filial_destino"), "status": x.get("status"),
+        })
+    return {
+        "fonte": "Imobilizados atuais",
+        "registros_encontrados": len(achados),
+        "registros": achados[:limite],
+        "resultado_limitado": len(achados) > limite,
+    }
+
+
+def _agente_consultar_produtos(args, role):
+    termo = _agente_texto_normalizado(args.get("termo"))
+    limite = _agente_limite(args.get("limite"), 30, 80)
+    achados = []
+    for p in db.listar_produtos():
+        alvo = _agente_texto_normalizado(f"{p.get('codigo','')} {p.get('descricao','')}")
+        if termo and termo not in alvo:
+            continue
+        item = {
+            "id": p.get("id"), "codigo": p.get("codigo"), "descricao": p.get("descricao"),
+            "quantidade_por_loja": p.get("qtde_por_loja"),
+        }
+        if role != "consulta":
+            item["custo"] = p.get("custo")
+        achados.append(item)
+    return {
+        "fonte": "Cadastro de Produtos",
+        "produtos_encontrados": len(achados),
+        "produtos": achados[:limite],
+        "resultado_limitado": len(achados) > limite,
+        "custos_visiveis": role != "consulta",
+    }
+
+
+def _agente_consultar_kit(args):
+    termo = _agente_texto_normalizado(args.get("termo"))
+    itens = []
+    for k in db.listar_kit_padrao_loja():
+        alvo = _agente_texto_normalizado(f"{k.get('codigo','')} {k.get('descricao','')}")
+        if termo and termo not in alvo:
+            continue
+        itens.append({
+            "codigo": k.get("codigo"), "descricao": k.get("descricao"),
+            "quantidade_por_loja": int(k.get("quantidade") or 0),
+        })
+    return {"fonte": "Kit padrão de loja", "total_itens": len(itens), "itens": itens[:100]}
+
+
+def _agente_consultar_filiais(args):
+    status = _agente_texto_normalizado(args.get("status"))
+    uf = str(args.get("uf") or "").strip().upper()[:2]
+    termo = _agente_texto_normalizado(args.get("termo"))
+    limite = _agente_limite(args.get("limite"), 40, 100)
+    achados = []
+    for f in db.listar_filiais(incluir_inativas=True):
+        st = _status_filial_normalizado(f.get("ativo"))
+        alvo = _agente_texto_normalizado(f"{f.get('codigo','')} {f.get('nome','')} {f.get('cidade','')} {f.get('uf','')}")
+        if status and status not in _agente_texto_normalizado(st):
+            continue
+        if uf and str(f.get("uf") or "").strip().upper() != uf:
+            continue
+        if termo and termo not in alvo:
+            continue
+        achados.append({
+            "id": f.get("id"), "codigo": f.get("codigo"), "nome": f.get("nome"),
+            "cidade": f.get("cidade"), "uf": f.get("uf"), "bandeira": f.get("bandeira"),
+            "status": st, "previsao_abertura": f.get("previsao_abertura"),
+        })
+    return {
+        "fonte": "Cadastro de Filiais",
+        "filiais_encontradas": len(achados), "filiais": achados[:limite],
+        "resultado_limitado": len(achados) > limite,
+    }
+
+
+def _agente_consultar_projecao():
+    dados = _dados_projecao_lojas()
+    visao = _calcular_visao_executiva()
+    return {
+        "fonte": "Projeção de abertura de lojas",
+        "totais": dados.get("totais"),
+        "por_estado": dados.get("estados"),
+        "capacidade_e_risco": visao,
+    }
+
+
+def _agente_consultar_acompanhamento(args):
+    dados = _dados_acompanhamento_expansao()
+    status = _agente_texto_normalizado(args.get("status"))
+    uf = str(args.get("uf") or "").strip().upper()[:2]
+    limite = _agente_limite(args.get("limite"), 40, 100)
+    linhas = []
+    for x in dados.get("linhas") or []:
+        if status and status not in _agente_texto_normalizado(x.get("status_filial")):
+            continue
+        if uf and str(x.get("uf") or "").strip().upper() != uf:
+            continue
+        linhas.append({
+            "id": x.get("id"), "filial": x.get("filial"), "bandeira": x.get("bandeira"),
+            "uf": x.get("uf"), "projeto": x.get("projeto"), "status_filial": x.get("status_filial"),
+            "term_obra": x.get("term_obra"), "entrada_ti": x.get("entrada_ti"),
+            "inauguracao": x.get("inauguracao"), "situacao_cronograma": x.get("situacao_cronograma"),
+        })
+    return {
+        "fonte": "Acompanhamento de Expansão",
+        "resumo": dados.get("resumo"), "status": dados.get("status"), "ufs": dados.get("ufs"),
+        "registros_encontrados": len(linhas), "registros": linhas[:limite],
+        "resultado_limitado": len(linhas) > limite,
+    }
+
+
+def _agente_consultar_orcamento(role):
+    if role == "consulta":
+        return {"erro": "Orçamento é bloqueado para o perfil Consulta."}
+    dados = _calcular_orcamento_pepi()
+    return {
+        "fonte": "Orçamento / pedido sugerido",
+        "pepi_consolidado": dados.get("pepi_consolidado"),
+        "total_previsto": dados.get("total_previsto"),
+        "saldo": dados.get("saldo"),
+        "percentual_comprometido": dados.get("percentual_comprometido"),
+        "itens_sem_custo": dados.get("itens_sem_custo"),
+        "itens_sem_cadastro": dados.get("itens_sem_cadastro"),
+        "itens_para_comprar": dados.get("itens_para_comprar"),
+        "total_unidades_pedido": dados.get("total_unidades_pedido"),
+        "lojas_base": dados.get("lojas_base"),
+        "lojas_consideradas": dados.get("lojas_consideradas"),
+        "lojas_por_uf": dados.get("lojas_por_uf"),
+        "orcamento_suficiente": dados.get("orcamento_suficiente"),
+        "pedido_pronto": dados.get("pedido_pronto"),
+        "pedido_linhas": (dados.get("pedido_linhas") or [])[:100],
+    }
+
+
+def _agente_consultar_movimentacoes(args, role):
+    limite = _agente_limite(args.get("limite"), 20, 50)
+    # Busca uma margem maior para que o filtro do perfil Consulta não reduza demais o retorno.
+    linhas = db.listar_movimentacoes_recentes(min(100, limite * 3))
+    if role == "consulta":
+        filtradas = []
+        for mov in linhas:
+            texto = _agente_texto_normalizado(
+                f"{mov.get('tipo','')} {mov.get('observacao','')} {mov.get('descricao','')}"
+            )
+            if "orcamento" in texto or "pepi" in texto:
+                continue
+            filtradas.append(mov)
+        linhas = filtradas
+    return {"fonte": "Histórico de movimentações", "movimentacoes": linhas[:limite]}
+
+
+def _agente_tools(role):
+    tools = [
+        {"type": "function", "name": "resumo_executivo", "description": "Obtém um resumo executivo atual do sistema, estoque e capacidade de expansão.", "parameters": {"type": "object", "properties": {}, "additionalProperties": False}},
+        {"type": "function", "name": "consultar_estoque", "description": "Consulta o estoque atual agrupado por código, descrição e finalidade.", "parameters": {"type": "object", "properties": {"termo": {"type": "string", "description": "Código ou parte da descrição; vazio para todos."}, "finalidade": {"type": "string", "description": "Ex.: Expansão, Sustentação, Requalificação; vazio para todas."}, "limite": {"type": "integer", "minimum": 1, "maximum": 80}}, "additionalProperties": False}},
+        {"type": "function", "name": "consultar_imobilizados", "description": "Pesquisa imobilizados por código, descrição, serial, patrimônio, localização ou filial.", "parameters": {"type": "object", "properties": {"termo": {"type": "string"}, "limite": {"type": "integer", "minimum": 1, "maximum": 60}}, "additionalProperties": False}},
+        {"type": "function", "name": "consultar_produtos", "description": "Consulta o Cadastro de Produtos e quantidades por loja. Custos obedecem ao perfil do usuário.", "parameters": {"type": "object", "properties": {"termo": {"type": "string"}, "limite": {"type": "integer", "minimum": 1, "maximum": 80}}, "additionalProperties": False}},
+        {"type": "function", "name": "consultar_kit_padrao", "description": "Consulta o kit padrão necessário para uma loja.", "parameters": {"type": "object", "properties": {"termo": {"type": "string"}}, "additionalProperties": False}},
+        {"type": "function", "name": "consultar_filiais", "description": "Consulta filiais por status, estado ou texto.", "parameters": {"type": "object", "properties": {"status": {"type": "string", "description": "Ex.: ativa, inaugurar, pendente ou inativa."}, "uf": {"type": "string"}, "termo": {"type": "string"}, "limite": {"type": "integer", "minimum": 1, "maximum": 100}}, "additionalProperties": False}},
+        {"type": "function", "name": "consultar_projecao", "description": "Obtém a projeção de lojas por estado e a capacidade/risco do estoque de expansão.", "parameters": {"type": "object", "properties": {}, "additionalProperties": False}},
+        {"type": "function", "name": "consultar_acompanhamento_expansao", "description": "Consulta o acompanhamento e cronograma das lojas de expansão.", "parameters": {"type": "object", "properties": {"status": {"type": "string"}, "uf": {"type": "string"}, "limite": {"type": "integer", "minimum": 1, "maximum": 100}}, "additionalProperties": False}},
+    ]
+    if role != "consulta":
+        tools.extend([
+            {"type": "function", "name": "consultar_movimentacoes_recentes", "description": "Consulta as movimentações recentes do sistema/Relatórios.", "parameters": {"type": "object", "properties": {"limite": {"type": "integer", "minimum": 1, "maximum": 50}}, "additionalProperties": False}},
+            {"type": "function", "name": "consultar_orcamento_pedido", "description": "Consulta a PEPI, o orçamento e a sugestão de pedido de compra calculada pelo sistema.", "parameters": {"type": "object", "properties": {}, "additionalProperties": False}},
+        ])
+    return tools
+
+
+def _agente_executar_tool(nome, args, role):
+    args = args if isinstance(args, dict) else {}
+    if nome == "resumo_executivo":
+        return _agente_resumo_executivo(role)
+    if nome == "consultar_estoque":
+        return _agente_consultar_estoque(args)
+    if nome == "consultar_imobilizados":
+        return _agente_consultar_imobilizados(args)
+    if nome == "consultar_produtos":
+        return _agente_consultar_produtos(args, role)
+    if nome == "consultar_kit_padrao":
+        return _agente_consultar_kit(args)
+    if nome == "consultar_filiais":
+        return _agente_consultar_filiais(args)
+    if nome == "consultar_projecao":
+        return _agente_consultar_projecao()
+    if nome == "consultar_acompanhamento_expansao":
+        return _agente_consultar_acompanhamento(args)
+    if nome == "consultar_movimentacoes_recentes":
+        if role == "consulta":
+            return {"erro": "Relatórios e histórico de movimentações são bloqueados para o perfil Consulta."}
+        return _agente_consultar_movimentacoes(args, role)
+    if nome == "consultar_orcamento_pedido":
+        return _agente_consultar_orcamento(role)
+    return {"erro": f"Ferramenta desconhecida: {nome}"}
+
+
+def _agente_instrucoes(role):
+    restricao = (
+        "O perfil Consulta NÃO pode acessar Orçamento, Relatórios ou Gestão de Dados. "
+        "Não revele custos, PEPI, pedido de compra nem qualquer dado dessas áreas."
+        if role == "consulta" else
+        "O usuário pode consultar Orçamento, inclusive PEPI, custos e pedido sugerido."
+    )
+    return f"""Você é o Agente IA do sistema Controle de Ativos / Estoque e Expansão.
+Responda sempre em português do Brasil, de forma objetiva, profissional e operacional.
+O usuário atual tem perfil: {role}.
+{restricao}
+
+Regras obrigatórias:
+- Para perguntas sobre números, estoque, filiais, expansão, produtos, imobilizados, cronograma ou orçamento, consulte as ferramentas antes de responder.
+- Os dados das ferramentas são a fonte de verdade. Não invente números nem complete dados ausentes por suposição.
+- Este agente é SOMENTE LEITURA: nunca afirme que cadastrou, alterou, excluiu, aprovou ou enviou algo.
+- Se o usuário pedir alteração, explique que a ação deve ser feita na aba correspondente do sistema.
+- Ao falar de falta de estoque, diferencie quantidade disponível, necessidade por loja e quantidade faltante quando esses dados existirem.
+- Ao falar de compra, use exclusivamente o cálculo de Orçamento/pedido sugerido do próprio sistema.
+- Se um resultado vier limitado, diga que é uma amostra e ofereça um filtro mais específico.
+- Não revele chaves, senhas, tokens, strings de conexão, segredos de MFA ou detalhes internos de segurança.
+- Prefira respostas curtas com destaques e listas apenas quando ajudarem a leitura.
+"""
+
+
+def _agente_historico_seguro(historico):
+    itens = []
+    if not isinstance(historico, list):
+        return itens
+    for h in historico[-AI_MAX_HISTORY:]:
+        if not isinstance(h, dict):
+            continue
+        role = h.get("role")
+        if role not in ("user", "assistant"):
+            continue
+        texto = str(h.get("content") or "").strip()[:3000]
+        if texto:
+            itens.append({"role": role, "content": texto})
+    return itens
+
+
+@app.route("/api/agente-ia/status")
+@login_required
+def api_agente_ia_status():
+    role = _agente_role()
+    return jsonify({
+        "ok": True,
+        "configurado": bool(os.environ.get("OPENAI_API_KEY", "").strip()),
+        "modelo": AI_MODEL,
+        "modo": "somente leitura",
+        "perfil": role,
+        "orcamento_disponivel": role != "consulta",
+    })
+
+
+@app.route("/api/agente-ia/chat", methods=["POST"])
+@login_required
+def api_agente_ia_chat():
+    if not _csrf_ok():
+        return jsonify({"erro": "Token de segurança inválido. Atualize a página e tente novamente."}), 400
+
+    api_key = os.environ.get("OPENAI_API_KEY", "").strip()
+    if not api_key:
+        return jsonify({
+            "erro": "Agente IA ainda não está configurado. Defina OPENAI_API_KEY nas variáveis de ambiente do servidor."
+        }), 503
+
+    dados = request.get_json(silent=True) or {}
+    pergunta = str(dados.get("mensagem") or "").strip()
+    if not pergunta:
+        return jsonify({"erro": "Digite uma pergunta para o Agente IA."}), 400
+    if len(pergunta) > 4000:
+        return jsonify({"erro": "A pergunta é muito longa. Limite: 4.000 caracteres."}), 400
+
+    role = _agente_role()
+    input_items = _agente_historico_seguro(dados.get("historico"))
+    input_items.append({"role": "user", "content": pergunta})
+    tools = _agente_tools(role)
+
+    try:
+        from openai import OpenAI
+        client = OpenAI(api_key=api_key, timeout=35.0, max_retries=1)
+        response = None
+        ferramentas_usadas = []
+
+        for _ in range(AI_MAX_TOOL_ROUNDS):
+            response = client.responses.create(
+                model=AI_MODEL,
+                instructions=_agente_instrucoes(role),
+                input=input_items,
+                tools=tools,
+                max_output_tokens=AI_MAX_OUTPUT_TOKENS,
+            )
+            chamadas = [x for x in response.output if getattr(x, "type", None) == "function_call"]
+            if not chamadas:
+                texto = (getattr(response, "output_text", "") or "").strip()
+                if not texto:
+                    texto = "Não consegui gerar uma resposta conclusiva com os dados disponíveis."
+                return jsonify({
+                    "ok": True,
+                    "resposta": texto,
+                    "modelo": AI_MODEL,
+                    "ferramentas": ferramentas_usadas,
+                })
+
+            # A documentação da Responses API orienta preservar a saída do modelo
+            # e adicionar cada function_call_output antes da chamada seguinte.
+            input_items += response.output
+            for chamada in chamadas:
+                try:
+                    args = json.loads(chamada.arguments or "{}")
+                except Exception:
+                    args = {}
+                resultado = _agente_executar_tool(chamada.name, args, role)
+                ferramentas_usadas.append(chamada.name)
+                input_items.append({
+                    "type": "function_call_output",
+                    "call_id": chamada.call_id,
+                    "output": json.dumps(_agente_json(resultado), ensure_ascii=False, default=str),
+                })
+
+        return jsonify({"erro": "A consulta exigiu etapas demais. Tente fazer uma pergunta mais específica."}), 422
+
+    except ImportError:
+        return jsonify({"erro": "Dependência OpenAI não instalada no servidor. Execute o novo requirements.txt no deploy."}), 500
+    except Exception as e:
+        print(f"[agente-ia] Falha ao consultar OpenAI: {type(e).__name__}: {e}")
+        return jsonify({"erro": "Não foi possível consultar o Agente IA agora. Verifique a chave da API e a conexão do servidor."}), 502
 
 
 # ---------------------------------------------------------------------

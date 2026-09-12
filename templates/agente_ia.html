@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Agente IA · Controle de Ativos</title>
+<style>
+:root{--bg:#12181f;--panel:#1a2029;--panel2:#212934;--line:#2b3444;--text:#e7ebf1;--muted:#8b96a8;--accent:#3ea6ff;--accent2:#ffb648;--ok:#4cd792;--danger:#ff6b6b;--mono:Consolas,"SFMono-Regular",monospace}
+*{box-sizing:border-box}html,body{min-height:100%}body{margin:0;background:radial-gradient(circle at 78% 6%,rgba(62,166,255,.09),transparent 30%),var(--bg);color:var(--text);font-family:"Segoe UI",Inter,system-ui,sans-serif}header{padding:25px 32px 17px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap}.tag{display:inline-flex;align-items:center;gap:7px;font:11px var(--mono);letter-spacing:.1em;color:var(--accent2);text-transform:uppercase;border:1px solid rgba(255,182,72,.55);padding:4px 8px;border-radius:5px}.tag i{width:7px;height:7px;border-radius:50%;background:var(--accent2);box-shadow:0 0 0 3px rgba(255,182,72,.08)}h1{margin:8px 0 3px;font-size:25px}header p{margin:0;color:var(--muted);font-size:13px}.head-status{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.status-pill{display:flex;align-items:center;gap:7px;border:1px solid var(--line);background:var(--panel);padding:8px 10px;border-radius:999px;font:10.5px var(--mono);color:var(--muted)}.status-pill b{color:var(--text);font-weight:600}.status-dot{width:8px;height:8px;border-radius:50%;background:var(--muted)}.status-dot.ok{background:var(--ok);box-shadow:0 0 0 4px rgba(76,215,146,.08)}.status-dot.err{background:var(--danger);box-shadow:0 0 0 4px rgba(255,107,107,.08)}main{max-width:1500px;margin:0 auto;padding:22px 32px 52px}.layout{display:grid;grid-template-columns:minmax(0,1fr) 315px;gap:16px;align-items:start}.chat-card,.side-card{background:rgba(26,32,41,.94);border:1px solid var(--line);border-radius:14px;box-shadow:0 18px 55px rgba(0,0,0,.14)}.chat-card{display:flex;flex-direction:column;min-height:680px;overflow:hidden}.chat-top{padding:14px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:12px}.chat-ident{display:flex;align-items:center;gap:11px}.bot-icon{width:40px;height:40px;border-radius:11px;display:grid;place-items:center;background:linear-gradient(135deg,rgba(62,166,255,.23),rgba(62,166,255,.06));border:1px solid rgba(62,166,255,.4);color:#86c8ff;font-size:20px}.chat-ident b{display:block;font-size:13px}.chat-ident small{display:block;color:var(--muted);font-size:10.5px;margin-top:2px}.clear-btn{border:1px solid var(--line);background:var(--panel2);color:var(--muted);border-radius:8px;padding:8px 10px;font-size:11px;cursor:pointer}.clear-btn:hover{color:var(--text);border-color:#43516a}.messages{flex:1;min-height:400px;max-height:620px;overflow:auto;padding:18px;display:flex;flex-direction:column;gap:13px;scroll-behavior:smooth}.welcome{border:1px solid rgba(62,166,255,.23);background:linear-gradient(135deg,rgba(62,166,255,.07),rgba(255,255,255,.012));border-radius:12px;padding:15px 16px;color:#cbd5e3;font-size:12.5px;line-height:1.55}.welcome strong{color:#fff}.message{display:flex;gap:9px;max-width:88%}.message.user{align-self:flex-end;flex-direction:row-reverse}.avatar{width:30px;height:30px;flex:0 0 30px;border-radius:8px;display:grid;place-items:center;border:1px solid var(--line);background:var(--panel2);font:700 11px var(--mono);color:var(--muted)}.message.assistant .avatar{border-color:rgba(62,166,255,.34);color:var(--accent)}.bubble{border:1px solid var(--line);background:var(--panel2);border-radius:12px;padding:10px 12px;font-size:12.5px;line-height:1.58;white-space:pre-wrap;overflow-wrap:anywhere}.message.user .bubble{background:#153149;border-color:#245985}.message.assistant .bubble{background:#1d2530}.message.error .bubble{border-color:rgba(255,107,107,.45);color:#ffc1c1}.meta{font:9px var(--mono);color:#677386;margin-top:5px}.typing{display:flex;align-items:center;gap:5px;padding:2px 0}.typing span{width:6px;height:6px;border-radius:50%;background:var(--muted);animation:pulse 1.2s infinite ease-in-out}.typing span:nth-child(2){animation-delay:.15s}.typing span:nth-child(3){animation-delay:.3s}@keyframes pulse{0%,80%,100%{opacity:.28;transform:scale(.8)}40%{opacity:1;transform:scale(1)}}.composer{border-top:1px solid var(--line);padding:13px 14px;background:#171e27}.composer-box{display:flex;align-items:flex-end;gap:9px;border:1px solid #354258;background:#10161d;border-radius:12px;padding:8px}.composer textarea{flex:1;resize:none;min-height:42px;max-height:140px;background:transparent;border:0;outline:0;color:var(--text);font:13px "Segoe UI",sans-serif;padding:8px 9px}.composer textarea::placeholder{color:#637084}.send{width:44px;height:44px;flex:0 0 44px;border:0;border-radius:10px;background:var(--accent);color:#07131f;font-weight:900;cursor:pointer;font-size:18px}.send:disabled{opacity:.45;cursor:not-allowed}.composer-note{margin:7px 5px 0;color:#657185;font-size:9.5px}.side{display:grid;gap:12px}.side-card{padding:15px}.side-card h2{font-size:12px;margin:0 0 4px}.side-card p{font-size:10.5px;color:var(--muted);line-height:1.45;margin:0 0 11px}.quick{display:grid;gap:7px}.quick button{width:100%;text-align:left;border:1px solid var(--line);background:var(--panel2);color:#d7deea;border-radius:9px;padding:10px 11px;font-size:11px;cursor:pointer;line-height:1.35}.quick button:hover{border-color:rgba(62,166,255,.55);background:#222d3b}.quick button span{display:block;color:var(--accent);font:9px var(--mono);margin-bottom:3px}.info-grid{display:grid;gap:7px}.info-row{display:flex;justify-content:space-between;align-items:center;gap:10px;border-bottom:1px solid rgba(43,52,68,.7);padding-bottom:7px;font-size:10.5px}.info-row:last-child{border-bottom:0;padding-bottom:0}.info-row span{color:var(--muted)}.info-row b{text-align:right;font-family:var(--mono);font-size:10px}.safe{border-color:rgba(76,215,146,.26);background:linear-gradient(135deg,rgba(76,215,146,.05),rgba(255,255,255,.008))}.safe-badge{display:inline-flex;gap:6px;align-items:center;color:#a6e9c7;font-size:10.5px}.safe-badge:before{content:'✓';width:18px;height:18px;display:grid;place-items:center;border-radius:50%;background:rgba(76,215,146,.1);border:1px solid rgba(76,215,146,.35)}.warn{display:none;border-color:rgba(255,182,72,.34);background:rgba(255,182,72,.04)}.warn.active{display:block}.warn strong{color:#ffd292;font-size:11px}.warn p{margin-top:6px}.model-name{word-break:break-all}@media(max-width:980px){.layout{grid-template-columns:1fr}.side{grid-template-columns:repeat(2,minmax(0,1fr))}.side-card:last-child{grid-column:1/-1}.chat-card{min-height:620px}}@media(max-width:720px){header{padding:19px 14px 14px}main{padding:14px 10px 38px}.layout{gap:10px}.chat-card{min-height:calc(100vh - 200px);border-radius:11px}.messages{padding:12px;max-height:none}.message{max-width:94%}.side{grid-template-columns:1fr}.side-card:last-child{grid-column:auto}.head-status{width:100%}.status-pill{flex:1;justify-content:center}.composer{padding:9px}.chat-top{padding:11px 12px}.quick button{min-height:44px}}
+</style>
+</head>
+<body>
+{% include '_menu.html' %}
+<header>
+  <div>
+    <span class="tag"><i></i> Inteligência operacional</span>
+    <h1>Agente IA</h1>
+    <p>Faça perguntas sobre estoque, ativos, filiais, expansão e capacidade usando os dados atuais do sistema.</p>
+  </div>
+  <div class="head-status">
+    <div class="status-pill"><span class="status-dot" id="status-dot"></span><span id="status-text">Verificando IA...</span></div>
+    <div class="status-pill">Perfil <b>{{ {'admin':'Administrador','gestor':'Gestor','operador':'Operador','consulta':'Consulta','user':'Operador'}.get(role,'Operador') }}</b></div>
+  </div>
+</header>
+<main>
+  <div class="layout">
+    <section class="chat-card">
+      <div class="chat-top">
+        <div class="chat-ident">
+          <div class="bot-icon">✦</div>
+          <div><b>Assistente do Controle de Ativos</b><small>Consulta o banco atual · não altera registros</small></div>
+        </div>
+        <button class="clear-btn" type="button" id="clear-chat">Limpar conversa</button>
+      </div>
+      <div class="messages" id="messages">
+        <div class="welcome" id="welcome">
+          <strong>Olá, {{ username }}.</strong> Posso consultar os dados atuais do Controle de Ativos e cruzar informações entre estoque, kit padrão, filiais, projeção e acompanhamento de expansão. {% if role != 'consulta' %}Também posso analisar o orçamento e a sugestão de pedido de compra.{% endif %}
+        </div>
+      </div>
+      <div class="composer">
+        <div class="composer-box">
+          <textarea id="message-input" maxlength="4000" rows="1" placeholder="Ex.: Tenho estoque suficiente para as próximas lojas?"></textarea>
+          <button class="send" type="button" id="send-btn" title="Enviar">➤</button>
+        </div>
+        <div class="composer-note">Enter envia · Shift+Enter cria nova linha · o agente é somente leitura.</div>
+      </div>
+    </section>
+
+    <aside class="side">
+      <section class="side-card">
+        <h2>Perguntas rápidas</h2>
+        <p>Use os atalhos para iniciar análises com os dados do banco.</p>
+        <div class="quick">
+          <button type="button" data-question="Faça um resumo executivo da situação atual do estoque e da expansão."><span>VISÃO GERAL</span>Como está a operação agora?</button>
+          <button type="button" data-question="Temos estoque suficiente para atender as lojas que estão a inaugurar? Mostre capacidade, risco e os principais itens faltantes."><span>CAPACIDADE</span>Estoque x próximas lojas</button>
+          <button type="button" data-question="Quais são os itens mais críticos do estoque de Expansão para as próximas inaugurações?"><span>ALERTAS</span>Itens críticos da expansão</button>
+          <button type="button" data-question="Resuma a projeção de abertura de lojas por estado e destaque onde há maior volume de inaugurações."><span>PROJEÇÃO</span>Lojas por estado</button>
+          {% if role != 'consulta' %}<button type="button" data-question="Analise o pedido sugerido de compra do Orçamento. Mostre valor previsto, saldo da PEPI, itens para comprar e eventuais pendências de custo."><span>ORÇAMENTO</span>Analisar pedido sugerido</button>{% endif %}
+        </div>
+      </section>
+
+      <section class="side-card safe">
+        <h2>Modo seguro</h2>
+        <p>O agente recebeu apenas funções de consulta. Ele não possui ferramenta para cadastrar, editar ou excluir dados.</p>
+        <div class="safe-badge">Somente leitura</div>
+      </section>
+
+      <section class="side-card">
+        <h2>Sessão de IA</h2>
+        <p>Informações da conexão atual.</p>
+        <div class="info-grid">
+          <div class="info-row"><span>Modelo</span><b class="model-name" id="model-name">-</b></div>
+          <div class="info-row"><span>Banco</span><b>Dados atuais</b></div>
+          <div class="info-row"><span>Permissão</span><b id="access-info">Carregando...</b></div>
+        </div>
+      </section>
+
+      <section class="side-card warn" id="setup-warning">
+        <strong>Configuração necessária</strong>
+        <p>A tela já está instalada. Falta apenas configurar <code>OPENAI_API_KEY</code> no servidor e publicar o novo deploy.</p>
+      </section>
+    </aside>
+  </div>
+</main>
+{% include '_footer.html' %}
+<script>
+const CSRF={{ csrf_token()|tojson }};
+const ROLE={{ role|tojson }};
+const messagesEl=document.getElementById('messages');
+const input=document.getElementById('message-input');
+const sendBtn=document.getElementById('send-btn');
+let history=[];
+let sending=false;
+let configured=false;
+
+function escapeText(v){return String(v??'')}
+function scrollEnd(){messagesEl.scrollTop=messagesEl.scrollHeight}
+function addMessage(role,text,meta='',isError=false){
+  const wrap=document.createElement('div');wrap.className='message '+role+(isError?' error':'');
+  const av=document.createElement('div');av.className='avatar';av.textContent=role==='user'?'EU':'IA';
+  const col=document.createElement('div');
+  const bubble=document.createElement('div');bubble.className='bubble';bubble.textContent=escapeText(text);col.appendChild(bubble);
+  if(meta){const m=document.createElement('div');m.className='meta';m.textContent=meta;col.appendChild(m)}
+  wrap.appendChild(av);wrap.appendChild(col);messagesEl.appendChild(wrap);scrollEnd();return wrap;
+}
+function addTyping(){
+  const wrap=document.createElement('div');wrap.className='message assistant';wrap.id='typing-msg';
+  const av=document.createElement('div');av.className='avatar';av.textContent='IA';
+  const bubble=document.createElement('div');bubble.className='bubble';bubble.innerHTML='<div class="typing"><span></span><span></span><span></span></div>';
+  wrap.appendChild(av);wrap.appendChild(bubble);messagesEl.appendChild(wrap);scrollEnd();return wrap;
+}
+function resizeInput(){input.style.height='auto';input.style.height=Math.min(input.scrollHeight,140)+'px'}
+input.addEventListener('input',resizeInput);
+input.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage()}});
+sendBtn.addEventListener('click',sendMessage);
+document.querySelectorAll('[data-question]').forEach(b=>b.addEventListener('click',()=>{input.value=b.dataset.question||'';resizeInput();input.focus();if(configured)sendMessage()}));
+document.getElementById('clear-chat').addEventListener('click',()=>{history=[];messagesEl.querySelectorAll('.message').forEach(x=>x.remove());document.getElementById('welcome').style.display='block';input.focus()});
+
+async function loadStatus(){
+  try{
+    const r=await fetch('/api/agente-ia/status',{credentials:'same-origin'});const d=await r.json();
+    configured=!!d.configurado;document.getElementById('model-name').textContent=d.modelo||'-';
+    document.getElementById('access-info').textContent=d.orcamento_disponivel?'Operacional + Orçamento':'Operacional';
+    const dot=document.getElementById('status-dot'),txt=document.getElementById('status-text');
+    dot.classList.add(configured?'ok':'err');txt.textContent=configured?'Agente disponível':'Falta configurar API';
+    document.getElementById('setup-warning').classList.toggle('active',!configured);
+  }catch(e){document.getElementById('status-text').textContent='Status indisponível';document.getElementById('status-dot').classList.add('err')}
+}
+
+async function sendMessage(){
+  const text=input.value.trim();if(!text||sending)return;
+  sending=true;sendBtn.disabled=true;input.disabled=true;document.getElementById('welcome').style.display='none';
+  const previous=history.slice(-10);
+  addMessage('user',text);history.push({role:'user',content:text});input.value='';resizeInput();
+  const typing=addTyping();
+  try{
+    const r=await fetch('/api/agente-ia/chat',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','X-CSRF-Token':CSRF},body:JSON.stringify({mensagem:text,historico:previous})});
+    const d=await r.json().catch(()=>({erro:'Resposta inválida do servidor.'}));typing.remove();
+    if(!r.ok){addMessage('assistant',d.erro||'Não foi possível consultar o agente.','',true);return}
+    const resposta=d.resposta||'Sem resposta.';const tools=(d.ferramentas||[]);const meta=tools.length?'Consultou: '+[...new Set(tools)].map(x=>x.replaceAll('_',' ')).join(' · '):'Resposta da IA';
+    addMessage('assistant',resposta,meta);history.push({role:'assistant',content:resposta});history=history.slice(-10);
+  }catch(e){typing.remove();addMessage('assistant','Falha de comunicação com o servidor. Verifique a conexão e tente novamente.','',true)}
+  finally{sending=false;sendBtn.disabled=false;input.disabled=false;input.focus()}
+}
+loadStatus();input.focus();
+</script>
+</body>
+</html>

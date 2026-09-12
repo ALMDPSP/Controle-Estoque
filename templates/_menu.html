@@ -22,6 +22,7 @@ body{overflow-x:hidden}header{padding-left:16px!important;padding-right:16px!imp
   <button type="button" class="app-mobile-toggle" id="app-mobile-toggle" aria-expanded="false" aria-controls="app-menu-links"><span>☰</span><span class="mobile-label">Menu</span></button>
   <div class="app-menu-left" id="app-menu-links">
     <a href="{{ url_for('dashboard') }}" class="{{ 'ativo' if request.endpoint == 'dashboard' else '' }}">Dashboard</a>
+    <a href="{{ url_for('pagina_agente_ia') }}" class="{{ 'ativo' if request.endpoint == 'pagina_agente_ia' else '' }}">✦ Agente IA</a>
     <a href="{{ url_for('index') }}" class="{{ 'ativo' if request.endpoint == 'index' else '' }}">Estoque</a>
     <a href="{{ url_for('pagina_produtos') }}" class="{{ 'ativo' if request.endpoint == 'pagina_produtos' else '' }}">Cadastro de Produtos</a>
     {% if role == 'consulta' %}
