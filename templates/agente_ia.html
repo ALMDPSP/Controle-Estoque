@@ -70,6 +70,7 @@
         <p>Informações da conexão atual.</p>
         <div class="info-grid">
           <div class="info-row"><span>Modelo</span><b class="model-name" id="model-name">-</b></div>
+          <div class="info-row"><span>Roteamento</span><b id="provider-info">Carregando...</b></div>
           <div class="info-row"><span>Banco</span><b>Dados atuais</b></div>
           <div class="info-row"><span>Permissão</span><b id="access-info">Carregando...</b></div>
         </div>
@@ -77,7 +78,7 @@
 
       <section class="side-card warn" id="setup-warning">
         <strong>Configuração necessária</strong>
-        <p>A tela já está instalada. Falta apenas configurar <code>GROQ_API_KEY</code> no servidor. A integração usa o plano gratuito do Groq.</p>
+        <p>Configure <code>OLLAMA_BASE_URL</code> para usar o Ollama como principal. Mantenha <code>GROQ_API_KEY</code> para fallback automático.</p>
       </section>
     </aside>
   </div>
@@ -121,8 +122,11 @@ async function loadStatus(){
     const r=await fetch('/api/agente-ia/status',{credentials:'same-origin'});const d=await r.json();
     configured=!!d.configurado;document.getElementById('model-name').textContent=d.modelo||'-';
     document.getElementById('access-info').textContent=d.orcamento_disponivel?'Operacional + Orçamento':'Operacional';
+    const route=d.ollama_configurado?(d.groq_configurado?'Ollama → Groq':'Ollama'):(d.groq_configurado?'Groq':'Não configurado');
+    document.getElementById('provider-info').textContent=route;
     const dot=document.getElementById('status-dot'),txt=document.getElementById('status-text');
-    dot.classList.add(configured?'ok':'err');txt.textContent=configured?'Agente Groq disponível':'Falta configurar Groq';
+    dot.classList.remove('ok','err');dot.classList.add(configured?'ok':'err');
+    txt.textContent=d.ollama_configurado?(d.groq_configurado?'Ollama principal · Groq backup':'Ollama configurado'):(d.groq_configurado?'Groq disponível · Ollama pendente':'Configure a IA');
     document.getElementById('setup-warning').classList.toggle('active',!configured);
   }catch(e){document.getElementById('status-text').textContent='Status indisponível';document.getElementById('status-dot').classList.add('err')}
 }
@@ -137,7 +141,9 @@ async function sendMessage(){
     const r=await fetch('/api/agente-ia/chat',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','X-CSRF-Token':CSRF},body:JSON.stringify({mensagem:text,historico:previous})});
     const d=await r.json().catch(()=>({erro:'Resposta inválida do servidor.'}));typing.remove();
     if(!r.ok){addMessage('assistant',d.erro||'Não foi possível consultar o agente.','',true);return}
-    const resposta=d.resposta||'Sem resposta.';const tools=(d.ferramentas||[]);const meta=tools.length?'Consultou: '+[...new Set(tools)].map(x=>x.replaceAll('_',' ')).join(' · '):'Resposta da IA';
+    const resposta=d.resposta||'Sem resposta.';const tools=(d.ferramentas||[]);
+    let meta=(d.fallback_usado?'Fallback automático · ':'')+'Provedor: '+(d.provedor||'IA');
+    if(tools.length)meta+=' · Consultou: '+[...new Set(tools)].map(x=>x.replaceAll('_',' ')).join(' · ');
     addMessage('assistant',resposta,meta);history.push({role:'assistant',content:resposta});history=history.slice(-10);
   }catch(e){typing.remove();addMessage('assistant','Falha de comunicação com o servidor. Verifique a conexão e tente novamente.','',true)}
   finally{sending=false;sendBtn.disabled=false;input.disabled=false;input.focus()}

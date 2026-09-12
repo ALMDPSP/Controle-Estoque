@@ -38,14 +38,20 @@ O menu do sistema inclui a página **Celular**, que mostra o endereço de acesso
 - Consulta: somente leitura nas áreas operacionais; Orçamento, Relatórios, downloads/exports/backup e Gestão de Dados bloqueados.
 
 
-## Agente IA (v73 - Groq gratuito)
+## Agente IA híbrido (v74 - Ollama + Groq)
 
 - Aba **Agente IA** integrada ao menu do sistema.
-- Consulta, em tempo real e somente leitura, Estoque, Imobilizados, Cadastro de Produtos, Kit Padrão, Filiais, Projeção e Acompanhamento de Expansão.
-- Administrador, Gestor e Operador também podem consultar Orçamento/PEPI/pedido sugerido pelo agente.
-- O perfil Consulta não recebe acesso a custos, PEPI, pedido sugerido, Relatórios ou Gestão de Dados.
-- O agente não possui ferramentas de gravação: não cadastra, edita nem exclui registros.
+- **Ollama é o provedor principal** quando `OLLAMA_BASE_URL` estiver configurada.
+- **Groq funciona como fallback automático** quando o Ollama estiver indisponível.
+- Se o Ollama estiver funcionando, a consulta não consome a cota do Groq.
+- Se o Ollama ainda não estiver configurado, a versão continua funcionando somente pelo Groq.
+- Modelo Ollama padrão: `qwen3:4b-instruct`.
+- O agente permanece somente leitura e respeita as mesmas permissões por perfil.
+- A interface informa o provedor que respondeu e sinaliza quando houve fallback.
 
-### Configuração do Groq
+### Variáveis de ambiente
 
-No Render, crie a variável de ambiente `GROQ_API_KEY` com a chave criada em `https://console.groq.com/keys`. Não grave a chave no GitHub nem no código. Opcionalmente, use `GROQ_MODEL`; o padrão desta versão é `qwen/qwen3.6-27b`. A integração usa HTTPS diretamente pela biblioteca padrão do Python, sem SDK da OpenAI.
+Principal: `OLLAMA_BASE_URL`; opcional: `OLLAMA_MODEL` e `OLLAMA_API_TOKEN` (quando houver proxy seguro).
+Fallback: mantenha `GROQ_API_KEY`; `GROQ_MODEL` continua opcional.
+
+Consulte `AGENTE_IA_CONFIGURACAO.txt` para o passo a passo e as orientações de segurança.

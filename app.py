@@ -59,7 +59,7 @@ import qrcode
 import db
 
 app = Flask(__name__)
-APP_BUILD = "2026-09-12-agente-ia-groq-v73"
+APP_BUILD = "2026-09-12-agente-ia-ollama-groq-v74"
 _DASHBOARD_CACHE = {"expira": 0.0, "dados": None}
 app.secret_key = os.environ.get("SECRET_KEY", "troque-esta-chave-em-producao")
 _RUNNING_HTTPS_HOSTED = bool(
@@ -5030,11 +5030,14 @@ def api_excluir_usuario(user_id):
 # Agente IA — consultas seguras, somente leitura
 # ---------------------------------------------------------------------
 
-AI_MODEL = os.environ.get("GROQ_MODEL", "qwen/qwen3.6-27b").strip() or "qwen/qwen3.6-27b"
+OLLAMA_DEFAULT_MODEL = "qwen3:4b-instruct"
+GROQ_DEFAULT_MODEL = "qwen/qwen3.6-27b"
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
 AI_MAX_HISTORY = 10
 AI_MAX_TOOL_ROUNDS = 6
 AI_MAX_OUTPUT_TOKENS = 1200
+OLLAMA_REQUEST_TIMEOUT = 45
+OLLAMA_TOTAL_BUDGET_SECONDS = 72
 
 
 def _agente_role():
@@ -5387,15 +5390,67 @@ def _agente_historico_seguro(historico):
 @login_required
 def api_agente_ia_status():
     role = _agente_role()
+    ollama_url = _ollama_base_url()
+    groq_ok = bool(os.environ.get("GROQ_API_KEY", "").strip())
+    ollama_ok = bool(ollama_url)
+    if ollama_ok:
+        provedor = "Ollama"
+        modelo = _ollama_model()
+    elif groq_ok:
+        provedor = "Groq"
+        modelo = _groq_model()
+    else:
+        provedor = "Não configurado"
+        modelo = "-"
     return jsonify({
         "ok": True,
-        "configurado": bool(os.environ.get("GROQ_API_KEY", "").strip()),
-        "modelo": AI_MODEL,
-        "provedor": "Groq",
+        "configurado": ollama_ok or groq_ok,
+        "modelo": modelo,
+        "modelos": {"ollama": _ollama_model(), "groq": _groq_model()},
+        "provedor": provedor,
+        "ollama_configurado": ollama_ok,
+        "groq_configurado": groq_ok,
+        "fallback_ativo": ollama_ok and groq_ok,
         "modo": "somente leitura",
         "perfil": role,
         "orcamento_disponivel": role != "consulta",
     })
+
+
+def _ollama_base_url():
+    """URL do servidor Ollama. Ex.: https://ia.exemplo.com ou http://10.0.0.5:11434."""
+    return os.environ.get("OLLAMA_BASE_URL", "").strip().rstrip("/")
+
+
+def _ollama_model():
+    return os.environ.get("OLLAMA_MODEL", OLLAMA_DEFAULT_MODEL).strip() or OLLAMA_DEFAULT_MODEL
+
+
+def _groq_model():
+    return os.environ.get("GROQ_MODEL", GROQ_DEFAULT_MODEL).strip() or GROQ_DEFAULT_MODEL
+
+
+def _ollama_chat_url():
+    base = _ollama_base_url()
+    if base.endswith("/api/chat"):
+        return base
+    return f"{base}/api/chat"
+
+
+def _ollama_chat(payload, timeout=OLLAMA_REQUEST_TIMEOUT):
+    """Executa uma chamada no Ollama via API nativa /api/chat."""
+    corpo = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+    headers = {
+        "Content-Type": "application/json",
+        "User-Agent": "Controle-Estoque-Agente-IA/74",
+    }
+    # Opcional: funciona quando o Ollama está protegido por um proxy que valida Bearer token.
+    token = os.environ.get("OLLAMA_API_TOKEN", "").strip()
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    req = urlrequest.Request(_ollama_chat_url(), data=corpo, method="POST", headers=headers)
+    with urlrequest.urlopen(req, timeout=max(5, int(timeout))) as resp:
+        return json.loads(resp.read().decode("utf-8"))
 
 
 def _groq_chat(api_key, payload):
@@ -5408,23 +5463,44 @@ def _groq_chat(api_key, payload):
         headers={
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
-            "User-Agent": "Controle-Estoque-Agente-IA/73",
+            "User-Agent": "Controle-Estoque-Agente-IA/74",
         },
     )
     with urlrequest.urlopen(req, timeout=40) as resp:
         return json.loads(resp.read().decode("utf-8"))
 
 
-def _groq_erro_amigavel(exc):
-    codigo = getattr(exc, "code", None)
-    detalhe = ""
+def _erro_http_detalhe(exc):
     try:
         bruto = exc.read().decode("utf-8", errors="replace")
         dado = json.loads(bruto)
-        detalhe = str((dado.get("error") or {}).get("message") or "").strip()
+        if isinstance(dado, dict):
+            erro = dado.get("error")
+            if isinstance(erro, dict):
+                return str(erro.get("message") or erro.get("error") or "").strip()
+            return str(erro or dado.get("message") or "").strip()
     except Exception:
-        detalhe = ""
+        pass
+    return ""
 
+
+def _ollama_erro_amigavel(exc):
+    codigo = getattr(exc, "code", None)
+    detalhe = _erro_http_detalhe(exc)
+    if codigo in (401, 403):
+        return "O servidor Ollama recusou a autenticação. Confira OLLAMA_API_TOKEN ou a configuração do proxy seguro."
+    if codigo == 404:
+        return f"O Ollama não encontrou o modelo {_ollama_model()}. No servidor da IA, execute: ollama pull {_ollama_model()}"
+    if codigo and codigo >= 500:
+        return "O servidor Ollama está temporariamente indisponível."
+    if detalhe:
+        return f"O Ollama não conseguiu concluir a consulta: {detalhe[:240]}"
+    return "Não foi possível consultar o Ollama agora."
+
+
+def _groq_erro_amigavel(exc):
+    codigo = getattr(exc, "code", None)
+    detalhe = _erro_http_detalhe(exc)
     if codigo == 401:
         return "A chave GROQ_API_KEY não foi aceita. Confira a chave criada no Groq e salve novamente no Render."
     if codigo == 429:
@@ -5433,7 +5509,139 @@ def _groq_erro_amigavel(exc):
         return "O modelo configurado no Groq não está disponível. Remova GROQ_MODEL para usar o modelo padrão ou escolha outro modelo compatível."
     if codigo and codigo >= 500:
         return "O Groq está temporariamente indisponível. Tente novamente em alguns instantes."
-    return "Não foi possível consultar o Agente IA agora. Verifique a chave do Groq e a conexão do servidor."
+    return "Não foi possível consultar o Groq agora. Verifique a chave e a conexão do servidor."
+
+
+def _agente_base_mensagens(pergunta, historico, role):
+    mensagens = [{"role": "system", "content": _agente_instrucoes(role)}]
+    mensagens.extend(historico)
+    mensagens.append({"role": "user", "content": pergunta})
+    return mensagens
+
+
+def _agente_loop_ollama(pergunta, historico, role):
+    mensagens = _agente_base_mensagens(pergunta, historico, role)
+    tools = _agente_tools(role)
+    ferramentas_usadas = []
+    inicio = time.monotonic()
+
+    for _ in range(AI_MAX_TOOL_ROUNDS):
+        restante = OLLAMA_TOTAL_BUDGET_SECONDS - (time.monotonic() - inicio)
+        if restante < 5:
+            raise TimeoutError("tempo total do Ollama excedido")
+
+        resposta = _ollama_chat({
+            "model": _ollama_model(),
+            "messages": mensagens,
+            "tools": tools,
+            "stream": False,
+            "think": False,
+            "keep_alive": "15m",
+            "options": {
+                "temperature": 0.2,
+                "num_predict": AI_MAX_OUTPUT_TOKENS,
+            },
+        }, timeout=min(OLLAMA_REQUEST_TIMEOUT, restante))
+
+        mensagem = resposta.get("message") or {}
+        chamadas = mensagem.get("tool_calls") or []
+        if not chamadas:
+            texto = str(mensagem.get("content") or "").strip()
+            if not texto:
+                texto = "Não consegui gerar uma resposta conclusiva com os dados disponíveis."
+            return {
+                "ok": True,
+                "resposta": texto,
+                "modelo": _ollama_model(),
+                "provedor": "Ollama",
+                "ferramentas": ferramentas_usadas,
+                "fallback_usado": False,
+            }
+
+        mensagens.append({
+            "role": "assistant",
+            "content": str(mensagem.get("content") or ""),
+            "tool_calls": chamadas,
+        })
+
+        for chamada in chamadas:
+            func = chamada.get("function") or {}
+            nome = str(func.get("name") or "").strip()
+            args = func.get("arguments") or {}
+            if isinstance(args, str):
+                try:
+                    args = json.loads(args or "{}")
+                except Exception:
+                    args = {}
+            if not isinstance(args, dict):
+                args = {}
+            resultado = _agente_executar_tool(nome, args, role)
+            ferramentas_usadas.append(nome)
+            mensagens.append({
+                "role": "tool",
+                "tool_name": nome,
+                "content": json.dumps(_agente_json(resultado), ensure_ascii=False, default=str),
+            })
+
+    raise RuntimeError("O Ollama exigiu etapas demais para concluir a consulta")
+
+
+def _agente_loop_groq(api_key, pergunta, historico, role):
+    mensagens = _agente_base_mensagens(pergunta, historico, role)
+    tools = _agente_tools(role)
+    ferramentas_usadas = []
+
+    for _ in range(AI_MAX_TOOL_ROUNDS):
+        resposta = _groq_chat(api_key, {
+            "model": _groq_model(),
+            "messages": mensagens,
+            "tools": tools,
+            "tool_choice": "auto",
+            "temperature": 0.2,
+            "max_completion_tokens": AI_MAX_OUTPUT_TOKENS,
+        })
+        escolhas = resposta.get("choices") or []
+        if not escolhas:
+            raise RuntimeError("Groq não retornou escolhas")
+
+        mensagem = (escolhas[0] or {}).get("message") or {}
+        chamadas = mensagem.get("tool_calls") or []
+        if not chamadas:
+            texto = str(mensagem.get("content") or "").strip()
+            if not texto:
+                texto = "Não consegui gerar uma resposta conclusiva com os dados disponíveis."
+            return {
+                "ok": True,
+                "resposta": texto,
+                "modelo": _groq_model(),
+                "provedor": "Groq",
+                "ferramentas": ferramentas_usadas,
+                "fallback_usado": False,
+            }
+
+        mensagens.append({
+            "role": "assistant",
+            "content": mensagem.get("content"),
+            "tool_calls": chamadas,
+        })
+
+        for chamada in chamadas:
+            func = chamada.get("function") or {}
+            nome = str(func.get("name") or "").strip()
+            try:
+                args = json.loads(func.get("arguments") or "{}")
+            except Exception:
+                args = {}
+            resultado = _agente_executar_tool(nome, args, role)
+            ferramentas_usadas.append(nome)
+            mensagens.append({
+                "role": "tool",
+                "tool_call_id": chamada.get("id"),
+                "name": nome,
+                "content": json.dumps(_agente_json(resultado), ensure_ascii=False, default=str),
+            })
+
+    raise RuntimeError("O Groq exigiu etapas demais para concluir a consulta")
 
 
 @app.route("/api/agente-ia/chat", methods=["POST"])
@@ -5442,10 +5650,11 @@ def api_agente_ia_chat():
     if not _csrf_ok():
         return jsonify({"erro": "Token de segurança inválido. Atualize a página e tente novamente."}), 400
 
-    api_key = os.environ.get("GROQ_API_KEY", "").strip()
-    if not api_key:
+    ollama_url = _ollama_base_url()
+    groq_key = os.environ.get("GROQ_API_KEY", "").strip()
+    if not ollama_url and not groq_key:
         return jsonify({
-            "erro": "Agente IA gratuito ainda não está configurado. Defina GROQ_API_KEY nas variáveis de ambiente do servidor."
+            "erro": "Agente IA ainda não está configurado. Configure OLLAMA_BASE_URL para usar Ollama ou mantenha GROQ_API_KEY como fallback."
         }), 503
 
     dados = request.get_json(silent=True) or {}
@@ -5457,75 +5666,53 @@ def api_agente_ia_chat():
 
     role = _agente_role()
     historico = _agente_historico_seguro(dados.get("historico"))
-    mensagens = [{"role": "system", "content": _agente_instrucoes(role)}]
-    mensagens.extend(historico)
-    mensagens.append({"role": "user", "content": pergunta})
-    tools = _agente_tools(role)
-    ferramentas_usadas = []
+    falha_ollama = ""
 
-    try:
-        for _ in range(AI_MAX_TOOL_ROUNDS):
-            resposta = _groq_chat(api_key, {
-                "model": AI_MODEL,
-                "messages": mensagens,
-                "tools": tools,
-                "tool_choice": "auto",
-                "temperature": 0.2,
-                "max_completion_tokens": AI_MAX_OUTPUT_TOKENS,
-            })
-            escolhas = resposta.get("choices") or []
-            if not escolhas:
-                return jsonify({"erro": "O Groq não retornou uma resposta válida. Tente novamente."}), 502
+    # 1) Ollama é sempre o provedor principal quando OLLAMA_BASE_URL existe.
+    if ollama_url:
+        try:
+            return jsonify(_agente_loop_ollama(pergunta, historico, role))
+        except urlerror.HTTPError as e:
+            falha_ollama = _ollama_erro_amigavel(e)
+            print(f"[agente-ia] Ollama HTTP {getattr(e, 'code', '?')}: {falha_ollama}")
+        except (urlerror.URLError, TimeoutError) as e:
+            falha_ollama = "Não foi possível conectar ao Ollama dentro do tempo esperado."
+            print(f"[agente-ia] Ollama rede/timeout: {type(e).__name__}: {e}")
+        except Exception as e:
+            falha_ollama = "O Ollama não conseguiu concluir esta consulta."
+            print(f"[agente-ia] Ollama falhou: {type(e).__name__}: {e}")
 
-            mensagem = (escolhas[0] or {}).get("message") or {}
-            chamadas = mensagem.get("tool_calls") or []
-            if not chamadas:
-                texto = str(mensagem.get("content") or "").strip()
-                if not texto:
-                    texto = "Não consegui gerar uma resposta conclusiva com os dados disponíveis."
-                return jsonify({
-                    "ok": True,
-                    "resposta": texto,
-                    "modelo": AI_MODEL,
-                    "provedor": "Groq",
-                    "ferramentas": ferramentas_usadas,
-                })
+    # 2) Fallback automático para Groq quando configurado.
+    if groq_key:
+        try:
+            resultado = _agente_loop_groq(groq_key, pergunta, historico, role)
+            if ollama_url:
+                resultado["fallback_usado"] = True
+                resultado["aviso"] = "Ollama indisponível nesta consulta; resposta gerada pelo fallback Groq."
+            return jsonify(resultado)
+        except urlerror.HTTPError as e:
+            msg = _groq_erro_amigavel(e)
+            print(f"[agente-ia] Groq HTTP {getattr(e, 'code', '?')}: {msg}")
+            if falha_ollama:
+                return jsonify({"erro": f"O Ollama ficou indisponível e o fallback Groq também não respondeu. {msg}"}), 502
+            return jsonify({"erro": msg}), 502
+        except (urlerror.URLError, TimeoutError) as e:
+            print(f"[agente-ia] Groq rede/timeout: {type(e).__name__}: {e}")
+            msg = "Não foi possível conectar ao Groq agora."
+            if falha_ollama:
+                return jsonify({"erro": f"O Ollama ficou indisponível e o fallback Groq também falhou. {msg}"}), 502
+            return jsonify({"erro": msg}), 502
+        except Exception as e:
+            print(f"[agente-ia] Groq falhou: {type(e).__name__}: {e}")
+            msg = "Não foi possível concluir a consulta pelo Groq."
+            if falha_ollama:
+                return jsonify({"erro": f"O Ollama ficou indisponível e o fallback Groq também falhou. {msg}"}), 502
+            return jsonify({"erro": msg}), 502
 
-            # Preserva a mensagem do assistente com as chamadas para que o Groq
-            # consiga relacionar corretamente cada resultado pelo tool_call_id.
-            mensagens.append({
-                "role": "assistant",
-                "content": mensagem.get("content"),
-                "tool_calls": chamadas,
-            })
-
-            for chamada in chamadas:
-                func = chamada.get("function") or {}
-                nome = str(func.get("name") or "").strip()
-                try:
-                    args = json.loads(func.get("arguments") or "{}")
-                except Exception:
-                    args = {}
-                resultado = _agente_executar_tool(nome, args, role)
-                ferramentas_usadas.append(nome)
-                mensagens.append({
-                    "role": "tool",
-                    "tool_call_id": chamada.get("id"),
-                    "name": nome,
-                    "content": json.dumps(_agente_json(resultado), ensure_ascii=False, default=str),
-                })
-
-        return jsonify({"erro": "A consulta exigiu etapas demais. Tente fazer uma pergunta mais específica."}), 422
-
-    except urlerror.HTTPError as e:
-        print(f"[agente-ia] Falha HTTP Groq: {getattr(e, 'code', '?')} {e}")
-        return jsonify({"erro": _groq_erro_amigavel(e)}), 502
-    except (urlerror.URLError, TimeoutError) as e:
-        print(f"[agente-ia] Falha de rede Groq: {type(e).__name__}: {e}")
-        return jsonify({"erro": "Não foi possível conectar ao Groq agora. Verifique a conexão do servidor e tente novamente."}), 502
-    except Exception as e:
-        print(f"[agente-ia] Falha ao consultar Groq: {type(e).__name__}: {e}")
-        return jsonify({"erro": "Não foi possível consultar o Agente IA agora. Verifique a configuração do Groq."}), 502
+    # Ollama estava configurado, falhou e não há fallback Groq.
+    return jsonify({
+        "erro": falha_ollama or "O Ollama está indisponível e não há GROQ_API_KEY configurada como fallback."
+    }), 502
 
 
 # ---------------------------------------------------------------------
