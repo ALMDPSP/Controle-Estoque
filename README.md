@@ -38,20 +38,20 @@ O menu do sistema inclui a página **Celular**, que mostra o endereço de acesso
 - Consulta: somente leitura nas áreas operacionais; Orçamento, Relatórios, downloads/exports/backup e Gestão de Dados bloqueados.
 
 
-## Agente IA híbrido (v74 - Ollama + Groq)
+## Agente IA com fallback gratuito (v75 - Groq → Gemini → Cloudflare)
 
 - Aba **Agente IA** integrada ao menu do sistema.
-- **Ollama é o provedor principal** quando `OLLAMA_BASE_URL` estiver configurada.
-- **Groq funciona como fallback automático** quando o Ollama estiver indisponível.
-- Se o Ollama estiver funcionando, a consulta não consome a cota do Groq.
-- Se o Ollama ainda não estiver configurado, a versão continua funcionando somente pelo Groq.
-- Modelo Ollama padrão: `qwen3:4b-instruct`.
+- Ordem automática: **Groq → Gemini → Cloudflare Workers AI**.
+- Quando um provedor atinge limite, falha ou fica indisponível, o sistema tenta o próximo.
+- Não depende de Ollama, servidor próprio nem computador ligado.
 - O agente permanece somente leitura e respeita as mesmas permissões por perfil.
-- A interface informa o provedor que respondeu e sinaliza quando houve fallback.
+- A interface informa a rota configurada, o provedor que respondeu e quando houve fallback.
 
 ### Variáveis de ambiente
 
-Principal: `OLLAMA_BASE_URL`; opcional: `OLLAMA_MODEL` e `OLLAMA_API_TOKEN` (quando houver proxy seguro).
-Fallback: mantenha `GROQ_API_KEY`; `GROQ_MODEL` continua opcional.
+- `GROQ_API_KEY` (principal)
+- `GEMINI_API_KEY` (fallback 1)
+- `CLOUDFLARE_ACCOUNT_ID` + `CLOUDFLARE_API_TOKEN` (fallback 2)
+- `GROQ_MODEL`, `GEMINI_MODEL` e `CLOUDFLARE_MODEL` são opcionais.
 
-Consulte `AGENTE_IA_CONFIGURACAO.txt` para o passo a passo e as orientações de segurança.
+Consulte `AGENTE_IA_CONFIGURACAO.txt` para o passo a passo.

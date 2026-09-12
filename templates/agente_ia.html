@@ -78,7 +78,7 @@
 
       <section class="side-card warn" id="setup-warning">
         <strong>Configuração necessária</strong>
-        <p>Configure <code>OLLAMA_BASE_URL</code> para usar o Ollama como principal. Mantenha <code>GROQ_API_KEY</code> para fallback automático.</p>
+        <p>Configure pelo menos um provedor no Render. Recomendado: <code>GROQ_API_KEY</code> + <code>GEMINI_API_KEY</code> + Cloudflare para fallback em cadeia.</p>
       </section>
     </aside>
   </div>
@@ -122,11 +122,11 @@ async function loadStatus(){
     const r=await fetch('/api/agente-ia/status',{credentials:'same-origin'});const d=await r.json();
     configured=!!d.configurado;document.getElementById('model-name').textContent=d.modelo||'-';
     document.getElementById('access-info').textContent=d.orcamento_disponivel?'Operacional + Orçamento':'Operacional';
-    const route=d.ollama_configurado?(d.groq_configurado?'Ollama → Groq':'Ollama'):(d.groq_configurado?'Groq':'Não configurado');
+    const route=(d.rota||[]).join(' → ')||'Não configurado';
     document.getElementById('provider-info').textContent=route;
     const dot=document.getElementById('status-dot'),txt=document.getElementById('status-text');
     dot.classList.remove('ok','err');dot.classList.add(configured?'ok':'err');
-    txt.textContent=d.ollama_configurado?(d.groq_configurado?'Ollama principal · Groq backup':'Ollama configurado'):(d.groq_configurado?'Groq disponível · Ollama pendente':'Configure a IA');
+    txt.textContent=configured?('IA disponível · '+route):'Configure a IA';
     document.getElementById('setup-warning').classList.toggle('active',!configured);
   }catch(e){document.getElementById('status-text').textContent='Status indisponível';document.getElementById('status-dot').classList.add('err')}
 }

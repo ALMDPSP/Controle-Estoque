@@ -59,7 +59,7 @@ import qrcode
 import db
 
 app = Flask(__name__)
-APP_BUILD = "2026-09-12-agente-ia-ollama-groq-v74"
+APP_BUILD = "2026-09-12-agente-ia-groq-gemini-cloudflare-v75"
 _DASHBOARD_CACHE = {"expira": 0.0, "dados": None}
 app.secret_key = os.environ.get("SECRET_KEY", "troque-esta-chave-em-producao")
 _RUNNING_HTTPS_HOSTED = bool(
@@ -5030,14 +5030,15 @@ def api_excluir_usuario(user_id):
 # Agente IA — consultas seguras, somente leitura
 # ---------------------------------------------------------------------
 
-OLLAMA_DEFAULT_MODEL = "qwen3:4b-instruct"
 GROQ_DEFAULT_MODEL = "qwen/qwen3.6-27b"
+GEMINI_DEFAULT_MODEL = "gemini-3.5-flash-lite"
+CLOUDFLARE_DEFAULT_MODEL = "@cf/google/gemma-4-26b-a4b-it"
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
+GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
 AI_MAX_HISTORY = 10
 AI_MAX_TOOL_ROUNDS = 6
 AI_MAX_OUTPUT_TOKENS = 1200
-OLLAMA_REQUEST_TIMEOUT = 45
-OLLAMA_TOTAL_BUDGET_SECONDS = 72
+AI_PROVIDER_TIMEOUT = 45
 
 
 def _agente_role():
@@ -5390,83 +5391,83 @@ def _agente_historico_seguro(historico):
 @login_required
 def api_agente_ia_status():
     role = _agente_role()
-    ollama_url = _ollama_base_url()
     groq_ok = bool(os.environ.get("GROQ_API_KEY", "").strip())
-    ollama_ok = bool(ollama_url)
-    if ollama_ok:
-        provedor = "Ollama"
-        modelo = _ollama_model()
-    elif groq_ok:
-        provedor = "Groq"
-        modelo = _groq_model()
+    gemini_ok = bool(os.environ.get("GEMINI_API_KEY", "").strip())
+    cf_token_ok = bool(os.environ.get("CLOUDFLARE_API_TOKEN", "").strip())
+    cf_account_ok = bool(os.environ.get("CLOUDFLARE_ACCOUNT_ID", "").strip())
+    cloudflare_ok = cf_token_ok and cf_account_ok
+
+    rota = []
+    if groq_ok:
+        rota.append("Groq")
+    if gemini_ok:
+        rota.append("Gemini")
+    if cloudflare_ok:
+        rota.append("Cloudflare")
+
+    if groq_ok:
+        provedor, modelo = "Groq", _groq_model()
+    elif gemini_ok:
+        provedor, modelo = "Gemini", _gemini_model()
+    elif cloudflare_ok:
+        provedor, modelo = "Cloudflare", _cloudflare_model()
     else:
-        provedor = "Não configurado"
-        modelo = "-"
+        provedor, modelo = "Não configurado", "-"
+
     return jsonify({
         "ok": True,
-        "configurado": ollama_ok or groq_ok,
+        "configurado": bool(rota),
         "modelo": modelo,
-        "modelos": {"ollama": _ollama_model(), "groq": _groq_model()},
+        "modelos": {
+            "groq": _groq_model(),
+            "gemini": _gemini_model(),
+            "cloudflare": _cloudflare_model(),
+        },
         "provedor": provedor,
-        "ollama_configurado": ollama_ok,
+        "rota": rota,
         "groq_configurado": groq_ok,
-        "fallback_ativo": ollama_ok and groq_ok,
+        "gemini_configurado": gemini_ok,
+        "cloudflare_configurado": cloudflare_ok,
+        "cloudflare_token_configurado": cf_token_ok,
+        "cloudflare_account_configurado": cf_account_ok,
+        "fallback_ativo": len(rota) > 1,
         "modo": "somente leitura",
         "perfil": role,
         "orcamento_disponivel": role != "consulta",
     })
 
 
-def _ollama_base_url():
-    """URL do servidor Ollama. Ex.: https://ia.exemplo.com ou http://10.0.0.5:11434."""
-    return os.environ.get("OLLAMA_BASE_URL", "").strip().rstrip("/")
-
-
-def _ollama_model():
-    return os.environ.get("OLLAMA_MODEL", OLLAMA_DEFAULT_MODEL).strip() or OLLAMA_DEFAULT_MODEL
-
-
 def _groq_model():
     return os.environ.get("GROQ_MODEL", GROQ_DEFAULT_MODEL).strip() or GROQ_DEFAULT_MODEL
 
 
-def _ollama_chat_url():
-    base = _ollama_base_url()
-    if base.endswith("/api/chat"):
-        return base
-    return f"{base}/api/chat"
+def _gemini_model():
+    return os.environ.get("GEMINI_MODEL", GEMINI_DEFAULT_MODEL).strip() or GEMINI_DEFAULT_MODEL
 
 
-def _ollama_chat(payload, timeout=OLLAMA_REQUEST_TIMEOUT):
-    """Executa uma chamada no Ollama via API nativa /api/chat."""
-    corpo = json.dumps(payload, ensure_ascii=False).encode("utf-8")
-    headers = {
-        "Content-Type": "application/json",
-        "User-Agent": "Controle-Estoque-Agente-IA/74",
-    }
-    # Opcional: funciona quando o Ollama está protegido por um proxy que valida Bearer token.
-    token = os.environ.get("OLLAMA_API_TOKEN", "").strip()
-    if token:
-        headers["Authorization"] = f"Bearer {token}"
-    req = urlrequest.Request(_ollama_chat_url(), data=corpo, method="POST", headers=headers)
-    with urlrequest.urlopen(req, timeout=max(5, int(timeout))) as resp:
-        return json.loads(resp.read().decode("utf-8"))
+def _cloudflare_model():
+    return os.environ.get("CLOUDFLARE_MODEL", CLOUDFLARE_DEFAULT_MODEL).strip() or CLOUDFLARE_DEFAULT_MODEL
 
 
-def _groq_chat(api_key, payload):
-    """Executa uma chamada HTTPS na API Groq sem depender de SDK externo."""
+def _cloudflare_api_url():
+    account_id = os.environ.get("CLOUDFLARE_ACCOUNT_ID", "").strip()
+    return f"https://api.cloudflare.com/client/v4/accounts/{account_id}/ai/v1/chat/completions"
+
+
+def _provider_chat(url, api_key, payload, provider_name):
+    """Chamada HTTPS OpenAI-compatible para Groq, Gemini e Cloudflare."""
     corpo = json.dumps(payload, ensure_ascii=False).encode("utf-8")
     req = urlrequest.Request(
-        GROQ_API_URL,
+        url,
         data=corpo,
         method="POST",
         headers={
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
-            "User-Agent": "Controle-Estoque-Agente-IA/74",
+            "User-Agent": "Controle-Estoque-Agente-IA/75",
         },
     )
-    with urlrequest.urlopen(req, timeout=40) as resp:
+    with urlrequest.urlopen(req, timeout=AI_PROVIDER_TIMEOUT) as resp:
         return json.loads(resp.read().decode("utf-8"))
 
 
@@ -5484,32 +5485,30 @@ def _erro_http_detalhe(exc):
     return ""
 
 
-def _ollama_erro_amigavel(exc):
+def _provider_erro_amigavel(provider, exc):
     codigo = getattr(exc, "code", None)
     detalhe = _erro_http_detalhe(exc)
+    p = provider.lower()
+
     if codigo in (401, 403):
-        return "O servidor Ollama recusou a autenticação. Confira OLLAMA_API_TOKEN ou a configuração do proxy seguro."
-    if codigo == 404:
-        return f"O Ollama não encontrou o modelo {_ollama_model()}. No servidor da IA, execute: ollama pull {_ollama_model()}"
-    if codigo and codigo >= 500:
-        return "O servidor Ollama está temporariamente indisponível."
-    if detalhe:
-        return f"O Ollama não conseguiu concluir a consulta: {detalhe[:240]}"
-    return "Não foi possível consultar o Ollama agora."
+        if p == "cloudflare":
+            return "A autenticação do Cloudflare falhou. Confira CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID e a permissão Workers AI Read."
+        if p == "gemini":
+            return "A chave GEMINI_API_KEY não foi aceita. Gere ou copie novamente a chave no Google AI Studio."
+        return "A chave GROQ_API_KEY não foi aceita. Confira a chave criada no Groq."
 
-
-def _groq_erro_amigavel(exc):
-    codigo = getattr(exc, "code", None)
-    detalhe = _erro_http_detalhe(exc)
-    if codigo == 401:
-        return "A chave GROQ_API_KEY não foi aceita. Confira a chave criada no Groq e salve novamente no Render."
     if codigo == 429:
-        return "O limite gratuito do Groq foi atingido temporariamente. Aguarde a renovação do limite e tente novamente."
+        return f"O limite gratuito do {provider} foi atingido temporariamente. O agente vai tentar o próximo provedor."
+
     if codigo in (400, 404) and ("model" in detalhe.lower() or codigo == 404):
-        return "O modelo configurado no Groq não está disponível. Remova GROQ_MODEL para usar o modelo padrão ou escolha outro modelo compatível."
+        return f"O modelo configurado no {provider} não está disponível. Confira a variável de modelo desse provedor."
+
     if codigo and codigo >= 500:
-        return "O Groq está temporariamente indisponível. Tente novamente em alguns instantes."
-    return "Não foi possível consultar o Groq agora. Verifique a chave e a conexão do servidor."
+        return f"O {provider} está temporariamente indisponível."
+
+    if detalhe:
+        return f"O {provider} não concluiu a consulta: {detalhe[:220]}"
+    return f"Não foi possível consultar o {provider} agora."
 
 
 def _agente_base_mensagens(pergunta, historico, role):
@@ -5519,90 +5518,29 @@ def _agente_base_mensagens(pergunta, historico, role):
     return mensagens
 
 
-def _agente_loop_ollama(pergunta, historico, role):
-    mensagens = _agente_base_mensagens(pergunta, historico, role)
-    tools = _agente_tools(role)
-    ferramentas_usadas = []
-    inicio = time.monotonic()
-
-    for _ in range(AI_MAX_TOOL_ROUNDS):
-        restante = OLLAMA_TOTAL_BUDGET_SECONDS - (time.monotonic() - inicio)
-        if restante < 5:
-            raise TimeoutError("tempo total do Ollama excedido")
-
-        resposta = _ollama_chat({
-            "model": _ollama_model(),
-            "messages": mensagens,
-            "tools": tools,
-            "stream": False,
-            "think": False,
-            "keep_alive": "15m",
-            "options": {
-                "temperature": 0.2,
-                "num_predict": AI_MAX_OUTPUT_TOKENS,
-            },
-        }, timeout=min(OLLAMA_REQUEST_TIMEOUT, restante))
-
-        mensagem = resposta.get("message") or {}
-        chamadas = mensagem.get("tool_calls") or []
-        if not chamadas:
-            texto = str(mensagem.get("content") or "").strip()
-            if not texto:
-                texto = "Não consegui gerar uma resposta conclusiva com os dados disponíveis."
-            return {
-                "ok": True,
-                "resposta": texto,
-                "modelo": _ollama_model(),
-                "provedor": "Ollama",
-                "ferramentas": ferramentas_usadas,
-                "fallback_usado": False,
-            }
-
-        mensagens.append({
-            "role": "assistant",
-            "content": str(mensagem.get("content") or ""),
-            "tool_calls": chamadas,
-        })
-
-        for chamada in chamadas:
-            func = chamada.get("function") or {}
-            nome = str(func.get("name") or "").strip()
-            args = func.get("arguments") or {}
-            if isinstance(args, str):
-                try:
-                    args = json.loads(args or "{}")
-                except Exception:
-                    args = {}
-            if not isinstance(args, dict):
-                args = {}
-            resultado = _agente_executar_tool(nome, args, role)
-            ferramentas_usadas.append(nome)
-            mensagens.append({
-                "role": "tool",
-                "tool_name": nome,
-                "content": json.dumps(_agente_json(resultado), ensure_ascii=False, default=str),
-            })
-
-    raise RuntimeError("O Ollama exigiu etapas demais para concluir a consulta")
-
-
-def _agente_loop_groq(api_key, pergunta, historico, role):
+def _agente_loop_openai_compat(provider, api_url, api_key, model, pergunta, historico, role):
     mensagens = _agente_base_mensagens(pergunta, historico, role)
     tools = _agente_tools(role)
     ferramentas_usadas = []
 
     for _ in range(AI_MAX_TOOL_ROUNDS):
-        resposta = _groq_chat(api_key, {
-            "model": _groq_model(),
+        payload = {
+            "model": model,
             "messages": mensagens,
             "tools": tools,
             "tool_choice": "auto",
             "temperature": 0.2,
-            "max_completion_tokens": AI_MAX_OUTPUT_TOKENS,
-        })
+        }
+        # Nem todos os endpoints OpenAI-compatible aceitam exatamente o mesmo
+        # nome para limite de saída. O Groq aceita max_completion_tokens; para
+        # Gemini/Cloudflare deixamos o servidor aplicar o padrão para máxima compatibilidade.
+        if provider == "Groq":
+            payload["max_completion_tokens"] = AI_MAX_OUTPUT_TOKENS
+
+        resposta = _provider_chat(api_url, api_key, payload, provider)
         escolhas = resposta.get("choices") or []
         if not escolhas:
-            raise RuntimeError("Groq não retornou escolhas")
+            raise RuntimeError(f"{provider} não retornou escolhas")
 
         mensagem = (escolhas[0] or {}).get("message") or {}
         chamadas = mensagem.get("tool_calls") or []
@@ -5613,8 +5551,8 @@ def _agente_loop_groq(api_key, pergunta, historico, role):
             return {
                 "ok": True,
                 "resposta": texto,
-                "modelo": _groq_model(),
-                "provedor": "Groq",
+                "modelo": model,
+                "provedor": provider,
                 "ferramentas": ferramentas_usadas,
                 "fallback_usado": False,
             }
@@ -5628,9 +5566,15 @@ def _agente_loop_groq(api_key, pergunta, historico, role):
         for chamada in chamadas:
             func = chamada.get("function") or {}
             nome = str(func.get("name") or "").strip()
-            try:
-                args = json.loads(func.get("arguments") or "{}")
-            except Exception:
+            raw_args = func.get("arguments") or "{}"
+            if isinstance(raw_args, dict):
+                args = raw_args
+            else:
+                try:
+                    args = json.loads(raw_args)
+                except Exception:
+                    args = {}
+            if not isinstance(args, dict):
                 args = {}
             resultado = _agente_executar_tool(nome, args, role)
             ferramentas_usadas.append(nome)
@@ -5641,7 +5585,41 @@ def _agente_loop_groq(api_key, pergunta, historico, role):
                 "content": json.dumps(_agente_json(resultado), ensure_ascii=False, default=str),
             })
 
-    raise RuntimeError("O Groq exigiu etapas demais para concluir a consulta")
+    raise RuntimeError(f"O {provider} exigiu etapas demais para concluir a consulta")
+
+
+def _provider_configs():
+    configs = []
+
+    groq_key = os.environ.get("GROQ_API_KEY", "").strip()
+    if groq_key:
+        configs.append({
+            "nome": "Groq",
+            "url": GROQ_API_URL,
+            "key": groq_key,
+            "model": _groq_model(),
+        })
+
+    gemini_key = os.environ.get("GEMINI_API_KEY", "").strip()
+    if gemini_key:
+        configs.append({
+            "nome": "Gemini",
+            "url": GEMINI_API_URL,
+            "key": gemini_key,
+            "model": _gemini_model(),
+        })
+
+    cf_token = os.environ.get("CLOUDFLARE_API_TOKEN", "").strip()
+    cf_account = os.environ.get("CLOUDFLARE_ACCOUNT_ID", "").strip()
+    if cf_token and cf_account:
+        configs.append({
+            "nome": "Cloudflare",
+            "url": _cloudflare_api_url(),
+            "key": cf_token,
+            "model": _cloudflare_model(),
+        })
+
+    return configs
 
 
 @app.route("/api/agente-ia/chat", methods=["POST"])
@@ -5650,11 +5628,10 @@ def api_agente_ia_chat():
     if not _csrf_ok():
         return jsonify({"erro": "Token de segurança inválido. Atualize a página e tente novamente."}), 400
 
-    ollama_url = _ollama_base_url()
-    groq_key = os.environ.get("GROQ_API_KEY", "").strip()
-    if not ollama_url and not groq_key:
+    provedores = _provider_configs()
+    if not provedores:
         return jsonify({
-            "erro": "Agente IA ainda não está configurado. Configure OLLAMA_BASE_URL para usar Ollama ou mantenha GROQ_API_KEY como fallback."
+            "erro": "Agente IA ainda não está configurado. Configure GROQ_API_KEY, GEMINI_API_KEY e/ou Cloudflare no Render."
         }), 503
 
     dados = request.get_json(silent=True) or {}
@@ -5666,52 +5643,37 @@ def api_agente_ia_chat():
 
     role = _agente_role()
     historico = _agente_historico_seguro(dados.get("historico"))
-    falha_ollama = ""
+    falhas = []
 
-    # 1) Ollama é sempre o provedor principal quando OLLAMA_BASE_URL existe.
-    if ollama_url:
+    # Ordem fixa solicitada: Groq -> Gemini -> Cloudflare.
+    for indice, cfg in enumerate(provedores):
         try:
-            return jsonify(_agente_loop_ollama(pergunta, historico, role))
-        except urlerror.HTTPError as e:
-            falha_ollama = _ollama_erro_amigavel(e)
-            print(f"[agente-ia] Ollama HTTP {getattr(e, 'code', '?')}: {falha_ollama}")
-        except (urlerror.URLError, TimeoutError) as e:
-            falha_ollama = "Não foi possível conectar ao Ollama dentro do tempo esperado."
-            print(f"[agente-ia] Ollama rede/timeout: {type(e).__name__}: {e}")
-        except Exception as e:
-            falha_ollama = "O Ollama não conseguiu concluir esta consulta."
-            print(f"[agente-ia] Ollama falhou: {type(e).__name__}: {e}")
-
-    # 2) Fallback automático para Groq quando configurado.
-    if groq_key:
-        try:
-            resultado = _agente_loop_groq(groq_key, pergunta, historico, role)
-            if ollama_url:
+            resultado = _agente_loop_openai_compat(
+                cfg["nome"], cfg["url"], cfg["key"], cfg["model"],
+                pergunta, historico, role,
+            )
+            if indice > 0:
                 resultado["fallback_usado"] = True
-                resultado["aviso"] = "Ollama indisponível nesta consulta; resposta gerada pelo fallback Groq."
+                anteriores = " → ".join(x["nome"] for x in provedores[:indice])
+                resultado["aviso"] = f"Fallback automático: {anteriores} indisponível/limitado; resposta gerada por {cfg['nome']}."
+            resultado["rota_configurada"] = [x["nome"] for x in provedores]
             return jsonify(resultado)
         except urlerror.HTTPError as e:
-            msg = _groq_erro_amigavel(e)
-            print(f"[agente-ia] Groq HTTP {getattr(e, 'code', '?')}: {msg}")
-            if falha_ollama:
-                return jsonify({"erro": f"O Ollama ficou indisponível e o fallback Groq também não respondeu. {msg}"}), 502
-            return jsonify({"erro": msg}), 502
+            msg = _provider_erro_amigavel(cfg["nome"], e)
+            falhas.append(f"{cfg['nome']}: {msg}")
+            print(f"[agente-ia] {cfg['nome']} HTTP {getattr(e, 'code', '?')}: {msg}")
         except (urlerror.URLError, TimeoutError) as e:
-            print(f"[agente-ia] Groq rede/timeout: {type(e).__name__}: {e}")
-            msg = "Não foi possível conectar ao Groq agora."
-            if falha_ollama:
-                return jsonify({"erro": f"O Ollama ficou indisponível e o fallback Groq também falhou. {msg}"}), 502
-            return jsonify({"erro": msg}), 502
+            msg = f"Não foi possível conectar ao {cfg['nome']} dentro do tempo esperado."
+            falhas.append(f"{cfg['nome']}: {msg}")
+            print(f"[agente-ia] {cfg['nome']} rede/timeout: {type(e).__name__}: {e}")
         except Exception as e:
-            print(f"[agente-ia] Groq falhou: {type(e).__name__}: {e}")
-            msg = "Não foi possível concluir a consulta pelo Groq."
-            if falha_ollama:
-                return jsonify({"erro": f"O Ollama ficou indisponível e o fallback Groq também falhou. {msg}"}), 502
-            return jsonify({"erro": msg}), 502
+            msg = f"O {cfg['nome']} não conseguiu concluir esta consulta."
+            falhas.append(f"{cfg['nome']}: {msg}")
+            print(f"[agente-ia] {cfg['nome']} falhou: {type(e).__name__}: {e}")
 
-    # Ollama estava configurado, falhou e não há fallback Groq.
+    resumo = " | ".join(falhas[-3:])
     return jsonify({
-        "erro": falha_ollama or "O Ollama está indisponível e não há GROQ_API_KEY configurada como fallback."
+        "erro": "Todos os provedores configurados ficaram indisponíveis ou atingiram seus limites nesta consulta. " + resumo
     }), 502
 
 
