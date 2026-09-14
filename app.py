@@ -60,7 +60,7 @@ import qrcode
 import db
 
 app = Flask(__name__)
-APP_BUILD = "2026-09-14-dashboard-acompanhamento-v77"
+APP_BUILD = "2026-09-14-dashboard-proximas-lojas-v79"
 _DASHBOARD_CACHE = {"expira": 0.0, "dados": None}
 app.secret_key = os.environ.get("SECRET_KEY", "troque-esta-chave-em-producao")
 _RUNNING_HTTPS_HOSTED = bool(
@@ -1020,6 +1020,29 @@ def _calcular_visao_executiva(itens=None, kit=None, filiais=None, meta=None):
         qtd=len(dentro)
         horizontes[str(dias)]={"lojas":qtd,"atendiveis":min(capacidade,qtd),"risco":max(0,qtd-capacidade)}
     sem_data=sum(1 for f in planejadas if not str(f.get("previsao_abertura") or "").strip())
+    proximas_lojas=[]
+    for f in planejadas:
+        txt=str(f.get("previsao_abertura") or "").strip()
+        if not txt:
+            continue
+        try:
+            dt=datetime.strptime(txt[:10],"%Y-%m-%d").date()
+        except Exception:
+            continue
+        if dt < hoje:
+            continue
+        dias=(dt-hoje).days
+        proximas_lojas.append({
+            "id":f.get("id"),
+            "codigo":f.get("codigo"),
+            "nome":f.get("nome"),
+            "uf":f.get("uf"),
+            "previsao_abertura":dt.strftime("%Y-%m-%d"),
+            "previsao_formatada":dt.strftime("%d/%m/%Y"),
+            "dias_restantes":dias,
+        })
+        if len(proximas_lojas) >= 5:
+            break
     deficits=[]
     for x in req:
         alvo=x["necessario"]*max(1,qtd_planejada or int(meta or 1))
@@ -1035,6 +1058,7 @@ def _calcular_visao_executiva(itens=None, kit=None, filiais=None, meta=None):
         "inauguradas_acompanhamento":pipeline["inauguradas_total"],
         "pendentes_inauguracao":pipeline["pendentes_total"],
         "fonte_pipeline":"acompanhamento_expansao",
+        "proximas_lojas":proximas_lojas,
         "planejadas":[{"id":f.get("id"),"codigo":f.get("codigo"),"nome":f.get("nome"),"uf":f.get("uf"),"previsao_abertura":f.get("previsao_abertura"),"situacao":"ATENDIDA" if i<capacidade else "RISCO"} for i,f in enumerate(planejadas)]
     }
 
