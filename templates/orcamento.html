@@ -122,14 +122,14 @@ function renderPedido(){
   document.getElementById('pedido-unidades').textContent=Number(dados.total_unidades_pedido||0).toLocaleString('pt-BR');
   document.getElementById('pedido-valor').textContent=moeda(dados.total_previsto);
   const contexto=document.getElementById('pedido-contexto');
-  if(dados.base_origem==='projecao_lojas'){
+  if(dados.base_origem==='acompanhamento_expansao'){
     const ufs=(dados.lojas_por_uf||[]).map(x=>`<span class="chip"><b>${esc(x.uf)}</b> ${Number(x.quantidade)||0} loja(s)</span>`).join('');
-    contexto.innerHTML=`<span class="label">Projeção de inauguração:</span><span class="chip"><b>${dados.lojas_planejadas}</b> loja(s)</span>${ufs}`;
+    contexto.innerHTML=`<span class="label">Acompanhamento de Expansão:</span><span class="chip"><b>${dados.lojas_planejadas}</b> loja(s) PENDENTE(S)</span>${ufs}`;
   }else{
     contexto.innerHTML=`<span class="label">Base provisória:</span><span class="chip"><b>${dados.meta_lojas}</b> loja(s) da meta de expansão</span>`;
   }
   const alerta=document.getElementById('pedido-alerta');alerta.className='pedido-alerta';
-  if(dados.base_origem!=='projecao_lojas'){alerta.classList.add('warn');alerta.innerHTML='<strong>Atenção:</strong> não há filial marcada como Inaugurar. A sugestão abaixo usa temporariamente a meta de expansão. Ao cadastrar as inaugurações, o pedido será recalculado automaticamente.'}
+  if(dados.base_origem!=='acompanhamento_expansao'){alerta.classList.add('warn');alerta.innerHTML='<strong>Atenção:</strong> não há loja com status PENDENTE no Acompanhamento de Expansão. A sugestão abaixo usa temporariamente a meta de expansão. Ao cadastrar lojas pendentes, o pedido será recalculado automaticamente.'}
   else if((dados.itens_sem_cadastro||0)>0){alerta.classList.add('warn');alerta.innerHTML=`<strong>Cadastro incompleto.</strong> Existem ${dados.itens_sem_cadastro} item(ns) do Kit Padrão sem correspondência no Cadastro de Produtos. Cadastre-os para que código, descrição e custo sejam usados corretamente no orçamento.`}
   else if(dados.itens_sem_custo>0){alerta.classList.add('warn');alerta.innerHTML=`<strong>Quantidades prontas para validação.</strong> Existem ${dados.itens_sem_custo} item(ns) sem custo no Cadastro de Produtos. Eles entram na quantidade sugerida, mas não no valor financeiro até o custo ser informado.`}
   else{alerta.innerHTML=`<strong>Sugestão pronta:</strong> pedido calculado para atender ${dados.lojas_base} loja(s), usando o estoque disponível antes de recomendar novas compras.`}

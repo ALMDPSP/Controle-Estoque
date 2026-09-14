@@ -60,7 +60,7 @@ import qrcode
 import db
 
 app = Flask(__name__)
-APP_BUILD = "2026-09-14-sync-acompanhamento-filiais-v76"
+APP_BUILD = "2026-09-14-dashboard-acompanhamento-v77"
 _DASHBOARD_CACHE = {"expira": 0.0, "dados": None}
 app.secret_key = os.environ.get("SECRET_KEY", "troque-esta-chave-em-producao")
 _RUNNING_HTTPS_HOSTED = bool(
@@ -929,6 +929,48 @@ def _normalizar_exec(valor):
     texto=unicodedata.normalize("NFD",str(valor or "").strip().lower())
     return "".join(c for c in texto if unicodedata.category(c)!="Mn")
 
+def _data_acompanhamento_iso(valor):
+    """Converte a data de inauguração do Acompanhamento para ISO quando possível."""
+    texto = str(valor or "").strip()
+    if not texto or _normalizar_exec(texto) in {"a definir", "pendente", "sem data", "-", "n/t", "nt"}:
+        return ""
+    texto = texto[:10]
+    for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y"):
+        try:
+            return datetime.strptime(texto, fmt).strftime("%Y-%m-%d")
+        except Exception:
+            pass
+    return ""
+
+def _pipeline_acompanhamento_expansao():
+    """Fonte única do pipeline: status PENDENTE/INAUGURADA do Acompanhamento de Expansão."""
+    linhas = db.listar_acompanhamento_expansao()
+    pendentes = []
+    inauguradas = 0
+    for item in linhas:
+        status = _normalizar_exec(item.get("status_filial"))
+        if status == "inaugurada":
+            inauguradas += 1
+            continue
+        if status != "pendente":
+            continue
+        pendentes.append({
+            "id": item.get("id"),
+            "codigo": str(item.get("filial") or "").strip(),
+            "nome": str(item.get("descricao_filial") or "").strip(),
+            "uf": str(item.get("uf") or "").strip().upper(),
+            "previsao_abertura": _data_acompanhamento_iso(item.get("inauguracao")),
+            "inauguracao": str(item.get("inauguracao") or "").strip(),
+            "status_filial": str(item.get("status_filial") or "").strip().upper(),
+        })
+    pendentes.sort(key=lambda f: (str(f.get("previsao_abertura") or "9999-99-99"), str(f.get("codigo") or "")))
+    return {
+        "pendentes": pendentes,
+        "pendentes_total": len(pendentes),
+        "inauguradas_total": inauguradas,
+        "total_acompanhado": len(linhas),
+    }
+
 def _calcular_visao_executiva(itens=None, kit=None, filiais=None, meta=None):
     def _qtd_num(valor):
         try:return int(float(valor or 0))
@@ -937,6 +979,8 @@ def _calcular_visao_executiva(itens=None, kit=None, filiais=None, meta=None):
         itens=db.obter_dashboard_compacto(1).get("itens", [])
     if kit is None:
         kit=db.listar_kit_padrao_loja()
+    # Filiais permanece como visão cadastral geral, mas o pipeline de inauguração
+    # vem exclusivamente do Acompanhamento de Expansão.
     if filiais is None:
         filiais=db.listar_filiais(incluir_inativas=True)
     if meta is None:
@@ -957,8 +1001,8 @@ def _calcular_visao_executiva(itens=None, kit=None, filiais=None, meta=None):
         lojas=disponivel//necessario
         req.append({"codigo":codigo_k,"descricao":k.get("descricao") or "","necessario":necessario,"disponivel":disponivel,"lojas":lojas})
     capacidade=min([x["lojas"] for x in req],default=0)
-    planejadas=[f for f in filiais if _status_filial_normalizado(f.get("ativo"))=="inaugurar"]
-    planejadas.sort(key=lambda f: (str(f.get("previsao_abertura") or "9999-99-99"), str(f.get("codigo") or "")))
+    pipeline = _pipeline_acompanhamento_expansao()
+    planejadas = pipeline["pendentes"]
     qtd_planejada=len(planejadas)
     atendiveis=min(capacidade,qtd_planejada)
     risco=max(0,qtd_planejada-capacidade)
@@ -988,6 +1032,9 @@ def _calcular_visao_executiva(itens=None, kit=None, filiais=None, meta=None):
         "lojas_atendiveis":atendiveis,"lojas_em_risco":risco,"percentual_atendimento":round(pct,1),
         "itens_criticos":len(deficits),"estoque_expansao":sum(_qtd_num(x.get("qtde")) for x in expansao),
         "horizontes":horizontes,"sem_data":sem_data,"deficits":deficits[:8],
+        "inauguradas_acompanhamento":pipeline["inauguradas_total"],
+        "pendentes_inauguracao":pipeline["pendentes_total"],
+        "fonte_pipeline":"acompanhamento_expansao",
         "planejadas":[{"id":f.get("id"),"codigo":f.get("codigo"),"nome":f.get("nome"),"uf":f.get("uf"),"previsao_abertura":f.get("previsao_abertura"),"situacao":"ATENDIDA" if i<capacidade else "RISCO"} for i,f in enumerate(planejadas)]
     }
 
@@ -1054,6 +1101,8 @@ def api_dashboard_resumo():
         "produtos_total":base.get("produtos_total") or 0,
         "kit":base.get("kit") or [],
         "filiais_ativas":base.get("filiais_ativas") or 0,
+        "filiais_pendentes_inauguracao":visao.get("pendentes_inauguracao") or 0,
+        "filiais_inauguradas_acompanhamento":visao.get("inauguradas_acompanhamento") or 0,
         "meta_lojas":base.get("meta_lojas") or 10,
         "movimentacoes":base.get("movimentacoes") or [],
         "status":status,
@@ -3454,9 +3503,9 @@ def _calcular_orcamento_pepi():
     kit = db.listar_kit_padrao_loja()
     base = db.obter_dashboard_compacto(1)
     itens = base.get("itens") or []
-    filiais = db.listar_filiais(incluir_inativas=True)
     meta = db.obter_meta_lojas_expansao()
-    lojas_planejadas = [f for f in filiais if _status_filial_normalizado(f.get("ativo")) == "inaugurar"]
+    pipeline = _pipeline_acompanhamento_expansao()
+    lojas_planejadas = pipeline["pendentes"]
     lojas_base = max(1, len(lojas_planejadas) or int(meta or 1))
 
     expansao = [
@@ -3589,7 +3638,7 @@ def _calcular_orcamento_pepi():
         "lojas_planejadas": len(lojas_planejadas),
         "lojas_consideradas": lojas_consideradas,
         "lojas_por_uf": [{"uf": uf, "quantidade": qtd} for uf, qtd in sorted(por_uf.items())],
-        "base_origem": "projecao_lojas" if lojas_planejadas else "meta_expansao",
+        "base_origem": "acompanhamento_expansao" if lojas_planejadas else "meta_expansao",
         "fonte_produtos": "cadastro_produtos",
         "produtos_cadastrados": len(produtos),
         "meta_lojas": int(meta or 10),
@@ -3669,7 +3718,7 @@ def _gerar_excel_orcamento(dados):
     ws = wb.active
     ws.title = "Resumo"
     status = _status_orcamento_texto(dados)
-    origem = "Lojas marcadas como Inaugurar" if dados.get("base_origem") == "projecao_lojas" else "Meta de Expansão (provisória)"
+    origem = "Lojas PENDENTES no Acompanhamento de Expansão" if dados.get("base_origem") == "acompanhamento_expansao" else "Meta de Expansão (provisória)"
     resumo = [
         ("Indicador", "Valor"),
         ("Status", status),
@@ -3813,8 +3862,8 @@ def _gerar_pdf_orcamento(dados):
     pedido = dados.get("pedido_linhas") or []
     linhas = dados.get("linhas") or []
     lojas = dados.get("lojas_consideradas") or []
-    base_projecao = dados.get("base_origem") == "projecao_lojas"
-    origem = "Filiais com status Inaugurar" if base_projecao else "Meta de Expansão provisória"
+    base_projecao = dados.get("base_origem") == "acompanhamento_expansao"
+    origem = "Lojas PENDENTES no Acompanhamento de Expansão" if base_projecao else "Meta de Expansão provisória"
     status = _status_orcamento_texto(dados)
 
     if sem_custo > 0:
@@ -4163,7 +4212,7 @@ def _gerar_pdf_orcamento(dados):
         pdf.drawString(margem, alt - margem, "Lojas consideradas no orçamento")
         pdf.setFillColor(colors.HexColor("#9DB3C8"))
         pdf.setFont("Helvetica", 8)
-        pdf.drawString(margem, alt - margem - 13, "Filiais com status Inaugurar utilizadas para dimensionar o Kit Padrão e o pedido sugerido.")
+        pdf.drawString(margem, alt - margem - 13, "Lojas com status PENDENTE no Acompanhamento de Expansão utilizadas para dimensionar o Kit Padrão e o pedido sugerido.")
         pdf.drawRightString(larg - margem, alt - margem - 13, f"Total: {len(lojas)} loja(s)")
 
         cols3 = [("Filial", 85), ("Nome", 300), ("UF", 55), ("Previsão de abertura", 135)]
