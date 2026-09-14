@@ -1033,10 +1033,10 @@ def _calcular_visao_executiva(itens=None, kit=None, filiais=None, meta=None):
         qtd=len(dentro)
         horizontes[str(dias)]={"lojas":qtd,"atendiveis":min(capacidade,qtd),"risco":max(0,qtd-capacidade)}
     sem_data=sum(1 for f in planejadas if not str(f.get("previsao_abertura") or "").strip())
-    # Fluxo operacional do Acompanhamento de Expansão: separa todas as lojas
-    # PENDENTES entre Entrada de TI já programada e Entrada de TI ainda pendente.
+    # Marcos operacionais do Acompanhamento de Expansão: Entrada de TI e Inauguração.
+    # O Dashboard exibe somente datas efetivamente programadas, sem a lista de TI pendente.
     entrada_ti_programada=[]
-    entrada_ti_pendente=[]
+    inauguracao_programada=[]
     for f in planejadas:
         registro={
             "id":f.get("id"),
@@ -1046,14 +1046,15 @@ def _calcular_visao_executiva(itens=None, kit=None, filiais=None, meta=None):
             "entrada_ti":_data_acompanhamento_legivel(f.get("entrada_ti")),
             "entrada_ti_iso":f.get("entrada_ti_iso") or "",
             "inauguracao":_data_acompanhamento_legivel(f.get("inauguracao")),
+            "inauguracao_iso":f.get("previsao_abertura") or "",
             "previsao_abertura":f.get("previsao_abertura") or "",
         }
         if f.get("entrada_ti_iso"):
             entrada_ti_programada.append(registro)
-        else:
-            entrada_ti_pendente.append(registro)
+        if f.get("previsao_abertura"):
+            inauguracao_programada.append(registro)
     entrada_ti_programada.sort(key=lambda x:(x.get("entrada_ti_iso") or "9999-99-99", str(x.get("codigo") or "")))
-    entrada_ti_pendente.sort(key=lambda x:(x.get("previsao_abertura") or "9999-99-99", str(x.get("codigo") or "")))
+    inauguracao_programada.sort(key=lambda x:(x.get("inauguracao_iso") or "9999-99-99", str(x.get("codigo") or "")))
     deficits=[]
     for x in req:
         alvo=x["necessario"]*max(1,qtd_planejada or int(meta or 1))
@@ -1070,9 +1071,9 @@ def _calcular_visao_executiva(itens=None, kit=None, filiais=None, meta=None):
         "pendentes_inauguracao":pipeline["pendentes_total"],
         "fonte_pipeline":"acompanhamento_expansao",
         "entrada_ti_programada":entrada_ti_programada,
-        "entrada_ti_pendente":entrada_ti_pendente,
+        "inauguracao_programada":inauguracao_programada,
         "entrada_ti_programada_total":len(entrada_ti_programada),
-        "entrada_ti_pendente_total":len(entrada_ti_pendente),
+        "inauguracao_programada_total":len(inauguracao_programada),
         "planejadas":[{"id":f.get("id"),"codigo":f.get("codigo"),"nome":f.get("nome"),"uf":f.get("uf"),"previsao_abertura":f.get("previsao_abertura"),"situacao":"ATENDIDA" if i<capacidade else "RISCO"} for i,f in enumerate(planejadas)]
     }
 
