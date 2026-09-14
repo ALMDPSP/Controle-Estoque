@@ -60,7 +60,7 @@ import qrcode
 import db
 
 app = Flask(__name__)
-APP_BUILD = "2026-09-14-dashboard-proximas-lojas-v79"
+APP_BUILD = "2026-09-14-dashboard-fluxo-ti-v80"
 _DASHBOARD_CACHE = {"expira": 0.0, "dados": None}
 app.secret_key = os.environ.get("SECRET_KEY", "troque-esta-chave-em-producao")
 _RUNNING_HTTPS_HOSTED = bool(
@@ -930,17 +930,27 @@ def _normalizar_exec(valor):
     return "".join(c for c in texto if unicodedata.category(c)!="Mn")
 
 def _data_acompanhamento_iso(valor):
-    """Converte a data de inauguração do Acompanhamento para ISO quando possível."""
+    """Converte datas do Acompanhamento para ISO quando possível."""
     texto = str(valor or "").strip()
     if not texto or _normalizar_exec(texto) in {"a definir", "pendente", "sem data", "-", "n/t", "nt"}:
         return ""
     texto = texto[:10]
-    for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y"):
+    for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y", "%d/%m/%y", "%d-%m-%y"):
         try:
             return datetime.strptime(texto, fmt).strftime("%Y-%m-%d")
         except Exception:
             pass
     return ""
+
+def _data_acompanhamento_legivel(valor):
+    iso = _data_acompanhamento_iso(valor)
+    if iso:
+        try:
+            return datetime.strptime(iso, "%Y-%m-%d").strftime("%d/%m/%Y")
+        except Exception:
+            pass
+    texto = str(valor or "").strip()
+    return texto if texto else "A DEFINIR"
 
 def _pipeline_acompanhamento_expansao():
     """Fonte única do pipeline: status PENDENTE/INAUGURADA do Acompanhamento de Expansão."""
@@ -961,6 +971,9 @@ def _pipeline_acompanhamento_expansao():
             "uf": str(item.get("uf") or "").strip().upper(),
             "previsao_abertura": _data_acompanhamento_iso(item.get("inauguracao")),
             "inauguracao": str(item.get("inauguracao") or "").strip(),
+            "entrada_ti": str(item.get("entrada_ti") or "").strip(),
+            "entrada_ti_iso": _data_acompanhamento_iso(item.get("entrada_ti")),
+            "term_obra": str(item.get("term_obra") or "").strip(),
             "status_filial": str(item.get("status_filial") or "").strip().upper(),
         })
     pendentes.sort(key=lambda f: (str(f.get("previsao_abertura") or "9999-99-99"), str(f.get("codigo") or "")))
@@ -1020,29 +1033,27 @@ def _calcular_visao_executiva(itens=None, kit=None, filiais=None, meta=None):
         qtd=len(dentro)
         horizontes[str(dias)]={"lojas":qtd,"atendiveis":min(capacidade,qtd),"risco":max(0,qtd-capacidade)}
     sem_data=sum(1 for f in planejadas if not str(f.get("previsao_abertura") or "").strip())
-    proximas_lojas=[]
+    # Fluxo operacional do Acompanhamento de Expansão: separa todas as lojas
+    # PENDENTES entre Entrada de TI já programada e Entrada de TI ainda pendente.
+    entrada_ti_programada=[]
+    entrada_ti_pendente=[]
     for f in planejadas:
-        txt=str(f.get("previsao_abertura") or "").strip()
-        if not txt:
-            continue
-        try:
-            dt=datetime.strptime(txt[:10],"%Y-%m-%d").date()
-        except Exception:
-            continue
-        if dt < hoje:
-            continue
-        dias=(dt-hoje).days
-        proximas_lojas.append({
+        registro={
             "id":f.get("id"),
             "codigo":f.get("codigo"),
             "nome":f.get("nome"),
             "uf":f.get("uf"),
-            "previsao_abertura":dt.strftime("%Y-%m-%d"),
-            "previsao_formatada":dt.strftime("%d/%m/%Y"),
-            "dias_restantes":dias,
-        })
-        if len(proximas_lojas) >= 5:
-            break
+            "entrada_ti":_data_acompanhamento_legivel(f.get("entrada_ti")),
+            "entrada_ti_iso":f.get("entrada_ti_iso") or "",
+            "inauguracao":_data_acompanhamento_legivel(f.get("inauguracao")),
+            "previsao_abertura":f.get("previsao_abertura") or "",
+        }
+        if f.get("entrada_ti_iso"):
+            entrada_ti_programada.append(registro)
+        else:
+            entrada_ti_pendente.append(registro)
+    entrada_ti_programada.sort(key=lambda x:(x.get("entrada_ti_iso") or "9999-99-99", str(x.get("codigo") or "")))
+    entrada_ti_pendente.sort(key=lambda x:(x.get("previsao_abertura") or "9999-99-99", str(x.get("codigo") or "")))
     deficits=[]
     for x in req:
         alvo=x["necessario"]*max(1,qtd_planejada or int(meta or 1))
@@ -1058,7 +1069,10 @@ def _calcular_visao_executiva(itens=None, kit=None, filiais=None, meta=None):
         "inauguradas_acompanhamento":pipeline["inauguradas_total"],
         "pendentes_inauguracao":pipeline["pendentes_total"],
         "fonte_pipeline":"acompanhamento_expansao",
-        "proximas_lojas":proximas_lojas,
+        "entrada_ti_programada":entrada_ti_programada,
+        "entrada_ti_pendente":entrada_ti_pendente,
+        "entrada_ti_programada_total":len(entrada_ti_programada),
+        "entrada_ti_pendente_total":len(entrada_ti_pendente),
         "planejadas":[{"id":f.get("id"),"codigo":f.get("codigo"),"nome":f.get("nome"),"uf":f.get("uf"),"previsao_abertura":f.get("previsao_abertura"),"situacao":"ATENDIDA" if i<capacidade else "RISCO"} for i,f in enumerate(planejadas)]
     }
 
