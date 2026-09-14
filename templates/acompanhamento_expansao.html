@@ -31,6 +31,7 @@ main{padding:24px 32px 54px;max-width:1500px;margin:auto}.kpis{display:grid;grid
   <div><span class="tag">EXPANSÃO</span><h1>Acompanhamento de Expansão</h1><p>Visão consolidada do cronograma de obra, entrada de TI e inauguração, com acompanhamento de entregas e projeção geral de alcance.</p></div>
   <div class="head-actions">
     {% if role != 'consulta' %}<button type="button" class="primary" id="btn-cadastrar">＋ Cadastrar loja</button>{% endif %}
+    <span style="font-size:10px;color:var(--muted);align-self:center">Alterações desta aba sincronizam automaticamente com Filiais.</span>
     {% if role != 'consulta' %}<a href="{{ url_for('relatorio_pdf_acompanhamento_expansao') }}">⭳ Relatório PDF</a>
     <a href="{{ url_for('exportar_acompanhamento_expansao') }}">⭳ Download Excel</a>{% endif %}
     {% if role != 'consulta' %}<button type="button" id="btn-upload">⭱ Upload Excel</button>{% endif %}
@@ -289,7 +290,7 @@ async function excluirRegistro(id){
     if(!r.ok) throw new Error(d.erro || 'Erro ao excluir registro.');
     selecionadas.delete(Number(id));
     await init();
-    window.appToast?.(`Loja ${reg.filial || id} excluída com sucesso.`,'ok');
+    window.appToast?.(`Loja ${reg.filial || id} removida do acompanhamento; cadastro em Filiais foi inativado para preservar o histórico.`,'ok');
   }catch(err){ alert(err.message || 'Erro ao excluir registro.'); }
 }
 async function excluirSelecionados(){
@@ -304,7 +305,7 @@ async function excluirSelecionados(){
     if(!r.ok) throw new Error(d.erro || 'Erro ao excluir os registros selecionados.');
     selecionadas.clear();
     await init();
-    window.appToast?.(`${d.excluidos || 0} loja(s) excluída(s) com sucesso.`,'ok');
+    window.appToast?.(`${d.excluidos || 0} loja(s) removida(s) do acompanhamento; ${d.filiais_inativadas || 0} filial(is) inativada(s).`,'ok');
   }catch(err){ alert(err.message || 'Erro ao excluir os registros selecionados.'); }
   finally{ if(btn){ btn.disabled=false; btn.textContent='Excluir selecionados'; } }
 }
@@ -330,7 +331,7 @@ createForm.addEventListener('submit', async e=>{
   try{
     const r=await fetch('/api/acompanhamento-expansao/cadastrar', {method:'POST', headers:{'Content-Type':'application/json','X-CSRF-Token':EDIT_CSRF}, body:JSON.stringify(payload)});
     const d=await r.json(); if(!r.ok) throw new Error(d.erro||'Não foi possível cadastrar a loja.');
-    createMsg.textContent='Loja cadastrada com sucesso.'; createMsg.className='modal-status ok'; window.appToast?.('Loja cadastrada no Acompanhamento de Expansão.','ok');
+    createMsg.textContent='Loja cadastrada e sincronizada com Filiais.'; createMsg.className='modal-status ok'; window.appToast?.('Loja cadastrada no Acompanhamento e sincronizada com Filiais.','ok');
     await init(); setTimeout(fecharCadastro, 500);
   }catch(err){ createMsg.textContent=err.message; createMsg.className='modal-status error'; }
   finally{ save.disabled=false; }
@@ -363,7 +364,7 @@ editForm.addEventListener('submit', async e=>{
   try{
     const r=await fetch(`/api/acompanhamento-expansao/${id}`, {method:'PUT', headers:{'Content-Type':'application/json','X-CSRF-Token':EDIT_CSRF}, body:JSON.stringify(payload)});
     const d=await r.json(); if(!r.ok) throw new Error(d.erro||'Não foi possível salvar.');
-    editMsg.textContent='Alterações salvas com sucesso.'; editMsg.className='modal-status ok'; window.appToast?.('Acompanhamento atualizado com sucesso.','ok');
+    editMsg.textContent='Alterações salvas e sincronizadas com Filiais.'; editMsg.className='modal-status ok'; window.appToast?.('Acompanhamento atualizado e Filiais sincronizada.','ok');
     await init(); setTimeout(fecharEdicao, 450);
   }catch(err){ editMsg.textContent=err.message; editMsg.className='modal-status error'; }
   finally{ save.disabled=false; editForm.classList.remove('saving'); }
@@ -382,7 +383,7 @@ document.getElementById('upload-form').addEventListener('submit', async e=>{
   try{
     const r=await fetch('/api/acompanhamento-expansao/importar', {method:'POST', body:fd});
     const d=await r.json(); if(!r.ok) throw new Error(d.erro||'Falha na importação');
-    statusEl.textContent=`Importação concluída: ${d.criadas||0} criado(s), ${d.atualizadas||0} atualizado(s), ${d.sem_alteracao||0} sem alteração e ${d.ignoradas||0} ignorado(s).`;
+    statusEl.textContent=`Importação concluída: ${d.criadas||0} criado(s), ${d.atualizadas||0} atualizado(s), ${d.sem_alteracao||0} sem alteração e ${d.ignoradas||0} ignorado(s). ${d.filiais_sincronizadas||0} filial(is) sincronizada(s).`;
     statusEl.className='modal-status ok'; window.appToast?.('Acompanhamento de Expansão atualizado.','ok'); document.getElementById('upload-pass').value=''; setTimeout(async()=>{ modal.classList.remove('open'); await init(); }, 900);
   }catch(err){ statusEl.textContent=err.message; statusEl.className='modal-status error'; }
   finally{ btn.disabled=false; }

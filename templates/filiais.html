@@ -24,7 +24,8 @@ dialog{border:1px solid var(--line);background:var(--panel);color:var(--text);bo
 <header><span class="tag">Destinos</span><h1>Cadastro de Filiais</h1><p>Cadastre, consulte, importe, filtre e gerencie as lojas que alimentam automaticamente a Projeção de abertura e lojas.</p></header>
 {% include '_menu.html' %}
 <main>
-<section class="panel"><h2>Filial / destino</h2>
+<section class="panel" id="cadastro-manual"><h2>Cadastro manual de loja</h2>
+<p style="margin:-6px 0 14px;color:var(--muted);font-size:11px">Inclua uma loja diretamente pela tela usando os mesmos campos já utilizados pelo cadastro de Filiais. Registros sincronizados pelo Acompanhamento de Expansão também podem ser complementados aqui com a cidade.</p>
 <form id="form-filial" class="form">
 <input type="hidden" id="filial-id">
 <div class="field"><label>Código da filial *</label><input id="filial-codigo" required placeholder="Ex.: 0123"></div>
@@ -57,6 +58,7 @@ dialog{border:1px solid var(--line);background:var(--panel);color:var(--text);bo
 </div>
 
 <div class="toolbar-actions">
+  {% if role in ['admin','gestor','operador','user'] %}<button type="button" class="primary" id="btn-cadastro-manual">＋ Cadastrar loja manualmente</button>{% endif %}
   {% if role != 'consulta' %}<a class="download" href="{{ url_for('exportar_filiais_excel') }}">↓ Download Excel</a>{% endif %}
   {% if role in ['admin','gestor','operador','user'] %}<button type="button" class="upload" id="btn-upload-filiais">↑ Importar Excel</button>{% endif %}
   <a href="{{ url_for('pagina_projecao_lojas') }}">Abrir projeção de lojas</a>
@@ -177,6 +179,7 @@ async function excluirSelecionadas(){
     alert(msg);
   }
 }
+document.getElementById('btn-cadastro-manual')?.addEventListener('click',()=>{limpar();document.getElementById('cadastro-manual')?.scrollIntoView({behavior:'smooth',block:'start'});setTimeout(()=>document.getElementById('filial-codigo')?.focus(),350);});
 ['busca-filial','filtro-uf','filtro-bandeira','filtro-status'].forEach(id=>document.getElementById(id).addEventListener(id==='busca-filial'?'input':'change',()=>{selecionadas.clear();render(true)}));document.getElementById('filial-cancelar').addEventListener('click',limpar);document.getElementById('filial-uf').addEventListener('input',e=>e.target.value=e.target.value.toUpperCase().replace(/[^A-Z]/g,'').slice(0,2));document.getElementById('page-size').addEventListener('change',e=>{tamanhoPagina=Number(e.target.value)||50;render(true)});document.getElementById('prev-page').addEventListener('click',()=>{if(paginaAtual>1){paginaAtual--;render(false)}});document.getElementById('next-page').addEventListener('click',()=>{const tp=Math.max(1,Math.ceil(filtradas.length/tamanhoPagina));if(paginaAtual<tp){paginaAtual++;render(false)}});document.getElementById('check-all')?.addEventListener('change',e=>{document.querySelectorAll('.chk-filial').forEach(ch=>{ch.checked=e.target.checked;const id=Number(ch.value);if(e.target.checked)selecionadas.add(id);else selecionadas.delete(id);});atualizarSelecaoUi()});document.getElementById('btn-excluir-selecionadas')?.addEventListener('click',excluirSelecionadas);
 document.getElementById('form-filial').addEventListener('submit',async e=>{e.preventDefault();if(!PODE_GERENCIAR){alert('Seu perfil não permite alterar filiais.');return;}const id=document.getElementById('filial-id').value;const body={codigo:document.getElementById('filial-codigo').value.trim(),nome:document.getElementById('filial-nome').value.trim(),cidade:document.getElementById('filial-cidade').value.trim(),uf:document.getElementById('filial-uf').value.trim(),bandeira:document.getElementById('filial-bandeira').value,previsao_abertura:document.getElementById('filial-previsao').value,ativo:document.getElementById('filial-ativo').value};const r=await fetch(id?'/api/filiais/'+id:'/api/filiais',{method:id?'PUT':'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const x=await r.json();if(!r.ok){alert(x.erro||'Erro ao salvar filial.');return;}appToast(id?'Filial atualizada.':'Filial cadastrada.','ok');limpar();carregar()});
 const btnUploadFiliais=document.getElementById('btn-upload-filiais');

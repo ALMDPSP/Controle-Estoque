@@ -22,6 +22,7 @@ Depois abra no navegador:
 
 import io
 import os
+import re
 import unicodedata
 import zipfile
 import secrets
@@ -59,7 +60,7 @@ import qrcode
 import db
 
 app = Flask(__name__)
-APP_BUILD = "2026-09-12-agente-ia-groq-gemini-cloudflare-v75"
+APP_BUILD = "2026-09-14-sync-acompanhamento-filiais-v76"
 _DASHBOARD_CACHE = {"expira": 0.0, "dados": None}
 app.secret_key = os.environ.get("SECRET_KEY", "troque-esta-chave-em-producao")
 _RUNNING_HTTPS_HOSTED = bool(
@@ -2398,6 +2399,77 @@ def _ler_planilha_acompanhamento(arquivo):
     return registros, erros, total
 
 
+def _status_filial_por_acompanhamento(status_filial):
+    """Traduz o status do Acompanhamento para o status operacional de Filiais."""
+    status = _normalizar_exec(status_filial)
+    if status == "inaugurada":
+        return "1"
+    if status == "pendente":
+        # Uma loja pendente no Acompanhamento ainda faz parte do pipeline de abertura.
+        return "inaugurar"
+    return "pendente"
+
+
+def _previsao_filial_por_acompanhamento(valor, atual=""):
+    texto = str(valor or "").strip()
+    if not texto or _normalizar_exec(texto) in {"a definir", "pendente", "sem data", "-"}:
+        return str(atual or "")
+    convertido = _data_filial_iso(texto)
+    # Não grava textos livres na coluna de data de Filiais.
+    if re.fullmatch(r"\d{4}-\d{2}-\d{2}", str(convertido or "")):
+        return convertido
+    return str(atual or "")
+
+
+def _sincronizar_filial_a_partir_acompanhamento(dados, usuario, codigo_anterior=None):
+    """Cria/atualiza Filiais usando o Acompanhamento como origem dos campos compartilhados."""
+    codigo = str(dados.get("filial") or "").strip()
+    if not codigo:
+        raise ValueError("Código da filial não informado para sincronização.")
+
+    anterior = str(codigo_anterior or "").strip()
+    filial = db.buscar_filial_por_codigo(anterior) if anterior else None
+    if not filial:
+        filial = db.buscar_filial_por_codigo(codigo)
+
+    nome = str(dados.get("descricao_filial") or "").strip()
+    uf = str(dados.get("uf") or "").strip().upper()[:2]
+    bandeira = str(dados.get("bandeira") or "").strip().upper()
+    if bandeira not in ("DSP", "DPA"):
+        bandeira = ""
+    ativo = _status_filial_por_acompanhamento(dados.get("status_filial"))
+
+    if filial:
+        cidade = str(filial.get("cidade") or "").strip()
+        previsao = _previsao_filial_por_acompanhamento(dados.get("inauguracao"), filial.get("previsao_abertura"))
+        ok = db.atualizar_filial(
+            int(filial["id"]), codigo, nome or str(filial.get("nome") or ""), cidade, uf or str(filial.get("uf") or ""),
+            ativo, bandeira=bandeira or filial.get("bandeira"), previsao_abertura=previsao,
+        )
+        if not ok:
+            raise RuntimeError("Não foi possível atualizar a filial sincronizada.")
+        return {"acao": "atualizada", "id": int(filial["id"]), "codigo": codigo}
+
+    previsao = _previsao_filial_por_acompanhamento(dados.get("inauguracao"), "")
+    novo_id = db.criar_filial(
+        codigo, nome, "", uf, ativo, usuario, bandeira=bandeira, previsao_abertura=previsao,
+    )
+    return {"acao": "criada", "id": int(novo_id), "codigo": codigo}
+
+
+def _inativar_filial_ao_excluir_acompanhamento(codigo):
+    """Retira a loja da projeção sem apagar histórico nem vínculos de equipamentos."""
+    filial = db.buscar_filial_por_codigo(str(codigo or "").strip())
+    if not filial:
+        return None
+    db.atualizar_filial(
+        int(filial["id"]), str(filial.get("codigo") or ""), str(filial.get("nome") or ""),
+        str(filial.get("cidade") or ""), str(filial.get("uf") or ""), "0",
+        bandeira=filial.get("bandeira"), previsao_abertura=filial.get("previsao_abertura"),
+    )
+    return {"acao": "inativada", "id": int(filial["id"]), "codigo": filial.get("codigo")}
+
+
 @app.route("/acompanhamento-expansao")
 @login_required
 def pagina_acompanhamento_expansao():
@@ -2460,12 +2532,24 @@ def api_cadastrar_acompanhamento_expansao():
         app.logger.exception("Erro ao cadastrar acompanhamento de expansão da filial %s", filial)
         return jsonify({"erro": "Não foi possível cadastrar a loja. Verifique os dados e tente novamente."}), 500
 
+    try:
+        sync_filial = _sincronizar_filial_a_partir_acompanhamento(payload, session.get("username"))
+    except Exception:
+        # Compensação: não deixa o Acompanhamento salvo sem o espelho em Filiais.
+        try:
+            if registro and registro.get("id"):
+                db.excluir_acompanhamento_expansao(int(registro["id"]))
+        except Exception:
+            app.logger.exception("Falha ao reverter acompanhamento após erro de sincronização da filial %s", filial)
+        app.logger.exception("Erro ao sincronizar filial %s a partir do Acompanhamento", filial)
+        return jsonify({"erro": "Não foi possível sincronizar a loja com a aba Filiais. Nenhuma alteração foi mantida no Acompanhamento."}), 500
+
     db.registrar_movimentacao(
         0, "cadastro_acompanhamento_expansao", "1", session.get("username"),
         f"Nova loja cadastrada no Acompanhamento de Expansão · Filial {filial} · {descricao} · {projeto} · {status_filial}",
         tabela="sistema"
     )
-    return jsonify({"ok": True, "registro": registro}), 201
+    return jsonify({"ok": True, "registro": registro, "filial_sincronizada": sync_filial}), 201
 
 
 @app.route("/api/acompanhamento-expansao/<int:registro_id>", methods=["PUT"])
@@ -2503,11 +2587,24 @@ def api_atualizar_acompanhamento_expansao(registro_id):
 
     try:
         ok = db.atualizar_acompanhamento_expansao(registro_id, payload, session.get("username"))
-    except Exception as e:
+    except Exception:
         app.logger.exception("Erro ao atualizar acompanhamento de expansão %s", registro_id)
         return jsonify({"erro": "Não foi possível salvar a alteração. Verifique os dados e tente novamente."}), 500
     if not ok:
         return jsonify({"erro": "Registro de acompanhamento não encontrado."}), 404
+
+    try:
+        sync_filial = _sincronizar_filial_a_partir_acompanhamento(
+            payload, session.get("username"), codigo_anterior=anterior.get("filial")
+        )
+    except Exception:
+        # Compensação: restaura o Acompanhamento para não deixar as abas divergentes.
+        try:
+            db.atualizar_acompanhamento_expansao(registro_id, anterior, session.get("username"))
+        except Exception:
+            app.logger.exception("Falha ao restaurar acompanhamento %s após erro de sincronização", registro_id)
+        app.logger.exception("Erro ao sincronizar Filiais após alteração do acompanhamento %s", registro_id)
+        return jsonify({"erro": "Não foi possível sincronizar a alteração com a aba Filiais. O Acompanhamento foi restaurado."}), 500
 
     alteracoes = []
     for campo, rotulo in (("filial","Filial"),("bandeira","Bandeira"),("descricao_filial","Descrição"),("uf","UF"),("projeto","Projeto"),("status_filial","Status"),("term_obra","Término obra"),("entrada_ti","Entrada TI"),("inauguracao","Inauguração"),("observacao_ti","Observação TI")):
@@ -2522,7 +2619,7 @@ def api_atualizar_acompanhamento_expansao(registro_id):
         )
 
     atualizado = db.buscar_acompanhamento_expansao_por_id(registro_id)
-    return jsonify({"ok": True, "registro": atualizado})
+    return jsonify({"ok": True, "registro": atualizado, "filial_sincronizada": sync_filial})
 
 
 @app.route("/api/acompanhamento-expansao/<int:registro_id>", methods=["DELETE"])
@@ -2544,12 +2641,18 @@ def api_excluir_acompanhamento_expansao(registro_id):
     if not excluido:
         return jsonify({"erro": "Registro de acompanhamento não encontrado."}), 404
 
+    filial_sincronizada = None
+    try:
+        filial_sincronizada = _inativar_filial_ao_excluir_acompanhamento(registro.get("filial"))
+    except Exception:
+        app.logger.exception("Acompanhamento excluído, mas não foi possível inativar a filial sincronizada %s", registro.get("filial"))
+
     db.registrar_movimentacao(
         0, "exclusao_acompanhamento_expansao", "1", session.get("username"),
         f"Loja removida do Acompanhamento de Expansão · Filial {registro.get('filial') or registro_id}",
         tabela="sistema"
     )
-    return jsonify({"ok": True, "registro": registro, "build": APP_BUILD})
+    return jsonify({"ok": True, "registro": registro, "filial_sincronizada": filial_sincronizada, "build": APP_BUILD})
 
 
 @app.route("/api/acompanhamento-expansao/excluir-em-lote", methods=["POST"])
@@ -2580,7 +2683,13 @@ def api_excluir_acompanhamento_expansao_em_lote():
         app.logger.exception("Erro ao excluir acompanhamentos de expansão em lote")
         return jsonify({"erro": "Não foi possível excluir os registros selecionados."}), 500
 
+    filiais_inativadas = 0
     for item in excluidos:
+        try:
+            if _inativar_filial_ao_excluir_acompanhamento(item.get("filial")):
+                filiais_inativadas += 1
+        except Exception:
+            app.logger.exception("Falha ao inativar filial sincronizada %s", item.get("filial"))
         db.registrar_movimentacao(
             0, "exclusao_acompanhamento_expansao", "1", session.get("username"),
             f"Loja removida do Acompanhamento de Expansão · Filial {item.get('filial') or item.get('id')} (exclusão em massa)",
@@ -2591,6 +2700,7 @@ def api_excluir_acompanhamento_expansao_em_lote():
         "ok": True,
         "excluidos": len(excluidos),
         "nao_encontradas": nao_encontrados,
+        "filiais_inativadas": filiais_inativadas,
         "build": APP_BUILD,
     })
 
@@ -2692,6 +2802,16 @@ def api_importar_acompanhamento_expansao():
             return jsonify({"erro":"Nenhum registro válido foi encontrado na planilha.", "erros":erros}), 400
         usuario = session.get("username")
         resultado = db.importar_acompanhamento_expansao_em_lote(registros, usuario)
+        sincronizadas = 0
+        falhas_sincronizacao = []
+        for item in registros:
+            try:
+                _sincronizar_filial_a_partir_acompanhamento(item, usuario)
+                sincronizadas += 1
+            except Exception as sync_err:
+                codigo_sync = str(item.get("filial") or "").strip()
+                falhas_sincronizacao.append(codigo_sync or "sem código")
+                app.logger.exception("Falha ao sincronizar filial %s após importação do acompanhamento: %s", codigo_sync, sync_err)
         criadas = int(resultado.get("criadas") or 0)
         atualizadas = int(resultado.get("atualizadas") or 0)
         sem_alteracao = int(resultado.get("sem_alteracao") or 0)
@@ -2712,6 +2832,7 @@ def api_importar_acompanhamento_expansao():
             "ok":True, "arquivo":arquivo.filename, "total_linhas":total,
             "processadas":len(registros), "criadas":criadas, "atualizadas":atualizadas,
             "sem_alteracao":sem_alteracao, "ignoradas":ignoradas, "erros":erros,
+            "filiais_sincronizadas": sincronizadas, "falhas_sincronizacao": falhas_sincronizacao,
         })
     except ValueError as e:
         return jsonify({"erro":str(e)}), 400
