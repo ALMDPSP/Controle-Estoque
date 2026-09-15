@@ -1012,88 +1012,138 @@ def criar_item(dados):
     return novo_id
 
 
+def _ids_retornados_lote(rows):
+    """Normaliza os IDs devolvidos pelo RETURNING do PostgreSQL."""
+    ids = []
+    for row in rows or []:
+        try:
+            ids.append(int(row["id"]))
+        except (TypeError, KeyError, IndexError):
+            ids.append(int(row[0]))
+    return ids
+
+
 def criar_itens_em_lote(lista_dados, usuario, observacao="Importado via planilha"):
-    """Insere muitos itens de uma vez (uma única transação) — usado na importação
-    de planilhas Excel. Muito mais rápido do que chamar criar_item() em loop."""
-    campos = ["codigo", "descricao", "qtde", "localizacao", "nf_entrada",
-              "data_entrada", "nf_saida", "data_saida", "vd_loja",
-              "local", "armazenagem", "status", "nro_imobilizado",
-              "nro_serie", "nro_patrimonio", "tipo_estoque", "criado_por",
-              "pedido", "val_aquis", "chamado", "filial_destino"]
+    """Insere muitos itens em uma única transação.
 
-    conn = get_conn()
-    cur = get_cursor(conn)
-    ids_criados = []
-
-    if IS_PG:
-        for dados in lista_dados:
-            valores = [dados.get(c, "") for c in campos]
-            cur.execute(
-                q(f"INSERT INTO itens ({', '.join(campos)}) VALUES ({', '.join(['?'] * len(campos))}) RETURNING id"),
-                valores,
-            )
-            ids_criados.append(cur.fetchone()["id"])
-    else:
-        for dados in lista_dados:
-            valores = [dados.get(c, "") for c in campos]
-            cur.execute(
-                q(f"INSERT INTO itens ({', '.join(campos)}) VALUES ({', '.join(['?'] * len(campos))})"),
-                valores,
-            )
-            ids_criados.append(cur.lastrowid)
-
-    agora = datetime.now().strftime("%Y-%m-%d %H:%M")
-    mov_valores = [(item_id, "entrada", str(lista_dados[i].get("qtde", "")), usuario, agora, observacao)
-                   for i, item_id in enumerate(ids_criados)]
-    cur.executemany(
-        q("INSERT INTO movimentacoes (item_id, tipo, quantidade, usuario, data_hora, observacao) "
-          "VALUES (?, ?, ?, ?, ?, ?)"),
-        mov_valores,
-    )
-
-    conn.commit()
-    cur.close()
-    conn.close()
-    return len(ids_criados)
-
-
-def substituir_itens_em_lote(lista_dados, usuario, observacao="Substituição via planilha"):
-    """Substitui atomicamente toda a base de Estoque pelos registros informados.
-
-    Se qualquer inserção falhar, a transação é desfeita e a base anterior permanece.
-    O histórico antigo é preservado para auditoria.
+    No PostgreSQL usa execute_values para reduzir milhares de round-trips ao banco
+    em uploads grandes hospedados no Render/Koyeb.
     """
     campos = ["codigo", "descricao", "qtde", "localizacao", "nf_entrada",
               "data_entrada", "nf_saida", "data_saida", "vd_loja",
               "local", "armazenagem", "status", "nro_imobilizado",
               "nro_serie", "nro_patrimonio", "tipo_estoque", "criado_por",
               "pedido", "val_aquis", "chamado", "filial_destino"]
-    conn = get_conn(); cur = get_cursor(conn)
+    conn = get_conn()
+    cur = get_cursor(conn)
+    try:
+        valores_lote = [[dados.get(c, "") for c in campos] for dados in lista_dados]
+        ids_criados = []
+        if IS_PG:
+            retornos = psycopg2.extras.execute_values(
+                cur,
+                f"INSERT INTO itens ({', '.join(campos)}) VALUES %s RETURNING id",
+                valores_lote,
+                page_size=500,
+                fetch=True,
+            )
+            ids_criados = _ids_retornados_lote(retornos)
+        else:
+            for valores in valores_lote:
+                cur.execute(
+                    q(f"INSERT INTO itens ({', '.join(campos)}) VALUES ({', '.join(['?'] * len(campos))})"),
+                    valores,
+                )
+                ids_criados.append(cur.lastrowid)
+
+        agora = datetime.now().strftime("%Y-%m-%d %H:%M")
+        mov_valores = [(item_id, "entrada", str(lista_dados[i].get("qtde", "")), usuario, agora, observacao)
+                       for i, item_id in enumerate(ids_criados)]
+        if mov_valores:
+            if IS_PG:
+                psycopg2.extras.execute_values(
+                    cur,
+                    "INSERT INTO movimentacoes (item_id, tipo, quantidade, usuario, data_hora, observacao) VALUES %s",
+                    mov_valores,
+                    page_size=1000,
+                )
+            else:
+                cur.executemany(
+                    q("INSERT INTO movimentacoes (item_id, tipo, quantidade, usuario, data_hora, observacao) "
+                      "VALUES (?, ?, ?, ?, ?, ?)"),
+                    mov_valores,
+                )
+        conn.commit()
+        return len(ids_criados)
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        cur.close()
+        conn.close()
+
+def substituir_itens_em_lote(lista_dados, usuario, observacao="Substituição via planilha"):
+    """Substitui atomicamente toda a base de Estoque pelos novos registros.
+
+    A nova base e o histórico são gravados em lotes no PostgreSQL. Se qualquer
+    etapa falhar, a transação é revertida e a base anterior permanece intacta.
+    """
+    campos = ["codigo", "descricao", "qtde", "localizacao", "nf_entrada",
+              "data_entrada", "nf_saida", "data_saida", "vd_loja",
+              "local", "armazenagem", "status", "nro_imobilizado",
+              "nro_serie", "nro_patrimonio", "tipo_estoque", "criado_por",
+              "pedido", "val_aquis", "chamado", "filial_destino"]
+    conn = get_conn()
+    cur = get_cursor(conn)
     try:
         cur.execute("SELECT COUNT(*) AS total FROM itens")
         removidos = int(cur.fetchone()["total"] or 0)
         cur.execute("DELETE FROM itens")
+
+        valores_lote = [[dados.get(c, "") for c in campos] for dados in lista_dados]
         ids_criados = []
-        for dados in lista_dados:
-            valores = [dados.get(c, "") for c in campos]
-            if IS_PG:
-                cur.execute(q(f"INSERT INTO itens ({', '.join(campos)}) VALUES ({', '.join(['?'] * len(campos))}) RETURNING id"), valores)
-                ids_criados.append(cur.fetchone()["id"])
-            else:
-                cur.execute(q(f"INSERT INTO itens ({', '.join(campos)}) VALUES ({', '.join(['?'] * len(campos))})"), valores)
+        if IS_PG:
+            retornos = psycopg2.extras.execute_values(
+                cur,
+                f"INSERT INTO itens ({', '.join(campos)}) VALUES %s RETURNING id",
+                valores_lote,
+                page_size=500,
+                fetch=True,
+            )
+            ids_criados = _ids_retornados_lote(retornos)
+        else:
+            for valores in valores_lote:
+                cur.execute(
+                    q(f"INSERT INTO itens ({', '.join(campos)}) VALUES ({', '.join(['?'] * len(campos))})"),
+                    valores,
+                )
                 ids_criados.append(cur.lastrowid)
+
         agora = datetime.now().strftime("%Y-%m-%d %H:%M")
-        if ids_criados:
-            mov_valores = [(item_id, "entrada", str(lista_dados[i].get("qtde", "")), usuario, agora, observacao) for i, item_id in enumerate(ids_criados)]
-            cur.executemany(q("INSERT INTO movimentacoes (item_id, tipo, quantidade, usuario, data_hora, observacao) VALUES (?, ?, ?, ?, ?, ?)"), mov_valores)
+        mov_valores = [(item_id, "entrada", str(lista_dados[i].get("qtde", "")), usuario, agora, observacao)
+                       for i, item_id in enumerate(ids_criados)]
+        if mov_valores:
+            if IS_PG:
+                psycopg2.extras.execute_values(
+                    cur,
+                    "INSERT INTO movimentacoes (item_id, tipo, quantidade, usuario, data_hora, observacao) VALUES %s",
+                    mov_valores,
+                    page_size=1000,
+                )
+            else:
+                cur.executemany(
+                    q("INSERT INTO movimentacoes (item_id, tipo, quantidade, usuario, data_hora, observacao) "
+                      "VALUES (?, ?, ?, ?, ?, ?)"),
+                    mov_valores,
+                )
         conn.commit()
         return {"removidos": removidos, "criados": len(ids_criados)}
     except Exception:
         conn.rollback()
         raise
     finally:
-        cur.close(); conn.close()
-
+        cur.close()
+        conn.close()
 
 def atualizar_item(item_id, novos_dados):
     campos_permitidos = ["codigo", "descricao", "qtde", "localizacao", "nf_entrada",
@@ -1369,70 +1419,107 @@ def criar_imobilizado(dados):
 def criar_imobilizados_em_lote(lista_dados, usuario, observacao="Importado via planilha"):
     conn = get_conn()
     cur = get_cursor(conn)
-    ids_criados = []
-
-    if IS_PG:
-        for dados in lista_dados:
-            valores = [dados.get(c, "") for c in CAMPOS_IMOBILIZADO]
-            cur.execute(
-                q(f"INSERT INTO imobilizados ({', '.join(CAMPOS_IMOBILIZADO)}) "
-                  f"VALUES ({', '.join(['?'] * len(CAMPOS_IMOBILIZADO))}) RETURNING id"),
-                valores,
+    try:
+        valores_lote = [[dados.get(c, "") for c in CAMPOS_IMOBILIZADO] for dados in lista_dados]
+        ids_criados = []
+        if IS_PG:
+            retornos = psycopg2.extras.execute_values(
+                cur,
+                f"INSERT INTO imobilizados ({', '.join(CAMPOS_IMOBILIZADO)}) VALUES %s RETURNING id",
+                valores_lote,
+                page_size=500,
+                fetch=True,
             )
-            ids_criados.append(cur.fetchone()["id"])
-    else:
-        for dados in lista_dados:
-            valores = [dados.get(c, "") for c in CAMPOS_IMOBILIZADO]
-            cur.execute(
-                q(f"INSERT INTO imobilizados ({', '.join(CAMPOS_IMOBILIZADO)}) "
-                  f"VALUES ({', '.join(['?'] * len(CAMPOS_IMOBILIZADO))})"),
-                valores,
-            )
-            ids_criados.append(cur.lastrowid)
+            ids_criados = _ids_retornados_lote(retornos)
+        else:
+            for valores in valores_lote:
+                cur.execute(
+                    q(f"INSERT INTO imobilizados ({', '.join(CAMPOS_IMOBILIZADO)}) "
+                      f"VALUES ({', '.join(['?'] * len(CAMPOS_IMOBILIZADO))})"),
+                    valores,
+                )
+                ids_criados.append(cur.lastrowid)
 
-    agora = datetime.now().strftime("%Y-%m-%d %H:%M")
-    mov_valores = [(item_id, "entrada", str(lista_dados[i].get("qtde", "")), usuario, agora, observacao, "imobilizados")
-                   for i, item_id in enumerate(ids_criados)]
-    cur.executemany(
-        q("INSERT INTO movimentacoes (item_id, tipo, quantidade, usuario, data_hora, observacao, tabela) "
-          "VALUES (?, ?, ?, ?, ?, ?, ?)"),
-        mov_valores,
-    )
-
-    conn.commit()
-    cur.close()
-    conn.close()
-    return len(ids_criados)
-
+        agora = datetime.now().strftime("%Y-%m-%d %H:%M")
+        mov_valores = [(item_id, "entrada", str(lista_dados[i].get("qtde", "")), usuario, agora, observacao, "imobilizados")
+                       for i, item_id in enumerate(ids_criados)]
+        if mov_valores:
+            if IS_PG:
+                psycopg2.extras.execute_values(
+                    cur,
+                    "INSERT INTO movimentacoes (item_id, tipo, quantidade, usuario, data_hora, observacao, tabela) VALUES %s",
+                    mov_valores,
+                    page_size=1000,
+                )
+            else:
+                cur.executemany(
+                    q("INSERT INTO movimentacoes (item_id, tipo, quantidade, usuario, data_hora, observacao, tabela) "
+                      "VALUES (?, ?, ?, ?, ?, ?, ?)"),
+                    mov_valores,
+                )
+        conn.commit()
+        return len(ids_criados)
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        cur.close()
+        conn.close()
 
 def substituir_imobilizados_em_lote(lista_dados, usuario, observacao="Substituição via planilha"):
-    """Substitui atomicamente toda a base de Imobilizados pelos novos registros."""
-    conn = get_conn(); cur = get_cursor(conn)
+    """Substitui atomicamente toda a base de Imobilizados em lote."""
+    conn = get_conn()
+    cur = get_cursor(conn)
     try:
         cur.execute("SELECT COUNT(*) AS total FROM imobilizados")
         removidos = int(cur.fetchone()["total"] or 0)
         cur.execute("DELETE FROM imobilizados")
+
+        valores_lote = [[dados.get(c, "") for c in CAMPOS_IMOBILIZADO] for dados in lista_dados]
         ids_criados = []
-        for dados in lista_dados:
-            valores = [dados.get(c, "") for c in CAMPOS_IMOBILIZADO]
-            if IS_PG:
-                cur.execute(q(f"INSERT INTO imobilizados ({', '.join(CAMPOS_IMOBILIZADO)}) VALUES ({', '.join(['?'] * len(CAMPOS_IMOBILIZADO))}) RETURNING id"), valores)
-                ids_criados.append(cur.fetchone()["id"])
-            else:
-                cur.execute(q(f"INSERT INTO imobilizados ({', '.join(CAMPOS_IMOBILIZADO)}) VALUES ({', '.join(['?'] * len(CAMPOS_IMOBILIZADO))})"), valores)
+        if IS_PG:
+            retornos = psycopg2.extras.execute_values(
+                cur,
+                f"INSERT INTO imobilizados ({', '.join(CAMPOS_IMOBILIZADO)}) VALUES %s RETURNING id",
+                valores_lote,
+                page_size=500,
+                fetch=True,
+            )
+            ids_criados = _ids_retornados_lote(retornos)
+        else:
+            for valores in valores_lote:
+                cur.execute(
+                    q(f"INSERT INTO imobilizados ({', '.join(CAMPOS_IMOBILIZADO)}) "
+                      f"VALUES ({', '.join(['?'] * len(CAMPOS_IMOBILIZADO))})"),
+                    valores,
+                )
                 ids_criados.append(cur.lastrowid)
+
         agora = datetime.now().strftime("%Y-%m-%d %H:%M")
-        if ids_criados:
-            mov_valores = [(item_id, "entrada", str(lista_dados[i].get("qtde", "")), usuario, agora, observacao, "imobilizados") for i, item_id in enumerate(ids_criados)]
-            cur.executemany(q("INSERT INTO movimentacoes (item_id, tipo, quantidade, usuario, data_hora, observacao, tabela) VALUES (?, ?, ?, ?, ?, ?, ?)"), mov_valores)
+        mov_valores = [(item_id, "entrada", str(lista_dados[i].get("qtde", "")), usuario, agora, observacao, "imobilizados")
+                       for i, item_id in enumerate(ids_criados)]
+        if mov_valores:
+            if IS_PG:
+                psycopg2.extras.execute_values(
+                    cur,
+                    "INSERT INTO movimentacoes (item_id, tipo, quantidade, usuario, data_hora, observacao, tabela) VALUES %s",
+                    mov_valores,
+                    page_size=1000,
+                )
+            else:
+                cur.executemany(
+                    q("INSERT INTO movimentacoes (item_id, tipo, quantidade, usuario, data_hora, observacao, tabela) "
+                      "VALUES (?, ?, ?, ?, ?, ?, ?)"),
+                    mov_valores,
+                )
         conn.commit()
         return {"removidos": removidos, "criados": len(ids_criados)}
     except Exception:
         conn.rollback()
         raise
     finally:
-        cur.close(); conn.close()
-
+        cur.close()
+        conn.close()
 
 def atualizar_imobilizado(item_id, novos_dados):
     campos_permitidos = CAMPOS_IMOBILIZADO + ["atualizado_por", "atualizado_em",

@@ -3150,6 +3150,18 @@ document.getElementById('historico-fechar').addEventListener('click', () => hist
 const importarDialog = document.getElementById('importar-dialog');
 const importarMsg = document.getElementById('importar-msg');
 
+async function lerRespostaImportacao(res){
+  const texto = await res.text();
+  if(!texto) return {};
+  try { return JSON.parse(texto); }
+  catch(_err){
+    return {erro: res.ok
+      ? 'O servidor concluiu a requisição, mas devolveu uma resposta inesperada.'
+      : `O servidor retornou HTTP ${res.status}. Aguarde alguns segundos e tente novamente.`};
+  }
+}
+
+
 document.getElementById('abrir-importar')?.addEventListener('click', (e) => {
   e.preventDefault();
   document.getElementById('importar-form').reset();
@@ -3163,7 +3175,7 @@ document.getElementById('importar-validar')?.addEventListener('click', async () 
   if(!arquivoInput.files.length){alert('Escolha um arquivo .xlsx.');return;}
   const fd=new FormData();fd.append('arquivo',arquivoInput.files[0]);fd.append('tabela',document.getElementById('importar-tabela').value);fd.append('modo',document.getElementById('importar-modo').value);
   btn.disabled=true;btn.textContent='Validando...';importarMsg.style.display='block';importarMsg.className='';importarMsg.style.cssText='background:rgba(62,166,255,.10); border:1px solid rgba(62,166,255,.28); color:#b9ddff; font-size:13px; padding:9px 11px; border-radius:6px;';importarMsg.textContent='Analisando a planilha sem gravar dados...';
-  try{const r=await fetch('/api/itens/importar/validar',{method:'POST',body:fd});const x=await r.json();if(!r.ok)throw new Error(x.erro||'Falha na validação.');importarMsg.style.cssText='background:rgba(76,215,146,.10); border:1px solid rgba(76,215,146,.28); color:#b8f5d0; font-size:13px; padding:9px 11px; border-radius:6px;';importarMsg.textContent=`Validação OK: ${x.total_linhas||0} linha(s), ${x.validas||0} válida(s) e ${x.registros_previstos||0} registro(s) serão gerados. ${x.modo==='substituir' ? `A substituição removerá ${x.existentes||0} registro(s) atuais antes de gravar a nova base.` : `Os ${x.existentes||0} registro(s) atuais serão mantidos.`}`;}catch(err){importarMsg.style.cssText='background:rgba(255,107,107,.12); border:1px solid rgba(255,107,107,.3); color:var(--danger); font-size:13px; padding:9px 11px; border-radius:6px;';importarMsg.textContent=err.message||'Erro ao validar planilha.';}finally{btn.disabled=false;btn.textContent='Validar planilha';}
+  try{const r=await fetch('/api/itens/importar/validar',{method:'POST',body:fd});const x=await lerRespostaImportacao(r);if(!r.ok)throw new Error(x.erro||'Falha na validação.');importarMsg.style.cssText='background:rgba(76,215,146,.10); border:1px solid rgba(76,215,146,.28); color:#b8f5d0; font-size:13px; padding:9px 11px; border-radius:6px;';importarMsg.textContent=`Validação OK: ${x.total_linhas||0} linha(s), ${x.validas||0} válida(s) e ${x.registros_previstos||0} registro(s) serão gerados. ${x.modo==='substituir' ? `A substituição removerá ${x.existentes||0} registro(s) atuais antes de gravar a nova base.` : `Os ${x.existentes||0} registro(s) atuais serão mantidos.`}`;}catch(err){importarMsg.style.cssText='background:rgba(255,107,107,.12); border:1px solid rgba(255,107,107,.3); color:var(--danger); font-size:13px; padding:9px 11px; border-radius:6px;';importarMsg.textContent=err.message||'Erro ao validar planilha.';}finally{btn.disabled=false;btn.textContent='Validar planilha';}
 });
 
 
@@ -3195,7 +3207,7 @@ document.getElementById('importar-enviar').addEventListener('click', async () =>
 
   try{
     const res = await fetch('/api/itens/importar', { method: 'POST', body: formData });
-    const corpo = await res.json();
+    const corpo = await lerRespostaImportacao(res);
     if(res.ok){
       importarDialog.close();
       carregarItens();
@@ -3213,7 +3225,7 @@ document.getElementById('importar-enviar').addEventListener('click', async () =>
   } catch(err){
     importarMsg.style.display = 'block';
     importarMsg.style.cssText = 'background:rgba(255,107,107,.12); border:1px solid rgba(255,107,107,.3); color:var(--danger); font-size:13px; padding:9px 11px; border-radius:6px;';
-    importarMsg.textContent = 'Erro de conexão ao importar. Tente novamente.';
+    importarMsg.textContent = 'A conexão com o servidor foi interrompida durante o upload. Aguarde alguns segundos e tente novamente.';
   } finally {
     btn.disabled = false;
     btn.textContent = 'Importar';
