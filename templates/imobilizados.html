@@ -525,6 +525,7 @@
       <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
         <select id="filtro-tipo" class="filtro-select">
           <option value="">Todos os tipos</option>
+          <option value="Não informado">Não informado</option>
           <option value="Expansão">Expansão</option>
           <option value="Sustentação">Sustentação</option>
           <option value="Requalificação">Requalificação</option>
@@ -940,7 +941,8 @@ function renderizar(){
 
   const filtrados = itensCache.filter(it => {
     if(termo && !Object.values(it).join(' ').toLowerCase().includes(termo)) return false;
-    if(tipoSel && normalizarTexto(it.tipo_estoque) !== normalizarTexto(tipoSel)) return false;
+    const tipoEfetivo = canonicalizarTipo(it.tipo_estoque) || 'Não informado';
+    if(tipoSel && normalizarTexto(tipoEfetivo) !== normalizarTexto(tipoSel)) return false;
     if(statusSel && (it.status || '') !== statusSel) return false;
     if(localSel && (it.local || '') !== localSel) return false;
     if(filialSel && String(it.filial_destino || '') !== String(filialSel)) return false;
@@ -970,7 +972,7 @@ function renderizar(){
       <td data-label="Local">${escapeHtml(it.local || '')}</td>
       <td data-label="Armazenagem">${escapeHtml(it.armazenagem || '')}</td>
       <td data-label="Status">${it.status ? `<span class="status-pill ${escapeHtml((it.status||'').toLowerCase())}">${escapeHtml(it.status)}</span>` : ''}</td>
-      <td data-label="Tipo de estoque">${escapeHtml(it.tipo_estoque || '')}</td>
+      <td data-label="Tipo de estoque">${escapeHtml(canonicalizarTipo(it.tipo_estoque) || 'Não informado')}</td>
       <td data-label="Nº imob.">${escapeHtml(it.nro_imobilizado || '')}</td>
       <td data-label="Nº série">${escapeHtml(it.nro_serie || '')}</td>
       <td data-label="Nº patrim.">${escapeHtml(it.nro_patrimonio || '')}</td>
@@ -996,6 +998,7 @@ function renderizar(){
   const infoPag = document.getElementById('paginacao-info');
   if(ordenados.length > itensExibidos){
     painelPag.style.display = 'block';
+    document.getElementById('btn-carregar-mais').style.display = '';
     infoPag.textContent = `Mostrando ${visiveis.length} de ${ordenados.length} itens`;
   } else if(ordenados.length > PAGINA_TAMANHO){
     painelPag.style.display = 'block';
