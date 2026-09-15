@@ -328,6 +328,7 @@
     #tabela-itens td.linha-acoes::before{content:none;}
     #tabela-itens .row-actions{flex-wrap:wrap;}
   }
+  @media(max-width:700px){#bulk-edit-form{grid-template-columns:1fr !important;}}
 </style>
 {% include '_mobile_head.html' %}
 </head>
@@ -549,6 +550,7 @@
     </div>
     <div style="display:flex; align-items:center; gap:12px; margin-bottom:10px; min-height:32px;">
       <button class="btn-primary" id="btn-enviar-selecionados" style="display:none;" onclick="enviarSelecionadosParaEstoque()">Enviar selecionados para Estoque</button>
+      <button class="btn-primary" id="btn-editar-selecionados" style="display:none;">Editar selecionados</button>
       <button class="btn-ghost" id="btn-excluir-selecionados" style="display:none; color:var(--danger); border-color:rgba(255,107,107,.4);">Excluir selecionados</button>
       <span id="selecionados-info" style="font-size:12px; color:var(--muted);"></span>
     </div>
@@ -711,6 +713,101 @@
     <div class="dlg-actions">
       <button type="button" class="btn-ghost" id="fe-cancel">Cancelar</button>
       <button type="button" class="btn-primary" id="fe-save">Salvar alterações</button>
+    </div>
+  </div>
+</dialog>
+
+
+<dialog id="bulk-edit-dialog" style="width:min(920px, 96vw); max-height:90vh;">
+  <div class="dlg-body" style="max-height:84vh; overflow:auto;">
+    <h3>Editar selecionados em massa</h3>
+    <p style="margin:0 0 10px; font-size:13px; color:var(--muted); line-height:1.5;">
+      <strong id="bulk-count">0 registros selecionados</strong>. Marque <strong>Alterar</strong> somente nos campos que deseja aplicar a todos os registros. Campos não marcados serão preservados.
+    </p>
+    <p style="margin:0 0 16px; padding:10px 12px; border:1px solid rgba(255,182,72,.28); border-radius:10px; background:rgba(255,182,72,.06); font-size:12px; color:var(--muted); line-height:1.45;">
+      Para limpar um campo em todos os selecionados, marque <strong>Alterar</strong> e deixe o valor vazio. Atenção: Nº imobilizado, Nº série e Nº patrimônio são normalmente individuais; se preenchidos aqui, o mesmo valor será aplicado a todos.
+    </p>
+    <form id="bulk-edit-form" style="display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px 14px;">
+      <div class="field">
+        <label><input type="checkbox" class="bulk-enable" data-field="codigo" data-target="bulk-codigo"> Alterar código do item</label>
+        <select id="bulk-codigo" disabled><option value="">Selecione o código cadastrado...</option></select>
+      </div>
+      <div class="field">
+        <label><input type="checkbox" class="bulk-enable" data-field="qtde" data-target="bulk-qtde"> Alterar quantidade</label>
+        <input id="bulk-qtde" type="number" min="0" step="1" disabled>
+      </div>
+      <div class="field">
+        <label><input type="checkbox" class="bulk-enable" data-field="localizacao" data-target="bulk-localizacao"> Alterar localização</label>
+        <input id="bulk-localizacao" disabled>
+      </div>
+      <div class="field">
+        <label><input type="checkbox" class="bulk-enable" data-field="local" data-target="bulk-local"> Alterar local</label>
+        <select id="bulk-local" disabled><option value=""></option><option value="CD">CD</option><option value="Engemon">Engemon</option><option value="Loja">Loja</option></select>
+      </div>
+      <div class="field">
+        <label><input type="checkbox" class="bulk-enable" data-field="armazenagem" data-target="bulk-armazenagem"> Alterar armazenagem</label>
+        <select id="bulk-armazenagem" disabled><option value=""></option><option value="Container">Container</option><option value="Gaiola">Gaiola</option><option value="CD">CD</option><option value="Caixa">Caixa</option></select>
+      </div>
+      <div class="field">
+        <label><input type="checkbox" class="bulk-enable" data-field="status" data-target="bulk-status"> Alterar status</label>
+        <select id="bulk-status" disabled><option value=""></option><option value="Reservado">Reservado</option><option value="Separado">Separado</option><option value="Enviado">Enviado</option></select>
+      </div>
+      <div class="field">
+        <label><input type="checkbox" class="bulk-enable" data-field="tipo_estoque" data-target="bulk-tipo_estoque"> Alterar tipo de estoque</label>
+        <select id="bulk-tipo_estoque" disabled><option value=""></option><option value="Expansão">Expansão</option><option value="Sustentação">Sustentação</option><option value="Requalificação">Requalificação</option><option value="Ampliação">Ampliação</option><option value="Realocação">Realocação</option><option value="Reversa">Reversa</option></select>
+      </div>
+      <div class="field">
+        <label><input type="checkbox" class="bulk-enable" data-field="nf_entrada" data-target="bulk-nf_entrada"> Alterar NF de entrada</label>
+        <input id="bulk-nf_entrada" disabled>
+      </div>
+      <div class="field">
+        <label><input type="checkbox" class="bulk-enable" data-field="data_entrada" data-target="bulk-data_entrada"> Alterar data de entrada</label>
+        <input id="bulk-data_entrada" type="date" disabled>
+      </div>
+      <div class="field">
+        <label><input type="checkbox" class="bulk-enable" data-field="nf_saida" data-target="bulk-nf_saida"> Alterar NF de saída</label>
+        <input id="bulk-nf_saida" disabled>
+      </div>
+      <div class="field">
+        <label><input type="checkbox" class="bulk-enable" data-field="data_saida" data-target="bulk-data_saida"> Alterar data de saída</label>
+        <input id="bulk-data_saida" type="date" disabled>
+      </div>
+      <div class="field">
+        <label><input type="checkbox" class="bulk-enable" data-field="vd_loja" data-target="bulk-vd_loja"> Alterar VD / referência</label>
+        <input id="bulk-vd_loja" disabled>
+      </div>
+      <div class="field">
+        <label><input type="checkbox" class="bulk-enable" data-field="filial_destino" data-target="bulk-filial_destino"> Alterar filial / destino</label>
+        <select id="bulk-filial_destino" disabled><option value="">Selecione a filial...</option></select>
+      </div>
+      <div class="field">
+        <label><input type="checkbox" class="bulk-enable" data-field="nro_imobilizado" data-target="bulk-nro_imobilizado"> Alterar Nº imobilizado</label>
+        <input id="bulk-nro_imobilizado" disabled>
+      </div>
+      <div class="field">
+        <label><input type="checkbox" class="bulk-enable" data-field="nro_serie" data-target="bulk-nro_serie"> Alterar Nº série</label>
+        <input id="bulk-nro_serie" disabled>
+      </div>
+      <div class="field">
+        <label><input type="checkbox" class="bulk-enable" data-field="nro_patrimonio" data-target="bulk-nro_patrimonio"> Alterar Nº patrimônio</label>
+        <input id="bulk-nro_patrimonio" disabled>
+      </div>
+      <div class="field">
+        <label><input type="checkbox" class="bulk-enable" data-field="pedido" data-target="bulk-pedido"> Alterar pedido</label>
+        <input id="bulk-pedido" disabled>
+      </div>
+      <div class="field">
+        <label><input type="checkbox" class="bulk-enable" data-field="val_aquis" data-target="bulk-val_aquis"> Alterar ValAquis.</label>
+        <input id="bulk-val_aquis" disabled>
+      </div>
+      <div class="field">
+        <label><input type="checkbox" class="bulk-enable" data-field="chamado" data-target="bulk-chamado"> Alterar chamado</label>
+        <input id="bulk-chamado" disabled>
+      </div>
+    </form>
+    <div class="dlg-actions" style="position:sticky; bottom:0; padding-top:14px; background:var(--panel);">
+      <button type="button" class="btn-ghost" id="bulk-cancel">Cancelar</button>
+      <button type="button" class="btn-primary" id="bulk-save">Aplicar aos selecionados</button>
     </div>
   </div>
 </dialog>
@@ -1121,7 +1218,7 @@ async function carregarFiliais(){
   try{const r=await fetch('/api/filiais?inativas=1');if(!r.ok)throw new Error('Falha ao carregar filiais');filiaisCache=await r.json();preencherSelectFiliais();}catch(e){console.error(e)}
 }
 function formatarFilialDestino(codigo){if(!codigo)return '';const f=filiaisCache.find(x=>String(x.codigo)===String(codigo));return f?`${f.codigo}${f.nome?' — '+f.nome:''}${f.cidade?' · '+f.cidade+(f.uf?'/'+f.uf:''):''}`:String(codigo)}
-function preencherSelectFiliais(){['filial_destino','fe-filial_destino'].forEach(id=>{const el=document.getElementById(id);if(!el)return;const valor=el.value;el.innerHTML='<option value="">Selecione a filial...</option>';filiaisCache.filter(f=>(f.ativo==='1'||f.ativo==='inaugurar')||String(f.codigo)===String(valor)).forEach(f=>{const o=document.createElement('option');o.value=f.codigo;o.textContent=`${f.codigo}${f.nome?' — '+f.nome:''}${f.cidade?' · '+f.cidade+(f.uf?'/'+f.uf:''):''}${f.ativo==='0'?' (inativa)':f.ativo==='inaugurar'?' (a inaugurar)':f.ativo==='pendente'?' (pendente)':''}`;el.appendChild(o)});el.value=valor});const filtro=document.getElementById('filtro-filial');if(filtro){const valor=filtro.value;filtro.innerHTML='<option value="">Todas as filiais</option>';filiaisCache.forEach(f=>{const o=document.createElement('option');o.value=f.codigo;o.textContent=`${f.codigo}${f.nome?' — '+f.nome:''}${f.ativo==='0'?' (inativa)':f.ativo==='inaugurar'?' (a inaugurar)':f.ativo==='pendente'?' (pendente)':''}`;filtro.appendChild(o)});filtro.value=valor;}}
+function preencherSelectFiliais(){['filial_destino','fe-filial_destino','bulk-filial_destino'].forEach(id=>{const el=document.getElementById(id);if(!el)return;const valor=el.value;el.innerHTML='<option value="">Selecione a filial...</option>';filiaisCache.filter(f=>(f.ativo==='1'||f.ativo==='inaugurar')||String(f.codigo)===String(valor)).forEach(f=>{const o=document.createElement('option');o.value=f.codigo;o.textContent=`${f.codigo}${f.nome?' — '+f.nome:''}${f.cidade?' · '+f.cidade+(f.uf?'/'+f.uf:''):''}${f.ativo==='0'?' (inativa)':f.ativo==='inaugurar'?' (a inaugurar)':f.ativo==='pendente'?' (pendente)':''}`;el.appendChild(o)});el.value=valor});const filtro=document.getElementById('filtro-filial');if(filtro){const valor=filtro.value;filtro.innerHTML='<option value="">Todas as filiais</option>';filiaisCache.forEach(f=>{const o=document.createElement('option');o.value=f.codigo;o.textContent=`${f.codigo}${f.nome?' — '+f.nome:''}${f.ativo==='0'?' (inativa)':f.ativo==='inaugurar'?' (a inaugurar)':f.ativo==='pendente'?' (pendente)':''}`;filtro.appendChild(o)});filtro.value=valor;}}
 
 let produtosCache = [];
 async function carregarProdutos(){
@@ -1134,7 +1231,7 @@ async function carregarProdutos(){
   }catch(err){ console.error(err); }
 }
 function preencherSelectProdutos(){
-  ['codigo','fe-codigo'].forEach(id => {
+  ['codigo','fe-codigo','bulk-codigo'].forEach(id => {
     const el=document.getElementById(id);
     if(!el || el.tagName !== 'SELECT') return;
     const valor=el.value;
@@ -1249,14 +1346,17 @@ function atualizarSelecionados(){
 
   const btn = document.getElementById('btn-excluir-selecionados');
   const btnEnviar = document.getElementById('btn-enviar-selecionados');
+  const btnEditar = document.getElementById('btn-editar-selecionados');
   const info = document.getElementById('selecionados-info');
   if(idsSelecionados.size > 0){
-    btn.style.display = 'inline-block';
-    btnEnviar.style.display = 'inline-block';
+    btn.style.display = PODE_EDITAR ? 'inline-block' : 'none';
+    btnEnviar.style.display = PODE_EDITAR ? 'inline-block' : 'none';
+    btnEditar.style.display = PODE_EDITAR ? 'inline-block' : 'none';
     info.textContent = `${idsSelecionados.size} selecionado(s)`;
   } else {
     btn.style.display = 'none';
     btnEnviar.style.display = 'none';
+    btnEditar.style.display = 'none';
     info.textContent = '';
   }
   const todos = document.querySelectorAll('.chk-item');
@@ -1272,6 +1372,76 @@ document.getElementById('selecionar-todos').addEventListener('change', (e) => {
   });
   atualizarSelecionados();
 });
+
+// ---------------------------------------------------------------------
+// Edição em massa dos registros selecionados
+// ---------------------------------------------------------------------
+const bulkEditDialog = document.getElementById('bulk-edit-dialog');
+const bulkEditButton = document.getElementById('btn-editar-selecionados');
+
+function resetarEdicaoMassa(){
+  document.querySelectorAll('#bulk-edit-form .bulk-enable').forEach(chk=>{
+    chk.checked=false;
+    const alvo=document.getElementById(chk.dataset.target);
+    if(alvo){ alvo.disabled=true; alvo.value=''; }
+  });
+  preencherSelectProdutos();
+  preencherSelectFiliais();
+}
+
+document.querySelectorAll('#bulk-edit-form .bulk-enable').forEach(chk=>{
+  chk.addEventListener('change',()=>{
+    const alvo=document.getElementById(chk.dataset.target);
+    if(!alvo) return;
+    alvo.disabled=!chk.checked;
+    if(chk.checked) alvo.focus();
+  });
+});
+
+bulkEditButton?.addEventListener('click',()=>{
+  if(!PODE_EDITAR || !idsSelecionados.size) return;
+  resetarEdicaoMassa();
+  document.getElementById('bulk-count').textContent=`${idsSelecionados.size} registro(s) selecionado(s)`;
+  bulkEditDialog.showModal();
+});
+
+document.getElementById('bulk-cancel')?.addEventListener('click',()=>bulkEditDialog.close());
+
+document.getElementById('bulk-save')?.addEventListener('click',async()=>{
+  const ids=Array.from(idsSelecionados);
+  if(!ids.length){ bulkEditDialog.close(); return; }
+  const campos={};
+  const habilitados=Array.from(document.querySelectorAll('#bulk-edit-form .bulk-enable:checked'));
+  if(!habilitados.length){ alert('Marque pelo menos um campo como Alterar.'); return; }
+  habilitados.forEach(chk=>{
+    const alvo=document.getElementById(chk.dataset.target);
+    campos[chk.dataset.field]=alvo ? alvo.value : '';
+  });
+  if(Object.prototype.hasOwnProperty.call(campos,'codigo') && !campos.codigo){
+    alert('Selecione um código do item para aplicar aos registros.'); return;
+  }
+  const individuais=['nro_imobilizado','nro_serie','nro_patrimonio'].filter(c=>Object.prototype.hasOwnProperty.call(campos,c) && campos[c]);
+  let aviso=`Aplicar ${habilitados.length} campo(s) a ${ids.length} registro(s) selecionado(s)?`;
+  if(individuais.length && ids.length>1) aviso+='\n\nAtenção: o mesmo valor de campos individuais será repetido em todos os registros.';
+  if(!confirm(aviso)) return;
+
+  const btn=document.getElementById('bulk-save');
+  const rotulo=btn.textContent; btn.disabled=true; btn.textContent='Aplicando...';
+  try{
+    const res=await fetch('/api/imobilizados/editar-em-lote',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ids,campos})});
+    const corpo=await res.json().catch(()=>({}));
+    if(!res.ok) throw new Error(corpo.erro || 'Não foi possível concluir a edição em massa.');
+    bulkEditDialog.close();
+    idsSelecionados.clear();
+    await carregarItens();
+    mostrarToast(`${corpo.atualizados || 0} registro(s) atualizado(s) em massa.`);
+  }catch(err){
+    alert(err.message || 'Erro ao editar os registros selecionados.');
+  }finally{
+    btn.disabled=false; btn.textContent=rotulo;
+  }
+});
+
 document.getElementById('btn-excluir-selecionados').addEventListener('click', async () => {
   const ids = Array.from(idsSelecionados);
   if(!ids.length) return;

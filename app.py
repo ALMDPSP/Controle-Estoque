@@ -60,7 +60,7 @@ import qrcode
 import db
 
 app = Flask(__name__)
-APP_BUILD = "2026-09-14-dashboard-fluxo-ti-v80"
+APP_BUILD = "2026-09-15-edicao-em-massa-v83"
 _DASHBOARD_CACHE = {"expira": 0.0, "dados": None}
 app.secret_key = os.environ.get("SECRET_KEY", "troque-esta-chave-em-producao")
 _RUNNING_HTTPS_HOSTED = bool(
@@ -4410,6 +4410,87 @@ def pagina_imobilizados():
 
 
 # ---------------------------------------------------------------------
+# Edição em massa - Estoque / Imobilizados
+# ---------------------------------------------------------------------
+
+CAMPOS_EDICAO_MASSA = {
+    "codigo", "qtde", "localizacao", "nf_entrada", "data_entrada",
+    "nf_saida", "data_saida", "vd_loja", "filial_destino", "local",
+    "armazenagem", "status", "nro_imobilizado", "nro_serie",
+    "nro_patrimonio", "tipo_estoque", "pedido", "val_aquis", "chamado",
+}
+
+
+def _preparar_edicao_massa(payload):
+    """Valida e normaliza o payload usado pela edição em massa.
+
+    Somente os campos explicitamente enviados em ``campos`` são modificados.
+    Isso permite que um valor vazio seja usado de propósito para limpar um campo,
+    sem apagar os demais dados dos registros selecionados.
+    """
+    payload = payload or {}
+    ids_brutos = payload.get("ids") or []
+    campos_brutos = payload.get("campos") or {}
+
+    if not isinstance(ids_brutos, list) or not ids_brutos:
+        return None, None, "Nenhum item selecionado."
+    if not isinstance(campos_brutos, dict) or not campos_brutos:
+        return None, None, "Selecione pelo menos um campo para alterar."
+
+    ids = []
+    vistos = set()
+    for valor in ids_brutos:
+        try:
+            item_id = int(valor)
+        except (TypeError, ValueError):
+            continue
+        if item_id > 0 and item_id not in vistos:
+            vistos.add(item_id)
+            ids.append(item_id)
+    if not ids:
+        return None, None, "Nenhum item válido selecionado."
+    if len(ids) > 5000:
+        return None, None, "Selecione no máximo 5.000 registros por edição em massa."
+
+    campos = {}
+    for nome, valor in campos_brutos.items():
+        if nome not in CAMPOS_EDICAO_MASSA:
+            continue
+        if valor is None:
+            valor = ""
+        if isinstance(valor, str):
+            valor = valor.strip()
+        campos[nome] = valor
+
+    if not campos:
+        return None, None, "Nenhum campo permitido foi informado."
+
+    # O código do item vem do cadastro mestre de produtos. Quando ele muda,
+    # a descrição acompanha automaticamente para manter Estoque/Imobilizados
+    # consistentes com o Cadastro de Produtos.
+    if "codigo" in campos:
+        codigo = str(campos.get("codigo") or "").strip()
+        if not codigo:
+            return None, None, "O código do item não pode ficar vazio."
+        produto = db.buscar_produto_por_codigo(codigo)
+        if not produto:
+            return None, None, "Código do item não encontrado no Cadastro de Produtos."
+        campos["codigo"] = codigo
+        campos["descricao"] = (produto.get("descricao") or "").strip()
+
+    if "qtde" in campos:
+        try:
+            qtde = int(float(campos.get("qtde") or 0))
+        except (TypeError, ValueError):
+            return None, None, "Quantidade inválida."
+        if qtde < 0:
+            return None, None, "A quantidade não pode ser negativa."
+        campos["qtde"] = str(qtde)
+
+    return ids, campos, None
+
+
+# ---------------------------------------------------------------------
 # API - Imobilizados
 # ---------------------------------------------------------------------
 
@@ -4477,6 +4558,35 @@ def api_atualizar_imobilizado(item_id):
     db.registrar_movimentacao(item_id, "edicao", None, session.get("username"),
                                "Dados do imobilizado editados", tabela="imobilizados")
     return jsonify({"ok": True})
+
+
+@app.route("/api/imobilizados/editar-em-lote", methods=["POST"])
+@edit_required
+def api_editar_imobilizados_em_lote():
+    ids, campos, erro = _preparar_edicao_massa(request.get_json(silent=True))
+    if erro:
+        return jsonify({"erro": erro}), 400
+
+    usuario = session.get("username")
+    agora = datetime.now().strftime("%Y-%m-%d %H:%M")
+    campos_atualizacao = dict(campos, atualizado_por=usuario, atualizado_em=agora)
+    nomes_campos = ", ".join(campos.keys())
+    atualizados = 0
+    ignorados = 0
+
+    for item_id in ids:
+        if not db.buscar_imobilizado_por_id(item_id):
+            ignorados += 1
+            continue
+        if db.atualizar_imobilizado(item_id, campos_atualizacao):
+            atualizados += 1
+            db.registrar_movimentacao(
+                item_id, "edicao", None, usuario,
+                f"Edição em massa · campos alterados: {nomes_campos}",
+                tabela="imobilizados",
+            )
+
+    return jsonify({"ok": True, "atualizados": atualizados, "ignorados": ignorados})
 
 
 @app.route("/api/imobilizados/<int:item_id>", methods=["DELETE"])
@@ -4862,6 +4972,35 @@ def api_atualizar(item_id):
         db.registrar_movimentacao(item_id, "edicao", None, session.get("username"), "Dados do item editados")
 
     return jsonify({"ok": True})
+
+
+@app.route("/api/itens/editar-em-lote", methods=["POST"])
+@edit_required
+def api_editar_itens_em_lote():
+    ids, campos, erro = _preparar_edicao_massa(request.get_json(silent=True))
+    if erro:
+        return jsonify({"erro": erro}), 400
+
+    usuario = session.get("username")
+    agora = datetime.now().strftime("%Y-%m-%d %H:%M")
+    campos_atualizacao = dict(campos, atualizado_por=usuario, atualizado_em=agora)
+    nomes_campos = ", ".join(campos.keys())
+    atualizados = 0
+    ignorados = 0
+
+    for item_id in ids:
+        if not db.buscar_item_por_id(item_id):
+            ignorados += 1
+            continue
+        if db.atualizar_item(item_id, campos_atualizacao):
+            atualizados += 1
+            db.registrar_movimentacao(
+                item_id, "edicao", None, usuario,
+                f"Edição em massa · campos alterados: {nomes_campos}",
+                tabela="itens",
+            )
+
+    return jsonify({"ok": True, "atualizados": atualizados, "ignorados": ignorados})
 
 
 @app.route("/api/itens/<int:item_id>", methods=["DELETE"])
