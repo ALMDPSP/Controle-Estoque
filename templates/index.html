@@ -826,7 +826,7 @@
       </div>
     </div>
     <div style="display:flex; align-items:center; gap:12px; margin-bottom:10px; min-height:32px;">
-      <button class="btn-primary" id="btn-editar-selecionados" type="button" disabled style="display:inline-flex; align-items:center; gap:7px; opacity:.58; cursor:not-allowed;">✏️ Editar selecionados (0)</button>
+      <button class="btn-primary" id="btn-editar-selecionados" type="button" style="display:inline-flex; align-items:center; gap:7px;">✏️ Editar em massa</button>
       <button class="btn-ghost" id="btn-excluir-selecionados" style="display:none; color:var(--danger); border-color:rgba(255,107,107,.4);">Excluir selecionados</button>
       <span id="selecionados-info" style="font-size:12px; color:var(--muted);"></span>
     </div>
@@ -1052,14 +1052,36 @@
 </dialog>
 
 
+<dialog id="bulk-auth-dialog" style="width:min(460px, 94vw);">
+  <div class="dlg-body">
+    <h3>Confirmar acesso</h3>
+    <p style="margin:0 0 16px; font-size:13px; color:var(--muted); line-height:1.5;">
+      Informe sua senha de acesso para abrir a edição em massa. A senha será validada antes de escolher o código do item.
+    </p>
+    <div class="field">
+      <label for="bulk-auth-password">Senha atual</label>
+      <input id="bulk-auth-password" type="password" autocomplete="current-password" placeholder="Digite sua senha">
+    </div>
+    <div class="dlg-actions">
+      <button type="button" class="btn-ghost" id="bulk-auth-cancel">Cancelar</button>
+      <button type="button" class="btn-primary" id="bulk-auth-confirm">Validar senha e continuar</button>
+    </div>
+  </div>
+</dialog>
+
 <dialog id="bulk-edit-dialog" style="width:min(920px, 96vw); max-height:90vh;">
   <div class="dlg-body" style="max-height:84vh; overflow:auto;">
-    <h3>Editar selecionados em massa</h3>
-    <p style="margin:0 0 10px; font-size:13px; color:var(--muted); line-height:1.5;">
-      <strong id="bulk-count">0 registros selecionados</strong>. Todos os campos marcados como <strong>Alterar</strong> serão gravados em <strong>todos os itens selecionados manualmente</strong>. Campos não marcados serão preservados.
+    <h3>Editar em massa por código</h3>
+    <p style="margin:0 0 12px; font-size:13px; color:var(--muted); line-height:1.5;">
+      Escolha o <strong>código do item</strong>. Todos os registros desse código nesta aba receberão os campos marcados como <strong>Alterar</strong>.
     </p>
+    <div class="field" style="margin-bottom:10px;">
+      <label for="bulk-target-code">Código do item que será alterado</label>
+      <select id="bulk-target-code"><option value="">Selecione o código...</option></select>
+      <small id="bulk-target-info" style="display:block; margin-top:6px; color:var(--muted);">Selecione um código para ver quantos registros serão afetados.</small>
+    </div>
     <p style="margin:0 0 16px; padding:10px 12px; border:1px solid rgba(76,215,146,.30); border-radius:10px; background:rgba(76,215,146,.07); font-size:12px; color:var(--muted); line-height:1.5;">
-      <strong style="color:var(--text);">Edição controlada e auditada.</strong> Selecione manualmente os itens no grid, escolha os campos e informe os novos valores. Para gravar, será obrigatório confirmar com sua senha. A alteração ficará registrada no Histórico/Relatórios com usuário, data/hora e valores alterados.
+      <strong id="bulk-count" style="color:var(--text);">0 registros serão alterados.</strong> Campos não marcados ou sem novo valor permanecem como estão. A operação será registrada no Histórico/Relatórios com usuário, data/hora e valores alterados.
     </p>
     <form id="bulk-edit-form" style="display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px 14px;">
       <div class="field">
@@ -1139,14 +1161,9 @@
         <input id="bulk-chamado" disabled>
       </div>
     </form>
-    <div style="margin-top:16px; padding:12px; border:1px solid rgba(255,182,72,.35); border-radius:10px; background:rgba(255,182,72,.07);">
-      <label for="bulk-password" style="display:block; font-size:12px; font-weight:700; margin-bottom:6px;">Confirme sua senha para gravar</label>
-      <input id="bulk-password" type="password" autocomplete="current-password" placeholder="Sua senha atual" style="width:100%;">
-      <small style="display:block; margin-top:6px; color:var(--muted);">A senha apenas confirma a operação e não é registrada no histórico.</small>
-    </div>
     <div class="dlg-actions" style="position:sticky; bottom:0; padding-top:14px; background:var(--panel);">
       <button type="button" class="btn-ghost" id="bulk-cancel">Cancelar</button>
-      <button type="button" class="btn-primary" id="bulk-save">Confirmar com senha e salvar</button>
+      <button type="button" class="btn-primary" id="bulk-save">Salvar em todos desse código</button>
     </div>
   </div>
 </dialog>
@@ -2672,7 +2689,7 @@ document.getElementById('qtde-save').addEventListener('click', async () => {
 // Seleção múltipla / exclusão em massa
 // ---------------------------------------------------------------------
 function toggleSelecionado(id, marcado){
-  // Clique individual = seleção manual, válida para edição em massa.
+  // Checkboxes do grid são usados para exclusão e ações específicas; a edição em massa não depende de seleção.
   selecaoTodosParaExclusao = false;
   if(marcado) idsSelecionados.add(id);
   else idsSelecionados.delete(id);
@@ -2687,27 +2704,25 @@ function atualizarSelecionados(){
   const btn = document.getElementById('btn-excluir-selecionados');
   const btnEditar = document.getElementById('btn-editar-selecionados');
   const info = document.getElementById('selecionados-info');
-  // O botão de edição em massa fica sempre visível para quem pode editar.
-  // Ele apenas é habilitado quando houver pelo menos uma linha selecionada.
+  // A edição em massa é independente da seleção do grid.
   if(btnEditar){
     if(PODE_EDITAR){
       btnEditar.style.display = 'inline-flex';
-      const podeEditarSelecao = idsSelecionados.size > 0 && !selecaoTodosParaExclusao;
-      btnEditar.disabled = !podeEditarSelecao;
-      btnEditar.style.opacity = podeEditarSelecao ? '1' : '.58';
-      btnEditar.style.cursor = podeEditarSelecao ? 'pointer' : 'not-allowed';
-      btnEditar.textContent = `✏️ Editar selecionados (${idsSelecionados.size})`;
-      btnEditar.title = selecaoTodosParaExclusao ? 'Selecionar todos é exclusivo para exclusão. Selecione manualmente as linhas que deseja editar.' : '';
+      btnEditar.disabled = false;
+      btnEditar.style.opacity = '1';
+      btnEditar.style.cursor = 'pointer';
+      btnEditar.textContent = '✏️ Editar em massa';
+      btnEditar.title = 'Informe a senha e escolha o código do item que deseja alterar em todos os registros.';
     } else {
       btnEditar.style.display = 'none';
     }
   }
   if(idsSelecionados.size > 0){
     btn.style.display = PODE_EDITAR ? 'inline-block' : 'none';
-    info.textContent = selecaoTodosParaExclusao ? `${idsSelecionados.size} selecionado(s) para exclusão · edição em massa exige seleção manual` : `${idsSelecionados.size} selecionado(s)`;
+    info.textContent = selecaoTodosParaExclusao ? `${idsSelecionados.size} selecionado(s) para exclusão` : `${idsSelecionados.size} selecionado(s)`;
   } else {
     btn.style.display = 'none';
-    info.textContent = PODE_EDITAR ? 'Selecione uma ou mais linhas para editar em massa.' : '';
+    info.textContent = '';
   }
   const todos = document.querySelectorAll('.chk-item');
   const selecionarTodos = document.getElementById('selecionar-todos');
@@ -2728,13 +2743,17 @@ document.getElementById('selecionar-todos').addEventListener('change', (e) => {
 atualizarSelecionados();
 
 // ---------------------------------------------------------------------
-// Edição em massa dos registros selecionados
+// Edição em massa por código — independente da seleção do grid
 // ---------------------------------------------------------------------
+const bulkAuthDialog = document.getElementById('bulk-auth-dialog');
 const bulkEditDialog = document.getElementById('bulk-edit-dialog');
 const bulkEditButton = document.getElementById('btn-editar-selecionados');
+let senhaEdicaoMassa = '';
 
-function registrosSelecionadosEdicaoMassa(){
-  return (itensCache || []).filter(it => idsSelecionados.has(Number(it.id)));
+function registrosDoCodigoEdicaoMassa(){
+  const codigo=String(document.getElementById('bulk-target-code')?.value || '').trim();
+  if(!codigo) return [];
+  return (itensCache || []).filter(it => String(it.codigo || '').trim() === codigo);
 }
 
 function textoValorMassa(campo, valor){
@@ -2746,11 +2765,11 @@ function textoValorMassa(campo, valor){
   return String(valor ?? '');
 }
 
-function atualizarReferenciaCampoMassa(chk, selecionados){
+function atualizarReferenciaCampoMassa(chk, registros){
   const alvo=document.getElementById(chk.dataset.target);
   if(!alvo) return;
   const campo=chk.dataset.field;
-  const valores=selecionados.map(it=>String(it?.[campo] ?? '').trim());
+  const valores=registros.map(it=>String(it?.[campo] ?? '').trim());
   const preenchidos=valores.filter(v=>v !== '');
   const unicos=[...new Set(preenchidos)];
   const vazios=valores.length-preenchidos.length;
@@ -2762,40 +2781,51 @@ function atualizarReferenciaCampoMassa(chk, selecionados){
     dica.style.cssText='display:block;margin-top:5px;color:var(--muted);font-size:11px;line-height:1.35;';
     field.appendChild(dica);
   }
-
   alvo.value='';
   alvo.removeAttribute('title');
-  if(alvo.tagName === 'INPUT' && alvo.type !== 'date') alvo.placeholder='Informe um novo valor para alterar/adicionar';
-
-  if(!selecionados.length){
-    if(dica) dica.textContent='';
-    return;
-  }
-  if(unicos.length === 0){
-    if(dica) dica.textContent='Sem informação nos registros selecionados — você pode adicionar um valor.';
-    return;
-  }
+  if(alvo.tagName === 'INPUT' && alvo.type !== 'date') alvo.placeholder='Informe o novo valor para todos desse código';
+  if(!registros.length){ if(dica) dica.textContent=''; return; }
+  if(unicos.length === 0){ if(dica) dica.textContent='Sem informação atualmente — você pode adicionar um valor.'; return; }
   if(unicos.length === 1){
     const comum=unicos[0];
     const rotulo=textoValorMassa(campo, comum);
-    // Se todos têm o mesmo valor (ou os demais estão vazios), mostramos esse
-    // valor no controle para facilitar editar ou completar os registros vazios.
     if(alvo.tagName === 'SELECT'){
       const existe=[...alvo.options].some(o=>String(o.value)===String(comum));
       if(existe) alvo.value=comum;
-    }else{
-      alvo.value=comum;
-    }
-    if(vazios){
-      if(dica) dica.textContent=`Valor encontrado: ${rotulo} em ${preenchidos.length}; ${vazios} sem informação.`;
-    }else{
-      if(dica) dica.textContent=`Valor atual em todos: ${rotulo}`;
-    }
-    alvo.title=dica?.textContent || '';
+    }else{ alvo.value=comum; }
+    if(dica) dica.textContent=vazios ? `Valor atual: ${rotulo} em ${preenchidos.length}; ${vazios} sem informação.` : `Valor atual em todos: ${rotulo}`;
     return;
   }
-  if(dica) dica.textContent=`Valores atuais diferentes (${unicos.length} valores)${vazios ? ` · ${vazios} sem informação` : ''}. Informe um novo valor somente se quiser substituir todos.`;
-  alvo.title=dica?.textContent || '';
+  if(dica) dica.textContent=`Existem ${unicos.length} valores diferentes${vazios ? ` e ${vazios} campo(s) vazio(s)` : ''}. O novo valor substituirá todos.`;
+}
+
+function preencherCodigoAlvoMassa(){
+  const sel=document.getElementById('bulk-target-code');
+  if(!sel) return;
+  const mapa=new Map();
+  (itensCache || []).forEach(it=>{
+    const codigo=String(it.codigo || '').trim();
+    if(!codigo) return;
+    mapa.set(codigo,(mapa.get(codigo)||0)+1);
+  });
+  sel.innerHTML='<option value="">Selecione o código...</option>';
+  [...mapa.keys()].sort((a,b)=>a.localeCompare(b,'pt-BR',{numeric:true})).forEach(codigo=>{
+    const prod=(produtosCache || []).find(p=>String(p.codigo||'').trim()===codigo);
+    const opt=document.createElement('option');
+    opt.value=codigo;
+    opt.textContent=`${codigo}${prod?.descricao ? ' — '+prod.descricao : ''} (${mapa.get(codigo)} registro(s))`;
+    sel.appendChild(opt);
+  });
+}
+
+function atualizarCodigoAlvoMassa(){
+  const registros=registrosDoCodigoEdicaoMassa();
+  const codigo=String(document.getElementById('bulk-target-code')?.value || '').trim();
+  const count=document.getElementById('bulk-count');
+  const info=document.getElementById('bulk-target-info');
+  if(count) count.textContent=codigo ? `${registros.length} registro(s) do código ${codigo} serão alterados.` : '0 registros serão alterados.';
+  if(info) info.textContent=codigo ? `Todas as linhas com o código ${codigo} nesta aba serão atualizadas ao salvar.` : 'Selecione um código para ver quantos registros serão afetados.';
+  document.querySelectorAll('#bulk-edit-form .bulk-enable').forEach(chk=>atualizarReferenciaCampoMassa(chk,registros));
 }
 
 function resetarEdicaoMassa(){
@@ -2803,13 +2833,15 @@ function resetarEdicaoMassa(){
     chk.checked=false;
     const alvo=document.getElementById(chk.dataset.target);
     if(alvo){ alvo.disabled=true; alvo.value=''; }
+    const dica=chk.closest('.field')?.querySelector('.bulk-current');
+    if(dica) dica.textContent='';
   });
   preencherSelectProdutos();
   preencherSelectFiliais();
-  const senhaMassa=document.getElementById('bulk-password');
-  if(senhaMassa) senhaMassa.value='';
-  const selecionados=registrosSelecionadosEdicaoMassa();
-  document.querySelectorAll('#bulk-edit-form .bulk-enable').forEach(chk=>atualizarReferenciaCampoMassa(chk, selecionados));
+  preencherCodigoAlvoMassa();
+  const target=document.getElementById('bulk-target-code');
+  if(target) target.value='';
+  atualizarCodigoAlvoMassa();
 }
 
 document.querySelectorAll('#bulk-edit-form .bulk-enable').forEach(chk=>{
@@ -2821,55 +2853,78 @@ document.querySelectorAll('#bulk-edit-form .bulk-enable').forEach(chk=>{
   });
 });
 
+document.getElementById('bulk-target-code')?.addEventListener('change', atualizarCodigoAlvoMassa);
+
 bulkEditButton?.addEventListener('click',()=>{
-  if(!PODE_EDITAR || !idsSelecionados.size) return;
-  if(selecaoTodosParaExclusao){ alert('O Selecionar todos é exclusivo para exclusão. Para editar em massa, marque manualmente somente os itens que deseja alterar.'); return; }
-  resetarEdicaoMassa();
-  document.getElementById('bulk-count').textContent=`${idsSelecionados.size} registro(s) selecionado(s)`;
-  bulkEditDialog.showModal();
+  if(!PODE_EDITAR) return;
+  senhaEdicaoMassa='';
+  const input=document.getElementById('bulk-auth-password');
+  if(input) input.value='';
+  bulkAuthDialog.showModal();
+  setTimeout(()=>input?.focus(),50);
 });
 
-document.getElementById('bulk-cancel')?.addEventListener('click',()=>bulkEditDialog.close());
+document.getElementById('bulk-auth-cancel')?.addEventListener('click',()=>{ senhaEdicaoMassa=''; bulkAuthDialog.close(); });
+document.getElementById('bulk-auth-confirm')?.addEventListener('click',async()=>{
+  const input=document.getElementById('bulk-auth-password');
+  const senha=input?.value || '';
+  if(!senha){ alert('Informe sua senha de acesso.'); input?.focus(); return; }
+  const btn=document.getElementById('bulk-auth-confirm');
+  const rotulo=btn.textContent; btn.disabled=true; btn.textContent='Validando...';
+  try{
+    const res=await fetch('/api/edicao-em-massa/validar-senha',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({senha})});
+    const corpo=await res.json().catch(()=>({}));
+    if(!res.ok) throw new Error(corpo.erro || 'Senha inválida.');
+    senhaEdicaoMassa=senha;
+    bulkAuthDialog.close();
+    resetarEdicaoMassa();
+    bulkEditDialog.showModal();
+  }catch(err){ alert(err.message || 'Não foi possível validar a senha.'); input?.focus(); }
+  finally{ btn.disabled=false; btn.textContent=rotulo; }
+});
+
+document.getElementById('bulk-auth-password')?.addEventListener('keydown',(e)=>{
+  if(e.key==='Enter'){ e.preventDefault(); document.getElementById('bulk-auth-confirm')?.click(); }
+});
+
+document.getElementById('bulk-cancel')?.addEventListener('click',()=>{ senhaEdicaoMassa=''; bulkEditDialog.close(); });
 
 document.getElementById('bulk-save')?.addEventListener('click',async()=>{
-  const ids=Array.from(idsSelecionados);
-  if(!ids.length){ bulkEditDialog.close(); return; }
+  const codigoAlvo=String(document.getElementById('bulk-target-code')?.value || '').trim();
+  const registros=registrosDoCodigoEdicaoMassa();
+  if(!codigoAlvo){ alert('Selecione o código do item que deseja alterar.'); return; }
+  if(!registros.length){ alert('Nenhum registro encontrado para o código selecionado.'); return; }
+  if(!senhaEdicaoMassa){ alert('Sua sessão de confirmação expirou. Informe a senha novamente.'); bulkEditDialog.close(); bulkEditButton?.click(); return; }
+
   const campos={};
   const habilitados=Array.from(document.querySelectorAll('#bulk-edit-form .bulk-enable:checked'));
   if(!habilitados.length){ alert('Marque pelo menos um campo como Alterar.'); return; }
   habilitados.forEach(chk=>{
     const alvo=document.getElementById(chk.dataset.target);
     const valor=alvo ? String(alvo.value ?? '').trim() : '';
-    // Campo marcado, mas sem novo valor: preserva o conteúdo atual de cada linha.
     if(valor !== '') campos[chk.dataset.field]=alvo.value;
   });
-  if(!Object.keys(campos).length){
-    alert('Informe pelo menos um novo valor. Campos deixados em branco mantêm os dados que já estão salvos.');
-    return;
-  }
-  const senha=document.getElementById('bulk-password')?.value || '';
-  if(!senha){ alert('Informe sua senha para confirmar e gravar a edição em massa.'); document.getElementById('bulk-password')?.focus(); return; }
+  if(!Object.keys(campos).length){ alert('Informe pelo menos um novo valor para aplicar.'); return; }
+
   const individuais=['nro_imobilizado','nro_serie','nro_patrimonio'].filter(c=>Object.prototype.hasOwnProperty.call(campos,c) && campos[c]);
-  let aviso=`Aplicar ${Object.keys(campos).length} campo(s) a ${ids.length} registro(s) selecionado(s)?\n\nOs demais dados serão mantidos como estão.`;
-  if(individuais.length && ids.length>1) aviso+='\n\nAtenção: o mesmo valor de campos individuais será repetido em todos os registros.';
+  let aviso=`Você vai alterar ${registros.length} registro(s) do código ${codigoAlvo}.
+
+Todos receberão os ${Object.keys(campos).length} campo(s) informado(s).`;
+  if(individuais.length && registros.length>1) aviso+=`\n\nAtenção: o mesmo valor de campos individuais será repetido em todos os registros.`;
   if(!confirm(aviso)) return;
 
   const btn=document.getElementById('bulk-save');
   const rotulo=btn.textContent; btn.disabled=true; btn.textContent='Aplicando...';
   try{
-    const res=await fetch('/api/itens/editar-em-lote',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ids,campos,senha})});
+    const res=await fetch('/api/itens/editar-em-lote',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({codigo_alvo:codigoAlvo,campos,senha:senhaEdicaoMassa})});
     const corpo=await res.json().catch(()=>({}));
     if(!res.ok) throw new Error(corpo.erro || 'Não foi possível concluir a edição em massa.');
     bulkEditDialog.close();
-    idsSelecionados.clear();
-    selecaoTodosParaExclusao = false;
+    senhaEdicaoMassa='';
     await carregarItens();
-    mostrarToast(`${corpo.atualizados || 0} registro(s) atualizado(s) em massa.`);
-  }catch(err){
-    alert(err.message || 'Erro ao editar os registros selecionados.');
-  }finally{
-    btn.disabled=false; btn.textContent=rotulo;
-  }
+    mostrarToast(`${corpo.atualizados || 0} registro(s) do código ${codigoAlvo} atualizado(s).`);
+  }catch(err){ alert(err.message || 'Erro ao editar os registros do código selecionado.'); }
+  finally{ btn.disabled=false; btn.textContent=rotulo; }
 });
 
 document.getElementById('btn-excluir-selecionados').addEventListener('click', async () => {

@@ -4518,6 +4518,63 @@ def _validar_senha_edicao_massa(payload):
     return None
 
 
+@app.route("/api/edicao-em-massa/validar-senha", methods=["POST"])
+@edit_required
+def api_validar_senha_edicao_massa():
+    payload = request.get_json(silent=True) or {}
+    erro = _validar_senha_edicao_massa(payload)
+    if erro:
+        return jsonify({"erro": erro}), 403
+    return jsonify({"ok": True})
+
+
+def _preparar_edicao_massa_por_codigo(payload):
+    """Valida o código-alvo e os campos que serão aplicados a todos os registros dele."""
+    payload = payload or {}
+    codigo_alvo = str(payload.get("codigo_alvo") or "").strip()
+    if not codigo_alvo:
+        return None, None, "Selecione o código do item que deseja editar em massa."
+
+    # Reaproveita a normalização de campos sem depender da seleção do grid.
+    campos_brutos = payload.get("campos") or {}
+    if not isinstance(campos_brutos, dict) or not campos_brutos:
+        return None, None, "Selecione pelo menos um campo para alterar."
+
+    campos = {}
+    for nome, valor in campos_brutos.items():
+        if nome not in CAMPOS_EDICAO_MASSA:
+            continue
+        if valor is None:
+            continue
+        if isinstance(valor, str):
+            valor = valor.strip()
+            if valor == "":
+                continue
+        campos[nome] = valor
+
+    if not campos:
+        return None, None, "Informe pelo menos um novo valor. Campos vazios mantêm os dados atuais."
+
+    if "codigo" in campos:
+        novo_codigo = str(campos.get("codigo") or "").strip()
+        produto = db.buscar_produto_por_codigo(novo_codigo) if novo_codigo else None
+        if not produto:
+            return None, None, "Novo código do item não encontrado no Cadastro de Produtos."
+        campos["codigo"] = novo_codigo
+        campos["descricao"] = (produto.get("descricao") or "").strip()
+
+    if "qtde" in campos:
+        try:
+            qtde = int(float(campos.get("qtde") or 0))
+        except (TypeError, ValueError):
+            return None, None, "Quantidade inválida."
+        if qtde < 0:
+            return None, None, "A quantidade não pode ser negativa."
+        campos["qtde"] = str(qtde)
+
+    return codigo_alvo, campos, None
+
+
 def _resumo_alteracoes_edicao_massa(item_antes, campos):
     """Monta o antes → depois que aparecerá no histórico/relatórios."""
     alteracoes = []
@@ -4611,9 +4668,16 @@ def api_editar_imobilizados_em_lote():
     erro_senha = _validar_senha_edicao_massa(payload)
     if erro_senha:
         return jsonify({"erro": erro_senha}), 403
-    ids, campos, erro = _preparar_edicao_massa(payload)
+    codigo_alvo, campos, erro = _preparar_edicao_massa_por_codigo(payload)
     if erro:
         return jsonify({"erro": erro}), 400
+
+    registros = [
+        item for item in (db.listar_imobilizados() or [])
+        if str(item.get("codigo") or "").strip() == codigo_alvo
+    ]
+    if not registros:
+        return jsonify({"erro": "Nenhum imobilizado encontrado para o código selecionado."}), 404
 
     usuario = session.get("username")
     agora = datetime.now().strftime("%Y-%m-%d %H:%M")
@@ -4622,9 +4686,9 @@ def api_editar_imobilizados_em_lote():
     atualizados = 0
     ignorados = 0
 
-    for item_id in ids:
-        item_antes = db.buscar_imobilizado_por_id(item_id)
-        if not item_antes:
+    for item_antes in registros:
+        item_id = item_antes.get("id")
+        if not item_id:
             ignorados += 1
             continue
         resumo = _resumo_alteracoes_edicao_massa(item_antes, campos)
@@ -4632,11 +4696,14 @@ def api_editar_imobilizados_em_lote():
             atualizados += 1
             db.registrar_movimentacao(
                 item_id, "edicao", None, usuario,
-                f"Edição em massa confirmada com senha · lote {lote} · {resumo}",
+                f"Edição em massa por código confirmada com senha · código-alvo {codigo_alvo} · lote {lote} · {resumo}",
                 tabela="imobilizados",
             )
 
-    return jsonify({"ok": True, "atualizados": atualizados, "ignorados": ignorados, "lote": lote})
+    return jsonify({
+        "ok": True, "codigo_alvo": codigo_alvo, "total_encontrados": len(registros),
+        "atualizados": atualizados, "ignorados": ignorados, "lote": lote
+    })
 
 
 @app.route("/api/imobilizados/<int:item_id>", methods=["DELETE"])
@@ -5031,9 +5098,16 @@ def api_editar_itens_em_lote():
     erro_senha = _validar_senha_edicao_massa(payload)
     if erro_senha:
         return jsonify({"erro": erro_senha}), 403
-    ids, campos, erro = _preparar_edicao_massa(payload)
+    codigo_alvo, campos, erro = _preparar_edicao_massa_por_codigo(payload)
     if erro:
         return jsonify({"erro": erro}), 400
+
+    registros = [
+        item for item in (db.listar_itens() or [])
+        if str(item.get("codigo") or "").strip() == codigo_alvo
+    ]
+    if not registros:
+        return jsonify({"erro": "Nenhum item de estoque encontrado para o código selecionado."}), 404
 
     usuario = session.get("username")
     agora = datetime.now().strftime("%Y-%m-%d %H:%M")
@@ -5042,9 +5116,9 @@ def api_editar_itens_em_lote():
     atualizados = 0
     ignorados = 0
 
-    for item_id in ids:
-        item_antes = db.buscar_item_por_id(item_id)
-        if not item_antes:
+    for item_antes in registros:
+        item_id = item_antes.get("id")
+        if not item_id:
             ignorados += 1
             continue
         resumo = _resumo_alteracoes_edicao_massa(item_antes, campos)
@@ -5052,11 +5126,14 @@ def api_editar_itens_em_lote():
             atualizados += 1
             db.registrar_movimentacao(
                 item_id, "edicao", None, usuario,
-                f"Edição em massa confirmada com senha · lote {lote} · {resumo}",
+                f"Edição em massa por código confirmada com senha · código-alvo {codigo_alvo} · lote {lote} · {resumo}",
                 tabela="itens",
             )
 
-    return jsonify({"ok": True, "atualizados": atualizados, "ignorados": ignorados, "lote": lote})
+    return jsonify({
+        "ok": True, "codigo_alvo": codigo_alvo, "total_encontrados": len(registros),
+        "atualizados": atualizados, "ignorados": ignorados, "lote": lote
+    })
 
 
 @app.route("/api/itens/<int:item_id>", methods=["DELETE"])
