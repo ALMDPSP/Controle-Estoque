@@ -530,7 +530,7 @@
 
   <section class="panel">
     <h2>Registrar novo item (entrada)</h2>
-    <form id="item-form">
+    <form id="item-form" novalidate>
       <div class="field">
         <label for="codigo">Código do item *</label>
         <select id="codigo" name="codigo" required>
@@ -543,12 +543,21 @@
         <input id="descricao" name="descricao" readonly placeholder="Preenchida automaticamente pelo cadastro de produtos">
       </div>
       <div class="field">
-        <label for="qtde">Qtde</label>
-        <input id="qtde" name="qtde" type="number" min="0" step="1" placeholder="0">
+        <label for="qtde">Qtde *</label>
+        <input id="qtde" name="qtde" type="number" min="1" step="1" placeholder="1" required>
       </div>
       <div class="field">
-        <label for="localizacao">Localização</label>
-        <input id="localizacao" name="localizacao" placeholder="Depósito / prateleira">
+        <label for="localizacao">UF *</label>
+        <select id="localizacao" name="localizacao" required>
+          <option value="">Selecione a UF...</option>
+          <option value="AC">AC</option><option value="AL">AL</option><option value="AP">AP</option><option value="AM">AM</option>
+          <option value="BA">BA</option><option value="CE">CE</option><option value="DF">DF</option><option value="ES">ES</option>
+          <option value="GO">GO</option><option value="MA">MA</option><option value="MT">MT</option><option value="MS">MS</option>
+          <option value="MG">MG</option><option value="PA">PA</option><option value="PB">PB</option><option value="PR">PR</option>
+          <option value="PE">PE</option><option value="PI">PI</option><option value="RJ">RJ</option><option value="RN">RN</option>
+          <option value="RS">RS</option><option value="RO">RO</option><option value="RR">RR</option><option value="SC">SC</option>
+          <option value="SP">SP</option><option value="SE">SE</option><option value="TO">TO</option>
+        </select>
       </div>
 
       <div class="field">
@@ -577,8 +586,8 @@
       </div>
 
       <div class="field">
-        <label for="local">Local</label>
-        <select id="local" name="local">
+        <label for="local">Local *</label>
+        <select id="local" name="local" required>
           <option value=""></option>
           <option value="CD">CD</option>
           <option value="Engemon">Engemon</option>
@@ -586,8 +595,8 @@
         </select>
       </div>
       <div class="field">
-        <label for="armazenagem">Armazenagem</label>
-        <select id="armazenagem" name="armazenagem">
+        <label for="armazenagem">Armazenamento *</label>
+        <select id="armazenagem" name="armazenagem" required>
           <option value=""></option>
           <option value="Container">Container</option>
           <option value="Gaiola">Gaiola</option>
@@ -596,8 +605,8 @@
         </select>
       </div>
       <div class="field">
-        <label for="status">Status</label>
-        <select id="status" name="status">
+        <label for="status">Status *</label>
+        <select id="status" name="status" required>
           <option value=""></option>
           <option value="Reservado">Reservado</option>
           <option value="Separado">Separado</option>
@@ -605,8 +614,8 @@
         </select>
       </div>
       <div class="field">
-        <label for="tipo_estoque">Tipo de Estoque</label>
-        <select id="tipo_estoque" name="tipo_estoque">
+        <label for="tipo_estoque">Tipo de Estoque *</label>
+        <select id="tipo_estoque" name="tipo_estoque" required>
           <option value=""></option>
           <option value="Expansão">Expansão</option>
           <option value="Sustentação">Sustentação</option>
@@ -839,7 +848,7 @@
             <th>Código</th>
             <th>Descrição</th>
             <th>Qtde</th>
-            <th>Localização</th>
+            <th>UF</th>
             <th>NF entrada</th>
             <th>Data entrada</th>
             <th>NF saída</th>
@@ -847,7 +856,7 @@
             <th>VD / referência</th>
             <th>Filial / destino</th>
             <th>Local</th>
-            <th>Armazenagem</th>
+            <th>Armazenamento</th>
             <th>Status</th>
             <th>Tipo de estoque</th>
             <th>Nº imob.</th>
@@ -953,7 +962,7 @@
         <input id="fe-qtde" type="number" min="0" step="1">
       </div>
       <div class="field">
-        <label for="fe-localizacao">Localização</label>
+        <label for="fe-localizacao">UF</label>
         <input id="fe-localizacao">
       </div>
       <div class="field">
@@ -966,7 +975,7 @@
         </select>
       </div>
       <div class="field">
-        <label for="fe-armazenagem">Armazenagem</label>
+        <label for="fe-armazenagem">Armazenamento</label>
         <select id="fe-armazenagem">
           <option value=""></option>
           <option value="Container">Container</option>
@@ -1094,7 +1103,7 @@
         <input id="bulk-qtde" type="number" min="0" step="1" disabled>
       </div>
       <div class="field">
-        <label><input type="checkbox" class="bulk-enable" data-field="localizacao" data-target="bulk-localizacao"> Alterar localização</label>
+        <label><input type="checkbox" class="bulk-enable" data-field="localizacao" data-target="bulk-localizacao"> Alterar UF</label>
         <input id="bulk-localizacao" disabled>
       </div>
       <div class="field">
@@ -1102,7 +1111,7 @@
         <select id="bulk-local" disabled><option value=""></option><option value="CD">CD</option><option value="Engemon">Engemon</option><option value="Loja">Loja</option></select>
       </div>
       <div class="field">
-        <label><input type="checkbox" class="bulk-enable" data-field="armazenagem" data-target="bulk-armazenagem"> Alterar armazenagem</label>
+        <label><input type="checkbox" class="bulk-enable" data-field="armazenagem" data-target="bulk-armazenagem"> Alterar armazenamento</label>
         <select id="bulk-armazenagem" disabled><option value=""></option><option value="Container">Container</option><option value="Gaiola">Gaiola</option><option value="CD">CD</option><option value="Caixa">Caixa</option></select>
       </div>
       <div class="field">
@@ -1174,7 +1183,7 @@
     <h3>Importar planilha Excel</h3>
     <p style="margin:0 0 16px; font-size:13px; color:var(--muted); line-height:1.5;">
       A planilha deve ter uma linha de título com os nomes das colunas
-      (ex: "Código do item", "Descrição", "Qtde"...). Por segurança, confirme
+      (ex: "Código do item", "Descrição", "Qtde"...). O upload exige Local, Armazenamento, Status, Tipo de estoque, UF e Qtde preenchidos. Por segurança, confirme
       sua senha para continuar — o upload fica registrado no histórico de cada item.
     </p>
     <div id="importar-msg" style="display:none; margin-bottom:14px;"></div>
@@ -1185,6 +1194,16 @@
           <option value="estoque">Estoque (cada unidade vira uma linha)</option>
           <option value="imobilizados">Imobilizados (mantém a quantidade da planilha)</option>
         </select>
+      </div>
+      <div class="field">
+        <label for="importar-modo">Como deseja subir os dados?</label>
+        <select id="importar-modo">
+          <option value="adicionar" selected>Adicionar aos existentes — mantém o que já está cadastrado</option>
+          <option value="substituir">Substituir base — apaga os cadastrados da aba e sobe somente este arquivo</option>
+        </select>
+        <small style="display:block;margin-top:6px;color:var(--muted);line-height:1.4">
+          Em <strong>Substituir base</strong>, os dados atuais da aba escolhida serão removidos somente depois que a planilha for validada sem erros.
+        </small>
       </div>
       <div class="field">
         <label for="importar-arquivo">Arquivo (.xlsx)</label>
@@ -1298,7 +1317,7 @@ function renderizar(){
       <td class="codigo">${escapeHtml(it.codigo || '')}</td>
       <td data-label="Descrição">${escapeHtml(it.descricao || '')}</td>
       <td data-label="Qtde">${escapeHtml(String(it.qtde ?? ''))}</td>
-      <td data-label="Localização">${escapeHtml(it.localizacao || '')}</td>
+      <td data-label="UF">${escapeHtml(it.localizacao || '')}</td>
       <td data-label="NF entrada">${escapeHtml(it.nf_entrada || '')}</td>
       <td data-label="Data entrada">${it.data_entrada ? `<span class="data-pill entrada">${escapeHtml(it.data_entrada)}</span>` : ''}</td>
       <td data-label="NF saída">${escapeHtml(it.nf_saida || '')}</td>
@@ -1306,7 +1325,7 @@ function renderizar(){
       <td data-label="VD / referência">${escapeHtml(it.vd_loja || '')}</td>
       <td data-label="Filial / destino">${escapeHtml(formatarFilialDestino(it.filial_destino))}</td>
       <td data-label="Local">${escapeHtml(it.local || '')}</td>
-      <td data-label="Armazenagem">${escapeHtml(it.armazenagem || '')}</td>
+      <td data-label="Armazenamento">${escapeHtml(it.armazenagem || '')}</td>
       <td data-label="Status">${it.status ? `<span class="status-pill ${escapeHtml((it.status||'').toLowerCase())}">${escapeHtml(it.status)}</span>` : ''}</td>
       <td data-label="Tipo de estoque">${escapeHtml(canonicalizarTipo(it.tipo_estoque) || 'Não informado')}</td>
       <td data-label="Nº imob.">${escapeHtml(it.nro_imobilizado || '')}</td>
@@ -2555,6 +2574,15 @@ document.getElementById('item-form').addEventListener('submit', async (e) => {
     val_aquis: form.val_aquis.value,
     chamado: form.chamado.value,
   };
+  const obrigatorios = [
+    ['local','Local'], ['armazenagem','Armazenamento'], ['status','Status'],
+    ['tipo_estoque','Tipo de estoque'], ['localizacao','UF'], ['qtde','Qtde']
+  ];
+  const faltantes = obrigatorios.filter(([campo]) => !String(dados[campo] ?? '').trim() || (campo === 'qtde' && Number(dados[campo]) <= 0)).map(([,rotulo]) => rotulo);
+  if(faltantes.length){
+    alert(`Falta informação para liberar o cadastro para ser salvo. Preencha: ${faltantes.join(', ')}.`);
+    return;
+  }
   const res = await fetch('/api/itens', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
@@ -3133,9 +3161,9 @@ document.getElementById('importar-cancel').addEventListener('click', () => impor
 document.getElementById('importar-validar')?.addEventListener('click', async () => {
   const arquivoInput=document.getElementById('importar-arquivo');const btn=document.getElementById('importar-validar');
   if(!arquivoInput.files.length){alert('Escolha um arquivo .xlsx.');return;}
-  const fd=new FormData();fd.append('arquivo',arquivoInput.files[0]);fd.append('tabela',document.getElementById('importar-tabela').value);
+  const fd=new FormData();fd.append('arquivo',arquivoInput.files[0]);fd.append('tabela',document.getElementById('importar-tabela').value);fd.append('modo',document.getElementById('importar-modo').value);
   btn.disabled=true;btn.textContent='Validando...';importarMsg.style.display='block';importarMsg.className='';importarMsg.style.cssText='background:rgba(62,166,255,.10); border:1px solid rgba(62,166,255,.28); color:#b9ddff; font-size:13px; padding:9px 11px; border-radius:6px;';importarMsg.textContent='Analisando a planilha sem gravar dados...';
-  try{const r=await fetch('/api/itens/importar/validar',{method:'POST',body:fd});const x=await r.json();if(!r.ok)throw new Error(x.erro||'Falha na validação.');importarMsg.style.cssText='background:rgba(76,215,146,.10); border:1px solid rgba(76,215,146,.28); color:#b8f5d0; font-size:13px; padding:9px 11px; border-radius:6px;';importarMsg.textContent=`Validação OK: ${x.total_linhas||0} linha(s), ${x.validas||0} válida(s), ${x.registros_previstos||0} registro(s) serão gerados e ${x.ignoradas||0} linha(s) serão ignoradas.`;}catch(err){importarMsg.style.cssText='background:rgba(255,107,107,.12); border:1px solid rgba(255,107,107,.3); color:var(--danger); font-size:13px; padding:9px 11px; border-radius:6px;';importarMsg.textContent=err.message||'Erro ao validar planilha.';}finally{btn.disabled=false;btn.textContent='Validar planilha';}
+  try{const r=await fetch('/api/itens/importar/validar',{method:'POST',body:fd});const x=await r.json();if(!r.ok)throw new Error(x.erro||'Falha na validação.');importarMsg.style.cssText='background:rgba(76,215,146,.10); border:1px solid rgba(76,215,146,.28); color:#b8f5d0; font-size:13px; padding:9px 11px; border-radius:6px;';importarMsg.textContent=`Validação OK: ${x.total_linhas||0} linha(s), ${x.validas||0} válida(s) e ${x.registros_previstos||0} registro(s) serão gerados. ${x.modo==='substituir' ? `A substituição removerá ${x.existentes||0} registro(s) atuais antes de gravar a nova base.` : `Os ${x.existentes||0} registro(s) atuais serão mantidos.`}`;}catch(err){importarMsg.style.cssText='background:rgba(255,107,107,.12); border:1px solid rgba(255,107,107,.3); color:var(--danger); font-size:13px; padding:9px 11px; border-radius:6px;';importarMsg.textContent=err.message||'Erro ao validar planilha.';}finally{btn.disabled=false;btn.textContent='Validar planilha';}
 });
 
 
@@ -3157,6 +3185,9 @@ document.getElementById('importar-enviar').addEventListener('click', async () =>
   formData.append('arquivo', arquivoInput.files[0]);
   formData.append('senha', senha);
   formData.append('tabela', document.getElementById('importar-tabela').value);
+  const modoImportacao = document.getElementById('importar-modo').value;
+  formData.append('modo', modoImportacao);
+  if(modoImportacao === 'substituir' && !confirm('ATENÇÃO: esta opção apagará todos os registros atuais da aba escolhida e gravará somente os dados deste arquivo. Deseja continuar?')) return;
 
   btn.disabled = true;
   btn.textContent = 'Importando... aguarde';
@@ -3170,7 +3201,8 @@ document.getElementById('importar-enviar').addEventListener('click', async () =>
       carregarItens();
       const nomeTabela = corpo.tabela === 'imobilizados' ? 'Imobilizados' : 'Estoque';
       let texto = `${corpo.importados} registro(s) importado(s) para ${nomeTabela}.`;
-      if(corpo.ignoradas) texto += ` (${corpo.ignoradas} linha(s) ignorada(s) por falta de código.)`;
+      if(corpo.modo === 'substituir') texto += ` Base substituída: ${corpo.removidos||0} registro(s) anteriores foram removidos.`;
+      else texto += ' Dados anteriores mantidos.';
       mostrarToast(texto);
     } else {
       importarMsg.style.display = 'block';

@@ -1057,6 +1057,44 @@ def criar_itens_em_lote(lista_dados, usuario, observacao="Importado via planilha
     return len(ids_criados)
 
 
+def substituir_itens_em_lote(lista_dados, usuario, observacao="Substituição via planilha"):
+    """Substitui atomicamente toda a base de Estoque pelos registros informados.
+
+    Se qualquer inserção falhar, a transação é desfeita e a base anterior permanece.
+    O histórico antigo é preservado para auditoria.
+    """
+    campos = ["codigo", "descricao", "qtde", "localizacao", "nf_entrada",
+              "data_entrada", "nf_saida", "data_saida", "vd_loja",
+              "local", "armazenagem", "status", "nro_imobilizado",
+              "nro_serie", "nro_patrimonio", "tipo_estoque", "criado_por",
+              "pedido", "val_aquis", "chamado", "filial_destino"]
+    conn = get_conn(); cur = get_cursor(conn)
+    try:
+        cur.execute("SELECT COUNT(*) AS total FROM itens")
+        removidos = int(cur.fetchone()["total"] or 0)
+        cur.execute("DELETE FROM itens")
+        ids_criados = []
+        for dados in lista_dados:
+            valores = [dados.get(c, "") for c in campos]
+            if IS_PG:
+                cur.execute(q(f"INSERT INTO itens ({', '.join(campos)}) VALUES ({', '.join(['?'] * len(campos))}) RETURNING id"), valores)
+                ids_criados.append(cur.fetchone()["id"])
+            else:
+                cur.execute(q(f"INSERT INTO itens ({', '.join(campos)}) VALUES ({', '.join(['?'] * len(campos))})"), valores)
+                ids_criados.append(cur.lastrowid)
+        agora = datetime.now().strftime("%Y-%m-%d %H:%M")
+        if ids_criados:
+            mov_valores = [(item_id, "entrada", str(lista_dados[i].get("qtde", "")), usuario, agora, observacao) for i, item_id in enumerate(ids_criados)]
+            cur.executemany(q("INSERT INTO movimentacoes (item_id, tipo, quantidade, usuario, data_hora, observacao) VALUES (?, ?, ?, ?, ?, ?)"), mov_valores)
+        conn.commit()
+        return {"removidos": removidos, "criados": len(ids_criados)}
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        cur.close(); conn.close()
+
+
 def atualizar_item(item_id, novos_dados):
     campos_permitidos = ["codigo", "descricao", "qtde", "localizacao", "nf_entrada",
                           "data_entrada", "nf_saida", "data_saida", "vd_loja",
@@ -1365,6 +1403,35 @@ def criar_imobilizados_em_lote(lista_dados, usuario, observacao="Importado via p
     cur.close()
     conn.close()
     return len(ids_criados)
+
+
+def substituir_imobilizados_em_lote(lista_dados, usuario, observacao="Substituição via planilha"):
+    """Substitui atomicamente toda a base de Imobilizados pelos novos registros."""
+    conn = get_conn(); cur = get_cursor(conn)
+    try:
+        cur.execute("SELECT COUNT(*) AS total FROM imobilizados")
+        removidos = int(cur.fetchone()["total"] or 0)
+        cur.execute("DELETE FROM imobilizados")
+        ids_criados = []
+        for dados in lista_dados:
+            valores = [dados.get(c, "") for c in CAMPOS_IMOBILIZADO]
+            if IS_PG:
+                cur.execute(q(f"INSERT INTO imobilizados ({', '.join(CAMPOS_IMOBILIZADO)}) VALUES ({', '.join(['?'] * len(CAMPOS_IMOBILIZADO))}) RETURNING id"), valores)
+                ids_criados.append(cur.fetchone()["id"])
+            else:
+                cur.execute(q(f"INSERT INTO imobilizados ({', '.join(CAMPOS_IMOBILIZADO)}) VALUES ({', '.join(['?'] * len(CAMPOS_IMOBILIZADO))})"), valores)
+                ids_criados.append(cur.lastrowid)
+        agora = datetime.now().strftime("%Y-%m-%d %H:%M")
+        if ids_criados:
+            mov_valores = [(item_id, "entrada", str(lista_dados[i].get("qtde", "")), usuario, agora, observacao, "imobilizados") for i, item_id in enumerate(ids_criados)]
+            cur.executemany(q("INSERT INTO movimentacoes (item_id, tipo, quantidade, usuario, data_hora, observacao, tabela) VALUES (?, ?, ?, ?, ?, ?, ?)"), mov_valores)
+        conn.commit()
+        return {"removidos": removidos, "criados": len(ids_criados)}
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        cur.close(); conn.close()
 
 
 def atualizar_imobilizado(item_id, novos_dados):

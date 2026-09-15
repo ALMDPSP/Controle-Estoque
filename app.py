@@ -4496,11 +4496,11 @@ def _preparar_edicao_massa(payload):
 
 ROTULOS_CAMPOS_EDICAO_MASSA = {
     "codigo": "Código", "descricao": "Descrição", "qtde": "Quantidade",
-    "localizacao": "Localização", "nf_entrada": "NF entrada",
+    "localizacao": "UF", "nf_entrada": "NF entrada",
     "data_entrada": "Data entrada", "nf_saida": "NF saída",
     "data_saida": "Data saída", "vd_loja": "VD / referência",
     "filial_destino": "Filial / destino", "local": "Local",
-    "armazenagem": "Armazenagem", "status": "Status",
+    "armazenagem": "Armazenamento", "status": "Status",
     "nro_imobilizado": "Nº imobilizado", "nro_serie": "Nº série",
     "nro_patrimonio": "Nº patrimônio", "tipo_estoque": "Tipo de estoque",
     "pedido": "Pedido", "val_aquis": "ValAquis.", "chamado": "Chamado",
@@ -4592,6 +4592,62 @@ def _resumo_alteracoes_edicao_massa(item_antes, campos):
 
 
 # ---------------------------------------------------------------------
+# Validação de campos obrigatórios - Estoque / Imobilizados
+# ---------------------------------------------------------------------
+
+UFS_VALIDAS = {"AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG","PA","PB","PR","PE","PI","RJ","RN","RS","RO","RR","SC","SP","SE","TO"}
+
+CAMPOS_OBRIGATORIOS_CADASTRO = [
+    ("local", "Local"),
+    ("armazenagem", "Armazenamento"),
+    ("status", "Status"),
+    ("tipo_estoque", "Tipo de estoque"),
+    ("localizacao", "UF"),
+    ("qtde", "Qtde"),
+]
+
+
+def _validar_campos_obrigatorios_cadastro(dados):
+    """Valida os campos mínimos exigidos em novos cadastros/importações.
+
+    ``localizacao`` continua sendo o nome interno da coluna no banco para
+    preservar compatibilidade, mas na interface esse campo representa a UF.
+    """
+    dados = dados or {}
+    faltantes = []
+    for campo, rotulo in CAMPOS_OBRIGATORIOS_CADASTRO:
+        valor = dados.get(campo)
+        if valor is None or str(valor).strip() == "":
+            faltantes.append(rotulo)
+
+    if "Qtde" not in faltantes:
+        try:
+            qtd = int(float(str(dados.get("qtde")).replace(",", ".")))
+        except (TypeError, ValueError):
+            qtd = 0
+        if qtd <= 0:
+            faltantes.append("Qtde")
+
+    # Padroniza UF informada nos novos registros. A validação é propositalmente
+    # simples para não bloquear dados legados; o formulário usa lista oficial.
+    if "UF" not in faltantes:
+        uf = str(dados.get("localizacao") or "").strip().upper()
+        dados["localizacao"] = uf
+        if uf not in UFS_VALIDAS:
+            return "Falta informação para liberar o cadastro para ser salvo. Informe uma UF válida (ex.: SP, RJ, MG)."
+
+    if faltantes:
+        nomes = ", ".join(dict.fromkeys(faltantes))
+        return f"Falta informação para liberar o cadastro para ser salvo. Preencha: {nomes}."
+    return None
+
+
+def _normalizar_modo_importacao(valor):
+    valor = str(valor or "adicionar").strip().lower()
+    return "substituir" if valor == "substituir" else "adicionar"
+
+
+# ---------------------------------------------------------------------
 # API - Imobilizados
 # ---------------------------------------------------------------------
 
@@ -4608,6 +4664,9 @@ def api_criar_imobilizado():
     codigo = (dados.get("codigo") or "").strip()
     if not codigo:
         return jsonify({"erro": "Código do item é obrigatório."}), 400
+    erro_obrigatorios = _validar_campos_obrigatorios_cadastro(dados)
+    if erro_obrigatorios:
+        return jsonify({"erro": erro_obrigatorios}), 400
 
     novo = {
         "codigo": codigo,
@@ -4788,10 +4847,10 @@ def exportar_imobilizados_excel():
     wb = Workbook()
     ws = wb.active
     ws.title = "Imobilizados"
-    colunas = ["ID", "Codigo do item", "Descricao", "Qtde", "Localizacao",
+    colunas = ["ID", "Codigo do item", "Descricao", "Qtde", "UF",
                "NF de entrada", "Data de entrada", "NF de saida",
                "Data de saida", "VD / referencia", "Filial destino", "Local",
-               "Armazenagem", "Status", "Nro Imobilizado", "Nro Serie",
+               "Armazenamento", "Status", "Nro Imobilizado", "Nro Serie",
                "Nro Patrimonio", "Tipo de Estoque", "Criado por",
                "Ultima alteracao por", "Ultima alteracao em",
                "Pedido", "ValAquis.", "Chamado"]
@@ -5011,6 +5070,9 @@ def api_criar():
     codigo = (dados.get("codigo") or "").strip()
     if not codigo:
         return jsonify({"erro": "Código do item é obrigatório."}), 400
+    erro_obrigatorios = _validar_campos_obrigatorios_cadastro(dados)
+    if erro_obrigatorios:
+        return jsonify({"erro": erro_obrigatorios}), 400
 
     base = {
         "codigo": codigo,
@@ -5191,10 +5253,10 @@ def exportar_excel():
     wb = Workbook()
     ws = wb.active
     ws.title = "Estoque"
-    colunas = ["ID", "Codigo do item", "Descricao", "Qtde", "Localizacao",
+    colunas = ["ID", "Codigo do item", "Descricao", "Qtde", "UF",
                "NF de entrada", "Data de entrada", "NF de saida",
                "Data de saida", "VD / referencia", "Filial destino", "Local",
-               "Armazenagem", "Status", "Nro Imobilizado", "Nro Serie",
+               "Armazenamento", "Status", "Nro Imobilizado", "Nro Serie",
                "Nro Patrimonio", "Tipo de Estoque", "Criado por",
                "Ultima alteracao por", "Ultima alteracao em",
                "Pedido", "ValAquis.", "Chamado"]
@@ -5261,7 +5323,7 @@ ALIASES_COLUNAS = {
     "codigo": ["codigo", "codigodoitem"],
     "descricao": ["descricao", "descricaodoequipamento"],
     "qtde": ["qtde", "quantidade", "qtd"],
-    "localizacao": ["localizacao"],
+    "localizacao": ["localizacao", "uf", "estado"],
     "nf_entrada": ["nfdeentrada", "nfentrada", "notafiscaldeentrada", "nf"],
     "data_entrada": ["datadeentrada", "dataentrada"],
     "nf_saida": ["nfdesaida", "nfsaida", "notafiscaldesaida"],
@@ -5269,7 +5331,7 @@ ALIASES_COLUNAS = {
     "vd_loja": ["vddalojadestino", "vddaloja", "vdloja", "vd", "lojadestino"],
     "filial_destino": ["filialdestino", "filial", "codigofilial", "lojafilial", "destinofilial"],
     "local": ["local"],
-    "armazenagem": ["armazenagem", "localarmazenagem"],
+    "armazenagem": ["armazenagem", "armazenamento", "localarmazenagem", "localdearmazenamento"],
     "status": ["status"],
     "nro_imobilizado": ["nroimobilizado", "numeroimobilizado", "imobilizado"],
     "nro_serie": ["nroserie", "numerodeserie", "nserie", "serie"],
@@ -5307,35 +5369,86 @@ def _valor_para_texto(valor):
 @app.route("/api/itens/importar/validar", methods=["POST"])
 @edit_required
 def api_validar_importacao_itens():
-    tabela_destino=request.form.get("tabela","estoque")
-    if tabela_destino not in ("estoque","imobilizados"): tabela_destino="estoque"
-    arquivo=request.files.get("arquivo")
-    if not arquivo or not arquivo.filename:return jsonify({"erro":"Nenhum arquivo enviado."}),400
+    tabela_destino = request.form.get("tabela", "estoque")
+    if tabela_destino not in ("estoque", "imobilizados"):
+        tabela_destino = "estoque"
+    modo = _normalizar_modo_importacao(request.form.get("modo"))
+    arquivo = request.files.get("arquivo")
+    if not arquivo or not arquivo.filename:
+        return jsonify({"erro": "Nenhum arquivo enviado."}), 400
     try:
-        wb=load_workbook(arquivo,read_only=True,data_only=True); ws=wb.active; linhas=ws.iter_rows(values_only=True)
-        try:cabecalho=next(linhas)
-        except StopIteration:return jsonify({"erro":"A planilha está vazia."}),400
-        mapa=_mapear_colunas(cabecalho)
-        if "codigo" not in mapa.values():return jsonify({"erro":"Não encontrei uma coluna de Código do item."}),400
-        total=validas=ignoradas=registros=0; erros=[]; amostra=[]
-        for n,linha in enumerate(linhas,start=2):
-            if linha is None or all(v is None for v in linha):continue
-            total+=1; dados={}
-            for indice,campo in mapa.items():
-                if indice<len(linha):dados[campo]=_valor_para_texto(linha[indice])
-            if not dados.get("codigo"):
-                ignoradas+=1
-                if len(erros)<15:erros.append(f"Linha {n}: código não informado.")
+        wb = load_workbook(arquivo, read_only=True, data_only=True)
+        ws = wb.active
+        linhas = ws.iter_rows(values_only=True)
+        try:
+            cabecalho = next(linhas)
+        except StopIteration:
+            return jsonify({"erro": "A planilha está vazia."}), 400
+        mapa = _mapear_colunas(cabecalho)
+        if "codigo" not in mapa.values():
+            return jsonify({"erro": "Não encontrei uma coluna de Código do item."}), 400
+
+        # O upload novo também precisa trazer todos os campos obrigatórios.
+        campos_presentes = set(mapa.values())
+        colunas_faltantes = [rotulo for campo, rotulo in CAMPOS_OBRIGATORIOS_CADASTRO if campo not in campos_presentes]
+        if colunas_faltantes:
+            return jsonify({
+                "erro": "Falta informação para liberar o cadastro para ser salvo. "
+                        "A planilha precisa ter as colunas: " + ", ".join(colunas_faltantes) + "."
+            }), 400
+
+        total = validas = registros = 0
+        erros = []
+        amostra = []
+        for n, linha in enumerate(linhas, start=2):
+            if linha is None or all(v is None for v in linha):
                 continue
-            validas+=1
-            qtd=1
-            try:qtd=max(1,int(float(dados.get("qtde") or 1)))
-            except Exception:qtd=1
-            registros += qtd if tabela_destino=="estoque" else 1
-            if len(amostra)<8:amostra.append({"codigo":dados.get("codigo"),"descricao":dados.get("descricao",""),"qtde":qtd,"tipo":dados.get("tipo_estoque","")})
-        return jsonify({"ok":True,"arquivo":arquivo.filename,"tabela":tabela_destino,"total_linhas":total,"validas":validas,"ignoradas":ignoradas,"registros_previstos":registros,"erros":erros,"amostra":amostra})
+            total += 1
+            dados = {}
+            for indice, campo in mapa.items():
+                if indice < len(linha):
+                    dados[campo] = _valor_para_texto(linha[indice])
+            if dados.get("tipo_estoque"):
+                dados["tipo_estoque"] = _canonicalizar_tipo_estoque(dados["tipo_estoque"])
+            if dados.get("localizacao"):
+                dados["localizacao"] = str(dados["localizacao"]).strip().upper()
+            if not dados.get("codigo"):
+                erros.append(f"Linha {n}: Código do item não informado.")
+                continue
+            erro_campos = _validar_campos_obrigatorios_cadastro(dados)
+            if erro_campos:
+                erros.append(f"Linha {n}: {erro_campos}")
+                continue
+            validas += 1
+            qtd = int(float(str(dados.get("qtde")).replace(",", ".")))
+            registros += qtd if tabela_destino == "estoque" else 1
+            if len(amostra) < 8:
+                amostra.append({
+                    "codigo": dados.get("codigo"),
+                    "descricao": dados.get("descricao", ""),
+                    "qtde": qtd,
+                    "uf": dados.get("localizacao", ""),
+                    "tipo": dados.get("tipo_estoque", ""),
+                })
+
+        if erros:
+            resumo = erros[:15]
+            extra = max(0, len(erros) - len(resumo))
+            msg = "Falta informação para liberar o cadastro para ser salvo. Corrija a planilha antes do upload. " + " | ".join(resumo)
+            if extra:
+                msg += f" | ... e mais {extra} linha(s) com erro."
+            return jsonify({"erro": msg, "erros": erros[:50], "total_linhas": total, "validas": validas}), 400
+        if not validas:
+            return jsonify({"erro": "Nenhuma linha válida encontrada na planilha."}), 400
+
+        existentes = len(db.listar_itens() if tabela_destino == "estoque" else db.listar_imobilizados())
+        return jsonify({
+            "ok": True, "arquivo": arquivo.filename, "tabela": tabela_destino, "modo": modo,
+            "total_linhas": total, "validas": validas, "ignoradas": 0,
+            "registros_previstos": registros, "existentes": existentes, "erros": [], "amostra": amostra,
+        })
     except Exception as e:
-        return jsonify({"erro":f"Erro ao validar a planilha: {e}"}),500
+        return jsonify({"erro": f"Erro ao validar a planilha: {e}"}), 500
 
 @app.route("/api/itens/importar", methods=["POST"])
 @edit_required
@@ -5348,6 +5461,7 @@ def api_importar():
     tabela_destino = request.form.get("tabela", "estoque")
     if tabela_destino not in ("estoque", "imobilizados"):
         tabela_destino = "estoque"
+    modo = _normalizar_modo_importacao(request.form.get("modo"))
 
     arquivo = request.files.get("arquivo")
     if not arquivo or not arquivo.filename:
@@ -5361,7 +5475,6 @@ def api_importar():
             ws = wb.active
         except Exception:
             return jsonify({"erro": "Não consegui abrir esse arquivo. Confirme se é um .xlsx válido."}), 400
-
         if ws is None:
             return jsonify({"erro": "A planilha não tem nenhuma aba com dados."}), 400
 
@@ -5373,16 +5486,22 @@ def api_importar():
 
         mapa_colunas = _mapear_colunas(cabecalho)
         if "codigo" not in mapa_colunas.values():
-            return jsonify({"erro": "Não encontrei uma coluna de 'Código do item' na planilha. "
-                                     "Verifique se a primeira linha tem os títulos das colunas."}), 400
+            return jsonify({"erro": "Não encontrei uma coluna de 'Código do item' na planilha."}), 400
+        campos_presentes = set(mapa_colunas.values())
+        colunas_faltantes = [rotulo for campo, rotulo in CAMPOS_OBRIGATORIOS_CADASTRO if campo not in campos_presentes]
+        if colunas_faltantes:
+            return jsonify({
+                "erro": "Falta informação para liberar o cadastro para ser salvo. "
+                        "A planilha precisa ter as colunas: " + ", ".join(colunas_faltantes) + "."
+            }), 400
 
         usuario = session.get("username")
         novos_itens = []
-        ignoradas = 0
+        erros = []
         linhas_validas_count = 0
         total_linhas_planilha = 0
 
-        for linha in linhas:
+        for n, linha in enumerate(linhas, start=2):
             if linha is None or all(v is None for v in linha):
                 continue
             total_linhas_planilha += 1
@@ -5390,51 +5509,71 @@ def api_importar():
             for indice, campo in mapa_colunas.items():
                 if indice < len(linha):
                     dados[campo] = _valor_para_texto(linha[indice])
-            if not dados.get("codigo"):
-                ignoradas += 1
-                continue
-            linhas_validas_count += 1
             if dados.get("tipo_estoque"):
                 dados["tipo_estoque"] = _canonicalizar_tipo_estoque(dados["tipo_estoque"])
+            if dados.get("localizacao"):
+                dados["localizacao"] = str(dados["localizacao"]).strip().upper()
+            if not dados.get("codigo"):
+                erros.append(f"Linha {n}: Código do item não informado.")
+                continue
+            erro_campos = _validar_campos_obrigatorios_cadastro(dados)
+            if erro_campos:
+                erros.append(f"Linha {n}: {erro_campos}")
+                continue
+
+            linhas_validas_count += 1
             dados["criado_por"] = usuario
             if not dados.get("data_entrada"):
                 dados["data_entrada"] = datetime.now().strftime("%Y-%m-%d")
+            qtd_linha = int(float(str(dados.get("qtde")).replace(",", ".")))
 
             if tabela_destino == "estoque":
-                # Cada unidade da planilha vira uma linha própria no Estoque
-                # (ex: qtde 40 numa linha da planilha = 40 linhas no sistema).
-                try:
-                    qtde_linha = int(float(dados.get("qtde") or 1))
-                except (ValueError, TypeError):
-                    qtde_linha = 1
-                qtde_linha = max(qtde_linha, 1)
                 base = dict(dados)
                 base["qtde"] = "1"
-                novos_itens.extend(dict(base) for _ in range(qtde_linha))
+                novos_itens.extend(dict(base) for _ in range(qtd_linha))
             else:
-                # Imobilizado: mantém a quantidade exatamente como veio na planilha,
-                # numa única linha (não é dividido).
+                # Imobilizado mantém a quantidade da linha, como já ocorria no upload.
+                dados["qtde"] = str(qtd_linha)
                 novos_itens.append(dados)
 
+        if erros:
+            resumo = erros[:15]
+            extra = max(0, len(erros) - len(resumo))
+            msg = "Falta informação para liberar o cadastro para ser salvo. Corrija a planilha antes do upload. " + " | ".join(resumo)
+            if extra:
+                msg += f" | ... e mais {extra} linha(s) com erro."
+            return jsonify({"erro": msg, "erros": erros[:50]}), 400
         if not novos_itens:
-            return jsonify({"erro": "Nenhuma linha válida encontrada (confira se a coluna 'Código do item' está preenchida)."}), 400
+            return jsonify({"erro": "Nenhuma linha válida encontrada na planilha."}), 400
 
-        if tabela_destino == "estoque":
-            total = db.criar_itens_em_lote(
-                novos_itens, usuario,
-                observacao=f"Importado via planilha ({arquivo.filename})"
-            )
+        observacao = f"Importado via planilha ({arquivo.filename}) · modo {modo}"
+        removidos = 0
+        if modo == "substituir":
+            if tabela_destino == "estoque":
+                resultado = db.substituir_itens_em_lote(novos_itens, usuario, observacao=observacao)
+            else:
+                resultado = db.substituir_imobilizados_em_lote(novos_itens, usuario, observacao=observacao)
+            total = resultado.get("criados", 0)
+            removidos = resultado.get("removidos", 0)
         else:
-            total = db.criar_imobilizados_em_lote(
-                novos_itens, usuario,
-                observacao=f"Importado via planilha ({arquivo.filename})"
-            )
+            if tabela_destino == "estoque":
+                total = db.criar_itens_em_lote(novos_itens, usuario, observacao=observacao)
+            else:
+                total = db.criar_imobilizados_em_lote(novos_itens, usuario, observacao=observacao)
 
         try:
-            db.registrar_importacao(tabela_destino, arquivo.filename, total_linhas=total_linhas_planilha, validas=linhas_validas_count, criadas=total, atualizadas=0, ignoradas=ignoradas, usuario=usuario, status="concluida")
+            db.registrar_importacao(
+                tabela_destino, arquivo.filename, total_linhas=total_linhas_planilha,
+                validas=linhas_validas_count, criadas=total, atualizadas=0, ignoradas=0,
+                usuario=usuario, status="concluida",
+                detalhes=(f"Modo: {modo}. Registros anteriores removidos: {removidos}." if modo == "substituir" else "Modo: adicionar aos existentes.")
+            )
         except Exception as audit_err:
             print(f"[aviso] Falha ao registrar auditoria de importação: {audit_err}")
-        return jsonify({"ok": True, "importados": total, "ignoradas": ignoradas, "tabela": tabela_destino})
+        return jsonify({
+            "ok": True, "importados": total, "ignoradas": 0, "tabela": tabela_destino,
+            "modo": modo, "removidos": removidos
+        })
 
     except Exception as e:
         print(f"[erro] Falha ao importar planilha: {e}")
