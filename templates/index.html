@@ -826,7 +826,7 @@
       </div>
     </div>
     <div style="display:flex; align-items:center; gap:12px; margin-bottom:10px; min-height:32px;">
-      <button class="btn-primary" id="btn-editar-selecionados" style="display:none;">Editar selecionados</button>
+      <button class="btn-primary" id="btn-editar-selecionados" type="button" disabled style="display:inline-flex; align-items:center; gap:7px; opacity:.58; cursor:not-allowed;">✏️ Editar selecionados (0)</button>
       <button class="btn-ghost" id="btn-excluir-selecionados" style="display:none; color:var(--danger); border-color:rgba(255,107,107,.4);">Excluir selecionados</button>
       <span id="selecionados-info" style="font-size:12px; color:var(--muted);"></span>
     </div>
@@ -2679,14 +2679,25 @@ function atualizarSelecionados(){
   const btn = document.getElementById('btn-excluir-selecionados');
   const btnEditar = document.getElementById('btn-editar-selecionados');
   const info = document.getElementById('selecionados-info');
+  // O botão de edição em massa fica sempre visível para quem pode editar.
+  // Ele apenas é habilitado quando houver pelo menos uma linha selecionada.
+  if(btnEditar){
+    if(PODE_EDITAR){
+      btnEditar.style.display = 'inline-flex';
+      btnEditar.disabled = idsSelecionados.size === 0;
+      btnEditar.style.opacity = idsSelecionados.size ? '1' : '.58';
+      btnEditar.style.cursor = idsSelecionados.size ? 'pointer' : 'not-allowed';
+      btnEditar.textContent = `✏️ Editar selecionados (${idsSelecionados.size})`;
+    } else {
+      btnEditar.style.display = 'none';
+    }
+  }
   if(idsSelecionados.size > 0){
     btn.style.display = PODE_EDITAR ? 'inline-block' : 'none';
-    btnEditar.style.display = PODE_EDITAR ? 'inline-block' : 'none';
     info.textContent = `${idsSelecionados.size} selecionado(s)`;
   } else {
     btn.style.display = 'none';
-    btnEditar.style.display = 'none';
-    info.textContent = '';
+    info.textContent = PODE_EDITAR ? 'Selecione uma ou mais linhas para editar em massa.' : '';
   }
   const todos = document.querySelectorAll('.chk-item');
   const selecionarTodos = document.getElementById('selecionar-todos');
@@ -2701,6 +2712,9 @@ document.getElementById('selecionar-todos').addEventListener('change', (e) => {
   });
   atualizarSelecionados();
 });
+
+// Atualiza o estado inicial da barra de ações em massa.
+atualizarSelecionados();
 
 // ---------------------------------------------------------------------
 // Edição em massa dos registros selecionados
