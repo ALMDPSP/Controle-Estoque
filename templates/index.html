@@ -834,7 +834,7 @@
       <table id="tabela-itens">
         <thead>
           <tr>
-            <th><input type="checkbox" id="selecionar-todos"></th>
+            <th><input type="checkbox" id="selecionar-todos" title="Selecionar todos somente para exclusão"></th>
             <th>Código</th>
             <th>Descrição</th>
             <th>Qtde</th>
@@ -1056,10 +1056,10 @@
   <div class="dlg-body" style="max-height:84vh; overflow:auto;">
     <h3>Editar selecionados em massa</h3>
     <p style="margin:0 0 10px; font-size:13px; color:var(--muted); line-height:1.5;">
-      <strong id="bulk-count">0 registros selecionados</strong>. Marque <strong>Alterar</strong> somente nos campos que deseja aplicar a todos os registros. Campos não marcados serão preservados.
+      <strong id="bulk-count">0 registros selecionados</strong>. Todos os campos marcados como <strong>Alterar</strong> serão gravados em <strong>todos os itens selecionados manualmente</strong>. Campos não marcados serão preservados.
     </p>
     <p style="margin:0 0 16px; padding:10px 12px; border:1px solid rgba(76,215,146,.30); border-radius:10px; background:rgba(76,215,146,.07); font-size:12px; color:var(--muted); line-height:1.5;">
-      <strong style="color:var(--text);">Seus dados atuais serão preservados.</strong> Na edição em massa, um campo vazio significa <strong>manter o valor existente</strong>. Para alterar um dado já preenchido ou completar um campo sem informação, marque <strong>Alterar</strong> e informe o novo valor. Nº imobilizado, Nº série e Nº patrimônio são normalmente individuais; se preenchidos aqui, o mesmo valor será aplicado a todos.
+      <strong style="color:var(--text);">Edição controlada e auditada.</strong> Selecione manualmente os itens no grid, escolha os campos e informe os novos valores. Para gravar, será obrigatório confirmar com sua senha. A alteração ficará registrada no Histórico/Relatórios com usuário, data/hora e valores alterados.
     </p>
     <form id="bulk-edit-form" style="display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px 14px;">
       <div class="field">
@@ -1139,9 +1139,14 @@
         <input id="bulk-chamado" disabled>
       </div>
     </form>
+    <div style="margin-top:16px; padding:12px; border:1px solid rgba(255,182,72,.35); border-radius:10px; background:rgba(255,182,72,.07);">
+      <label for="bulk-password" style="display:block; font-size:12px; font-weight:700; margin-bottom:6px;">Confirme sua senha para gravar</label>
+      <input id="bulk-password" type="password" autocomplete="current-password" placeholder="Sua senha atual" style="width:100%;">
+      <small style="display:block; margin-top:6px; color:var(--muted);">A senha apenas confirma a operação e não é registrada no histórico.</small>
+    </div>
     <div class="dlg-actions" style="position:sticky; bottom:0; padding-top:14px; background:var(--panel);">
       <button type="button" class="btn-ghost" id="bulk-cancel">Cancelar</button>
-      <button type="button" class="btn-primary" id="bulk-save">Aplicar aos selecionados</button>
+      <button type="button" class="btn-primary" id="bulk-save">Confirmar com senha e salvar</button>
     </div>
   </div>
 </dialog>
@@ -1220,6 +1225,7 @@ let itensCache = [];
 let itensExibidos = 50; // paginação: quantos itens mostrar por vez
 const PAGINA_TAMANHO = 50;
 const idsSelecionados = new Set(); // seleção da tabela, sobrevive às atualizações automáticas
+let selecaoTodosParaExclusao = false; // o checkbox do cabeçalho é exclusivo da ação Excluir
 
 const syncStatus = document.getElementById('sync-status');
 
@@ -2666,6 +2672,8 @@ document.getElementById('qtde-save').addEventListener('click', async () => {
 // Seleção múltipla / exclusão em massa
 // ---------------------------------------------------------------------
 function toggleSelecionado(id, marcado){
+  // Clique individual = seleção manual, válida para edição em massa.
+  selecaoTodosParaExclusao = false;
   if(marcado) idsSelecionados.add(id);
   else idsSelecionados.delete(id);
   atualizarSelecionados();
@@ -2684,17 +2692,19 @@ function atualizarSelecionados(){
   if(btnEditar){
     if(PODE_EDITAR){
       btnEditar.style.display = 'inline-flex';
-      btnEditar.disabled = idsSelecionados.size === 0;
-      btnEditar.style.opacity = idsSelecionados.size ? '1' : '.58';
-      btnEditar.style.cursor = idsSelecionados.size ? 'pointer' : 'not-allowed';
+      const podeEditarSelecao = idsSelecionados.size > 0 && !selecaoTodosParaExclusao;
+      btnEditar.disabled = !podeEditarSelecao;
+      btnEditar.style.opacity = podeEditarSelecao ? '1' : '.58';
+      btnEditar.style.cursor = podeEditarSelecao ? 'pointer' : 'not-allowed';
       btnEditar.textContent = `✏️ Editar selecionados (${idsSelecionados.size})`;
+      btnEditar.title = selecaoTodosParaExclusao ? 'Selecionar todos é exclusivo para exclusão. Selecione manualmente as linhas que deseja editar.' : '';
     } else {
       btnEditar.style.display = 'none';
     }
   }
   if(idsSelecionados.size > 0){
     btn.style.display = PODE_EDITAR ? 'inline-block' : 'none';
-    info.textContent = `${idsSelecionados.size} selecionado(s)`;
+    info.textContent = selecaoTodosParaExclusao ? `${idsSelecionados.size} selecionado(s) para exclusão · edição em massa exige seleção manual` : `${idsSelecionados.size} selecionado(s)`;
   } else {
     btn.style.display = 'none';
     info.textContent = PODE_EDITAR ? 'Selecione uma ou mais linhas para editar em massa.' : '';
@@ -2704,6 +2714,7 @@ function atualizarSelecionados(){
   selecionarTodos.checked = todos.length > 0 && Array.from(todos).every(chk => idsSelecionados.has(Number(chk.value)));
 }
 document.getElementById('selecionar-todos').addEventListener('change', (e) => {
+  selecaoTodosParaExclusao = !!e.target.checked;
   document.querySelectorAll('.chk-item').forEach(chk => {
     chk.checked = e.target.checked;
     const id = Number(chk.value);
@@ -2795,6 +2806,8 @@ function resetarEdicaoMassa(){
   });
   preencherSelectProdutos();
   preencherSelectFiliais();
+  const senhaMassa=document.getElementById('bulk-password');
+  if(senhaMassa) senhaMassa.value='';
   const selecionados=registrosSelecionadosEdicaoMassa();
   document.querySelectorAll('#bulk-edit-form .bulk-enable').forEach(chk=>atualizarReferenciaCampoMassa(chk, selecionados));
 }
@@ -2810,6 +2823,7 @@ document.querySelectorAll('#bulk-edit-form .bulk-enable').forEach(chk=>{
 
 bulkEditButton?.addEventListener('click',()=>{
   if(!PODE_EDITAR || !idsSelecionados.size) return;
+  if(selecaoTodosParaExclusao){ alert('O Selecionar todos é exclusivo para exclusão. Para editar em massa, marque manualmente somente os itens que deseja alterar.'); return; }
   resetarEdicaoMassa();
   document.getElementById('bulk-count').textContent=`${idsSelecionados.size} registro(s) selecionado(s)`;
   bulkEditDialog.showModal();
@@ -2833,6 +2847,8 @@ document.getElementById('bulk-save')?.addEventListener('click',async()=>{
     alert('Informe pelo menos um novo valor. Campos deixados em branco mantêm os dados que já estão salvos.');
     return;
   }
+  const senha=document.getElementById('bulk-password')?.value || '';
+  if(!senha){ alert('Informe sua senha para confirmar e gravar a edição em massa.'); document.getElementById('bulk-password')?.focus(); return; }
   const individuais=['nro_imobilizado','nro_serie','nro_patrimonio'].filter(c=>Object.prototype.hasOwnProperty.call(campos,c) && campos[c]);
   let aviso=`Aplicar ${Object.keys(campos).length} campo(s) a ${ids.length} registro(s) selecionado(s)?\n\nOs demais dados serão mantidos como estão.`;
   if(individuais.length && ids.length>1) aviso+='\n\nAtenção: o mesmo valor de campos individuais será repetido em todos os registros.';
@@ -2841,11 +2857,12 @@ document.getElementById('bulk-save')?.addEventListener('click',async()=>{
   const btn=document.getElementById('bulk-save');
   const rotulo=btn.textContent; btn.disabled=true; btn.textContent='Aplicando...';
   try{
-    const res=await fetch('/api/itens/editar-em-lote',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ids,campos})});
+    const res=await fetch('/api/itens/editar-em-lote',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ids,campos,senha})});
     const corpo=await res.json().catch(()=>({}));
     if(!res.ok) throw new Error(corpo.erro || 'Não foi possível concluir a edição em massa.');
     bulkEditDialog.close();
     idsSelecionados.clear();
+    selecaoTodosParaExclusao = false;
     await carregarItens();
     mostrarToast(`${corpo.atualizados || 0} registro(s) atualizado(s) em massa.`);
   }catch(err){
@@ -2867,6 +2884,7 @@ document.getElementById('btn-excluir-selecionados').addEventListener('click', as
   if(res.ok){
     const corpo = await res.json();
     idsSelecionados.clear();
+    selecaoTodosParaExclusao = false;
     carregarItens();
     mostrarToast(`${corpo.excluidos} item(ns) excluído(s).`);
   } else {

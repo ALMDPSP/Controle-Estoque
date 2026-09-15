@@ -60,7 +60,7 @@ import qrcode
 import db
 
 app = Flask(__name__)
-APP_BUILD = "2026-09-15-edicao-em-massa-v86-preservar-dados"
+APP_BUILD = "2026-09-15-edicao-em-massa-v87-senha-auditoria"
 _DASHBOARD_CACHE = {"expira": 0.0, "dados": None}
 app.secret_key = os.environ.get("SECRET_KEY", "troque-esta-chave-em-producao")
 _RUNNING_HTTPS_HOSTED = bool(
@@ -4494,6 +4494,46 @@ def _preparar_edicao_massa(payload):
     return ids, campos, None
 
 
+ROTULOS_CAMPOS_EDICAO_MASSA = {
+    "codigo": "Código", "descricao": "Descrição", "qtde": "Quantidade",
+    "localizacao": "Localização", "nf_entrada": "NF entrada",
+    "data_entrada": "Data entrada", "nf_saida": "NF saída",
+    "data_saida": "Data saída", "vd_loja": "VD / referência",
+    "filial_destino": "Filial / destino", "local": "Local",
+    "armazenagem": "Armazenagem", "status": "Status",
+    "nro_imobilizado": "Nº imobilizado", "nro_serie": "Nº série",
+    "nro_patrimonio": "Nº patrimônio", "tipo_estoque": "Tipo de estoque",
+    "pedido": "Pedido", "val_aquis": "ValAquis.", "chamado": "Chamado",
+}
+
+
+def _validar_senha_edicao_massa(payload):
+    """Exige a senha atual do usuário para confirmar edição em massa."""
+    senha = str((payload or {}).get("senha") or "")
+    if not senha:
+        return "Informe sua senha para confirmar a edição em massa."
+    usuario_atual = db.buscar_usuario_por_id(session.get("user_id"))
+    if not usuario_atual or not check_password_hash(usuario_atual["password_hash"], senha):
+        return "Senha incorreta. Nenhuma alteração foi gravada."
+    return None
+
+
+def _resumo_alteracoes_edicao_massa(item_antes, campos):
+    """Monta o antes → depois que aparecerá no histórico/relatórios."""
+    alteracoes = []
+    for campo, novo in campos.items():
+        if campo == "descricao" and "codigo" in campos:
+            # A descrição acompanha o código e não precisa duplicar o registro.
+            continue
+        anterior = str((item_antes or {}).get(campo) or "").strip()
+        depois = str(novo if novo is not None else "").strip()
+        if anterior == depois:
+            continue
+        rotulo = ROTULOS_CAMPOS_EDICAO_MASSA.get(campo, campo)
+        alteracoes.append(f"{rotulo}: {anterior or '(vazio)'} → {depois or '(vazio)'}")
+    return "; ".join(alteracoes) or "Nenhuma diferença de valor identificada"
+
+
 # ---------------------------------------------------------------------
 # API - Imobilizados
 # ---------------------------------------------------------------------
@@ -4567,30 +4607,36 @@ def api_atualizar_imobilizado(item_id):
 @app.route("/api/imobilizados/editar-em-lote", methods=["POST"])
 @edit_required
 def api_editar_imobilizados_em_lote():
-    ids, campos, erro = _preparar_edicao_massa(request.get_json(silent=True))
+    payload = request.get_json(silent=True) or {}
+    erro_senha = _validar_senha_edicao_massa(payload)
+    if erro_senha:
+        return jsonify({"erro": erro_senha}), 403
+    ids, campos, erro = _preparar_edicao_massa(payload)
     if erro:
         return jsonify({"erro": erro}), 400
 
     usuario = session.get("username")
     agora = datetime.now().strftime("%Y-%m-%d %H:%M")
+    lote = datetime.now().strftime("%Y%m%d%H%M%S")
     campos_atualizacao = dict(campos, atualizado_por=usuario, atualizado_em=agora)
-    nomes_campos = ", ".join(campos.keys())
     atualizados = 0
     ignorados = 0
 
     for item_id in ids:
-        if not db.buscar_imobilizado_por_id(item_id):
+        item_antes = db.buscar_imobilizado_por_id(item_id)
+        if not item_antes:
             ignorados += 1
             continue
+        resumo = _resumo_alteracoes_edicao_massa(item_antes, campos)
         if db.atualizar_imobilizado(item_id, campos_atualizacao):
             atualizados += 1
             db.registrar_movimentacao(
                 item_id, "edicao", None, usuario,
-                f"Edição em massa · campos alterados: {nomes_campos}",
+                f"Edição em massa confirmada com senha · lote {lote} · {resumo}",
                 tabela="imobilizados",
             )
 
-    return jsonify({"ok": True, "atualizados": atualizados, "ignorados": ignorados})
+    return jsonify({"ok": True, "atualizados": atualizados, "ignorados": ignorados, "lote": lote})
 
 
 @app.route("/api/imobilizados/<int:item_id>", methods=["DELETE"])
@@ -4981,30 +5027,36 @@ def api_atualizar(item_id):
 @app.route("/api/itens/editar-em-lote", methods=["POST"])
 @edit_required
 def api_editar_itens_em_lote():
-    ids, campos, erro = _preparar_edicao_massa(request.get_json(silent=True))
+    payload = request.get_json(silent=True) or {}
+    erro_senha = _validar_senha_edicao_massa(payload)
+    if erro_senha:
+        return jsonify({"erro": erro_senha}), 403
+    ids, campos, erro = _preparar_edicao_massa(payload)
     if erro:
         return jsonify({"erro": erro}), 400
 
     usuario = session.get("username")
     agora = datetime.now().strftime("%Y-%m-%d %H:%M")
+    lote = datetime.now().strftime("%Y%m%d%H%M%S")
     campos_atualizacao = dict(campos, atualizado_por=usuario, atualizado_em=agora)
-    nomes_campos = ", ".join(campos.keys())
     atualizados = 0
     ignorados = 0
 
     for item_id in ids:
-        if not db.buscar_item_por_id(item_id):
+        item_antes = db.buscar_item_por_id(item_id)
+        if not item_antes:
             ignorados += 1
             continue
+        resumo = _resumo_alteracoes_edicao_massa(item_antes, campos)
         if db.atualizar_item(item_id, campos_atualizacao):
             atualizados += 1
             db.registrar_movimentacao(
                 item_id, "edicao", None, usuario,
-                f"Edição em massa · campos alterados: {nomes_campos}",
+                f"Edição em massa confirmada com senha · lote {lote} · {resumo}",
                 tabela="itens",
             )
 
-    return jsonify({"ok": True, "atualizados": atualizados, "ignorados": ignorados})
+    return jsonify({"ok": True, "atualizados": atualizados, "ignorados": ignorados, "lote": lote})
 
 
 @app.route("/api/itens/<int:item_id>", methods=["DELETE"])
