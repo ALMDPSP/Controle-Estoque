@@ -1058,8 +1058,8 @@
     <p style="margin:0 0 10px; font-size:13px; color:var(--muted); line-height:1.5;">
       <strong id="bulk-count">0 registros selecionados</strong>. Marque <strong>Alterar</strong> somente nos campos que deseja aplicar a todos os registros. Campos não marcados serão preservados.
     </p>
-    <p style="margin:0 0 16px; padding:10px 12px; border:1px solid rgba(255,182,72,.28); border-radius:10px; background:rgba(255,182,72,.06); font-size:12px; color:var(--muted); line-height:1.45;">
-      Para limpar um campo em todos os selecionados, marque <strong>Alterar</strong> e deixe o valor vazio. Atenção: Nº imobilizado, Nº série e Nº patrimônio são normalmente individuais; se preenchidos aqui, o mesmo valor será aplicado a todos.
+    <p style="margin:0 0 16px; padding:10px 12px; border:1px solid rgba(76,215,146,.30); border-radius:10px; background:rgba(76,215,146,.07); font-size:12px; color:var(--muted); line-height:1.5;">
+      <strong style="color:var(--text);">Seus dados atuais serão preservados.</strong> Na edição em massa, um campo vazio significa <strong>manter o valor existente</strong>. Para alterar um dado já preenchido ou completar um campo sem informação, marque <strong>Alterar</strong> e informe o novo valor. Nº imobilizado, Nº série e Nº patrimônio são normalmente individuais; se preenchidos aqui, o mesmo valor será aplicado a todos.
     </p>
     <form id="bulk-edit-form" style="display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px 14px;">
       <div class="field">
@@ -2722,6 +2722,71 @@ atualizarSelecionados();
 const bulkEditDialog = document.getElementById('bulk-edit-dialog');
 const bulkEditButton = document.getElementById('btn-editar-selecionados');
 
+function registrosSelecionadosEdicaoMassa(){
+  return (itensCache || []).filter(it => idsSelecionados.has(Number(it.id)));
+}
+
+function textoValorMassa(campo, valor){
+  if(campo === 'filial_destino') return formatarFilialDestino(valor) || valor;
+  if(campo === 'codigo'){
+    const p=(produtosCache || []).find(x=>String(x.codigo||'')===String(valor||''));
+    return p ? `${valor} — ${p.descricao || ''}` : valor;
+  }
+  return String(valor ?? '');
+}
+
+function atualizarReferenciaCampoMassa(chk, selecionados){
+  const alvo=document.getElementById(chk.dataset.target);
+  if(!alvo) return;
+  const campo=chk.dataset.field;
+  const valores=selecionados.map(it=>String(it?.[campo] ?? '').trim());
+  const preenchidos=valores.filter(v=>v !== '');
+  const unicos=[...new Set(preenchidos)];
+  const vazios=valores.length-preenchidos.length;
+  const field=chk.closest('.field');
+  let dica=field?.querySelector('.bulk-current');
+  if(!dica && field){
+    dica=document.createElement('small');
+    dica.className='bulk-current';
+    dica.style.cssText='display:block;margin-top:5px;color:var(--muted);font-size:11px;line-height:1.35;';
+    field.appendChild(dica);
+  }
+
+  alvo.value='';
+  alvo.removeAttribute('title');
+  if(alvo.tagName === 'INPUT' && alvo.type !== 'date') alvo.placeholder='Informe um novo valor para alterar/adicionar';
+
+  if(!selecionados.length){
+    if(dica) dica.textContent='';
+    return;
+  }
+  if(unicos.length === 0){
+    if(dica) dica.textContent='Sem informação nos registros selecionados — você pode adicionar um valor.';
+    return;
+  }
+  if(unicos.length === 1){
+    const comum=unicos[0];
+    const rotulo=textoValorMassa(campo, comum);
+    // Se todos têm o mesmo valor (ou os demais estão vazios), mostramos esse
+    // valor no controle para facilitar editar ou completar os registros vazios.
+    if(alvo.tagName === 'SELECT'){
+      const existe=[...alvo.options].some(o=>String(o.value)===String(comum));
+      if(existe) alvo.value=comum;
+    }else{
+      alvo.value=comum;
+    }
+    if(vazios){
+      if(dica) dica.textContent=`Valor encontrado: ${rotulo} em ${preenchidos.length}; ${vazios} sem informação.`;
+    }else{
+      if(dica) dica.textContent=`Valor atual em todos: ${rotulo}`;
+    }
+    alvo.title=dica?.textContent || '';
+    return;
+  }
+  if(dica) dica.textContent=`Valores atuais diferentes (${unicos.length} valores)${vazios ? ` · ${vazios} sem informação` : ''}. Informe um novo valor somente se quiser substituir todos.`;
+  alvo.title=dica?.textContent || '';
+}
+
 function resetarEdicaoMassa(){
   document.querySelectorAll('#bulk-edit-form .bulk-enable').forEach(chk=>{
     chk.checked=false;
@@ -2730,6 +2795,8 @@ function resetarEdicaoMassa(){
   });
   preencherSelectProdutos();
   preencherSelectFiliais();
+  const selecionados=registrosSelecionadosEdicaoMassa();
+  document.querySelectorAll('#bulk-edit-form .bulk-enable').forEach(chk=>atualizarReferenciaCampoMassa(chk, selecionados));
 }
 
 document.querySelectorAll('#bulk-edit-form .bulk-enable').forEach(chk=>{
@@ -2758,13 +2825,16 @@ document.getElementById('bulk-save')?.addEventListener('click',async()=>{
   if(!habilitados.length){ alert('Marque pelo menos um campo como Alterar.'); return; }
   habilitados.forEach(chk=>{
     const alvo=document.getElementById(chk.dataset.target);
-    campos[chk.dataset.field]=alvo ? alvo.value : '';
+    const valor=alvo ? String(alvo.value ?? '').trim() : '';
+    // Campo marcado, mas sem novo valor: preserva o conteúdo atual de cada linha.
+    if(valor !== '') campos[chk.dataset.field]=alvo.value;
   });
-  if(Object.prototype.hasOwnProperty.call(campos,'codigo') && !campos.codigo){
-    alert('Selecione um código do item para aplicar aos registros.'); return;
+  if(!Object.keys(campos).length){
+    alert('Informe pelo menos um novo valor. Campos deixados em branco mantêm os dados que já estão salvos.');
+    return;
   }
   const individuais=['nro_imobilizado','nro_serie','nro_patrimonio'].filter(c=>Object.prototype.hasOwnProperty.call(campos,c) && campos[c]);
-  let aviso=`Aplicar ${habilitados.length} campo(s) a ${ids.length} registro(s) selecionado(s)?`;
+  let aviso=`Aplicar ${Object.keys(campos).length} campo(s) a ${ids.length} registro(s) selecionado(s)?\n\nOs demais dados serão mantidos como estão.`;
   if(individuais.length && ids.length>1) aviso+='\n\nAtenção: o mesmo valor de campos individuais será repetido em todos os registros.';
   if(!confirm(aviso)) return;
 

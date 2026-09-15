@@ -60,7 +60,7 @@ import qrcode
 import db
 
 app = Flask(__name__)
-APP_BUILD = "2026-09-15-edicao-em-massa-v84-fix-templates"
+APP_BUILD = "2026-09-15-edicao-em-massa-v86-preservar-dados"
 _DASHBOARD_CACHE = {"expira": 0.0, "dados": None}
 app.secret_key = os.environ.get("SECRET_KEY", "troque-esta-chave-em-producao")
 _RUNNING_HTTPS_HOSTED = bool(
@@ -4424,9 +4424,9 @@ CAMPOS_EDICAO_MASSA = {
 def _preparar_edicao_massa(payload):
     """Valida e normaliza o payload usado pela edição em massa.
 
-    Somente os campos explicitamente enviados em ``campos`` são modificados.
-    Isso permite que um valor vazio seja usado de propósito para limpar um campo,
-    sem apagar os demais dados dos registros selecionados.
+    A edição em massa é deliberadamente não destrutiva: somente campos com um
+    novo valor preenchido são modificados. Valores vazios ou ``None`` são
+    ignorados, preservando o conteúdo atual de cada registro selecionado.
     """
     payload = payload or {}
     ids_brutos = payload.get("ids") or []
@@ -4456,14 +4456,18 @@ def _preparar_edicao_massa(payload):
     for nome, valor in campos_brutos.items():
         if nome not in CAMPOS_EDICAO_MASSA:
             continue
+        # Regra de segurança da edição em massa: vazio nunca apaga um valor
+        # existente. Para incluir/alterar, é obrigatório informar um novo valor.
         if valor is None:
-            valor = ""
+            continue
         if isinstance(valor, str):
             valor = valor.strip()
+            if valor == "":
+                continue
         campos[nome] = valor
 
     if not campos:
-        return None, None, "Nenhum campo permitido foi informado."
+        return None, None, "Informe pelo menos um novo valor. Campos vazios mantêm os dados atuais."
 
     # O código do item vem do cadastro mestre de produtos. Quando ele muda,
     # a descrição acompanha automaticamente para manter Estoque/Imobilizados
