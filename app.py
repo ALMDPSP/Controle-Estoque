@@ -1379,7 +1379,7 @@ def _gerar_pdf_projecao_lojas(dados):
         pdf.line(margem, 10 * mm, larg - margem, 10 * mm)
         pdf.setFillColor(colors.HexColor("#8EA1B4"))
         pdf.setFont("Helvetica", 7.5)
-        pdf.drawString(margem, 6.5 * mm, "© 2026 · Developed by Alexandre Martins · Relatório executivo de projeção de abertura e lojas")
+        pdf.drawString(margem, 6.5 * mm, "© 2026 · Developed by Expansão de TI · Relatório executivo de projeção de abertura e lojas")
         pdf.drawRightString(larg - margem, 6.5 * mm, f"Página {page_no}")
 
     def _panel(x, y, w, h, title=None, subtitle=None, radius=12):
@@ -2142,7 +2142,7 @@ def _gerar_pdf_acompanhamento_expansao(dados):
         pdf.line(margem, 11 * mm, larg - margem, 11 * mm)
         pdf.setFillColor(colors.HexColor("#8398AD"))
         pdf.setFont("Helvetica", 7.2)
-        pdf.drawString(margem, 6.5 * mm, "© 2026 · Developed by Alexandre Martins · Acompanhamento de Expansão")
+        pdf.drawString(margem, 6.5 * mm, "© 2026 · Developed by Expansão de TI · Acompanhamento de Expansão")
         pdf.drawRightString(larg - margem, 6.5 * mm, f"Página {page_no}")
 
     def _panel(x, y, w, h, title=None, subtitle=None):
@@ -3947,7 +3947,7 @@ def _gerar_pdf_orcamento(dados):
         pdf.line(margem, 11 * mm, larg - margem, 11 * mm)
         pdf.setFillColor(colors.HexColor("#8398AD"))
         pdf.setFont("Helvetica", 7.2)
-        pdf.drawString(margem, 6.5 * mm, f"© 2026 · Developed by Alexandre Martins · {secao}")
+        pdf.drawString(margem, 6.5 * mm, f"© 2026 · Developed by Expansão de TI · {secao}")
         pdf.drawRightString(larg - margem, 6.5 * mm, f"Página {page_no}")
 
     def _panel(x, y, w, h, title=None, subtitle=None):
@@ -5131,7 +5131,7 @@ def exportar_relatorio_lojas_excel():
         sheet.page_setup.fitToWidth = 1
         sheet.page_setup.fitToHeight = 0
         sheet.sheet_properties.pageSetUpPr.fitToPage = True
-        sheet.oddFooter.center.text = "© 2026 · Developed by Alexandre Martins"
+        sheet.oddFooter.center.text = "© 2026 · Developed by Expansão de TI"
         sheet.oddFooter.right.text = "Página &P de &N"
 
     buffer = io.BytesIO()
