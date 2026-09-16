@@ -1365,6 +1365,59 @@ def excluir_itens_em_lote(ids):
     return afetadas
 
 
+def excluir_itens_em_lote_auditado(ids, usuario):
+    """Exclui vários itens em uma única transação e grava a auditoria em lote.
+
+    Evita abrir uma conexão por item, o que causava timeout no Render quando o
+    usuário selecionava centenas/milhares de registros.
+    """
+    ids_limpos = []
+    for valor in ids or []:
+        try:
+            item_id = int(valor)
+        except (TypeError, ValueError):
+            continue
+        if item_id > 0 and item_id not in ids_limpos:
+            ids_limpos.append(item_id)
+    if not ids_limpos:
+        return [], []
+
+    conn = get_conn(); cur = get_cursor(conn)
+    try:
+        placeholders = ", ".join(["?"] * len(ids_limpos))
+        cur.execute(q(f"SELECT id, codigo, qtde FROM itens WHERE id IN ({placeholders})"), tuple(ids_limpos))
+        encontrados = [dict(r) for r in cur.fetchall()]
+        encontrados_ids = {int(r.get("id") or 0) for r in encontrados}
+        nao_encontrados = [i for i in ids_limpos if i not in encontrados_ids]
+
+        agora = datetime.now().strftime("%Y-%m-%d %H:%M")
+        movimentos = [
+            (int(item.get("id")), "exclusao", str(item.get("qtde") or ""), usuario, agora,
+             f"Item {item.get('codigo') or ''} excluído (exclusão em massa)", "itens")
+            for item in encontrados
+        ]
+        if movimentos:
+            if IS_PG:
+                psycopg2.extras.execute_values(
+                    cur,
+                    "INSERT INTO movimentacoes (item_id,tipo,quantidade,usuario,data_hora,observacao,tabela) VALUES %s",
+                    movimentos, page_size=1000,
+                )
+            else:
+                cur.executemany(
+                    q("INSERT INTO movimentacoes (item_id,tipo,quantidade,usuario,data_hora,observacao,tabela) VALUES (?,?,?,?,?,?,?)"),
+                    movimentos,
+                )
+            cur.execute(q(f"DELETE FROM itens WHERE id IN ({placeholders})"), tuple(ids_limpos))
+        conn.commit()
+        return encontrados, nao_encontrados
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        cur.close(); conn.close()
+
+
 # ---------------------------------------------------------------------
 # Auditoria de autenticação
 # ---------------------------------------------------------------------
@@ -1582,6 +1635,55 @@ def excluir_imobilizados_em_lote(ids):
     cur.close()
     conn.close()
     return afetadas
+
+
+def excluir_imobilizados_em_lote_auditado(ids, usuario):
+    """Exclui imobilizados e grava a auditoria em lote, na mesma transação."""
+    ids_limpos = []
+    for valor in ids or []:
+        try:
+            item_id = int(valor)
+        except (TypeError, ValueError):
+            continue
+        if item_id > 0 and item_id not in ids_limpos:
+            ids_limpos.append(item_id)
+    if not ids_limpos:
+        return [], []
+
+    conn = get_conn(); cur = get_cursor(conn)
+    try:
+        placeholders = ", ".join(["?"] * len(ids_limpos))
+        cur.execute(q(f"SELECT id, codigo, qtde FROM imobilizados WHERE id IN ({placeholders})"), tuple(ids_limpos))
+        encontrados = [dict(r) for r in cur.fetchall()]
+        encontrados_ids = {int(r.get("id") or 0) for r in encontrados}
+        nao_encontrados = [i for i in ids_limpos if i not in encontrados_ids]
+
+        agora = datetime.now().strftime("%Y-%m-%d %H:%M")
+        movimentos = [
+            (int(item.get("id")), "exclusao", str(item.get("qtde") or ""), usuario, agora,
+             f"Imobilizado {item.get('codigo') or ''} excluído (exclusão em massa)", "imobilizados")
+            for item in encontrados
+        ]
+        if movimentos:
+            if IS_PG:
+                psycopg2.extras.execute_values(
+                    cur,
+                    "INSERT INTO movimentacoes (item_id,tipo,quantidade,usuario,data_hora,observacao,tabela) VALUES %s",
+                    movimentos, page_size=1000,
+                )
+            else:
+                cur.executemany(
+                    q("INSERT INTO movimentacoes (item_id,tipo,quantidade,usuario,data_hora,observacao,tabela) VALUES (?,?,?,?,?,?,?)"),
+                    movimentos,
+                )
+            cur.execute(q(f"DELETE FROM imobilizados WHERE id IN ({placeholders})"), tuple(ids_limpos))
+        conn.commit()
+        return encontrados, nao_encontrados
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        cur.close(); conn.close()
 
 
 def buscar_imobilizado_por_id(item_id):
@@ -2094,6 +2196,74 @@ def importar_acompanhamento_expansao_em_lote(linhas, usuario):
             )
         conn.commit()
         return {"criadas": criadas, "atualizadas": atualizadas, "sem_alteracao": sem_alteracao}
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        cur.close(); conn.close()
+
+
+def substituir_acompanhamento_expansao_em_lote(linhas, usuario):
+    """Substitui toda a base do Acompanhamento de Expansão atomicamente.
+
+    A planilha deve ser validada pela camada da aplicação antes desta função.
+    """
+    conn = get_conn(); cur = get_cursor(conn)
+    agora = datetime.now().strftime("%Y-%m-%d %H:%M")
+    try:
+        cur.execute("SELECT filial FROM acompanhamento_expansao")
+        anteriores = [str(dict(r).get("filial") or "").strip() for r in cur.fetchall()]
+        cur.execute("DELETE FROM acompanhamento_expansao")
+        valores = []
+        for item in linhas or []:
+            valores.append((
+                str(item.get("filial") or "").strip(),
+                str(item.get("bandeira") or "").strip(),
+                str(item.get("descricao_filial") or "").strip(),
+                str(item.get("uf") or "").strip(),
+                str(item.get("projeto") or "").strip(),
+                str(item.get("status_filial") or "").strip(),
+                str(item.get("enviada") or "NAO").strip(),
+                str(item.get("em_separacao") or "NAO").strip(),
+                str(item.get("equip_separado") or "NAO").strip(),
+                str(item.get("term_obra") or "").strip(),
+                str(item.get("entrada_ti") or "").strip(),
+                str(item.get("inauguracao") or "").strip(),
+                str(item.get("observacao_ti") or "").strip(),
+                usuario, agora,
+            ))
+        if valores:
+            sql = ("INSERT INTO acompanhamento_expansao "
+                   "(filial,bandeira,descricao_filial,uf,projeto,status_filial,enviada,em_separacao,equip_separado,term_obra,entrada_ti,inauguracao,observacao_ti,atualizado_por,atualizado_em) VALUES ")
+            if IS_PG:
+                psycopg2.extras.execute_values(cur, sql + "%s", valores, page_size=500)
+            else:
+                cur.executemany(q(sql + "(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"), valores)
+        conn.commit()
+        return {"removidos": len(anteriores), "criados": len(valores), "filiais_anteriores": anteriores}
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        cur.close(); conn.close()
+
+
+def inativar_filiais_por_codigos(codigos):
+    """Inativa várias filiais em uma única transação, preservando os cadastros."""
+    limpos = []
+    for codigo in codigos or []:
+        c = str(codigo or "").strip()
+        if c and c not in limpos:
+            limpos.append(c)
+    if not limpos:
+        return 0
+    conn = get_conn(); cur = get_cursor(conn)
+    try:
+        placeholders = ", ".join(["?"] * len(limpos))
+        cur.execute(q(f"UPDATE filiais SET ativo = ? WHERE codigo IN ({placeholders})"), tuple(["0"] + limpos))
+        afetadas = max(0, int(cur.rowcount or 0))
+        conn.commit()
+        return afetadas
     except Exception:
         conn.rollback()
         raise

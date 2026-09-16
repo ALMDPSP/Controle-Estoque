@@ -189,12 +189,18 @@ main{padding:24px 32px 54px;max-width:1500px;margin:auto}.kpis{display:grid;grid
     <h3>Upload do acompanhamento</h3>
     <p>Use a mesma estrutura da planilha baixada por esta página. A coluna <b>FILIAL</b> é usada como chave: filiais existentes serão atualizadas e novas serão criadas.</p>
     <form id="upload-form">
+      <label for="upload-mode">Como deseja subir os dados?</label>
+      <select id="upload-mode">
+        <option value="adicionar" selected>Adicionar aos existentes — mantém e atualiza o que já está cadastrado</option>
+        <option value="substituir">Substituir base — apaga o acompanhamento atual e sobe somente este arquivo</option>
+      </select>
+      <p class="edit-hint">Em <b>Substituir base</b>, a planilha é validada primeiro. A base atual só é removida se o arquivo estiver sem erros. Lojas que saírem do acompanhamento serão inativadas em Filiais para preservar o histórico.</p>
       <label for="upload-file">Arquivo Excel (.xlsx)</label>
       <input type="file" id="upload-file" accept=".xlsx,.xlsm" required>
       <label for="upload-pass">Sua senha</label>
       <input type="password" id="upload-pass" autocomplete="current-password" required placeholder="Confirme sua senha">
       <div class="modal-status" id="upload-status"></div>
-      <div class="modal-actions"><button type="button" id="upload-cancel">Cancelar</button><button type="submit" class="primary" id="upload-send">Importar planilha</button></div>
+      <div class="modal-actions"><button type="button" id="upload-cancel">Cancelar</button><button type="button" id="upload-validate">Validar planilha</button><button type="submit" class="primary" id="upload-send">Importar planilha</button></div>
     </form>
   </div>
 </div>
@@ -280,7 +286,7 @@ function atualizarSelecaoUI(filtrados){
   const btn = document.getElementById('btn-delete-selected');
   const txt = document.getElementById('selection-count');
   if(txt) txt.textContent = selecionadas.size ? `${selecionadas.size} selecionado(s)` : '';
-  if(btn) btn.style.display = selecionadas.size ? 'inline-block' : 'none';
+  if(btn){ btn.style.display='inline-block'; btn.disabled=selecionadas.size===0; btn.textContent=`Excluir em massa (${selecionadas.size})`; }
   const checks = [...document.querySelectorAll('.row-check')];
   const all = document.getElementById('check-all');
   if(all){
@@ -394,7 +400,7 @@ async function excluirSelecionados(){
     await init();
     window.appToast?.(`${d.excluidos || 0} loja(s) removida(s) do acompanhamento; ${d.filiais_inativadas || 0} filial(is) inativada(s).`,'ok');
   }catch(err){ alert(err.message || 'Erro ao excluir os registros selecionados.'); }
-  finally{ if(btn){ btn.disabled=false; btn.textContent='Excluir selecionados'; } }
+  finally{ if(btn){ atualizarSelecaoUI(obterFiltrados()); } }
 }
 document.getElementById('btn-delete-selected')?.addEventListener('click',excluirSelecionados);
 
@@ -465,18 +471,38 @@ const modal=document.getElementById('upload-modal'), statusEl=document.getElemen
 document.getElementById('btn-upload').addEventListener('click',()=>{ statusEl.textContent=''; statusEl.className='modal-status'; modal.classList.add('open'); });
 document.getElementById('upload-cancel').addEventListener('click',()=>modal.classList.remove('open'));
 modal.addEventListener('click',e=>{ if(e.target===modal) modal.classList.remove('open'); });
+
+document.getElementById('upload-validate').addEventListener('click', async ()=>{
+  const file=document.getElementById('upload-file').files[0];
+  if(!file){ statusEl.textContent='Selecione um arquivo .xlsx.'; statusEl.className='modal-status error'; return; }
+  const btn=document.getElementById('upload-validate'); btn.disabled=true; statusEl.textContent='Validando a planilha antes de alterar a base...'; statusEl.className='modal-status';
+  const fd=new FormData(); fd.append('arquivo',file); fd.append('modo',document.getElementById('upload-mode').value); fd.append('csrf_token',EDIT_CSRF);
+  try{
+    const r=await fetch('/api/acompanhamento-expansao/importar/validar',{method:'POST',body:fd});
+    const d=await respostaJsonSegura(r); if(!r.ok) throw new Error(d.erro||'Falha na validação.');
+    const complemento=d.modo==='substituir'
+      ? `A substituição removerá ${d.existentes||0} registro(s) atuais e gravará ${d.registros_previstos||0} registro(s).`
+      : `${d.novas||0} nova(s) filial(is) e ${d.existentes_no_arquivo||0} filial(is) já existente(s) estão no arquivo.`;
+    statusEl.textContent=`Validação OK: ${d.validas||0} linha(s) válida(s). ${complemento}`; statusEl.className='modal-status ok';
+  }catch(err){ statusEl.textContent=err.message||'Erro ao validar planilha.'; statusEl.className='modal-status error'; }
+  finally{ btn.disabled=false; }
+});
+
 document.getElementById('upload-form').addEventListener('submit', async e=>{
   e.preventDefault();
-  const file=document.getElementById('upload-file').files[0], pass=document.getElementById('upload-pass').value;
+  const file=document.getElementById('upload-file').files[0], pass=document.getElementById('upload-pass').value, modo=document.getElementById('upload-mode').value;
   if(!file){ statusEl.textContent='Selecione um arquivo .xlsx.'; statusEl.className='modal-status error'; return; }
   if(!pass){ statusEl.textContent='Digite sua senha para confirmar.'; statusEl.className='modal-status error'; return; }
-  const btn=document.getElementById('upload-send'); btn.disabled=true; statusEl.textContent='Importando e atualizando o acompanhamento...'; statusEl.className='modal-status';
-  const fd=new FormData(); fd.append('arquivo',file); fd.append('senha',pass); fd.append('csrf_token','{{ csrf_token }}');
+  if(modo==='substituir' && !confirm('ATENÇÃO: após validar a planilha, esta opção substituirá toda a base atual do Acompanhamento de Expansão. Deseja continuar?')) return;
+  const btn=document.getElementById('upload-send'); btn.disabled=true; statusEl.textContent=modo==='substituir'?'Validando e substituindo a base do acompanhamento...':'Importando e atualizando o acompanhamento...'; statusEl.className='modal-status';
+  const fd=new FormData(); fd.append('arquivo',file); fd.append('senha',pass); fd.append('modo',modo); fd.append('csrf_token',EDIT_CSRF);
   try{
     const r=await fetch('/api/acompanhamento-expansao/importar', {method:'POST', body:fd});
-    const d=await r.json(); if(!r.ok) throw new Error(d.erro||'Falha na importação');
-    statusEl.textContent=`Importação concluída: ${d.criadas||0} criado(s), ${d.atualizadas||0} atualizado(s), ${d.sem_alteracao||0} sem alteração e ${d.ignoradas||0} ignorado(s). ${d.filiais_sincronizadas||0} filial(is) sincronizada(s).`;
-    statusEl.className='modal-status ok'; window.appToast?.('Acompanhamento de Expansão atualizado.','ok'); document.getElementById('upload-pass').value=''; setTimeout(async()=>{ modal.classList.remove('open'); await init(); }, 900);
+    const d=await respostaJsonSegura(r); if(!r.ok) throw new Error(d.erro||'Falha na importação');
+    let texto=`Importação concluída: ${d.criadas||0} criado(s), ${d.atualizadas||0} atualizado(s), ${d.sem_alteracao||0} sem alteração. ${d.filiais_sincronizadas||0} filial(is) sincronizada(s).`;
+    if(d.modo==='substituir') texto+=` Base substituída: ${d.removidos||0} registro(s) anteriores removidos; ${d.filiais_inativadas||0} filial(is) fora da nova planilha inativada(s).`;
+    statusEl.textContent=texto;
+    statusEl.className='modal-status ok'; window.appToast?.('Acompanhamento de Expansão atualizado.','ok'); document.getElementById('upload-pass').value=''; setTimeout(async()=>{ modal.classList.remove('open'); await init(); }, 1100);
   }catch(err){ statusEl.textContent=err.message; statusEl.className='modal-status error'; }
   finally{ btn.disabled=false; }
 });

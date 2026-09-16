@@ -2962,20 +2962,19 @@ document.getElementById('btn-excluir-selecionados').addEventListener('click', as
   const ids = Array.from(idsSelecionados);
   if(!ids.length) return;
   if(!confirm(`Excluir ${ids.length} item(ns) selecionado(s)? Essa ação não pode ser desfeita.`)) return;
-  const res = await fetch('/api/itens/excluir-em-lote', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({ids})
-  });
-  if(res.ok){
-    const corpo = await res.json();
-    idsSelecionados.clear();
-    selecaoTodosParaExclusao = false;
-    carregarItens();
-    mostrarToast(`${corpo.excluidos} item(ns) excluído(s).`);
-  } else {
-    alert('Erro ao excluir os itens selecionados.');
-  }
+  const btn=document.getElementById('btn-excluir-selecionados');
+  const rotulo=btn.textContent; btn.disabled=true; btn.textContent='Excluindo em lote...';
+  try{
+    const res = await fetch('/api/itens/excluir-em-lote', {
+      method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ids})
+    });
+    const corpo=await res.json().catch(()=>({}));
+    if(!res.ok) throw new Error(corpo.erro || `Erro do servidor (${res.status}).`);
+    idsSelecionados.clear(); selecaoTodosParaExclusao = false;
+    await carregarItens();
+    mostrarToast(`${corpo.excluidos||0} item(ns) excluído(s) em lote.`);
+  }catch(err){ alert(err.message || 'Erro ao excluir os itens selecionados.'); }
+  finally{ btn.disabled=false; btn.textContent=rotulo; }
 });
 
 async function excluirItem(id){

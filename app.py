@@ -60,7 +60,7 @@ import qrcode
 import db
 
 app = Flask(__name__)
-APP_BUILD = "2026-09-16-acompanhamento-status-operacional-v93"
+APP_BUILD = "2026-09-16-exclusao-lote-upload-acompanhamento-v94"
 _DASHBOARD_CACHE = {"expira": 0.0, "dados": None}
 app.secret_key = os.environ.get("SECRET_KEY", "troque-esta-chave-em-producao")
 _RUNNING_HTTPS_HOSTED = bool(
@@ -2784,18 +2784,25 @@ def api_excluir_acompanhamento_expansao_em_lote():
         app.logger.exception("Erro ao excluir acompanhamentos de expansão em lote")
         return jsonify({"erro": "Não foi possível excluir os registros selecionados."}), 500
 
+    codigos_excluidos = [str(item.get("filial") or "").strip() for item in excluidos if str(item.get("filial") or "").strip()]
     filiais_inativadas = 0
-    for item in excluidos:
+    try:
+        filiais_inativadas = db.inativar_filiais_por_codigos(codigos_excluidos)
+    except Exception:
+        app.logger.exception("Acompanhamentos excluídos, mas falhou a inativação em lote das Filiais")
+
+    if excluidos:
+        resumo_codigos = ", ".join(codigos_excluidos[:30])
+        if len(codigos_excluidos) > 30:
+            resumo_codigos += f" ... (+{len(codigos_excluidos)-30})"
         try:
-            if _inativar_filial_ao_excluir_acompanhamento(item.get("filial")):
-                filiais_inativadas += 1
+            db.registrar_movimentacao(
+                0, "exclusao_acompanhamento_expansao", str(len(excluidos)), session.get("username"),
+                f"Exclusão em massa no Acompanhamento de Expansão · {len(excluidos)} loja(s) · Filiais: {resumo_codigos or '-'}",
+                tabela="sistema"
+            )
         except Exception:
-            app.logger.exception("Falha ao inativar filial sincronizada %s", item.get("filial"))
-        db.registrar_movimentacao(
-            0, "exclusao_acompanhamento_expansao", "1", session.get("username"),
-            f"Loja removida do Acompanhamento de Expansão · Filial {item.get('filial') or item.get('id')} (exclusão em massa)",
-            tabela="sistema"
-        )
+            app.logger.exception("Falha ao registrar auditoria da exclusão em massa do Acompanhamento")
 
     return jsonify({
         "ok": True,
@@ -2884,6 +2891,46 @@ def relatorio_pdf_acompanhamento_expansao():
     )
 
 
+@app.route("/api/acompanhamento-expansao/importar/validar", methods=["POST"])
+@edit_required
+def api_validar_importacao_acompanhamento_expansao():
+    if not _csrf_ok():
+        return jsonify({"erro":"A sessão de segurança expirou. Atualize a página e tente novamente."}), 400
+    modo = _normalizar_modo_importacao(request.form.get("modo"))
+    arquivo = request.files.get("arquivo")
+    if not arquivo or not arquivo.filename:
+        return jsonify({"erro":"Nenhum arquivo enviado."}), 400
+    if not arquivo.filename.lower().endswith((".xlsx", ".xlsm")):
+        return jsonify({"erro":"Envie um arquivo Excel (.xlsx ou .xlsm)."}), 400
+    try:
+        registros, erros, total = _ler_planilha_acompanhamento(arquivo)
+        if erros or len(registros) != total:
+            detalhes = " | ".join(erros[:15]) or "Existem linhas inválidas na planilha."
+            return jsonify({
+                "erro": "A planilha possui inconsistências. Corrija antes de importar. " + detalhes,
+                "erros": erros[:50], "total_linhas": total, "validas": len(registros),
+            }), 400
+        if not registros:
+            return jsonify({"erro":"Nenhum registro válido foi encontrado na planilha."}), 400
+
+        atuais = db.listar_acompanhamento_expansao()
+        atuais_codigos = {str(x.get("filial") or "").strip() for x in atuais}
+        novos_codigos = {str(x.get("filial") or "").strip() for x in registros}
+        novas = len([c for c in novos_codigos if c and c not in atuais_codigos])
+        existentes_no_arquivo = len([c for c in novos_codigos if c and c in atuais_codigos])
+        return jsonify({
+            "ok": True, "arquivo": arquivo.filename, "modo": modo,
+            "total_linhas": total, "validas": len(registros), "existentes": len(atuais),
+            "registros_previstos": len(registros), "novas": novas,
+            "existentes_no_arquivo": existentes_no_arquivo,
+        })
+    except ValueError as e:
+        return jsonify({"erro":str(e)}), 400
+    except Exception:
+        app.logger.exception("Falha ao validar planilha do Acompanhamento de Expansão")
+        return jsonify({"erro":"Erro ao validar a planilha do Acompanhamento de Expansão."}), 500
+
+
 @app.route("/api/acompanhamento-expansao/importar", methods=["POST"])
 @edit_required
 def api_importar_acompanhamento_expansao():
@@ -2893,6 +2940,7 @@ def api_importar_acompanhamento_expansao():
     usuario_atual = db.buscar_usuario_por_id(session["user_id"])
     if not usuario_atual or not check_password_hash(usuario_atual["password_hash"], senha):
         return jsonify({"erro":"Senha incorreta."}), 403
+    modo = _normalizar_modo_importacao(request.form.get("modo"))
     arquivo = request.files.get("arquivo")
     if not arquivo or not arquivo.filename:
         return jsonify({"erro":"Nenhum arquivo enviado."}), 400
@@ -2900,10 +2948,39 @@ def api_importar_acompanhamento_expansao():
         return jsonify({"erro":"Envie um arquivo Excel (.xlsx ou .xlsm)."}), 400
     try:
         registros, erros, total = _ler_planilha_acompanhamento(arquivo)
+        # Mesmo princípio usado no upload de Estoque: primeiro valida tudo;
+        # se uma linha estiver inválida, nada é alterado.
+        if erros or len(registros) != total:
+            detalhes = " | ".join(erros[:15]) or "Existem linhas inválidas na planilha."
+            return jsonify({
+                "erro":"A planilha possui inconsistências. Nenhuma alteração foi realizada. " + detalhes,
+                "erros":erros[:50], "total_linhas":total, "validas":len(registros),
+            }), 400
         if not registros:
-            return jsonify({"erro":"Nenhum registro válido foi encontrado na planilha.", "erros":erros}), 400
+            return jsonify({"erro":"Nenhum registro válido foi encontrado na planilha."}), 400
+
         usuario = session.get("username")
-        resultado = db.importar_acompanhamento_expansao_em_lote(registros, usuario)
+        removidos = 0
+        filiais_inativadas = 0
+        if modo == "substituir":
+            resultado = db.substituir_acompanhamento_expansao_em_lote(registros, usuario)
+            criadas = int(resultado.get("criados") or 0)
+            atualizadas = 0
+            sem_alteracao = 0
+            removidos = int(resultado.get("removidos") or 0)
+            codigos_novos = {str(x.get("filial") or "").strip() for x in registros}
+            codigos_removidos = [c for c in (resultado.get("filiais_anteriores") or []) if c and c not in codigos_novos]
+            if codigos_removidos:
+                try:
+                    filiais_inativadas = db.inativar_filiais_por_codigos(codigos_removidos)
+                except Exception:
+                    app.logger.exception("Falha ao inativar Filiais removidas pela substituição do Acompanhamento")
+        else:
+            resultado = db.importar_acompanhamento_expansao_em_lote(registros, usuario)
+            criadas = int(resultado.get("criadas") or 0)
+            atualizadas = int(resultado.get("atualizadas") or 0)
+            sem_alteracao = int(resultado.get("sem_alteracao") or 0)
+
         sincronizadas = 0
         falhas_sincronizacao = []
         for item in registros:
@@ -2914,32 +2991,36 @@ def api_importar_acompanhamento_expansao():
                 codigo_sync = str(item.get("filial") or "").strip()
                 falhas_sincronizacao.append(codigo_sync or "sem código")
                 app.logger.exception("Falha ao sincronizar filial %s após importação do acompanhamento: %s", codigo_sync, sync_err)
-        criadas = int(resultado.get("criadas") or 0)
-        atualizadas = int(resultado.get("atualizadas") or 0)
-        sem_alteracao = int(resultado.get("sem_alteracao") or 0)
-        ignoradas = max(0, total - len(registros))
+
+        detalhes_auditoria = (
+            f"Modo: {modo}. Registros anteriores removidos: {removidos}. "
+            f"Sem alteração: {sem_alteracao}. Filiais inativadas: {filiais_inativadas}."
+        )
         try:
             db.registrar_importacao(
                 "acompanhamento_expansao", arquivo.filename, total, len(registros), criadas,
-                atualizadas, ignoradas, usuario, "concluida", f"Sem alteração: {sem_alteracao}",
+                atualizadas, 0, usuario, "concluida", detalhes_auditoria,
             )
             db.registrar_movimentacao(
                 0, "importacao_acompanhamento_expansao", str(criadas + atualizadas), usuario,
-                f"Acompanhamento de Expansão: {total} linha(s), {criadas} criada(s), {atualizadas} atualizada(s), {sem_alteracao} sem alteração e {ignoradas} ignorada(s).",
+                f"Acompanhamento de Expansão · modo {modo} · {total} linha(s) · {criadas} criada(s) · "
+                f"{atualizadas} atualizada(s) · {sem_alteracao} sem alteração · {removidos} removida(s) na substituição.",
                 tabela="sistema",
             )
         except Exception as audit_err:
-            print(f"[aviso] Acompanhamento importado, mas falhou auditoria: {audit_err}")
+            app.logger.exception("Acompanhamento importado, mas falhou auditoria: %s", audit_err)
+
         return jsonify({
-            "ok":True, "arquivo":arquivo.filename, "total_linhas":total,
+            "ok":True, "arquivo":arquivo.filename, "modo":modo, "total_linhas":total,
             "processadas":len(registros), "criadas":criadas, "atualizadas":atualizadas,
-            "sem_alteracao":sem_alteracao, "ignoradas":ignoradas, "erros":erros,
-            "filiais_sincronizadas": sincronizadas, "falhas_sincronizacao": falhas_sincronizacao,
+            "sem_alteracao":sem_alteracao, "ignoradas":0, "erros":[], "removidos":removidos,
+            "filiais_sincronizadas": sincronizadas, "filiais_inativadas": filiais_inativadas,
+            "falhas_sincronizacao": falhas_sincronizacao,
         })
     except ValueError as e:
         return jsonify({"erro":str(e)}), 400
     except Exception as e:
-        print(f"[erro] Falha ao importar acompanhamento de expansão: {type(e).__name__}: {e}")
+        app.logger.exception("Falha ao importar acompanhamento de expansão")
         return jsonify({"erro":f"Erro ao processar a planilha ({type(e).__name__})."}), 500
 
 
@@ -4808,18 +4889,16 @@ def api_restaurar_imobilizado():
 @app.route("/api/imobilizados/excluir-em-lote", methods=["POST"])
 @edit_required
 def api_excluir_imobilizados_em_lote():
-    dados = request.get_json(force=True)
+    dados = request.get_json(silent=True) or {}
     ids = dados.get("ids") or []
-    if not ids:
+    if not isinstance(ids, list) or not ids:
         return jsonify({"erro": "Nenhum item selecionado."}), 400
-    for item_id in ids:
-        item = db.buscar_imobilizado_por_id(item_id)
-        if item:
-            db.registrar_movimentacao(item_id, "exclusao", item.get("qtde"), session.get("username"),
-                                       f"Imobilizado {item.get('codigo')} excluído (exclusão em massa)",
-                                       tabela="imobilizados")
-    total = db.excluir_imobilizados_em_lote(ids)
-    return jsonify({"ok": True, "excluidos": total})
+    try:
+        excluidos, nao_encontrados = db.excluir_imobilizados_em_lote_auditado(ids, session.get("username"))
+    except Exception:
+        app.logger.exception("Erro na exclusão em massa de Imobilizados")
+        return jsonify({"erro": "Não foi possível excluir os imobilizados selecionados. Tente novamente."}), 500
+    return jsonify({"ok": True, "excluidos": len(excluidos), "nao_encontrados": nao_encontrados})
 
 
 @app.route("/api/imobilizados/<int:item_id>/movimentacoes")
@@ -5241,17 +5320,16 @@ def api_restaurar():
 @app.route("/api/itens/excluir-em-lote", methods=["POST"])
 @edit_required
 def api_excluir_em_lote():
-    dados = request.get_json(force=True)
+    dados = request.get_json(silent=True) or {}
     ids = dados.get("ids") or []
-    if not ids:
+    if not isinstance(ids, list) or not ids:
         return jsonify({"erro": "Nenhum item selecionado."}), 400
-    for item_id in ids:
-        item = db.buscar_item_por_id(item_id)
-        if item:
-            db.registrar_movimentacao(item_id, "exclusao", item.get("qtde"), session.get("username"),
-                                       f"Item {item.get('codigo')} excluído (exclusão em massa)")
-    total = db.excluir_itens_em_lote(ids)
-    return jsonify({"ok": True, "excluidos": total})
+    try:
+        excluidos, nao_encontrados = db.excluir_itens_em_lote_auditado(ids, session.get("username"))
+    except Exception:
+        app.logger.exception("Erro na exclusão em massa do Estoque")
+        return jsonify({"erro": "Não foi possível excluir os itens selecionados. Tente novamente."}), 500
+    return jsonify({"ok": True, "excluidos": len(excluidos), "nao_encontrados": nao_encontrados})
 
 
 @app.route("/api/itens/<int:item_id>/movimentacoes")
