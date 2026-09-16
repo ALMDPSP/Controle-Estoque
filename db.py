@@ -328,6 +328,9 @@ def init_db():
                 uf TEXT,
                 projeto TEXT,
                 status_filial TEXT,
+                enviada TEXT DEFAULT 'NAO',
+                em_separacao TEXT DEFAULT 'NAO',
+                equip_separado TEXT DEFAULT 'NAO',
                 term_obra TEXT,
                 entrada_ti TEXT,
                 inauguracao TEXT,
@@ -346,6 +349,9 @@ def init_db():
                 uf TEXT,
                 projeto TEXT,
                 status_filial TEXT,
+                enviada TEXT DEFAULT 'NAO',
+                em_separacao TEXT DEFAULT 'NAO',
+                equip_separado TEXT DEFAULT 'NAO',
                 term_obra TEXT,
                 entrada_ti TEXT,
                 inauguracao TEXT,
@@ -355,6 +361,17 @@ def init_db():
             )
         """)
     conn.commit()
+
+    # Migração v93: flags operacionais do detalhamento do Acompanhamento.
+    for coluna in ("enviada", "em_separacao", "equip_separado"):
+        try:
+            if IS_PG:
+                cur.execute(f"ALTER TABLE acompanhamento_expansao ADD COLUMN IF NOT EXISTS {coluna} TEXT DEFAULT 'NAO'")
+            else:
+                cur.execute(f"ALTER TABLE acompanhamento_expansao ADD COLUMN {coluna} TEXT DEFAULT 'NAO'")
+            conn.commit()
+        except Exception:
+            conn.rollback()
 
     # Índices leves para os filtros e gráficos do dashboard.
     for nome_indice, coluna in (
@@ -392,6 +409,9 @@ def init_db():
                         str(item.get("UF") or "").strip(),
                         str(item.get("PROJETO") or "").strip(),
                         str(item.get("STATUS FILIAL") or "").strip(),
+                        str(item.get("ENVIADA") or "NAO").strip().upper(),
+                        str(item.get("EM SEPARAÇÃO") or item.get("EM SEPARACAO") or "NAO").strip().upper(),
+                        str(item.get("EQUIP. SEPARADO") or item.get("EQUIP SEPARADO") or "NAO").strip().upper(),
                         str(item.get("TERM. OBRA") or "").strip(),
                         str(item.get("ENTRADA DE TI") or "").strip(),
                         str(item.get("INAUGURAÇÃO") or "").strip(),
@@ -401,7 +421,7 @@ def init_db():
                     ))
                 if valores:
                     cur.executemany(
-                        q("INSERT INTO acompanhamento_expansao (filial,bandeira,descricao_filial,uf,projeto,status_filial,term_obra,entrada_ti,inauguracao,observacao_ti,atualizado_por,atualizado_em) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)"),
+                        q("INSERT INTO acompanhamento_expansao (filial,bandeira,descricao_filial,uf,projeto,status_filial,enviada,em_separacao,equip_separado,term_obra,entrada_ti,inauguracao,observacao_ti,atualizado_por,atualizado_em) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"),
                         valores,
                     )
                     conn.commit()
@@ -1911,7 +1931,7 @@ def listar_acompanhamento_expansao():
     try:
         cur.execute("""
             SELECT id, filial, bandeira, descricao_filial, uf, projeto, status_filial,
-                   term_obra, entrada_ti, inauguracao, observacao_ti, atualizado_por, atualizado_em
+                   enviada, em_separacao, equip_separado, term_obra, entrada_ti, inauguracao, observacao_ti, atualizado_por, atualizado_em
             FROM acompanhamento_expansao
             ORDER BY CASE WHEN UPPER(COALESCE(status_filial,'')) = 'PENDENTE' THEN 0 ELSE 1 END,
                      filial
@@ -1926,7 +1946,7 @@ def buscar_acompanhamento_expansao_por_id(registro_id):
     try:
         cur.execute(q("""
             SELECT id, filial, bandeira, descricao_filial, uf, projeto, status_filial,
-                   term_obra, entrada_ti, inauguracao, observacao_ti, atualizado_por, atualizado_em
+                   enviada, em_separacao, equip_separado, term_obra, entrada_ti, inauguracao, observacao_ti, atualizado_por, atualizado_em
             FROM acompanhamento_expansao WHERE id=?
         """), (registro_id,))
         row = cur.fetchone()
@@ -1948,8 +1968,8 @@ def criar_acompanhamento_expansao(dados, usuario):
             raise ValueError(f"Já existe um acompanhamento cadastrado para a filial {filial}.")
         cur.execute(
             q("""INSERT INTO acompanhamento_expansao
-                 (filial,bandeira,descricao_filial,uf,projeto,status_filial,term_obra,entrada_ti,inauguracao,observacao_ti,atualizado_por,atualizado_em)
-                 VALUES (?,?,?,?,?,?,?,?,?,?,?,?)"""),
+                 (filial,bandeira,descricao_filial,uf,projeto,status_filial,enviada,em_separacao,equip_separado,term_obra,entrada_ti,inauguracao,observacao_ti,atualizado_por,atualizado_em)
+                 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"""),
             (
                 filial,
                 str(dados.get("bandeira") or "").strip(),
@@ -1957,6 +1977,9 @@ def criar_acompanhamento_expansao(dados, usuario):
                 str(dados.get("uf") or "").strip(),
                 str(dados.get("projeto") or "").strip(),
                 str(dados.get("status_filial") or "").strip(),
+                str(dados.get("enviada") or "NAO").strip().upper(),
+                str(dados.get("em_separacao") or "NAO").strip().upper(),
+                str(dados.get("equip_separado") or "NAO").strip().upper(),
                 str(dados.get("term_obra") or "").strip(),
                 str(dados.get("entrada_ti") or "").strip(),
                 str(dados.get("inauguracao") or "").strip(),
@@ -1989,7 +2012,7 @@ def atualizar_acompanhamento_expansao(registro_id, dados, usuario):
         cur.execute(
             q("""UPDATE acompanhamento_expansao
                  SET filial=?, bandeira=?, descricao_filial=?, uf=?, projeto=?, status_filial=?,
-                     term_obra=?, entrada_ti=?, inauguracao=?, observacao_ti=?, atualizado_por=?, atualizado_em=?
+                     enviada=?, em_separacao=?, equip_separado=?, term_obra=?, entrada_ti=?, inauguracao=?, observacao_ti=?, atualizado_por=?, atualizado_em=?
                  WHERE id=?"""),
             (
                 str(dados.get("filial") or "").strip(),
@@ -1998,6 +2021,9 @@ def atualizar_acompanhamento_expansao(registro_id, dados, usuario):
                 str(dados.get("uf") or "").strip(),
                 str(dados.get("projeto") or "").strip(),
                 str(dados.get("status_filial") or "").strip(),
+                str(dados.get("enviada") or "NAO").strip().upper(),
+                str(dados.get("em_separacao") or "NAO").strip().upper(),
+                str(dados.get("equip_separado") or "NAO").strip().upper(),
                 str(dados.get("term_obra") or "").strip(),
                 str(dados.get("entrada_ti") or "").strip(),
                 str(dados.get("inauguracao") or "").strip(),
@@ -2023,13 +2049,13 @@ def importar_acompanhamento_expansao_em_lote(linhas, usuario):
     try:
         cur.execute("""
             SELECT id, filial, bandeira, descricao_filial, uf, projeto, status_filial,
-                   term_obra, entrada_ti, inauguracao, observacao_ti
+                   enviada, em_separacao, equip_separado, term_obra, entrada_ti, inauguracao, observacao_ti
             FROM acompanhamento_expansao
         """)
         existentes = {str(dict(r).get("filial") or "").strip(): dict(r) for r in cur.fetchall()}
         inserts, updates = [], []
         criadas = atualizadas = sem_alteracao = 0
-        campos = ("bandeira","descricao_filial","uf","projeto","status_filial","term_obra","entrada_ti","inauguracao","observacao_ti")
+        campos = ("bandeira","descricao_filial","uf","projeto","status_filial","enviada","em_separacao","equip_separado","term_obra","entrada_ti","inauguracao","observacao_ti")
 
         for item in linhas:
             filial = str(item.get("filial") or "").strip()
@@ -2042,8 +2068,8 @@ def importar_acompanhamento_expansao_em_lote(linhas, usuario):
                 if mudou:
                     updates.append((
                         dados["bandeira"], dados["descricao_filial"], dados["uf"], dados["projeto"],
-                        dados["status_filial"], dados["term_obra"], dados["entrada_ti"], dados["inauguracao"],
-                        dados["observacao_ti"], usuario, agora, atual["id"],
+                        dados["status_filial"], dados["enviada"], dados["em_separacao"], dados["equip_separado"],
+                        dados["term_obra"], dados["entrada_ti"], dados["inauguracao"], dados["observacao_ti"], usuario, agora, atual["id"],
                     ))
                     atualizadas += 1
                 else:
@@ -2051,19 +2077,19 @@ def importar_acompanhamento_expansao_em_lote(linhas, usuario):
             else:
                 inserts.append((
                     filial, dados["bandeira"], dados["descricao_filial"], dados["uf"], dados["projeto"],
-                    dados["status_filial"], dados["term_obra"], dados["entrada_ti"], dados["inauguracao"],
-                    dados["observacao_ti"], usuario, agora,
+                    dados["status_filial"], dados["enviada"], dados["em_separacao"], dados["equip_separado"],
+                    dados["term_obra"], dados["entrada_ti"], dados["inauguracao"], dados["observacao_ti"], usuario, agora,
                 ))
                 criadas += 1
 
         if updates:
             cur.executemany(
-                q("UPDATE acompanhamento_expansao SET bandeira=?, descricao_filial=?, uf=?, projeto=?, status_filial=?, term_obra=?, entrada_ti=?, inauguracao=?, observacao_ti=?, atualizado_por=?, atualizado_em=? WHERE id=?"),
+                q("UPDATE acompanhamento_expansao SET bandeira=?, descricao_filial=?, uf=?, projeto=?, status_filial=?, enviada=?, em_separacao=?, equip_separado=?, term_obra=?, entrada_ti=?, inauguracao=?, observacao_ti=?, atualizado_por=?, atualizado_em=? WHERE id=?"),
                 updates,
             )
         if inserts:
             cur.executemany(
-                q("INSERT INTO acompanhamento_expansao (filial,bandeira,descricao_filial,uf,projeto,status_filial,term_obra,entrada_ti,inauguracao,observacao_ti,atualizado_por,atualizado_em) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)"),
+                q("INSERT INTO acompanhamento_expansao (filial,bandeira,descricao_filial,uf,projeto,status_filial,enviada,em_separacao,equip_separado,term_obra,entrada_ti,inauguracao,observacao_ti,atualizado_por,atualizado_em) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"),
                 inserts,
             )
         conn.commit()

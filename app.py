@@ -60,7 +60,7 @@ import qrcode
 import db
 
 app = Flask(__name__)
-APP_BUILD = "2026-09-15-edicao-em-massa-v87-senha-auditoria"
+APP_BUILD = "2026-09-16-acompanhamento-status-operacional-v93"
 _DASHBOARD_CACHE = {"expira": 0.0, "dados": None}
 app.secret_key = os.environ.get("SECRET_KEY", "troque-esta-chave-em-producao")
 _RUNNING_HTTPS_HOSTED = bool(
@@ -2397,6 +2397,10 @@ def _cabecalho_acomp_normalizado(valor):
         "PROJETO": "projeto",
         "STATUS FILIAL": "status_filial",
         "STATUS": "status_filial",
+        "ENVIADA": "enviada",
+        "EM SEPARACAO": "em_separacao",
+        "EQUIP SEPARADO": "equip_separado",
+        "EQUIPAMENTO SEPARADO": "equip_separado",
         "TERM OBRA": "term_obra",
         "TERMINO OBRA": "term_obra",
         "TERMINO DE OBRA": "term_obra",
@@ -2479,6 +2483,9 @@ def _ler_planilha_acompanhamento(arquivo):
             "uf": ler("uf").upper(),
             "projeto": ler("projeto").upper(),
             "status_filial": ler("status_filial").upper(),
+            "enviada": (ler("enviada") or "NAO").upper(),
+            "em_separacao": (ler("em_separacao") or "NAO").upper(),
+            "equip_separado": (ler("equip_separado") or "NAO").upper(),
             "term_obra": ler("term_obra"),
             "entrada_ti": ler("entrada_ti"),
             "inauguracao": ler("inauguracao"),
@@ -2606,6 +2613,9 @@ def api_cadastrar_acompanhamento_expansao():
         "uf": uf,
         "projeto": projeto,
         "status_filial": status_filial,
+        "enviada": "SIM" if str(dados.get("enviada") or "NAO").strip().upper() == "SIM" else "NAO",
+        "em_separacao": "SIM" if str(dados.get("em_separacao") or "NAO").strip().upper() == "SIM" else "NAO",
+        "equip_separado": "SIM" if str(dados.get("equip_separado") or "NAO").strip().upper() == "SIM" else "NAO",
         "term_obra": str(dados.get("term_obra") or "").strip(),
         "entrada_ti": str(dados.get("entrada_ti") or "").strip(),
         "inauguracao": str(dados.get("inauguracao") or "").strip(),
@@ -2662,6 +2672,9 @@ def api_atualizar_acompanhamento_expansao(registro_id):
         "uf": str(dados.get("uf") or "").strip().upper(),
         "projeto": str(dados.get("projeto") or "").strip().upper(),
         "status_filial": str(dados.get("status_filial") or "").strip().upper(),
+        "enviada": "SIM" if str(dados.get("enviada") or "NAO").strip().upper() == "SIM" else "NAO",
+        "em_separacao": "SIM" if str(dados.get("em_separacao") or "NAO").strip().upper() == "SIM" else "NAO",
+        "equip_separado": "SIM" if str(dados.get("equip_separado") or "NAO").strip().upper() == "SIM" else "NAO",
         "term_obra": str(dados.get("term_obra") or "").strip(),
         "entrada_ti": str(dados.get("entrada_ti") or "").strip(),
         "inauguracao": str(dados.get("inauguracao") or "").strip(),
@@ -2695,7 +2708,7 @@ def api_atualizar_acompanhamento_expansao(registro_id):
         return jsonify({"erro": "Não foi possível sincronizar a alteração com a aba Filiais. O Acompanhamento foi restaurado."}), 500
 
     alteracoes = []
-    for campo, rotulo in (("filial","Filial"),("bandeira","Bandeira"),("descricao_filial","Descrição"),("uf","UF"),("projeto","Projeto"),("status_filial","Status"),("term_obra","Término obra"),("entrada_ti","Entrada TI"),("inauguracao","Inauguração"),("observacao_ti","Observação TI")):
+    for campo, rotulo in (("filial","Filial"),("bandeira","Bandeira"),("descricao_filial","Descrição"),("uf","UF"),("projeto","Projeto"),("status_filial","Status"),("enviada","Enviada"),("em_separacao","Em Separação"),("equip_separado","Equip. separado"),("term_obra","Término obra"),("entrada_ti","Entrada TI"),("inauguracao","Inauguração"),("observacao_ti","Observação TI")):
         antes = str(anterior.get(campo) or "").strip()
         depois = str(payload.get(campo) or "").strip()
         if antes != depois:
@@ -2800,12 +2813,13 @@ def exportar_acompanhamento_expansao():
     wb = Workbook()
     ws = wb.active
     ws.title = "Acompanhamento"
-    headers = ["FILIAL","BANDEIRA","DESCRIÇÃO FILIAL","UF","PROJETO","STATUS FILIAL","TERM. OBRA","ENTRADA DE TI","INAUGURAÇÃO","OBSERVAÇÃO TI"]
+    headers = ["FILIAL","BANDEIRA","DESCRIÇÃO FILIAL","UF","PROJETO","STATUS FILIAL","ENVIADA","EM SEPARAÇÃO","EQUIP. SEPARADO","TERM. OBRA","ENTRADA DE TI","INAUGURAÇÃO","OBSERVAÇÃO TI"]
     ws.append(headers)
     for item in dados["linhas"]:
         ws.append([
             item.get("filial") or "", item.get("bandeira") or "", item.get("descricao_filial") or "",
             item.get("uf") or "", item.get("projeto") or "", item.get("status_filial") or "",
+            item.get("enviada") or "NAO", item.get("em_separacao") or "NAO", item.get("equip_separado") or "NAO",
             item.get("term_obra") or "", item.get("entrada_ti") or "", item.get("inauguracao") or "",
             item.get("observacao_ti") or "",
         ])
@@ -2815,11 +2829,11 @@ def exportar_acompanhamento_expansao():
         cell.fill = header_fill
         cell.alignment = Alignment(horizontal="center", vertical="center")
     ws.freeze_panes = "A2"
-    ws.auto_filter.ref = f"A1:J{max(1,ws.max_row)}"
-    widths = [12,12,38,8,16,16,16,18,16,46]
+    ws.auto_filter.ref = f"A1:M{max(1,ws.max_row)}"
+    widths = [12,12,38,8,16,16,12,16,16,16,18,16,46]
     for i,w in enumerate(widths,1):
         ws.column_dimensions[get_column_letter(i)].width = w
-    for row in ws.iter_rows(min_row=2, max_col=10):
+    for row in ws.iter_rows(min_row=2, max_col=13):
         row[0].number_format = "@"
         for c in (1,3,4,5,6,7,8):
             row[c].alignment = Alignment(horizontal="center", vertical="center")
