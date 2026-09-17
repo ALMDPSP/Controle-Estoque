@@ -46,7 +46,7 @@ main{padding:24px 32px 54px;max-width:1500px;margin:auto}.kpis{display:grid;grid
   <section class="kpis">
     <div class="kpi total"><span>Total acompanhado</span><strong id="k-total">0</strong><small>Filiais/projetos na base</small></div>
     <div class="kpi green"><span>Inauguradas</span><strong id="k-inaug">0</strong><small id="k-inaug-sub">0% concluído</small></div>
-    <div class="kpi warn"><span>Pendentes</span><strong id="k-pend">0</strong><small>Aguardando conclusão</small></div>
+    <div class="kpi warn"><span>Pendentes</span><strong id="k-pend">0</strong><small id="k-pend-sub">Expansão 0 · Ampliação 0 · Realocação 0</small></div>
     <div class="kpi blue"><span>Inauguração definida</span><strong id="k-data">0</strong><small>Pendentes com data prevista</small></div>
     <div class="kpi red"><span>A definir</span><strong id="k-semdata">0</strong><small>Pendentes sem data final</small></div>
     <div class="kpi purple"><span>UFs acompanhadas</span><strong id="k-ufs">0</strong><small>Cobertura da planilha</small></div>
@@ -332,6 +332,15 @@ async function init(){
     document.getElementById('k-inaug').textContent=s.inauguradas||0;
     document.getElementById('k-inaug-sub').textContent=`${(s.entrega_realizada_pct||0).toFixed(1)}% concluído`;
     document.getElementById('k-pend').textContent=s.pendentes||0;
+    const pendProjeto={expansao:0,ampliacao:0,realocacao:0};
+    dados.forEach(x=>{
+      if(norm(x.status_filial)!=='pendente') return;
+      const p=norm(x.projeto);
+      if(p==='expansao') pendProjeto.expansao++;
+      else if(p==='ampliacao') pendProjeto.ampliacao++;
+      else if(p==='realocacao') pendProjeto.realocacao++;
+    });
+    document.getElementById('k-pend-sub').textContent=`Expansão ${pendProjeto.expansao} · Ampliação ${pendProjeto.ampliacao} · Realocação ${pendProjeto.realocacao}`;
     document.getElementById('k-data').textContent=s.pendentes_com_inauguracao_definida||0;
     document.getElementById('k-semdata').textContent=s.pendentes_sem_inauguracao_definida||0;
     document.getElementById('k-ufs').textContent=s.ufs||0;
