@@ -17,7 +17,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th{text-align:left;colo
 </head>
 <body>
 <header><div class="brand"><span class="tag">Cadastro</span><strong>Controle de Ativos</strong></div><h1>Cadastro de itens</h1><p class="subtitle">Cadastre aqui os itens que poderão ser utilizados no Estoque e nos Imobilizados.</p></header>
-<nav><div style="display:flex;gap:8px;flex-wrap:wrap"><a href="{{ url_for('index') }}">Estoque</a><a href="{{ url_for('pagina_imobilizados') }}">Imobilizados</a><a class="nav-active" href="{{ url_for('pagina_cadastro_itens') }}">Cadastro de itens</a></div><div style="display:flex;gap:14px;align-items:center"><span style="color:var(--muted)">Logado como <strong style="color:var(--text)">{{ username }}</strong></span>{% if is_admin %}<a href="{{ url_for('pagina_usuarios') }}">Usuários</a>{% endif %}<a href="{{ url_for('logout') }}">Sair</a></div></nav>
+<nav><div style="display:flex;gap:8px;flex-wrap:wrap"><a href="{{ url_for('index') }}">Estoque</a><a href="{{ url_for('pagina_imobilizados') }}">Imobilizados</a><a class="nav-active" href="{{ url_for('pagina_cadastro_itens') }}">Cadastro de itens</a></div><div style="display:flex;gap:14px;align-items:center"><span style="color:var(--muted)">Logado como <strong style="color:var(--text)">{{ username }}</strong></span>{% if is_admin %}<a href="{{ url_for('pagina_usuarios') }}">Gestão de Usuários</a>{% endif %}<a href="{{ url_for('logout') }}">Sair</a></div></nav>
 <main>
 <section class="panel">
   <h2>Novo cadastro de item</h2>

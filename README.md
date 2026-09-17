@@ -1,3 +1,7 @@
+# Controle de Estoque — v98
+
+Atualização: aba **Gestão de Usuários** com data e horário do último login concluído de cada usuário.
+
 # Controle-Estoque
 ## Recursos de gestão adicionados
 

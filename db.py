@@ -683,6 +683,7 @@ def init_db():
         "CREATE INDEX IF NOT EXISTS idx_filiais_previsao ON filiais(previsao_abertura)",
         "CREATE INDEX IF NOT EXISTS idx_mov_data ON movimentacoes(data_hora)",
         "CREATE INDEX IF NOT EXISTS idx_import_data ON importacoes(data_hora)",
+        "CREATE INDEX IF NOT EXISTS idx_login_user_resultado ON login_eventos(username, resultado, data_hora)",
     ]
     for sql_idx in indices:
         try:
@@ -2387,9 +2388,15 @@ def obter_saude_sistema():
 def listar_usuarios():
     conn = get_conn()
     cur = get_cursor(conn)
-    cur.execute("SELECT id, username, role, criado_em, precisa_trocar_senha, "
-                "COALESCE(mfa_enabled, '0') AS mfa_enabled, mfa_configurado_em "
-                "FROM usuarios ORDER BY id")
+    # O último acesso considera somente autenticações efetivamente concluídas.
+    # Falhas, bloqueios e etapas pendentes de MFA não contam como login.
+    cur.execute(
+        "SELECT u.id, u.username, u.role, u.criado_em, u.precisa_trocar_senha, "
+        "COALESCE(u.mfa_enabled, '0') AS mfa_enabled, u.mfa_configurado_em, "
+        "(SELECT MAX(le.data_hora) FROM login_eventos le "
+        " WHERE LOWER(le.username) = LOWER(u.username) AND le.resultado = 'sucesso') AS ultimo_login "
+        "FROM usuarios u ORDER BY u.id"
+    )
     linhas = cur.fetchall()
     usuarios = [dict(r) for r in linhas]
     cur.close()
