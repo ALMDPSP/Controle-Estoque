@@ -114,7 +114,7 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:0 0 12px}foot
               <small id="stage-desc">Veja a loja como se estivesse entrando. Use os focos para destacar a área de PDV, o balcão e as demais áreas.</small>
             </div>
             <button type="button" class="hotspot entrada ativo" data-view="entrada"><span>1</span><div><strong>Entrada</strong><small>Visão geral da loja</small></div></button>
-            <button type="button" class="hotspot pdv" data-view="pdv"><span>2</span><div><strong>PDV</strong><small>Pinpad · Monitor · TEC55 · Epson</small></div></button>
+            <button type="button" class="hotspot pdv" data-view="pdv"><span>2</span><div><strong>PDV</strong><small>Pinpad · Monitor · TC55 · Gaveta · Display · Epson</small></div></button>
             <button type="button" class="hotspot balcao" data-view="balcao"><span>3</span><div><strong>Balcão</strong><small>Atendimento separado do PDV</small></div></button>
             <button type="button" class="hotspot prateleiras" data-view="prateleiras"><span>4</span><div><strong>Prateleiras</strong><small>Área de venda</small></div></button>
             <button type="button" class="tira-teima-device" data-view="tirateima" title="Tira-teima / consulta de preço"><span class="tt-screen">$</span><strong>Tira-teima</strong></button>
@@ -147,7 +147,7 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:0 0 12px}foot
       <aside class="side-stack">
         <div class="side-card">
           <h3>Separação das áreas</h3>
-          <p><strong>PDV</strong> mostra somente os itens citados: <strong>pinpad, monitor, teclado TEC55 e impressora Epson</strong>. O <strong>balcão</strong> fica separado e exibe os demais equipamentos de atendimento.</p>
+          <p><strong>PDV</strong> mostra somente os itens citados: <strong>pinpad, monitor, teclado TC55/TEC55, gaveta horizontal, display tela cliente e impressora Epson</strong>. O <strong>balcão</strong> fica separado e exibe os demais equipamentos de atendimento.</p>
         </div>
         <div class="zone-list" id="zone-list"></div>
       </aside>
@@ -160,7 +160,7 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:0 0 12px}foot
 const zoneMeta = {
   entrada:{titulo:'Entrada da loja',descricao:'Visualização geral da entrada da loja e distribuição do ambiente.'},
   interior:{titulo:'Dentro da loja',descricao:'A câmera entra no ambiente e aproxima a visão interna da área de vendas, balcão e PDVs.'},
-  pdv:{titulo:'Frente de PDV',descricao:'Área lateral de caixa, contendo apenas pinpad, monitor, teclado TEC55 e impressora Epson.'},
+  pdv:{titulo:'Frente de PDV',descricao:'Área lateral de caixa com pinpad, monitor, teclado TC55/TEC55, gaveta horizontal, display tela cliente e impressora Epson.'},
   balcao:{titulo:'Balcão de atendimento',descricao:'Área de atendimento separada do PDV, com os demais equipamentos de apoio ao balcão.'},
   tirateima:{titulo:'Tira-teima',descricao:'Terminal de consulta de preço posicionado na área de vendas, próximo às prateleiras.'},
   prateleiras:{titulo:'Prateleiras / área de vendas',descricao:'Itens ligados à exposição, consulta e operação na área de vendas.'},
@@ -201,7 +201,7 @@ function iconeEquipamento(descricao){
   if(d.includes('pinpad')) return '💳';
   if(d.includes('monitor')||d.includes('display')) return '🖥️';
   if(d.includes('impressora')) return '🖨️';
-  if(d.includes('tec55')||d.includes('teclado')) return '⌨️';
+  if(d.includes('tec55')||d.includes('tc55')||d.includes('teclado')) return '⌨️';
   if(d.includes('mouse')) return '🖱️';
   if(d.includes('scanner')||d.includes('tira teima')) return '🔎';
   if(d.includes('micro')) return '💻';
@@ -218,11 +218,11 @@ function iconeEquipamento(descricao){
 }
 function zonaEquipamento(kit){
   const d=normalizarTexto(kit.descricao);
-  if(d.includes('pinpad') || d.includes('monitor') || d.includes('tec55') || d.includes('teclado tec55') || (d.includes('impressora') && d.includes('epson'))) return 'pdv';
+  if(d.includes('pinpad') || d.includes('monitor') || d.includes('tec55') || d.includes('tc55') || d.includes('teclado tec55') || d.includes('teclado tc55') || d.includes('gaveta') || d.includes('display tela cliente') || (d.includes('impressora') && d.includes('epson'))) return 'pdv';
   if(d.includes('rack') || d.includes('firewall') || d.includes('switch') || d.includes('poe') || d.includes('voip') || d.includes('ata') || /(^|\s)ap(\s|$)/.test(d) || d.includes('kit ap')) return 'rede';
   if(d.includes('tira teima') || d.includes('tira-teima')) return 'prateleiras';
   if(d.includes('coletor') || d.includes('bandoleira') || d.includes('capa') || d.includes('headset') || d.includes('tel sem fio') || d.includes('telefone sem fio')) return 'apoio';
-  if(d.includes('balcao') || d.includes('balcao') || d.includes('micro dell') || d.includes('scanner') || d.includes('mouse') || d.includes('gaveta') || d.includes('display tela cliente') || d.includes('impressora i9') || d.includes('impressora l42') || d.includes('impressora lexmark') || (d.includes('teclado') && !d.includes('tec55'))) return 'balcao';
+  if(d.includes('balcao') || d.includes('balcao') || d.includes('micro dell') || d.includes('scanner') || d.includes('mouse') || d.includes('impressora i9') || d.includes('impressora l42') || d.includes('impressora lexmark') || (d.includes('teclado') && !d.includes('tec55') && !d.includes('tc55'))) return 'balcao';
   return 'balcao';
 }
 function calcularSimulacao(){

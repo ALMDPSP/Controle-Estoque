@@ -354,6 +354,7 @@ async function init(){
     setSelect('f-projeto',new Set(dados.map(x=>x.projeto)));
     setSelect('f-bandeira',new Set(dados.map(x=>x.bandeira)));
     setSelect('f-uf',new Set(dados.map(x=>x.uf)));
+    try{ const filialInicial=new URLSearchParams(window.location.search).get('filial'); if(filialInicial) document.getElementById('f-busca').value=filialInicial; }catch(_e){}
     renderTable();
     destroyCharts();
     const toPairs=o=>Object.entries(o||{});

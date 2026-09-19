@@ -1,6 +1,8 @@
-# Controle de Estoque — v98
+# Controle de Estoque — v99
 
-Atualização: aba **Gestão de Usuários** com data e horário do último login concluído de cada usuário.
+Atualização: Loja Virtual 3D com **Gaveta - Horizontal**, **Display tela cliente** e **Teclado Automação TC55 teclas Gertec PS2** movidos do Balcão de atendimento para a **Frente de PDV**.
+
+Mantém a melhoria da v98: aba **Gestão de Usuários** com data e horário do último login concluído de cada usuário.
 
 # Controle-Estoque
 ## Recursos de gestão adicionados
@@ -59,3 +61,11 @@ O menu do sistema inclui a página **Celular**, que mostra o endereço de acesso
 - `GROQ_MODEL`, `GEMINI_MODEL` e `CLOUDFLARE_MODEL` são opcionais.
 
 Consulte `AGENTE_IA_CONFIGURACAO.txt` para o passo a passo.
+
+## v100 — Cockpit de Implantação
+- Nova aba Cockpit de Implantação com readiness por loja pendente.
+- Readiness calculado por marcos: obra, envio, separação, equipamentos separados, Entrada de TI e inauguração.
+- Cruzamento do Kit Padrão com Estoque de Expansão por ordem cronológica das lojas para apontar faltas por filial.
+- Indicadores de lojas Prontas, Atenção e Críticas, bloqueios, unidades/itens faltantes e impacto financeiro estimado.
+- Filtros por filial, situação, projeto e UF, com atalho para abrir a filial no Acompanhamento de Expansão.
+- Relatórios completos Excel e PDF disponíveis no Cockpit e na Central de Relatórios.

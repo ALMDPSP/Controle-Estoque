@@ -60,7 +60,7 @@ import qrcode
 import db
 
 app = Flask(__name__)
-APP_BUILD = "2026-09-16-exclusao-lote-upload-acompanhamento-v94"
+APP_BUILD = "2026-09-19-cockpit-implantacao-v100"
 _DASHBOARD_CACHE = {"expira": 0.0, "dados": None}
 app.secret_key = os.environ.get("SECRET_KEY", "troque-esta-chave-em-producao")
 _RUNNING_HTTPS_HOSTED = bool(
@@ -2576,6 +2576,31 @@ def pagina_acompanhamento_expansao():
     )
 
 
+@app.route("/cockpit-implantacao")
+@login_required
+def pagina_cockpit_implantacao():
+    role = session.get("role") or "user"
+    if role == "user":
+        role = "operador"
+    return render_template(
+        "cockpit_implantacao.html",
+        username=session.get("username"),
+        role=role,
+        is_admin=role == "admin",
+        dados=_dados_cockpit_implantacao(incluir_financeiro=role != "consulta"),
+        pode_ver_financeiro=role != "consulta",
+    )
+
+
+@app.route("/api/cockpit-implantacao")
+@login_required
+def api_cockpit_implantacao():
+    role = session.get("role") or "user"
+    if role == "user":
+        role = "operador"
+    return jsonify(_dados_cockpit_implantacao(incluir_financeiro=role != "consulta"))
+
+
 @app.route("/api/acompanhamento-expansao")
 @login_required
 def api_acompanhamento_expansao():
@@ -3783,6 +3808,485 @@ def _calcular_orcamento_pepi():
         "pedido_linhas": pedido_linhas,
         "linhas": linhas,
     }
+
+
+def _dados_cockpit_implantacao(incluir_financeiro=True):
+    """Visão executiva por filial para implantação de TI.
+
+    O Acompanhamento de Expansão é a fonte dos marcos operacionais. O Kit Padrão,
+    Cadastro de Produtos e Estoque de Expansão são usados para simular a cobertura
+    dos equipamentos em ordem cronológica de inauguração/Entrada de TI.
+    """
+    def _qtd(valor):
+        try:
+            return max(0, int(float(valor or 0)))
+        except (TypeError, ValueError):
+            return 0
+
+    def _sim(valor):
+        return _normalizar_exec(valor) == "sim"
+
+    def _dias(iso):
+        if not iso:
+            return None
+        try:
+            return (datetime.strptime(iso, "%Y-%m-%d").date() - datetime.now().date()).days
+        except Exception:
+            return None
+
+    linhas_acomp = db.listar_acompanhamento_expansao()
+    pendentes = [x for x in linhas_acomp if _normalizar_exec(x.get("status_filial")) == "pendente"]
+    inauguradas = sum(1 for x in linhas_acomp if _normalizar_exec(x.get("status_filial")) == "inaugurada")
+
+    produtos = db.listar_produtos()
+    kit = db.listar_kit_padrao_loja()
+    itens = (db.obter_dashboard_compacto(1) or {}).get("itens") or []
+    estoque_expansao = [
+        x for x in itens
+        if _normalizar_exec(x.get("tipo_estoque")) == "expansao" and _qtd(x.get("qtde")) > 0
+    ]
+    produtos_codigo = {
+        str(p.get("codigo") or "").strip().lower(): p
+        for p in produtos if str(p.get("codigo") or "").strip()
+    }
+
+    def _produto_kit(k):
+        codigo = str(k.get("codigo") or "").strip().lower()
+        if codigo and codigo in produtos_codigo:
+            return produtos_codigo[codigo]
+        desc = _normalizar_exec(k.get("descricao"))
+        candidatos = []
+        for prod in produtos:
+            pd = _normalizar_exec(prod.get("descricao"))
+            if desc and pd and (desc == pd or desc in pd or pd in desc):
+                candidatos.append((0 if desc == pd else abs(len(desc) - len(pd)), prod))
+        return sorted(candidatos, key=lambda x: x[0])[0][1] if candidatos else None
+
+    def _estoque_produto(prod, k):
+        codigos = {
+            str(v or "").strip().lower()
+            for v in ((prod or {}).get("codigo"), k.get("codigo"))
+            if str(v or "").strip()
+        }
+        descricoes = {
+            _normalizar_exec(v)
+            for v in ((prod or {}).get("descricao"), k.get("descricao"))
+            if _normalizar_exec(v)
+        }
+        total = 0
+        for item in estoque_expansao:
+            cod = str(item.get("codigo") or "").strip().lower()
+            desc = _normalizar_exec(item.get("descricao"))
+            if (cod and cod in codigos) or (desc and any(d == desc or d in desc or desc in d for d in descricoes)):
+                total += _qtd(item.get("qtde"))
+        return total
+
+    specs = []
+    for k in kit:
+        prod = _produto_kit(k)
+        qtd_kit = _qtd(k.get("quantidade"))
+        qtd_prod = _qtd((prod or {}).get("qtde_por_loja"))
+        qtd_loja = max(1, qtd_kit or qtd_prod or 1)
+        custo = _decimal_moeda((prod or {}).get("custo"), "0.00") if prod else Decimal("0.00")
+        specs.append({
+            "codigo": str((prod or {}).get("codigo") or k.get("codigo") or "").strip(),
+            "descricao": str((prod or {}).get("descricao") or k.get("descricao") or "Item sem descrição").strip(),
+            "qtd_loja": qtd_loja,
+            "custo": custo,
+            "estoque": _estoque_produto(prod, k),
+            "restante": _estoque_produto(prod, k),
+            "custo_informado": bool(prod) and custo > 0,
+        })
+
+    def _ordem_loja(item):
+        inaug = _data_acompanhamento_iso(item.get("inauguracao"))
+        entrada = _data_acompanhamento_iso(item.get("entrada_ti"))
+        return (inaug or entrada or "9999-99-99", entrada or "9999-99-99", str(item.get("filial") or ""))
+
+    pendentes.sort(key=_ordem_loja)
+    lojas = []
+    faltantes_detalhe = []
+    bloqueios_detalhe = []
+    valor_total_faltante = Decimal("0.00")
+    itens_faltantes_codigos = set()
+    unidades_faltantes = 0
+
+    for item in pendentes:
+        score = 0
+        bloqueios = []
+        term_ok = _acomp_valor_definido(item.get("term_obra"))
+        enviada_ok = _sim(item.get("enviada"))
+        separacao_ok = _sim(item.get("em_separacao"))
+        equip_ok = _sim(item.get("equip_separado"))
+        entrada_iso = _data_acompanhamento_iso(item.get("entrada_ti"))
+        inaug_iso = _data_acompanhamento_iso(item.get("inauguracao"))
+        if term_ok: score += 15
+        else: bloqueios.append("Término da obra não definido")
+        if enviada_ok: score += 15
+        else: bloqueios.append("Envio não confirmado")
+        if separacao_ok: score += 15
+        else: bloqueios.append("Separação não confirmada")
+        if equip_ok: score += 20
+        else: bloqueios.append("Equipamentos não separados")
+        if entrada_iso: score += 20
+        else: bloqueios.append("Entrada de TI sem data")
+        if inaug_iso: score += 15
+        else: bloqueios.append("Inauguração sem data")
+
+        dias_ti = _dias(entrada_iso)
+        dias_inaug = _dias(inaug_iso)
+        if dias_ti is not None and dias_ti < 0:
+            bloqueios.append(f"Entrada de TI vencida há {abs(dias_ti)} dia(s)")
+        if dias_inaug is not None and dias_inaug < 0:
+            bloqueios.append(f"Inauguração vencida há {abs(dias_inaug)} dia(s)")
+
+        faltantes = []
+        valor_loja = Decimal("0.00")
+        for spec in specs:
+            necessario = int(spec["qtd_loja"])
+            disponivel = max(0, int(spec["restante"]))
+            atendido = min(disponivel, necessario)
+            falta = necessario - atendido
+            spec["restante"] = disponivel - atendido
+            if falta > 0:
+                codigo_chave = spec["codigo"] or spec["descricao"]
+                itens_faltantes_codigos.add(codigo_chave)
+                unidades_faltantes += falta
+                subtotal = (spec["custo"] * falta).quantize(Decimal("0.01")) if spec["custo_informado"] else Decimal("0.00")
+                if spec["custo_informado"]:
+                    valor_loja += subtotal
+                    valor_total_faltante += subtotal
+                falt = {
+                    "codigo": spec["codigo"],
+                    "descricao": spec["descricao"],
+                    "quantidade": falta,
+                    "custo": format(spec["custo"], ".2f"),
+                    "custo_informado": spec["custo_informado"],
+                    "valor": format(subtotal, ".2f"),
+                }
+                faltantes.append(falt)
+                faltantes_detalhe.append({
+                    "filial": str(item.get("filial") or ""),
+                    "loja": str(item.get("descricao_filial") or ""),
+                    **falt,
+                })
+        if faltantes:
+            bloqueios.append(f"Estoque insuficiente: {sum(x['quantidade'] for x in faltantes)} unidade(s)")
+
+        if score >= 80 and not faltantes and not any("vencida" in b.lower() for b in bloqueios):
+            faixa = "PRONTA"
+        elif score >= 50:
+            faixa = "ATENCAO"
+        else:
+            faixa = "CRITICA"
+
+        filial = str(item.get("filial") or "").strip()
+        for b in bloqueios:
+            bloqueios_detalhe.append({"filial": filial, "loja": str(item.get("descricao_filial") or ""), "bloqueio": b})
+
+        lojas.append({
+            "id": item.get("id"),
+            "filial": filial,
+            "descricao_filial": str(item.get("descricao_filial") or "").strip(),
+            "bandeira": str(item.get("bandeira") or "").strip().upper(),
+            "uf": str(item.get("uf") or "").strip().upper(),
+            "projeto": str(item.get("projeto") or "").strip().upper(),
+            "status_filial": str(item.get("status_filial") or "").strip().upper(),
+            "readiness": score,
+            "faixa": faixa,
+            "term_obra": _data_acompanhamento_legivel(item.get("term_obra")),
+            "enviada": "SIM" if enviada_ok else "NÃO",
+            "em_separacao": "SIM" if separacao_ok else "NÃO",
+            "equip_separado": "SIM" if equip_ok else "NÃO",
+            "entrada_ti": _data_acompanhamento_legivel(item.get("entrada_ti")),
+            "entrada_ti_iso": entrada_iso,
+            "dias_entrada_ti": dias_ti,
+            "inauguracao": _data_acompanhamento_legivel(item.get("inauguracao")),
+            "inauguracao_iso": inaug_iso,
+            "dias_inauguracao": dias_inaug,
+            "estoque_situacao": "OK" if not faltantes else "RISCO",
+            "itens_faltantes": len(faltantes),
+            "unidades_faltantes": sum(x["quantidade"] for x in faltantes),
+            "faltantes": faltantes,
+            "bloqueios": bloqueios,
+            "bloqueios_total": len(bloqueios),
+            "valor_faltante": format(valor_loja, ".2f") if incluir_financeiro else None,
+            "observacao_ti": str(item.get("observacao_ti") or "").strip(),
+        })
+
+    prontas = sum(1 for x in lojas if x["faixa"] == "PRONTA")
+    atencao = sum(1 for x in lojas if x["faixa"] == "ATENCAO")
+    criticas = sum(1 for x in lojas if x["faixa"] == "CRITICA")
+    pepi = _decimal_moeda(db.obter_orcamento_pepi_consolidado(), "0.00") if incluir_financeiro else Decimal("0.00")
+    saldo = (pepi - valor_total_faltante).quantize(Decimal("0.01")) if incluir_financeiro else Decimal("0.00")
+
+    projetos = {}
+    ufs = {}
+    for loja in lojas:
+        projetos[loja["projeto"] or "SEM PROJETO"] = projetos.get(loja["projeto"] or "SEM PROJETO", 0) + 1
+        ufs[loja["uf"] or "SEM UF"] = ufs.get(loja["uf"] or "SEM UF", 0) + 1
+
+    return {
+        "gerado_em": datetime.now().strftime("%d/%m/%Y %H:%M"),
+        "resumo": {
+            "total_acompanhado": len(linhas_acomp),
+            "inauguradas": inauguradas,
+            "pendentes": len(lojas),
+            "prontas": prontas,
+            "atencao": atencao,
+            "criticas": criticas,
+            "itens_faltantes": len(itens_faltantes_codigos),
+            "unidades_faltantes": unidades_faltantes,
+            "bloqueios": len(bloqueios_detalhe),
+            "readiness_medio": round(sum(x["readiness"] for x in lojas) / max(1, len(lojas)), 1),
+            "valor_faltante": format(valor_total_faltante, ".2f") if incluir_financeiro else None,
+            "pepi_disponivel": format(pepi, ".2f") if incluir_financeiro else None,
+            "saldo_pepi": format(saldo, ".2f") if incluir_financeiro else None,
+        },
+        "criterios": [
+            {"nome": "Término da obra definido", "peso": 15},
+            {"nome": "Enviada = Sim", "peso": 15},
+            {"nome": "Em Separação = Sim", "peso": 15},
+            {"nome": "Equip. separado = Sim", "peso": 20},
+            {"nome": "Entrada de TI definida", "peso": 20},
+            {"nome": "Inauguração definida", "peso": 15},
+        ],
+        "projetos": projetos,
+        "ufs": dict(sorted(ufs.items(), key=lambda kv: (-kv[1], kv[0]))),
+        "lojas": lojas,
+        "faltantes": faltantes_detalhe,
+        "bloqueios": bloqueios_detalhe,
+        "financeiro_disponivel": bool(incluir_financeiro),
+    }
+
+
+def _gerar_excel_cockpit_implantacao(dados):
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Resumo"
+    azul = "244C74"
+    azul2 = "172433"
+    verde = "2E8B65"
+    amarelo = "B87916"
+    vermelho = "A84343"
+    branco = "FFFFFF"
+    borda = Border(bottom=Side(style="thin", color="D8DEE6"))
+
+    ws["A1"] = "COCKPIT DE IMPLANTAÇÃO · EXPANSÃO DE TI"
+    ws["A1"].font = Font(size=16, bold=True, color=branco)
+    ws["A1"].fill = PatternFill("solid", fgColor=azul)
+    ws.merge_cells("A1:D1")
+    ws["A2"] = "Gerado em"
+    ws["B2"] = dados.get("gerado_em")
+    resumo = dados.get("resumo") or {}
+    linhas_resumo = [
+        ("Total acompanhado", resumo.get("total_acompanhado")),
+        ("Inauguradas", resumo.get("inauguradas")),
+        ("Pendentes", resumo.get("pendentes")),
+        ("Prontas", resumo.get("prontas")),
+        ("Atenção", resumo.get("atencao")),
+        ("Críticas", resumo.get("criticas")),
+        ("Readiness médio", f"{resumo.get('readiness_medio',0)}%"),
+        ("Itens faltantes", resumo.get("itens_faltantes")),
+        ("Unidades faltantes", resumo.get("unidades_faltantes")),
+        ("Bloqueios", resumo.get("bloqueios")),
+    ]
+    if dados.get("financeiro_disponivel"):
+        linhas_resumo += [
+            ("Valor estimado faltante", float(resumo.get("valor_faltante") or 0)),
+            ("PEPI disponível", float(resumo.get("pepi_disponivel") or 0)),
+            ("Saldo PEPI", float(resumo.get("saldo_pepi") or 0)),
+        ]
+    for i, (rot, val) in enumerate(linhas_resumo, start=4):
+        ws.cell(i, 1, rot).font = Font(bold=True, color="3A4654")
+        ws.cell(i, 2, val)
+        if "Valor" in rot or "PEPI" in rot:
+            ws.cell(i, 2).number_format = 'R$ #,##0.00'
+    ws.column_dimensions["A"].width = 29
+    ws.column_dimensions["B"].width = 20
+
+    lojas_ws = wb.create_sheet("Lojas")
+    headers = ["Filial","Loja","Bandeira","UF","Projeto","Readiness %","Faixa","Término obra","Enviada","Em Separação","Equip. separado","Entrada TI","Dias p/ TI","Inauguração","Dias p/ inaug.","Estoque","Itens faltantes","Unid. faltantes","Bloqueios"]
+    if dados.get("financeiro_disponivel"):
+        headers.append("Valor faltante")
+    for c, h in enumerate(headers, 1):
+        cell = lojas_ws.cell(1, c, h); cell.font=Font(bold=True,color=branco); cell.fill=PatternFill("solid",fgColor=azul); cell.alignment=Alignment(horizontal="center")
+    for r_idx, loja in enumerate(dados.get("lojas") or [], 2):
+        vals = [
+            loja.get("filial"), loja.get("descricao_filial"), loja.get("bandeira"), loja.get("uf"), loja.get("projeto"), loja.get("readiness"), loja.get("faixa"), loja.get("term_obra"), loja.get("enviada"), loja.get("em_separacao"), loja.get("equip_separado"), loja.get("entrada_ti"), loja.get("dias_entrada_ti"), loja.get("inauguracao"), loja.get("dias_inauguracao"), loja.get("estoque_situacao"), loja.get("itens_faltantes"), loja.get("unidades_faltantes"), " | ".join(loja.get("bloqueios") or []),
+        ]
+        if dados.get("financeiro_disponivel"):
+            vals.append(float(loja.get("valor_faltante") or 0))
+        for c, v in enumerate(vals, 1):
+            lojas_ws.cell(r_idx, c, v).border = borda
+        if dados.get("financeiro_disponivel"):
+            lojas_ws.cell(r_idx, len(headers)).number_format = 'R$ #,##0.00'
+        faixa = loja.get("faixa")
+        fill = verde if faixa == "PRONTA" else amarelo if faixa == "ATENCAO" else vermelho
+        lojas_ws.cell(r_idx, 7).fill = PatternFill("solid", fgColor=fill)
+        lojas_ws.cell(r_idx, 7).font = Font(color=branco, bold=True)
+    lojas_ws.freeze_panes = "A2"
+    lojas_ws.auto_filter.ref = lojas_ws.dimensions
+    widths=[12,34,11,7,15,13,13,15,11,14,15,15,11,15,13,11,14,14,60,17]
+    for i,w in enumerate(widths[:len(headers)],1): lojas_ws.column_dimensions[get_column_letter(i)].width=w
+
+    falt_ws = wb.create_sheet("Itens faltantes")
+    fh=["Filial","Loja","Código","Produto","Qtd. faltante","Custo unitário","Valor estimado","Custo informado"]
+    for c,h in enumerate(fh,1):
+        cell=falt_ws.cell(1,c,h); cell.font=Font(bold=True,color=branco); cell.fill=PatternFill("solid",fgColor=azul)
+    for r_idx, item in enumerate(dados.get("faltantes") or [],2):
+        vals=[item.get("filial"),item.get("loja"),item.get("codigo"),item.get("descricao"),item.get("quantidade"),float(item.get("custo") or 0),float(item.get("valor") or 0),"SIM" if item.get("custo_informado") else "NÃO"]
+        for c,v in enumerate(vals,1): falt_ws.cell(r_idx,c,v).border=borda
+        falt_ws.cell(r_idx,6).number_format='R$ #,##0.00'; falt_ws.cell(r_idx,7).number_format='R$ #,##0.00'
+    falt_ws.freeze_panes="A2"; falt_ws.auto_filter.ref=falt_ws.dimensions
+    for i,w in enumerate([12,34,14,38,15,16,16,16],1): falt_ws.column_dimensions[get_column_letter(i)].width=w
+
+    bloq_ws = wb.create_sheet("Bloqueios")
+    bh=["Filial","Loja","Bloqueio"]
+    for c,h in enumerate(bh,1):
+        cell=bloq_ws.cell(1,c,h); cell.font=Font(bold=True,color=branco); cell.fill=PatternFill("solid",fgColor=azul)
+    for r_idx, item in enumerate(dados.get("bloqueios") or [],2):
+        for c,v in enumerate([item.get("filial"),item.get("loja"),item.get("bloqueio")],1): bloq_ws.cell(r_idx,c,v).border=borda
+    bloq_ws.freeze_panes="A2"; bloq_ws.auto_filter.ref=bloq_ws.dimensions
+    bloq_ws.column_dimensions["A"].width=12; bloq_ws.column_dimensions["B"].width=36; bloq_ws.column_dimensions["C"].width=60
+
+    crit_ws = wb.create_sheet("Critérios Readiness")
+    crit_ws.append(["Critério","Peso (%)"])
+    for c in crit_ws[1]: c.font=Font(bold=True,color=branco); c.fill=PatternFill("solid",fgColor=azul)
+    for c in dados.get("criterios") or []: crit_ws.append([c.get("nome"),c.get("peso")])
+    crit_ws.column_dimensions["A"].width=40; crit_ws.column_dimensions["B"].width=12
+
+    buf=io.BytesIO(); wb.save(buf); buf.seek(0); return buf
+
+
+def _gerar_pdf_cockpit_implantacao(dados):
+    buf = io.BytesIO()
+    page_size = landscape(A4)
+    pdf = canvas.Canvas(buf, pagesize=page_size)
+    larg, alt = page_size
+    margem = 14 * mm
+    resumo = dados.get("resumo") or {}
+    lojas = dados.get("lojas") or []
+
+    def bg():
+        pdf.setFillColor(colors.HexColor("#0F1620")); pdf.rect(0,0,larg,alt,stroke=0,fill=1)
+    def footer(n):
+        pdf.setStrokeColor(colors.HexColor("#283646")); pdf.line(margem,11*mm,larg-margem,11*mm)
+        pdf.setFillColor(colors.HexColor("#8398AD")); pdf.setFont("Helvetica",7.2)
+        pdf.drawString(margem,6.5*mm,"© 2026 · Developed by Expansão de TI · Cockpit de Implantação")
+        pdf.drawRightString(larg-margem,6.5*mm,f"Página {n}")
+    def kpi(x,y,w,h,titulo,valor,detalhe,cor="#FFFFFF"):
+        pdf.setFillColor(colors.HexColor("#182230")); pdf.setStrokeColor(colors.HexColor("#314255")); pdf.roundRect(x,y,w,h,9,stroke=1,fill=1)
+        pdf.setFillColor(colors.HexColor("#94A9BC")); pdf.setFont("Helvetica-Bold",6.8); pdf.drawString(x+8,y+h-13,titulo.upper())
+        pdf.setFillColor(colors.HexColor(cor)); pdf.setFont("Helvetica-Bold",16); pdf.drawString(x+8,y+18,str(valor))
+        pdf.setFillColor(colors.HexColor("#7990A6")); pdf.setFont("Helvetica",6.3); pdf.drawString(x+8,y+7,str(detalhe)[:34])
+    def titulo_pagina(titulo, subtitulo):
+        bg(); pdf.setFillColor(colors.white); pdf.setFont("Helvetica-Bold",19); pdf.drawString(margem,alt-margem,titulo)
+        pdf.setFillColor(colors.HexColor("#9DB3C8")); pdf.setFont("Helvetica",8); pdf.drawString(margem,alt-margem-14,subtitulo)
+        pdf.drawRightString(larg-margem,alt-margem-14,f"Gerado em {dados.get('gerado_em') or '-'}")
+
+    titulo_pagina("Cockpit de Implantação","Readiness operacional das lojas, bloqueios, cobertura de equipamentos e cronograma de TI.")
+    cards=[
+        ("Pendentes",resumo.get("pendentes",0),"Lojas em implantação","#FFFFFF"),
+        ("Prontas",resumo.get("prontas",0),"Readiness ≥ 80% e sem falta","#4CD792"),
+        ("Atenção",resumo.get("atencao",0),"Readiness entre 50% e 79%","#FFB648"),
+        ("Críticas",resumo.get("criticas",0),"Readiness abaixo de 50%","#FF6B6B"),
+        ("Readiness médio",f"{resumo.get('readiness_medio',0):.1f}%","Média das lojas pendentes","#3EA6FF"),
+        ("Unid. faltantes",resumo.get("unidades_faltantes",0),f"{resumo.get('itens_faltantes',0)} item(ns) do kit","#A78BFA"),
+    ]
+    gap=8; y=alt-margem-66; h=47; w=(larg-2*margem-gap*5)/6
+    for i,c in enumerate(cards): kpi(margem+i*(w+gap),y,w,h,*c)
+
+    panel_y=23*mm; panel_h=y-panel_y-14; left_w=(larg-2*margem-10)*.58; right_x=margem+left_w+10; right_w=larg-margem-right_x
+    pdf.setFillColor(colors.HexColor("#151D27")); pdf.setStrokeColor(colors.HexColor("#2A3645")); pdf.roundRect(margem,panel_y,left_w,panel_h,10,stroke=1,fill=1)
+    pdf.setFillColor(colors.white); pdf.setFont("Helvetica-Bold",11); pdf.drawString(margem+12,panel_y+panel_h-21,"Lojas que exigem atenção")
+    pdf.setFillColor(colors.HexColor("#8FA5BA")); pdf.setFont("Helvetica",7.3); pdf.drawString(margem+12,panel_y+panel_h-33,"Priorização por menor readiness e proximidade de inauguração.")
+    criticas = sorted(lojas,key=lambda x:(x.get("readiness",0), x.get("inauguracao_iso") or "9999-99-99"))[:8]
+    cy=panel_y+panel_h-55
+    for loja in criticas:
+        cor="#FF6B6B" if loja.get("faixa")=="CRITICA" else "#FFB648" if loja.get("faixa")=="ATENCAO" else "#4CD792"
+        pdf.setFillColor(colors.HexColor("#182230")); pdf.roundRect(margem+12,cy-14,left_w-24,24,5,stroke=0,fill=1)
+        pdf.setFillColor(colors.HexColor(cor)); pdf.setFont("Helvetica-Bold",8); pdf.drawString(margem+20,cy-1,f"{loja.get('filial')} · {str(loja.get('descricao_filial') or '')[:31]}")
+        pdf.setFillColor(colors.HexColor("#A7B8C8")); pdf.setFont("Helvetica",6.8); pdf.drawString(margem+20,cy-10,f"{loja.get('projeto')} · {loja.get('uf')} · Inaug.: {loja.get('inauguracao')} · {loja.get('readiness')}%")
+        pdf.setFillColor(colors.HexColor(cor)); pdf.setFont("Helvetica-Bold",8); pdf.drawRightString(margem+left_w-20,cy-4,loja.get("faixa"))
+        cy-=29
+
+    pdf.setFillColor(colors.HexColor("#151D27")); pdf.setStrokeColor(colors.HexColor("#2A3645")); pdf.roundRect(right_x,panel_y,right_w,panel_h,10,stroke=1,fill=1)
+    pdf.setFillColor(colors.white); pdf.setFont("Helvetica-Bold",11); pdf.drawString(right_x+12,panel_y+panel_h-21,"Riscos consolidados")
+    pdf.setFillColor(colors.HexColor("#9DB3C8")); pdf.setFont("Helvetica",7.3); pdf.drawString(right_x+12,panel_y+panel_h-33,"Bloqueios e necessidade de equipamentos para o pipeline atual.")
+    metrics=[
+        ("Bloqueios mapeados",resumo.get("bloqueios",0),"#FFB648"),
+        ("Itens do kit faltantes",resumo.get("itens_faltantes",0),"#A78BFA"),
+        ("Unidades faltantes",resumo.get("unidades_faltantes",0),"#FF6B6B"),
+        ("Inauguradas",resumo.get("inauguradas",0),"#4CD792"),
+    ]
+    my=panel_y+panel_h-62
+    for label,val,cor in metrics:
+        pdf.setFillColor(colors.HexColor("#1B2531")); pdf.roundRect(right_x+12,my-9,right_w-24,22,5,stroke=0,fill=1)
+        pdf.setFillColor(colors.HexColor("#C8D6E3")); pdf.setFont("Helvetica",7.5); pdf.drawString(right_x+20,my,label)
+        pdf.setFillColor(colors.HexColor(cor)); pdf.setFont("Helvetica-Bold",10); pdf.drawRightString(right_x+right_w-20,my,str(val)); my-=28
+    if dados.get("financeiro_disponivel"):
+        my-=4
+        for label,key,cor in [("Valor estimado faltante","valor_faltante","#FFB648"),("PEPI disponível","pepi_disponivel","#3EA6FF"),("Saldo após cobertura","saldo_pepi","#4CD792")]:
+            try: valor=f"R$ {float(resumo.get(key) or 0):,.2f}".replace(",","X").replace(".",",").replace("X",".")
+            except Exception: valor="R$ 0,00"
+            pdf.setFillColor(colors.HexColor("#1B2531")); pdf.roundRect(right_x+12,my-9,right_w-24,22,5,stroke=0,fill=1)
+            pdf.setFillColor(colors.HexColor("#C8D6E3")); pdf.setFont("Helvetica",7.2); pdf.drawString(right_x+20,my,label)
+            pdf.setFillColor(colors.HexColor(cor)); pdf.setFont("Helvetica-Bold",8.5); pdf.drawRightString(right_x+right_w-20,my,valor); my-=27
+    footer(1); pdf.showPage()
+
+    page_no=2
+    cols=[("Filial",38),("Loja",116),("Proj.",56),("UF",24),("Ready",40),("Faixa",52),("Env.",30),("Sep.",30),("Equip.",34),("Entrada TI",58),("Inaug.",58),("Estoque",43),("Bloq.",34)]
+    if dados.get("financeiro_disponivel"): cols.append(("Valor",62))
+    table_w=sum(w for _,w in cols); row_h=20
+    def header_detail():
+        titulo_pagina("Detalhamento do Cockpit de Implantação","Situação por loja pendente, com marcos operacionais, estoque e bloqueios.")
+        y0=alt-margem-42
+        pdf.setFillColor(colors.HexColor("#234C74")); pdf.roundRect(margem,y0,table_w,20,4,stroke=0,fill=1)
+        pdf.setFillColor(colors.white); pdf.setFont("Helvetica-Bold",6.6); cx=margem
+        for title,wc in cols: pdf.drawString(cx+3,y0+6,title); cx+=wc
+        return y0-3
+    y0=header_detail()
+    for loja in lojas:
+        extra = 15 if loja.get("bloqueios") else 0
+        if y0-row_h-extra < 19*mm:
+            footer(page_no); pdf.showPage(); page_no+=1; y0=header_detail()
+        y0-=row_h
+        pdf.setFillColor(colors.HexColor("#182230")); pdf.roundRect(margem,y0,table_w,row_h-1,3,stroke=0,fill=1)
+        vals=[loja.get("filial"),loja.get("descricao_filial"),loja.get("projeto"),loja.get("uf"),f"{loja.get('readiness')}%",loja.get("faixa"),loja.get("enviada"),loja.get("em_separacao"),loja.get("equip_separado"),loja.get("entrada_ti"),loja.get("inauguracao"),loja.get("estoque_situacao"),loja.get("bloqueios_total")]
+        if dados.get("financeiro_disponivel"):
+            try: vals.append(f"R$ {float(loja.get('valor_faltante') or 0):,.0f}".replace(",","."))
+            except Exception: vals.append("R$ 0")
+        cx=margem
+        for (title,wc),val in zip(cols,vals):
+            txt=str(val if val is not None else "-"); maxc=max(4,int((wc-6)/4.1)); txt=txt if len(txt)<=maxc else txt[:maxc-1]+"…"
+            if title=="Faixa":
+                cor="#4CD792" if txt=="PRONTA" else "#FFB648" if txt=="ATENCAO" else "#FF6B6B"; pdf.setFillColor(colors.HexColor(cor)); pdf.setFont("Helvetica-Bold",6.4)
+            elif title=="Estoque":
+                pdf.setFillColor(colors.HexColor("#4CD792" if txt=="OK" else "#FF6B6B")); pdf.setFont("Helvetica-Bold",6.4)
+            else:
+                pdf.setFillColor(colors.HexColor("#DCE6F0")); pdf.setFont("Helvetica",6.3)
+            pdf.drawString(cx+3,y0+7,txt); cx+=wc
+        if loja.get("bloqueios"):
+            y0-=15; pdf.setFillColor(colors.HexColor("#101923")); pdf.roundRect(margem,y0+2,table_w,12,3,stroke=0,fill=1)
+            pdf.setFillColor(colors.HexColor("#91A7BD")); pdf.setFont("Helvetica",6.1)
+            txt="Bloqueios: "+" · ".join(loja.get("bloqueios")[:3]); txt=txt if len(txt)<150 else txt[:147]+"…"; pdf.drawString(margem+5,y0+6,txt)
+        y0-=3
+    footer(page_no); pdf.save(); buf.seek(0); return buf
+
+
+@app.route("/export-cockpit-implantacao")
+@role_required("admin", "gestor", "operador")
+def exportar_cockpit_implantacao():
+    dados = _dados_cockpit_implantacao(incluir_financeiro=True)
+    return send_file(_gerar_excel_cockpit_implantacao(dados), as_attachment=True, download_name=f"cockpit_implantacao_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx", mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+
+@app.route("/pdf-cockpit-implantacao")
+@role_required("admin", "gestor", "operador")
+def relatorio_pdf_cockpit_implantacao():
+    dados = _dados_cockpit_implantacao(incluir_financeiro=True)
+    return send_file(_gerar_pdf_cockpit_implantacao(dados), as_attachment=True, download_name=f"cockpit_implantacao_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf", mimetype="application/pdf")
 
 
 @app.route("/api/orcamento", methods=["GET"])
