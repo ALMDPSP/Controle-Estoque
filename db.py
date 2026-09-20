@@ -511,12 +511,44 @@ def init_db():
                 data_hora TEXT NOT NULL
             )
         """)
+    # Auditoria de notificações automáticas. O fingerprint evita envio duplicado
+    # da mesma pendência/canal/destinatário no mesmo dia.
+    if IS_PG:
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS pendencia_notificacoes (
+                id SERIAL PRIMARY KEY,
+                pendencia_id INTEGER NOT NULL,
+                canal TEXT NOT NULL,
+                gatilho TEXT NOT NULL,
+                destinatario TEXT NOT NULL,
+                fingerprint TEXT UNIQUE NOT NULL,
+                status TEXT NOT NULL,
+                detalhe TEXT,
+                enviado_em TEXT NOT NULL
+            )
+        """)
+    else:
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS pendencia_notificacoes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                pendencia_id INTEGER NOT NULL,
+                canal TEXT NOT NULL,
+                gatilho TEXT NOT NULL,
+                destinatario TEXT NOT NULL,
+                fingerprint TEXT UNIQUE NOT NULL,
+                status TEXT NOT NULL,
+                detalhe TEXT,
+                enviado_em TEXT NOT NULL
+            )
+        """)
     conn.commit()
     for idx_sql in (
         "CREATE INDEX IF NOT EXISTS idx_pend_filial ON pendencias_acoes (filial)",
         "CREATE INDEX IF NOT EXISTS idx_pend_status ON pendencias_acoes (status)",
         "CREATE INDEX IF NOT EXISTS idx_pend_prazo ON pendencias_acoes (prazo)",
         "CREATE INDEX IF NOT EXISTS idx_pend_resp ON pendencias_acoes (responsavel)",
+        "CREATE INDEX IF NOT EXISTS idx_pend_notif_pend ON pendencia_notificacoes (pendencia_id)",
+        "CREATE INDEX IF NOT EXISTS idx_pend_notif_data ON pendencia_notificacoes (enviado_em)",
     ):
         try:
             cur.execute(idx_sql); conn.commit()
@@ -704,6 +736,17 @@ def init_db():
         ("mfa_configurado_em", "TEXT"),
     ]
     for coluna, tipo in mfa_colunas:
+        try:
+            if IS_PG:
+                cur.execute(f"ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS {coluna} {tipo}")
+            else:
+                cur.execute(f"ALTER TABLE usuarios ADD COLUMN {coluna} {tipo}")
+            conn.commit()
+        except Exception:
+            conn.rollback()
+
+    # Migração v102: contatos utilizados pelos alertas automáticos de pendências.
+    for coluna, tipo in (("email", "TEXT"), ("whatsapp", "TEXT")):
         try:
             if IS_PG:
                 cur.execute(f"ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS {coluna} {tipo}")
@@ -2486,7 +2529,7 @@ def listar_usuarios():
     # O último acesso considera somente autenticações efetivamente concluídas.
     # Falhas, bloqueios e etapas pendentes de MFA não contam como login.
     cur.execute(
-        "SELECT u.id, u.username, u.role, u.criado_em, u.precisa_trocar_senha, "
+        "SELECT u.id, u.username, u.role, u.criado_em, u.precisa_trocar_senha, u.email, u.whatsapp, "
         "COALESCE(u.mfa_enabled, '0') AS mfa_enabled, u.mfa_configurado_em, "
         "(SELECT MAX(le.data_hora) FROM login_eventos le "
         " WHERE LOWER(le.username) = LOWER(u.username) AND le.resultado = 'sucesso') AS ultimo_login "
@@ -2521,17 +2564,26 @@ def buscar_usuario_por_id(user_id):
     return usuario
 
 
-def criar_usuario(username, password, role="user"):
+def criar_usuario(username, password, role="user", email=None, whatsapp=None):
     conn = get_conn()
     cur = get_cursor(conn)
     cur.execute(
-        q("INSERT INTO usuarios (username, password_hash, role, criado_em, precisa_trocar_senha) "
-          "VALUES (?, ?, ?, ?, ?)"),
-        (username, generate_password_hash(password), role, datetime.now().isoformat(), "1"),
+        q("INSERT INTO usuarios (username, password_hash, role, criado_em, precisa_trocar_senha, email, whatsapp) "
+          "VALUES (?, ?, ?, ?, ?, ?, ?)"),
+        (username, generate_password_hash(password), role, datetime.now().isoformat(), "1", str(email or '').strip() or None, str(whatsapp or '').strip() or None),
     )
     conn.commit()
     cur.close()
     conn.close()
+
+
+def atualizar_contato_usuario(user_id, email=None, whatsapp=None):
+    conn = get_conn(); cur = get_cursor(conn)
+    cur.execute(q("UPDATE usuarios SET email=?, whatsapp=? WHERE id=?"),
+                (str(email or '').strip() or None, str(whatsapp or '').strip() or None, int(user_id)))
+    ok = cur.rowcount > 0
+    conn.commit(); cur.close(); conn.close()
+    return ok
 
 
 def salvar_mfa_usuario(user_id, secret_protegido, recovery_codes_json):
@@ -2730,3 +2782,37 @@ def obter_arquivo_evidencia(evidencia_id):
 def excluir_evidencia_pendencia(evidencia_id):
     conn=get_conn(); cur=get_cursor(conn); cur.execute(q("DELETE FROM pendencia_evidencias WHERE id=?"),(int(evidencia_id),)); n=cur.rowcount
     conn.commit(); cur.close(); conn.close(); return n>0
+
+
+def reservar_notificacao_pendencia(pendencia_id, canal, gatilho, destinatario, fingerprint):
+    """Reserva um envio de forma atômica. False significa que já foi processado."""
+    conn=get_conn(); cur=get_cursor(conn); agora=datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    try:
+        cur.execute(q("INSERT INTO pendencia_notificacoes (pendencia_id,canal,gatilho,destinatario,fingerprint,status,detalhe,enviado_em) VALUES (?,?,?,?,?,?,?,?)"),
+                    (int(pendencia_id),str(canal),str(gatilho),str(destinatario),str(fingerprint),'PROCESSANDO','',agora))
+        conn.commit(); ok=True
+    except Exception:
+        conn.rollback(); ok=False
+    cur.close(); conn.close(); return ok
+
+
+def concluir_notificacao_pendencia(fingerprint, status, detalhe=''):
+    conn=get_conn(); cur=get_cursor(conn)
+    cur.execute(q("UPDATE pendencia_notificacoes SET status=?, detalhe=?, enviado_em=? WHERE fingerprint=?"),
+                (str(status),str(detalhe or '')[:2000],datetime.now().strftime('%Y-%m-%d %H:%M:%S'),str(fingerprint)))
+    conn.commit(); cur.close(); conn.close()
+
+
+def liberar_notificacao_pendencia(fingerprint):
+    conn=get_conn(); cur=get_cursor(conn)
+    cur.execute(q("DELETE FROM pendencia_notificacoes WHERE fingerprint=? AND status='PROCESSANDO'"),(str(fingerprint),))
+    conn.commit(); cur.close(); conn.close()
+
+
+def listar_notificacoes_pendencias(limit=250, pendencia_id=None):
+    conn=get_conn(); cur=get_cursor(conn)
+    if pendencia_id is None:
+        cur.execute(q("SELECT * FROM pendencia_notificacoes ORDER BY id DESC LIMIT ?"),(int(limit),))
+    else:
+        cur.execute(q("SELECT * FROM pendencia_notificacoes WHERE pendencia_id=? ORDER BY id DESC LIMIT ?"),(int(pendencia_id),int(limit)))
+    rows=[dict(r) for r in cur.fetchall()]; cur.close(); conn.close(); return rows

@@ -34,6 +34,10 @@ import struct
 import json
 import urllib.request as urlrequest
 import urllib.error as urlerror
+import smtplib
+import ssl
+import threading
+from email.message import EmailMessage
 from datetime import datetime, timedelta
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from functools import wraps
@@ -60,7 +64,7 @@ import qrcode
 import db
 
 app = Flask(__name__)
-APP_BUILD = "2026-09-20-central-pendencias-acoes-v101"
+APP_BUILD = "2026-09-20-notificacoes-pendencias-v102"
 _DASHBOARD_CACHE = {"expira": 0.0, "dados": None}
 app.secret_key = os.environ.get("SECRET_KEY", "troque-esta-chave-em-producao")
 _RUNNING_HTTPS_HOSTED = bool(
@@ -1379,7 +1383,7 @@ def _gerar_pdf_projecao_lojas(dados):
         pdf.line(margem, 10 * mm, larg - margem, 10 * mm)
         pdf.setFillColor(colors.HexColor("#8EA1B4"))
         pdf.setFont("Helvetica", 7.5)
-        pdf.drawString(margem, 6.5 * mm, "© 2026 · Developed by Expansão de TI · Relatório executivo de projeção de abertura e lojas")
+        pdf.drawString(margem, 6.5 * mm, "© 2026 · Developed by ALM - Expansão de TI · Relatório executivo de projeção de abertura e lojas")
         pdf.drawRightString(larg - margem, 6.5 * mm, f"Página {page_no}")
 
     def _panel(x, y, w, h, title=None, subtitle=None, radius=12):
@@ -2142,7 +2146,7 @@ def _gerar_pdf_acompanhamento_expansao(dados):
         pdf.line(margem, 11 * mm, larg - margem, 11 * mm)
         pdf.setFillColor(colors.HexColor("#8398AD"))
         pdf.setFont("Helvetica", 7.2)
-        pdf.drawString(margem, 6.5 * mm, "© 2026 · Developed by Expansão de TI · Acompanhamento de Expansão")
+        pdf.drawString(margem, 6.5 * mm, "© 2026 · Developed by ALM - Expansão de TI · Acompanhamento de Expansão")
         pdf.drawRightString(larg - margem, 6.5 * mm, f"Página {page_no}")
 
     def _panel(x, y, w, h, title=None, subtitle=None):
@@ -4200,7 +4204,7 @@ def _gerar_pdf_cockpit_implantacao(dados):
     def footer(n):
         pdf.setStrokeColor(colors.HexColor("#283646")); pdf.line(margem,11*mm,larg-margem,11*mm)
         pdf.setFillColor(colors.HexColor("#8398AD")); pdf.setFont("Helvetica",7.2)
-        pdf.drawString(margem,6.5*mm,"© 2026 · Developed by Expansão de TI · Cockpit de Implantação")
+        pdf.drawString(margem,6.5*mm,"© 2026 · Developed by ALM - Expansão de TI · Cockpit de Implantação")
         pdf.drawRightString(larg-margem,6.5*mm,f"Página {n}")
     def kpi(x,y,w,h,titulo,valor,detalhe,cor="#FFFFFF"):
         pdf.setFillColor(colors.HexColor("#182230")); pdf.setStrokeColor(colors.HexColor("#314255")); pdf.roundRect(x,y,w,h,9,stroke=1,fill=1)
@@ -4319,6 +4323,254 @@ def _parse_data_simples(valor):
     return None
 
 
+
+_NOTIFICATION_NEXT_CHECK = 0.0
+_NOTIFICATION_CHECK_LOCK = threading.Lock()
+
+
+def _split_destinatarios(valor):
+    return [x.strip() for x in re.split(r'[,;\n]+', str(valor or '')) if x.strip()]
+
+
+def _normalizar_whatsapp(valor):
+    return re.sub(r'\D+', '', str(valor or ''))
+
+
+def _status_notificacoes():
+    smtp_ok = bool(os.environ.get('SMTP_HOST') and os.environ.get('SMTP_FROM'))
+    whatsapp_ok = bool(
+        os.environ.get('WHATSAPP_WEBHOOK_URL')
+        or (os.environ.get('WHATSAPP_API_URL') and os.environ.get('WHATSAPP_TOKEN'))
+    )
+    try:
+        dias = max(0, int(os.environ.get('PENDENCIA_ALERT_DAYS', '3')))
+    except Exception:
+        dias = 3
+    return {
+        'email_configurado': smtp_ok,
+        'whatsapp_configurado': whatsapp_ok,
+        'dias_proximidade': dias,
+        'automatico': smtp_ok or whatsapp_ok,
+        'cron_configurado': bool(os.environ.get('NOTIFICATION_CRON_TOKEN')),
+    }
+
+
+def _texto_notificacao_pendencia(item, gatilhos):
+    filial = str(item.get('filial') or '-').strip()
+    titulo = str(item.get('titulo') or 'Pendência').strip()
+    responsavel = str(item.get('responsavel') or 'Não definido').strip()
+    prazo = str(item.get('prazo') or 'Sem prazo').strip()
+    prioridade = str(item.get('prioridade') or 'MEDIA').strip().upper()
+    status = str(item.get('status') or 'ABERTA').strip().upper()
+    descricao = re.sub(r'\s+', ' ', str(item.get('descricao') or '').strip())
+    motivos = ', '.join(gatilhos)
+    linhas = [
+        f"Alerta de pendência #{item.get('id')} - {motivos}",
+        f"Filial: {filial}",
+        f"Ação: {titulo}",
+        f"Responsável: {responsavel}",
+        f"Prazo: {prazo}",
+        f"Prioridade: {prioridade}",
+        f"Status: {status}",
+    ]
+    if descricao:
+        linhas.append(f"Descrição: {descricao[:700]}")
+    base_url = (os.environ.get('APP_PUBLIC_URL') or '').strip().rstrip('/')
+    if base_url:
+        linhas.append(f"Acessar Central: {base_url}/central-pendencias")
+    linhas.append("Mensagem automática · Central de Pendências e Ações · Expansão de TI")
+    return '\n'.join(linhas)
+
+
+def _enviar_email_pendencia(destinatario, item, gatilhos):
+    host = (os.environ.get('SMTP_HOST') or '').strip()
+    remetente = (os.environ.get('SMTP_FROM') or '').strip()
+    if not host or not remetente:
+        raise RuntimeError('SMTP não configurado.')
+    try:
+        porta = int(os.environ.get('SMTP_PORT', '587'))
+    except Exception:
+        porta = 587
+    usuario = os.environ.get('SMTP_USER') or ''
+    senha = os.environ.get('SMTP_PASSWORD') or ''
+    use_ssl = str(os.environ.get('SMTP_USE_SSL', '0')).strip().lower() in ('1','true','sim','yes')
+    use_tls = str(os.environ.get('SMTP_USE_TLS', '1')).strip().lower() in ('1','true','sim','yes')
+    assunto = f"[Expansão de TI] Pendência #{item.get('id')} · {' / '.join(gatilhos)}"
+    msg = EmailMessage()
+    msg['From'] = remetente
+    msg['To'] = destinatario
+    msg['Subject'] = assunto
+    msg.set_content(_texto_notificacao_pendencia(item, gatilhos))
+    timeout = 12
+    if use_ssl:
+        smtp = smtplib.SMTP_SSL(host, porta, timeout=timeout, context=ssl.create_default_context())
+    else:
+        smtp = smtplib.SMTP(host, porta, timeout=timeout)
+    try:
+        if (not use_ssl) and use_tls:
+            smtp.starttls(context=ssl.create_default_context())
+        if usuario:
+            smtp.login(usuario, senha)
+        smtp.send_message(msg)
+    finally:
+        try: smtp.quit()
+        except Exception: pass
+
+
+def _enviar_whatsapp_pendencia(destinatario, item, gatilhos):
+    numero = _normalizar_whatsapp(destinatario)
+    if not numero:
+        raise RuntimeError('Número de WhatsApp inválido.')
+    mensagem = _texto_notificacao_pendencia(item, gatilhos)
+    webhook = (os.environ.get('WHATSAPP_WEBHOOK_URL') or '').strip()
+    if webhook:
+        payload = json.dumps({'to': numero, 'message': mensagem, 'pendencia_id': item.get('id'), 'gatilhos': gatilhos}).encode('utf-8')
+        req = urlrequest.Request(webhook, data=payload, headers={'Content-Type':'application/json'}, method='POST')
+        token = (os.environ.get('WHATSAPP_WEBHOOK_TOKEN') or '').strip()
+        if token:
+            req.add_header('Authorization', f'Bearer {token}')
+        with urlrequest.urlopen(req, timeout=15) as resp:
+            if getattr(resp, 'status', 200) >= 300:
+                raise RuntimeError(f'Webhook WhatsApp retornou HTTP {resp.status}.')
+        return
+
+    api_url = (os.environ.get('WHATSAPP_API_URL') or '').strip()
+    token = (os.environ.get('WHATSAPP_TOKEN') or '').strip()
+    if not api_url or not token:
+        raise RuntimeError('WhatsApp não configurado.')
+    template = (os.environ.get('WHATSAPP_TEMPLATE_NAME') or '').strip()
+    if template:
+        lang = (os.environ.get('WHATSAPP_TEMPLATE_LANG') or 'pt_BR').strip()
+        body = {
+            'messaging_product':'whatsapp','to':numero,'type':'template',
+            'template':{
+                'name':template,'language':{'code':lang},
+                'components':[{'type':'body','parameters':[{'type':'text','text':mensagem[:950]}]}],
+            },
+        }
+    else:
+        body = {'messaging_product':'whatsapp','to':numero,'type':'text','text':{'preview_url':False,'body':mensagem[:3500]}}
+    payload = json.dumps(body).encode('utf-8')
+    req = urlrequest.Request(api_url, data=payload, headers={'Content-Type':'application/json','Authorization':f'Bearer {token}'}, method='POST')
+    with urlrequest.urlopen(req, timeout=15) as resp:
+        if getattr(resp, 'status', 200) >= 300:
+            raise RuntimeError(f'API WhatsApp retornou HTTP {resp.status}.')
+
+
+def _contatos_para_pendencia(item):
+    email=[]; whats=[]
+    resp = str(item.get('responsavel') or '').strip()
+    if resp:
+        u = db.buscar_usuario_por_username(resp)
+        if u:
+            if u.get('email'): email.append(str(u.get('email')).strip())
+            if u.get('whatsapp'): whats.append(str(u.get('whatsapp')).strip())
+    email += _split_destinatarios(os.environ.get('PENDENCIA_ALERT_EMAILS'))
+    whats += _split_destinatarios(os.environ.get('PENDENCIA_ALERT_WHATSAPP'))
+    # remove duplicados preservando ordem
+    email = list(dict.fromkeys(x for x in email if x))
+    whats = list(dict.fromkeys(x for x in whats if x))
+    return email, whats
+
+
+def _gatilhos_pendencia(item, hoje=None):
+    hoje = hoje or datetime.now().date()
+    status = str(item.get('status') or 'ABERTA').strip().upper()
+    if status in {'CONCLUIDA','CANCELADA'}:
+        return []
+    out=[]
+    if str(item.get('prioridade') or '').strip().upper() == 'CRITICA':
+        out.append('PRIORIDADE CRÍTICA')
+    prazo = _parse_data_simples(item.get('prazo'))
+    if prazo:
+        dias = (prazo-hoje).days
+        try:
+            limite=max(0,int(os.environ.get('PENDENCIA_ALERT_DAYS','3')))
+        except Exception:
+            limite=3
+        if dias < 0:
+            out.append('VENCIDA')
+        elif dias <= limite:
+            out.append('PRÓXIMA DO PRAZO' if dias > 0 else 'VENCE HOJE')
+    return out
+
+
+def _processar_notificacoes_pendencias(force=False, only_id=None):
+    cfg = _status_notificacoes()
+    if not cfg['automatico']:
+        return {'ok':False,'configurado':False,'processadas':0,'enviadas':0,'erros':0,'ignoradas':0,'mensagem':'E-mail e WhatsApp ainda não estão configurados.'}
+    hoje = datetime.now().date()
+    itens = db.listar_pendencias_acoes()
+    if only_id is not None:
+        itens=[x for x in itens if int(x.get('id') or 0)==int(only_id)]
+    enviados=erros=ignoradas=processadas=0
+    for item in itens:
+        gatilhos=_gatilhos_pendencia(item,hoje)
+        if not gatilhos: continue
+        processadas += 1
+        emails, whats = _contatos_para_pendencia(item)
+        destinos=[]
+        if cfg['email_configurado']: destinos += [('EMAIL',x) for x in emails]
+        if cfg['whatsapp_configurado']: destinos += [('WHATSAPP',x) for x in whats]
+        if not destinos:
+            ignoradas += 1
+            continue
+        # No modo normal, no máximo uma mensagem por pendência/canal/destinatário/dia.
+        # O modo force usa um bucket com hora/minuto para testes administrativos.
+        bucket = datetime.now().strftime('%Y-%m-%d-%H%M') if force else hoje.isoformat()
+        gatilho_txt=' + '.join(gatilhos)
+        for canal,dest in destinos:
+            fp_raw=f"{item.get('id')}|{canal}|{dest}|{bucket}"
+            fingerprint=hashlib.sha256(fp_raw.encode('utf-8')).hexdigest()
+            if not db.reservar_notificacao_pendencia(item.get('id'),canal,gatilho_txt,dest,fingerprint):
+                ignoradas += 1
+                continue
+            try:
+                if canal=='EMAIL': _enviar_email_pendencia(dest,item,gatilhos)
+                else: _enviar_whatsapp_pendencia(dest,item,gatilhos)
+                db.concluir_notificacao_pendencia(fingerprint,'ENVIADO','Envio concluído.')
+                enviados += 1
+            except Exception as exc:
+                # Libera a reserva para permitir nova tentativa automática no mesmo dia.
+                db.liberar_notificacao_pendencia(fingerprint)
+                erros += 1
+                print(f"[notificacao] Falha {canal} pendência #{item.get('id')}: {exc}")
+    return {'ok':True,'configurado':True,'processadas':processadas,'enviadas':enviados,'erros':erros,'ignoradas':ignoradas}
+
+
+def _notificacao_background_worker():
+    try:
+        _processar_notificacoes_pendencias()
+    except Exception as exc:
+        print(f"[notificacao] Verificação automática falhou: {exc}")
+
+
+@app.before_request
+def _agendar_notificacoes_automaticas():
+    # Verificação oportunista e não bloqueante: enquanto a aplicação está ativa,
+    # dispara no máximo uma checagem por intervalo. O log no banco evita duplicidades
+    # mesmo com múltiplos workers. Para garantia sem tráfego, use o endpoint de cron.
+    global _NOTIFICATION_NEXT_CHECK
+    if request.endpoint == 'static':
+        return None
+    cfg=_status_notificacoes()
+    if not cfg['automatico']:
+        return None
+    agora=time.time()
+    if agora < _NOTIFICATION_NEXT_CHECK:
+        return None
+    if not _NOTIFICATION_CHECK_LOCK.acquire(blocking=False):
+        return None
+    try:
+        try: intervalo=max(300,int(os.environ.get('PENDENCIA_CHECK_INTERVAL_SECONDS','3600')))
+        except Exception: intervalo=3600
+        _NOTIFICATION_NEXT_CHECK=agora+intervalo
+        threading.Thread(target=_notificacao_background_worker,daemon=True).start()
+    finally:
+        _NOTIFICATION_CHECK_LOCK.release()
+    return None
+
+
 def _dados_central_pendencias(filial=None):
     hoje=datetime.now().date()
     linhas=db.listar_pendencias_acoes()
@@ -4354,6 +4606,12 @@ def _dados_central_pendencias(filial=None):
         if x['alerta_3d']: proximas.append(x)
         if status not in status_fechados and prioridade=='CRITICA': criticas.append(x)
         if x['sem_responsavel']: sem_resp.append(x)
+    notificacoes=db.listar_notificacoes_pendencias(limit=120)
+    notif_resumo={
+        'enviadas':sum(1 for n in notificacoes if str(n.get('status') or '').upper()=='ENVIADO'),
+        'email':sum(1 for n in notificacoes if str(n.get('canal') or '').upper()=='EMAIL' and str(n.get('status') or '').upper()=='ENVIADO'),
+        'whatsapp':sum(1 for n in notificacoes if str(n.get('canal') or '').upper()=='WHATSAPP' and str(n.get('status') or '').upper()=='ENVIADO'),
+    }
     return {
         'gerado_em':datetime.now().strftime('%d/%m/%Y %H:%M'),
         'resumo':{
@@ -4364,6 +4622,9 @@ def _dados_central_pendencias(filial=None):
         'alertas':{'vencidas':vencidas,'vence_hoje':hoje_arr,'proximas_3d':proximas,'criticas':criticas,'sem_responsavel':sem_resp},
         'por_status':por_status,'por_prioridade':por_prioridade,'por_responsavel':dict(sorted(por_responsavel.items(),key=lambda kv:(-kv[1],kv[0]))),
         'pendencias':linhas,
+        'notificacoes':notificacoes,
+        'notificacoes_resumo':notif_resumo,
+        'notificacoes_status':_status_notificacoes(),
     }
 
 
@@ -4389,6 +4650,7 @@ def api_detalhar_pendencia(pendencia_id):
     if not item: return jsonify({'erro':'Pendência não encontrada.'}),404
     item['comentarios']=db.listar_comentarios_pendencia(pendencia_id)
     item['evidencias']=db.listar_evidencias_pendencia(pendencia_id)
+    item['notificacoes']=db.listar_notificacoes_pendencias(limit=30,pendencia_id=pendencia_id)
     return jsonify(item)
 
 
@@ -4410,6 +4672,8 @@ def api_criar_pendencia():
     if erro: return jsonify({'erro':erro}),400
     item=db.criar_pendencia_acao(dados,session.get('username'))
     db.registrar_movimentacao(0,'pendencia_criada','1',session.get('username'),f"Pendência #{item.get('id')} criada para filial {item.get('filial') or '-'}: {item.get('titulo')}",tabela='sistema')
+    try: threading.Thread(target=_processar_notificacoes_pendencias,kwargs={'only_id':item.get('id')},daemon=True).start()
+    except Exception as exc: print(f"[notificacao] pós-criação: {exc}")
     return jsonify({'ok':True,'item':item,'dados':_dados_central_pendencias()}),201
 
 
@@ -4425,6 +4689,8 @@ def api_atualizar_pendencia(pendencia_id):
     for c in ('filial','titulo','responsavel','prazo','prioridade','status'):
         if c in dados and str(antes.get(c) or '')!=str(item.get(c) or ''): mud.append(f"{c}: {antes.get(c) or '-'} → {item.get(c) or '-'}")
     db.registrar_movimentacao(0,'pendencia_editada','1',session.get('username'),f"Pendência #{pendencia_id} atualizada. "+(' | '.join(mud) or 'Dados atualizados.'),tabela='sistema')
+    try: threading.Thread(target=_processar_notificacoes_pendencias,kwargs={'only_id':pendencia_id},daemon=True).start()
+    except Exception as exc: print(f"[notificacao] pós-edição: {exc}")
     return jsonify({'ok':True,'item':item,'dados':_dados_central_pendencias()})
 
 
@@ -4509,16 +4775,21 @@ def _gerar_excel_pendencias(dados):
     for nome,chave in [('Vencida','vencidas'),('Vence hoje','vence_hoje'),('Próximos 3 dias','proximas_3d'),('Crítica','criticas'),('Sem responsável','sem_responsavel')]:
         for x in dados['alertas'][chave]: a.append([nome,x.get('id'),x.get('filial'),x.get('titulo'),x.get('responsavel'),x.get('prazo'),x.get('prioridade'),x.get('status')])
     for i,w in enumerate([20,8,12,36,22,14,12,18],1): a.column_dimensions[get_column_letter(i)].width=w
+    n=wb.create_sheet('Notificações'); n.append(['ID','Pendência ID','Canal','Gatilho','Destinatário','Status','Detalhe','Enviado em'])
+    for cc in n[1]: cc.font=Font(bold=True,color=branco); cc.fill=PatternFill('solid',fgColor=azul)
+    for x in dados.get('notificacoes',[]): n.append([x.get('id'),x.get('pendencia_id'),x.get('canal'),x.get('gatilho'),x.get('destinatario'),x.get('status'),x.get('detalhe'),x.get('enviado_em')])
+    for i,w in enumerate([8,12,14,28,34,14,42,20],1): n.column_dimensions[get_column_letter(i)].width=w
+    n.freeze_panes='A2'; n.auto_filter.ref=n.dimensions
     buf=io.BytesIO(); wb.save(buf); buf.seek(0); return buf
 
 
 def _gerar_pdf_pendencias(dados):
     buf=io.BytesIO(); pdf=canvas.Canvas(buf,pagesize=landscape(A4)); larg,alt=landscape(A4); margem=14*mm
     def bg(): pdf.setFillColor(colors.HexColor('#0F151C')); pdf.rect(0,0,larg,alt,stroke=0,fill=1)
-    def footer(pg): pdf.setFillColor(colors.HexColor('#70869B')); pdf.setFont('Helvetica',6.5); pdf.drawString(margem,8*mm,'Developed by Expansão de TI'); pdf.drawRightString(larg-margem,8*mm,f'Página {pg}')
+    def footer(pg): pdf.setFillColor(colors.HexColor('#70869B')); pdf.setFont('Helvetica',6.5); pdf.drawString(margem,8*mm,'Developed by ALM - Expansão de TI'); pdf.drawRightString(larg-margem,8*mm,f'Página {pg}')
     def titulo(t,sub): bg(); pdf.setFillColor(colors.white); pdf.setFont('Helvetica-Bold',19); pdf.drawString(margem,alt-margem,t); pdf.setFillColor(colors.HexColor('#9DB3C8')); pdf.setFont('Helvetica',8); pdf.drawString(margem,alt-margem-14,sub); pdf.drawRightString(larg-margem,alt-margem-14,f"Gerado em {dados.get('gerado_em')}")
     titulo('Central de Pendências e Ações','Responsáveis, prazos, prioridades, status, alertas, comentários e evidências do processo de implantação.')
-    cards=[('Abertas',dados['resumo']['abertas'],'#3EA6FF'),('Vencidas',dados['resumo']['vencidas'],'#FF6B6B'),('Vence hoje',dados['resumo']['vence_hoje'],'#FFB648'),('Próx. 3 dias',dados['resumo']['proximas_3d'],'#A78BFA'),('Críticas',dados['resumo']['criticas'],'#FF6B6B'),('Concluídas',dados['resumo']['concluidas'],'#4CD792')]
+    cards=[('Abertas',dados['resumo']['abertas'],'#3EA6FF'),('Vencidas',dados['resumo']['vencidas'],'#FF6B6B'),('Próx. prazo',dados['resumo']['proximas_3d']+dados['resumo']['vence_hoje'],'#A78BFA'),('Críticas',dados['resumo']['criticas'],'#FF6B6B'),('Notif. e-mail',dados.get('notificacoes_resumo',{}).get('email',0),'#4CD792'),('Notif. WhatsApp',dados.get('notificacoes_resumo',{}).get('whatsapp',0),'#4CD792')]
     y=alt-margem-67; gap=8; w=(larg-2*margem-gap*5)/6; h=48
     for i,(lab,val,cor) in enumerate(cards):
         x=margem+i*(w+gap); pdf.setFillColor(colors.HexColor('#171F29')); pdf.setStrokeColor(colors.HexColor('#2A3645')); pdf.roundRect(x,y,w,h,7,stroke=1,fill=1); pdf.setFillColor(colors.HexColor('#8EA0B3')); pdf.setFont('Helvetica-Bold',6.8); pdf.drawString(x+8,y+h-14,lab.upper()); pdf.setFillColor(colors.HexColor(cor)); pdf.setFont('Helvetica-Bold',17); pdf.drawString(x+8,y+16,str(val))
@@ -4578,7 +4849,47 @@ def _gerar_pdf_pendencias(dados):
                     pdf.setFillColor(colors.HexColor('#7E93A8')); pdf.setFont('Helvetica',5.8); pdf.drawRightString(larg-margem-14,yy-7,f"{item.get('usuario') or '-'} · {item.get('data_hora') or ''}"); yy-=altura+4
             yy-=5
         footer(pg)
+    # Histórico de notificações automáticas para auditoria.
+    notificacoes=dados.get('notificacoes') or []
+    if notificacoes:
+        pdf.showPage(); pg+=1; titulo('Notificações Automáticas','Histórico recente de alertas enviados por e-mail e WhatsApp para pendências da implantação.')
+        yy=alt-margem-43
+        cab=['Pend.','Canal','Gatilho','Destinatário','Status','Enviado em']; widths=[36,55,120,190,60,90]; totalw=sum(widths)
+        pdf.setFillColor(colors.HexColor('#234C74')); pdf.roundRect(margem,yy,totalw,20,4,stroke=0,fill=1); pdf.setFillColor(colors.white); pdf.setFont('Helvetica-Bold',6.5); cx=margem
+        for h,wc in zip(cab,widths): pdf.drawString(cx+3,yy+6,h); cx+=wc
+        yy-=3
+        for n in notificacoes[:80]:
+            if yy-20<18*mm:
+                footer(pg); pdf.showPage(); pg+=1; titulo('Notificações Automáticas','Continuação do histórico de alertas enviados.'); yy=alt-margem-43
+                pdf.setFillColor(colors.HexColor('#234C74')); pdf.roundRect(margem,yy,totalw,20,4,stroke=0,fill=1); pdf.setFillColor(colors.white); pdf.setFont('Helvetica-Bold',6.5); cx=margem
+                for h,wc in zip(cab,widths): pdf.drawString(cx+3,yy+6,h); cx+=wc
+                yy-=3
+            yy-=20; pdf.setFillColor(colors.HexColor('#182230')); pdf.roundRect(margem,yy,totalw,19,3,stroke=0,fill=1); vals=[n.get('pendencia_id'),n.get('canal'),n.get('gatilho'),n.get('destinatario'),n.get('status'),n.get('enviado_em')]; cx=margem
+            for wc,v in zip(widths,vals):
+                txt=str(v or '-'); maxc=max(5,int((wc-6)/4.1)); txt=txt if len(txt)<=maxc else txt[:maxc-1]+'…'; pdf.setFillColor(colors.HexColor('#DCE6F0')); pdf.setFont('Helvetica',6.1); pdf.drawString(cx+3,yy+6.5,txt); cx+=wc
+            yy-=3
+        footer(pg)
     pdf.save(); buf.seek(0); return buf
+
+
+@app.route('/api/notificacoes/pendencias/processar', methods=['POST'])
+@admin_required
+def api_processar_notificacoes_pendencias():
+    force=bool((request.get_json(silent=True) or {}).get('force'))
+    resultado=_processar_notificacoes_pendencias(force=force)
+    db.registrar_movimentacao(0,'notificacoes_pendencias','1',session.get('username'),f"Processamento manual: {resultado}",tabela='sistema')
+    return jsonify(resultado)
+
+
+@app.route('/tasks/notificar-pendencias', methods=['GET','POST'])
+def task_notificar_pendencias():
+    esperado=(os.environ.get('NOTIFICATION_CRON_TOKEN') or '').strip()
+    recebido=(request.headers.get('X-Notification-Token') or request.args.get('token') or '').strip()
+    if not esperado:
+        return jsonify({'erro':'NOTIFICATION_CRON_TOKEN não configurado.'}),503
+    if not hmac.compare_digest(esperado,recebido):
+        return jsonify({'erro':'Não autorizado.'}),401
+    return jsonify(_processar_notificacoes_pendencias())
 
 
 @app.route('/export-pendencias')
@@ -4769,7 +5080,7 @@ def _gerar_pdf_orcamento(dados):
         pdf.line(margem, 11 * mm, larg - margem, 11 * mm)
         pdf.setFillColor(colors.HexColor("#8398AD"))
         pdf.setFont("Helvetica", 7.2)
-        pdf.drawString(margem, 6.5 * mm, f"© 2026 · Developed by Expansão de TI · {secao}")
+        pdf.drawString(margem, 6.5 * mm, f"© 2026 · Developed by ALM - Expansão de TI · {secao}")
         pdf.drawRightString(larg - margem, 6.5 * mm, f"Página {page_no}")
 
     def _panel(x, y, w, h, title=None, subtitle=None):
@@ -5953,7 +6264,7 @@ def exportar_relatorio_lojas_excel():
         sheet.page_setup.fitToWidth = 1
         sheet.page_setup.fitToHeight = 0
         sheet.sheet_properties.pageSetUpPr.fitToPage = True
-        sheet.oddFooter.center.text = "© 2026 · Developed by Expansão de TI"
+        sheet.oddFooter.center.text = "© 2026 · Developed by ALM - Expansão de TI"
         sheet.oddFooter.right.text = "Página &P de &N"
 
     buffer = io.BytesIO()
@@ -6505,18 +6816,38 @@ def api_criar_usuario():
     username = (dados.get("username") or "").strip()
     password = dados.get("password") or ""
     role = dados.get("role") if dados.get("role") in ("admin", "gestor", "operador", "consulta", "user") else "operador"
+    email = (dados.get("email") or "").strip()
+    whatsapp = (dados.get("whatsapp") or "").strip()
 
     if not username or not password:
         return jsonify({"erro": "Usuário e senha são obrigatórios."}), 400
     if len(password) < 6:
         return jsonify({"erro": "A senha precisa ter pelo menos 6 caracteres."}), 400
+    if email and not re.match(r'^[^\s@]+@[^\s@]+\.[^\s@]+$',email):
+        return jsonify({"erro": "E-mail inválido."}), 400
     if db.buscar_usuario_por_username(username):
         return jsonify({"erro": "Já existe um usuário com esse nome."}), 400
 
-    db.criar_usuario(username, password, role)
+    db.criar_usuario(username, password, role, email=email, whatsapp=whatsapp)
     # A senha temporária é devolvida somente nesta resposta ao Administrador.
     # No banco permanece apenas o hash; não há recuperação posterior em texto aberto.
     return jsonify({"ok": True, "username": username, "senha_temporaria": password}), 201
+
+
+@app.route("/api/usuarios/<int:user_id>/contato", methods=["PUT"])
+@admin_required
+def api_atualizar_contato_usuario(user_id):
+    alvo=db.buscar_usuario_por_id(user_id)
+    if not alvo:
+        return jsonify({"erro":"Usuário não encontrado."}),404
+    dados=request.get_json(silent=True) or {}
+    email=(dados.get('email') or '').strip()
+    whatsapp=(dados.get('whatsapp') or '').strip()
+    if email and not re.match(r'^[^\s@]+@[^\s@]+\.[^\s@]+$',email):
+        return jsonify({'erro':'E-mail inválido.'}),400
+    db.atualizar_contato_usuario(user_id,email,whatsapp)
+    db.registrar_movimentacao(0,'usuario_contato','1',session.get('username'),f"Contatos de {alvo.get('username')} atualizados para notificações.",tabela='sistema')
+    return jsonify({'ok':True})
 
 
 @app.route("/api/usuarios/<int:user_id>/forcar-troca-senha", methods=["POST"])
