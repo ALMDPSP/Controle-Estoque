@@ -4493,28 +4493,8 @@ def _limpar_cabecalho_email(valor, campo, email=False):
     return limpo
 
 
-def _enviar_email_texto(destinatario, assunto, texto):
-    host=(os.environ.get('SMTP_HOST') or '').strip()
-    remetente=_limpar_cabecalho_email(os.environ.get('SMTP_FROM'), 'SMTP_FROM', email=True)
-    destinatario=_limpar_cabecalho_email(destinatario, 'E-mail do destinatário', email=True)
-    assunto=_limpar_cabecalho_email(assunto, 'Assunto do e-mail', email=False)
-    if not host:
-        raise RuntimeError('SMTP_HOST não configurado.')
-    try: porta=int(str(os.environ.get('SMTP_PORT','587')).strip())
-    except Exception: porta=587
-    usuario=(os.environ.get('SMTP_USER') or '').strip(); senha=os.environ.get('SMTP_PASSWORD') or ''
-    use_ssl=str(os.environ.get('SMTP_USE_SSL','0')).strip().lower() in ('1','true','sim','yes')
-    use_tls=str(os.environ.get('SMTP_USE_TLS','1')).strip().lower() in ('1','true','sim','yes')
-    msg=EmailMessage(); msg['From']=remetente; msg['To']=destinatario; msg['Subject']=assunto; msg.set_content(texto)
-    if use_ssl: smtp=smtplib.SMTP_SSL(host,porta,timeout=15,context=ssl.create_default_context())
-    else: smtp=smtplib.SMTP(host,porta,timeout=15)
-    try:
-        if (not use_ssl) and use_tls: smtp.starttls(context=ssl.create_default_context())
-        if usuario: smtp.login(usuario,senha)
-        smtp.send_message(msg)
-    finally:
-        try: smtp.quit()
-        except Exception: pass
+def _enviar_email_texto(*args, **kwargs):
+    raise RuntimeError('Envio por e-mail desativado no sistema.')
 
 
 def _quebrar_mensagem_whatsapp(texto, limite=2800):
@@ -4534,77 +4514,13 @@ def _quebrar_mensagem_whatsapp(texto, limite=2800):
     return partes or ['Resumo semanal sem conteúdo.']
 
 
-def _enviar_whatsapp_texto(destinatario, texto):
-    numero=_normalizar_whatsapp(destinatario)
-    if not numero: raise RuntimeError('Número de WhatsApp inválido.')
-    webhook=(os.environ.get('WHATSAPP_WEBHOOK_URL') or '').strip()
-    api_url=(os.environ.get('WHATSAPP_API_URL') or '').strip(); token=(os.environ.get('WHATSAPP_TOKEN') or '').strip()
-    template=(os.environ.get('WHATSAPP_TEMPLATE_NAME') or '').strip()
-    limite=850 if template else 2800
-    partes=_quebrar_mensagem_whatsapp(texto,limite)
-    total=len(partes)
-    for idx,mensagem in enumerate(partes,1):
-        if total>1: mensagem=f"[{idx}/{total}] {mensagem}"
-        if webhook:
-            payload=json.dumps({'to':numero,'message':mensagem,'pendencia_id':0,'gatilhos':['RESUMO SEMANAL']}).encode('utf-8')
-            req=urlrequest.Request(webhook,data=payload,headers={'Content-Type':'application/json'},method='POST')
-            wt=(os.environ.get('WHATSAPP_WEBHOOK_TOKEN') or '').strip()
-            if wt: req.add_header('Authorization',f'Bearer {wt}')
-            with urlrequest.urlopen(req,timeout=15) as resp:
-                if getattr(resp,'status',200)>=300: raise RuntimeError(f'Webhook WhatsApp retornou HTTP {resp.status}.')
-            continue
-        if not api_url or not token: raise RuntimeError('WhatsApp não configurado.')
-        if template:
-            lang=(os.environ.get('WHATSAPP_TEMPLATE_LANG') or 'pt_BR').strip()
-            body={'messaging_product':'whatsapp','to':numero,'type':'template','template':{'name':template,'language':{'code':lang},'components':[{'type':'body','parameters':[{'type':'text','text':mensagem[:950]}]}]}}
-        else:
-            body={'messaging_product':'whatsapp','to':numero,'type':'text','text':{'preview_url':False,'body':mensagem}}
-        payload=json.dumps(body).encode('utf-8')
-        req=urlrequest.Request(api_url,data=payload,headers={'Content-Type':'application/json','Authorization':f'Bearer {token}'},method='POST')
-        with urlrequest.urlopen(req,timeout=15) as resp:
-            if getattr(resp,'status',200)>=300: raise RuntimeError(f'API WhatsApp retornou HTTP {resp.status}.')
+def _enviar_whatsapp_texto(*args, **kwargs):
+    raise RuntimeError('Envio por WhatsApp desativado no sistema.')
 
 
 def _processar_notificacoes_pendencias(force=False, only_id=None):
-    """Envia um resumo semanal consolidado. `force=True` é usado apenas no teste administrativo."""
-    cfg=_status_notificacoes()
-    if not cfg['automatico']:
-        return {'ok':False,'configurado':False,'processadas':0,'enviadas':0,'erros':0,'ignoradas':0,'mensagem':'E-mail e WhatsApp ainda não estão configurados.'}
-    agora=_notificacao_agora_local(); hoje=agora.date()
-    if not force and (agora.weekday()!=cfg['dia_semana'] or agora.hour<cfg['hora']):
-        return {'ok':True,'configurado':True,'processadas':0,'enviadas':0,'erros':0,'ignoradas':0,'mensagem':f"Resumo semanal aguardando a janela programada (dia {cfg['dia_semana']} às {cfg['hora']:02d}:00)."}
-    itens=[]
-    for item in db.listar_pendencias_acoes():
-        if _gatilhos_pendencia(item,hoje): itens.append(item)
-    if only_id is not None:
-        itens=[x for x in itens if int(x.get('id') or 0)==int(only_id)]
-    lojas=_lojas_pendentes_resumo_semanal()
-    email_map,whats_map=_destinatarios_resumo_semanal(itens)
-    enviados=erros=ignoradas=0
-    processadas=len(itens)
-    if not email_map and not whats_map:
-        return {'ok':True,'configurado':True,'processadas':processadas,'enviadas':0,'erros':0,'ignoradas':1,'lojas_pendentes':len(lojas),'mensagem':'Nenhum destinatário configurado para o resumo semanal.'}
-    iso=hoje.isocalendar(); bucket=f"{iso.year}-W{iso.week:02d}"
-    if force: bucket=agora.strftime('%Y-%m-%d-%H%M')
-    assunto=f"[Expansão de TI] Resumo semanal · Pendências e inaugurações · {agora.strftime('%d/%m/%Y')}"
-    for canal,mapa in (('EMAIL',email_map),('WHATSAPP',whats_map)):
-        if canal=='EMAIL' and not cfg['email_configurado']: continue
-        if canal=='WHATSAPP' and not cfg['whatsapp_configurado']: continue
-        for dest,pend_dest in mapa.items():
-            texto=_texto_resumo_semanal(pend_dest,lojas,agora)
-            fp_raw=f"RESUMO_SEMANAL|{canal}|{dest}|{bucket}"
-            fingerprint=hashlib.sha256(fp_raw.encode('utf-8')).hexdigest()
-            if not db.reservar_notificacao_pendencia(0,canal,'RESUMO SEMANAL',dest,fingerprint):
-                ignoradas+=1; continue
-            try:
-                if canal=='EMAIL': _enviar_email_texto(dest,assunto,texto)
-                else: _enviar_whatsapp_texto(dest,texto)
-                detalhe=f"Resumo semanal enviado. Pendências: {len(pend_dest)} · Lojas pendentes: {len(lojas)}."
-                db.concluir_notificacao_pendencia(fingerprint,'ENVIADO',detalhe); enviados+=1
-            except Exception as exc:
-                db.liberar_notificacao_pendencia(fingerprint); erros+=1
-                print(f"[notificacao] Falha {canal} resumo semanal: {exc}")
-    return {'ok':True,'configurado':True,'processadas':processadas,'lojas_pendentes':len(lojas),'enviadas':enviados,'erros':erros,'ignoradas':ignoradas,'mensagem':'Resumo semanal processado.'}
+    # Funcionalidade de notificações desativada a partir da v109.
+    return {'ok': False, 'desativado': True, 'mensagem': 'Envios por e-mail e WhatsApp estão desativados.'}
 
 
 def _notificacao_background_worker():
@@ -4614,22 +4530,7 @@ def _notificacao_background_worker():
 
 @app.before_request
 def _agendar_notificacoes_automaticas():
-    # Faz uma checagem leve por intervalo. O processador só envia na janela semanal
-    # e o fingerprint do banco impede duplicidade na mesma semana.
-    global _NOTIFICATION_NEXT_CHECK
-    if request.endpoint == 'static': return None
-    cfg=_status_notificacoes()
-    if not cfg['automatico']: return None
-    agora=time.time()
-    if agora < _NOTIFICATION_NEXT_CHECK: return None
-    if not _NOTIFICATION_CHECK_LOCK.acquire(blocking=False): return None
-    try:
-        try: intervalo=max(300,int(os.environ.get('PENDENCIA_CHECK_INTERVAL_SECONDS','3600')))
-        except Exception: intervalo=3600
-        _NOTIFICATION_NEXT_CHECK=agora+intervalo
-        threading.Thread(target=_notificacao_background_worker,daemon=True).start()
-    finally:
-        _NOTIFICATION_CHECK_LOCK.release()
+    # Notificações externas desativadas na v109.
     return None
 
 def _dados_central_pendencias(filial=None):
@@ -4930,21 +4831,12 @@ def _gerar_pdf_pendencias(dados):
 @app.route('/api/notificacoes/pendencias/processar', methods=['POST'])
 @admin_required
 def api_processar_notificacoes_pendencias():
-    force=bool((request.get_json(silent=True) or {}).get('force'))
-    resultado=_processar_notificacoes_pendencias(force=force)
-    db.registrar_movimentacao(0,'notificacoes_pendencias','1',session.get('username'),f"Processamento manual: {resultado}",tabela='sistema')
-    return jsonify(resultado)
+    return jsonify({'erro':'Notificações por e-mail e WhatsApp foram desativadas.'}), 410
 
 
 @app.route('/tasks/notificar-pendencias', methods=['GET','POST'])
 def task_notificar_pendencias():
-    esperado=(os.environ.get('NOTIFICATION_CRON_TOKEN') or '').strip()
-    recebido=(request.headers.get('X-Notification-Token') or request.args.get('token') or '').strip()
-    if not esperado:
-        return jsonify({'erro':'NOTIFICATION_CRON_TOKEN não configurado.'}),503
-    if not hmac.compare_digest(esperado,recebido):
-        return jsonify({'erro':'Não autorizado.'}),401
-    return jsonify(_processar_notificacoes_pendencias())
+    return jsonify({'erro':'Notificações por e-mail e WhatsApp foram desativadas.'}), 410
 
 
 @app.route('/export-pendencias')
@@ -6901,7 +6793,7 @@ def api_atualizar_contato_usuario(user_id):
     if email and not re.match(r'^[^\s@]+@[^\s@]+\.[^\s@]+$',email):
         return jsonify({'erro':'E-mail inválido.'}),400
     db.atualizar_contato_usuario(user_id,email,whatsapp)
-    db.registrar_movimentacao(0,'usuario_contato','1',session.get('username'),f"Contatos de {alvo.get('username')} atualizados para notificações.",tabela='sistema')
+    db.registrar_movimentacao(0,'usuario_contato','1',session.get('username'),f"Contatos de {alvo.get('username')} atualizados.",tabela='sistema')
     return jsonify({'ok':True})
 
 
@@ -6909,67 +6801,8 @@ def api_atualizar_contato_usuario(user_id):
 @app.route("/api/usuarios/<int:user_id>/enviar-resumo", methods=["POST"])
 @admin_required
 def api_enviar_resumo_usuario(user_id):
-    if not _csrf_ok():
-        return jsonify({"erro":"Token de segurança inválido."}), 400
-    alvo=db.buscar_usuario_por_id(user_id)
-    if not alvo:
-        return jsonify({"erro":"Usuário não encontrado."}),404
-    dados=request.get_json(silent=True) or {}
-    canal=str(dados.get('canal') or 'AMBOS').strip().upper()
-    if canal not in {'EMAIL','WHATSAPP','AMBOS'}:
-        return jsonify({'erro':'Canal inválido.'}),400
+    return jsonify({'erro':'Envios por e-mail e WhatsApp foram desativados. Os dados de contato continuam disponíveis no cadastro do usuário.'}), 410
 
-    cfg=_status_notificacoes()
-    email=(alvo.get('email') or '').strip()
-    whatsapp=(alvo.get('whatsapp') or '').strip()
-    username=(alvo.get('username') or '').strip()
-    pendencias=_pendencias_resumo_usuario(username)
-    lojas=_lojas_pendentes_resumo_semanal()
-    agora=_notificacao_agora_local()
-    texto=_texto_resumo_semanal(pendencias,lojas,agora)
-    assunto=f"[Expansão de TI] Resumo manual · {username} · {agora.strftime('%d/%m/%Y')}"
-
-    canais=[]
-    if canal in {'EMAIL','AMBOS'}: canais.append(('EMAIL',email,cfg.get('email_configurado')))
-    if canal in {'WHATSAPP','AMBOS'}: canais.append(('WHATSAPP',whatsapp,cfg.get('whatsapp_configurado')))
-    enviados=[]; erros=[]
-    for nome,dest,configurado in canais:
-        if not dest:
-            erros.append(f"{nome}: contato não cadastrado.")
-            continue
-        if not configurado:
-            erros.append(f"{nome}: canal não configurado no servidor.")
-            continue
-        fingerprint=_reservar_envio_manual_usuario(nome,dest)
-        if not fingerprint:
-            erros.append(f"{nome}: não foi possível reservar o registro de auditoria.")
-            continue
-        try:
-            if nome=='EMAIL':
-                _enviar_email_texto(dest,assunto,texto)
-            else:
-                _enviar_whatsapp_texto(dest,texto)
-            detalhe=f"Resumo manual enviado para {username}. Pendências do responsável: {len(pendencias)} · Lojas pendentes: {len(lojas)}. Solicitado por {session.get('username')}."
-            db.concluir_notificacao_pendencia(fingerprint,'ENVIADO',detalhe)
-            enviados.append(nome)
-        except Exception as exc:
-            db.liberar_notificacao_pendencia(fingerprint)
-            erros.append(f"{nome}: {exc}")
-
-    db.registrar_movimentacao(0,'resumo_manual_usuario',str(user_id),session.get('username'),
-        f"Envio manual para {username}. Canal solicitado: {canal}. Enviados: {', '.join(enviados) or 'nenhum'}. Erros: {' | '.join(erros) or 'nenhum'}.",tabela='sistema')
-
-    if not enviados:
-        return jsonify({'erro':'Não foi possível enviar o resumo.','detalhes':erros}),400
-    return jsonify({
-        'ok':True,
-        'usuario':username,
-        'enviados':enviados,
-        'erros':erros,
-        'pendencias':len(pendencias),
-        'lojas_pendentes':len(lojas),
-        'mensagem':f"Resumo enviado para {username} via {', '.join(enviados)}."
-    })
 
 @app.route("/api/usuarios/<int:user_id>/forcar-troca-senha", methods=["POST"])
 @admin_required

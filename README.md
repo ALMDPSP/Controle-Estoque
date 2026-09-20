@@ -1,4 +1,4 @@
-# Controle de Estoque — v99
+# Controle de Estoque — v109
 
 Atualização: Loja Virtual 3D com **Gaveta - Horizontal**, **Display tela cliente** e **Teclado Automação TC55 teclas Gertec PS2** movidos do Balcão de atendimento para a **Frente de PDV**.
 
@@ -107,3 +107,10 @@ Configuração principal: `PENDENCIA_ALERT_DAYS=7`, `PENDENCIA_WEEKLY_WEEKDAY=0`
 - A URL antiga `/central-pendencias` redireciona para o Cockpit.
 - As tabelas e registros históricos de pendências **não são apagados do banco**, permitindo recuperação futura sem perda de dados.
 - O backend de notificações e o histórico existente foram preservados para evitar exclusão destrutiva de dados/configurações.
+
+
+## v109 — Desativação de E-mail e WhatsApp
+- Removidos os botões e fluxos de envio manual por E-mail/WhatsApp da Gestão de Usuários.
+- Desativados os processamentos automáticos, resumo semanal, endpoints e Cron de notificações externas.
+- Os campos **E-mail** e **WhatsApp** continuam disponíveis para cadastro e edição na Gestão de Usuários.
+- Os dados de contato e o histórico antigo de notificações permanecem preservados no banco.

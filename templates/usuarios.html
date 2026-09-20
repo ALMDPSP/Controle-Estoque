@@ -117,8 +117,8 @@
           <option value="admin">Administrador — acesso total</option>
         </select>
       </div>
-      <div class="field"><label for="email">E-mail para alertas</label><input id="email" type="email" placeholder="usuario@empresa.com"></div>
-      <div class="field"><label for="whatsapp">WhatsApp para alertas</label><input id="whatsapp" placeholder="5511999999999"></div>
+      <div class="field"><label for="email">E-mail</label><input id="email" type="email" placeholder="usuario@empresa.com"></div>
+      <div class="field"><label for="whatsapp">WhatsApp</label><input id="whatsapp" placeholder="5511999999999"></div>
       <button type="submit" class="btn-primary">Adicionar usuário</button>
     </form>
   </div>
@@ -127,7 +127,7 @@
     <h2>Gestão de Usuários · usuários cadastrados</h2>
     <table>
       <thead>
-        <tr><th>Usuário</th><th>Perfil</th><th>Contato para alertas</th><th>Acesso</th><th>MFA</th><th>Criado em</th><th>Último acesso</th><th></th></tr>
+        <tr><th>Usuário</th><th>Perfil</th><th>Contato</th><th>Acesso</th><th>MFA</th><th>Criado em</th><th>Último acesso</th><th></th></tr>
       </thead>
       <tbody id="tbody">
         {% for u in usuarios %}
@@ -162,7 +162,6 @@
           <td>
             <div style="display:flex; gap:6px;flex-wrap:wrap;">
               <button class="btn-ghost" onclick='editarContato({{ u.id }}, {{ u.username|tojson }}, {{ (u.email or "")|tojson }}, {{ (u.whatsapp or "")|tojson }})'>Contato</button>
-              <button class="btn-ghost btn-envio-manual" onclick='abrirEnvioResumo({{ u.id }}, {{ u.username|tojson }}, {{ (u.email or "")|tojson }}, {{ (u.whatsapp or "")|tojson }})'>Enviar resumo</button>
               {% if u.precisa_trocar_senha != '1' %}
               <button class="btn-ghost" onclick="forcarTrocaSenha({{ u.id }}, '{{ u.username }}')">Forçar troca de senha</button>
               {% endif %}
@@ -177,23 +176,6 @@
   </div>
 </main>
 {% include '_footer.html' %}
-
-<div class="modal-envio" id="modal-envio" aria-hidden="true">
-  <div class="modal-envio-card" role="dialog" aria-modal="true" aria-labelledby="modal-envio-titulo">
-    <h3 id="modal-envio-titulo">Enviar resumo manual</h3>
-    <p id="modal-envio-subtitulo">Selecione o canal. O resumo usa as pendências do responsável e inclui as lojas pendentes de inauguração com Entrada de TI e data prevista.</p>
-    <div class="envio-contatos">
-      <div class="envio-contato"><small>E-mail cadastrado</small><strong id="envio-email">-</strong></div>
-      <div class="envio-contato"><small>WhatsApp cadastrado</small><strong id="envio-whatsapp">-</strong></div>
-    </div>
-    <div class="envio-acoes">
-      <button type="button" class="btn-email" id="enviar-email">E-mail</button>
-      <button type="button" class="btn-whatsapp" id="enviar-whatsapp">WhatsApp</button>
-      <button type="button" class="btn-ambos" id="enviar-ambos">Ambos</button>
-      <button type="button" class="btn-ghost" id="fechar-envio">Cancelar</button>
-    </div>
-  </div>
-</div>
 
 <script>
 const msg = document.getElementById('msg');
@@ -243,96 +225,15 @@ document.getElementById('copiar-credencial')?.addEventListener('click', async ()
 });
 
 
-let envioUsuarioAtual = null;
-function abrirEnvioResumo(id, username, email, whatsapp){
-  envioUsuarioAtual={id,username,email:email||'',whatsapp:whatsapp||''};
-  document.getElementById('modal-envio-titulo').textContent=`Enviar resumo manual · ${username}`;
-  document.getElementById('envio-email').textContent=email || 'Não informado';
-  document.getElementById('envio-whatsapp').textContent=whatsapp || 'Não informado';
-  document.getElementById('enviar-email').disabled=!email;
-  document.getElementById('enviar-whatsapp').disabled=!whatsapp;
-  document.getElementById('enviar-ambos').disabled=(!email || !whatsapp);
-  const modal=document.getElementById('modal-envio');
-  modal.classList.add('ativo'); modal.setAttribute('aria-hidden','false');
-}
-function fecharEnvioResumo(){
-  const modal=document.getElementById('modal-envio');
-  modal.classList.remove('ativo'); modal.setAttribute('aria-hidden','true');
-  envioUsuarioAtual=null;
-}
-async function requisitarEnvioResumo(canal){
-  const res=await fetch(`/api/usuarios/${envioUsuarioAtual.id}/enviar-resumo`,{
-    method:'POST',
-    headers:{'Content-Type':'application/json','X-CSRF-Token':CSRF_TOKEN},
-    body:JSON.stringify({canal})
-  });
-  const corpo=await res.json().catch(()=>({}));
-  if(!res.ok){
-    const detalhes=Array.isArray(corpo.detalhes)?` ${corpo.detalhes.join(' | ')}`:'';
-    throw new Error((corpo.erro||`Erro ao enviar via ${canal}.`)+detalhes);
-  }
-  return corpo;
-}
-
-async function enviarResumoManual(canal){
-  if(!envioUsuarioAtual) return;
-  const atual={...envioUsuarioAtual};
-  const usuario=atual.username;
-  if(canal==='AMBOS' && (!atual.email || !atual.whatsapp)){
-    alert('Para usar Ambos, o usuário precisa ter E-mail e WhatsApp cadastrados.');
-    return;
-  }
-  if(!confirm(`Enviar agora o resumo para ${usuario} via ${canal==='AMBOS'?'E-mail e WhatsApp':canal}?`)) return;
-  const botoes=[...document.querySelectorAll('#modal-envio button')];
-  botoes.forEach(b=>b.disabled=true);
-  try{
-    if(canal==='AMBOS'){
-      const resultados=await Promise.allSettled([
-        requisitarEnvioResumo('EMAIL'),
-        requisitarEnvioResumo('WHATSAPP')
-      ]);
-      const nomes=['E-mail','WhatsApp'];
-      const enviados=[]; const falhas=[];
-      resultados.forEach((r,i)=>{
-        if(r.status==='fulfilled') enviados.push(nomes[i]);
-        else falhas.push(`${nomes[i]}: ${r.reason?.message || 'falha no envio'}`);
-      });
-      if(!enviados.length) throw new Error(`Nenhum canal foi enviado. ${falhas.join(' | ')}`);
-      fecharEnvioResumo();
-      const detalhe=falhas.length?` Falha parcial: ${falhas.join(' | ')}`:'';
-      mostrarMsg(`Resumo enviado para ${usuario}. Canais confirmados: ${enviados.join(' e ')}.${detalhe}`, falhas.length?'erro':'ok');
-      return;
-    }
-    const corpo=await requisitarEnvioResumo(canal);
-    fecharEnvioResumo();
-    mostrarMsg(`${corpo.mensagem} Pendências: ${corpo.pendencias}. Lojas pendentes: ${corpo.lojas_pendentes}.`, 'ok');
-  }catch(err){
-    alert(err.message||'Erro ao enviar resumo.');
-  }finally{
-    // Se o modal continuar aberto após erro, restaura os botões.
-    if(envioUsuarioAtual){
-      document.getElementById('enviar-email').disabled=!envioUsuarioAtual.email;
-      document.getElementById('enviar-whatsapp').disabled=!envioUsuarioAtual.whatsapp;
-      document.getElementById('enviar-ambos').disabled=(!envioUsuarioAtual.email || !envioUsuarioAtual.whatsapp);
-      document.getElementById('fechar-envio').disabled=false;
-    }
-  }
-}
-document.getElementById('enviar-email')?.addEventListener('click',()=>enviarResumoManual('EMAIL'));
-document.getElementById('enviar-whatsapp')?.addEventListener('click',()=>enviarResumoManual('WHATSAPP'));
-document.getElementById('enviar-ambos')?.addEventListener('click',()=>enviarResumoManual('AMBOS'));
-document.getElementById('fechar-envio')?.addEventListener('click',fecharEnvioResumo);
-document.getElementById('modal-envio')?.addEventListener('click',(e)=>{if(e.target.id==='modal-envio') fecharEnvioResumo();});
-
 async function editarContato(id, username, emailAtual, whatsappAtual){
-  const email = prompt(`E-mail de ${username} para receber alertas:`, emailAtual || '');
+  const email = prompt(`E-mail de ${username}:`, emailAtual || '');
   if(email === null) return;
   const whatsapp = prompt(`WhatsApp de ${username} (com DDI e DDD):`, whatsappAtual || '');
   if(whatsapp === null) return;
   const res = await fetch(`/api/usuarios/${id}/contato`, {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({email,whatsapp})});
   const corpo=await res.json();
   if(!res.ok){alert(corpo.erro||'Erro ao atualizar contato.');return}
-  mostrarMsg('Contato atualizado. Ele será usado nos alertas de pendências quando este usuário for o responsável.', 'ok');
+  mostrarMsg('Contato atualizado com sucesso.', 'ok');
   setTimeout(()=>location.reload(),700);
 }
 

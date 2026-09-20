@@ -1,10 +1,5 @@
-"""Execução agendada do resumo semanal da Central de Pendências.
-Recomendado: segunda-feira às 11:00 UTC (08:00 em São Paulo).
-Use as mesmas variáveis de ambiente da aplicação.
-"""
-import json
-from app import _processar_notificacoes_pendencias
+# Notificações externas desativadas a partir da v109.
+# Este arquivo permanece apenas para compatibilidade com eventuais Cron Jobs antigos.
 
 if __name__ == '__main__':
-    resultado = _processar_notificacoes_pendencias()
-    print(json.dumps(resultado, ensure_ascii=False))
+    print({'ok': False, 'desativado': True, 'mensagem': 'Envios por e-mail e WhatsApp estão desativados.'})
