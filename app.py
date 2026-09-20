@@ -4024,30 +4024,6 @@ def _dados_cockpit_implantacao(incluir_financeiro=True):
     pepi = _decimal_moeda(db.obter_orcamento_pepi_consolidado(), "0.00") if incluir_financeiro else Decimal("0.00")
     saldo = (pepi - valor_total_faltante).quantize(Decimal("0.01")) if incluir_financeiro else Decimal("0.00")
 
-    # Integração com a Central de Pendências e Ações por filial.
-    pend_central = db.listar_pendencias_acoes()
-    status_fechados = {"CONCLUIDA", "CANCELADA"}
-    hoje_central = datetime.now().date()
-    abertas_por_filial = {}
-    vencidas_por_filial = {}
-    criticas_por_filial = {}
-    for p in pend_central:
-        filial_p = str(p.get("filial") or "").strip()
-        status_p = str(p.get("status") or "ABERTA").strip().upper()
-        if not filial_p or status_p in status_fechados:
-            continue
-        abertas_por_filial[filial_p] = abertas_por_filial.get(filial_p, 0) + 1
-        if str(p.get("prioridade") or "").strip().upper() == "CRITICA":
-            criticas_por_filial[filial_p] = criticas_por_filial.get(filial_p, 0) + 1
-        prazo_p = _parse_data_simples(p.get("prazo"))
-        if prazo_p and prazo_p < hoje_central:
-            vencidas_por_filial[filial_p] = vencidas_por_filial.get(filial_p, 0) + 1
-    for loja in lojas:
-        f = loja.get("filial") or ""
-        loja["acoes_abertas"] = abertas_por_filial.get(f, 0)
-        loja["acoes_vencidas"] = vencidas_por_filial.get(f, 0)
-        loja["acoes_criticas"] = criticas_por_filial.get(f, 0)
-
     projetos = {}
     ufs = {}
     for loja in lojas:
@@ -4070,9 +4046,6 @@ def _dados_cockpit_implantacao(incluir_financeiro=True):
             "valor_faltante": format(valor_total_faltante, ".2f") if incluir_financeiro else None,
             "pepi_disponivel": format(pepi, ".2f") if incluir_financeiro else None,
             "saldo_pepi": format(saldo, ".2f") if incluir_financeiro else None,
-            "acoes_abertas": sum(abertas_por_filial.values()),
-            "acoes_vencidas": sum(vencidas_por_filial.values()),
-            "acoes_criticas": sum(criticas_por_filial.values()),
         },
         "criterios": [
             {"nome": "Término da obra definido", "peso": 15},
@@ -4501,17 +4474,35 @@ def _texto_resumo_semanal(pendencias, lojas, gerado_em=None):
         linhas.append('• Nenhuma loja pendente de inauguração.')
     base_url=(os.environ.get('APP_PUBLIC_URL') or '').strip().rstrip('/')
     if base_url:
-        linhas += ['', f'Central de Pendências: {base_url}/central-pendencias', f'Acompanhamento de Expansão: {base_url}/acompanhamento-expansao']
+        linhas += ['', f'Cockpit de Implantação: {base_url}/cockpit-implantacao', f'Acompanhamento de Expansão: {base_url}/acompanhamento-expansao']
     linhas += ['', 'Mensagem automática · Developed by ALM - Expansão de TI']
     return '\n'.join(linhas)
 
 
+def _limpar_cabecalho_email(valor, campo, email=False):
+    # Evita erro do EmailMessage e bloqueia header injection por CR/LF ocultos.
+    bruto=str(valor or '')
+    limpo=re.sub(r'[\r\n]+', ' ' if not email else '', bruto).strip()
+    if not limpo:
+        raise RuntimeError(f'{campo} não informado.')
+    if email:
+        # E-mail de cabeçalho deve ser um único endereço simples.
+        limpo=re.sub(r'\s+', '', limpo)
+        if not re.match(r'^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$', limpo):
+            raise RuntimeError(f'{campo} inválido: verifique o endereço cadastrado.')
+    return limpo
+
+
 def _enviar_email_texto(destinatario, assunto, texto):
-    host=(os.environ.get('SMTP_HOST') or '').strip(); remetente=(os.environ.get('SMTP_FROM') or '').strip()
-    if not host or not remetente: raise RuntimeError('SMTP não configurado.')
-    try: porta=int(os.environ.get('SMTP_PORT','587'))
+    host=(os.environ.get('SMTP_HOST') or '').strip()
+    remetente=_limpar_cabecalho_email(os.environ.get('SMTP_FROM'), 'SMTP_FROM', email=True)
+    destinatario=_limpar_cabecalho_email(destinatario, 'E-mail do destinatário', email=True)
+    assunto=_limpar_cabecalho_email(assunto, 'Assunto do e-mail', email=False)
+    if not host:
+        raise RuntimeError('SMTP_HOST não configurado.')
+    try: porta=int(str(os.environ.get('SMTP_PORT','587')).strip())
     except Exception: porta=587
-    usuario=os.environ.get('SMTP_USER') or ''; senha=os.environ.get('SMTP_PASSWORD') or ''
+    usuario=(os.environ.get('SMTP_USER') or '').strip(); senha=os.environ.get('SMTP_PASSWORD') or ''
     use_ssl=str(os.environ.get('SMTP_USE_SSL','0')).strip().lower() in ('1','true','sim','yes')
     use_tls=str(os.environ.get('SMTP_USE_TLS','1')).strip().lower() in ('1','true','sim','yes')
     msg=EmailMessage(); msg['From']=remetente; msg['To']=destinatario; msg['Subject']=assunto; msg.set_content(texto)
@@ -4701,10 +4692,8 @@ def _dados_central_pendencias(filial=None):
 @app.route('/central-pendencias')
 @login_required
 def pagina_central_pendencias():
-    role=session.get('role') or 'user'
-    if role=='user': role='operador'
-    usuarios=[u.get('username') for u in db.listar_usuarios() if u.get('username')]
-    return render_template('central_pendencias.html',username=session.get('username'),role=role,is_admin=role=='admin',pode_editar=role!='consulta',usuarios=usuarios,dados=_dados_central_pendencias(request.args.get('filial')))
+    # Aba desativada na v108. Mantemos os dados no banco sem expor a tela.
+    return redirect(url_for('pagina_cockpit_implantacao'))
 
 
 @app.route('/api/pendencias', methods=['GET'])

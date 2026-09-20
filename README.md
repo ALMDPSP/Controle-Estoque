@@ -99,3 +99,11 @@ Configuração principal: `PENDENCIA_ALERT_DAYS=7`, `PENDENCIA_WEEKLY_WEEKDAY=0`
 - Na Gestão de Usuários, o botão **Ambos** agora executa dois envios independentes: um por E-mail e outro por WhatsApp, reutilizando os mesmos fluxos individuais.
 - Um canal não bloqueia o outro em caso de falha e a interface informa sucesso/falha por canal.
 - O botão **Ambos** só fica habilitado quando o usuário possui E-mail e WhatsApp cadastrados.
+
+
+## v108 — Remoção da aba Central de Pendências
+- A aba **Central de Pendências e Ações** foi removida do menu e da Central de Relatórios.
+- O **Cockpit de Implantação** não exibe mais contadores/atalhos da Central; mantém acesso direto ao Acompanhamento de Expansão.
+- A URL antiga `/central-pendencias` redireciona para o Cockpit.
+- As tabelas e registros históricos de pendências **não são apagados do banco**, permitindo recuperação futura sem perda de dados.
+- O backend de notificações e o histórico existente foram preservados para evitar exclusão destrutiva de dados/configurações.
