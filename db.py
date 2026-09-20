@@ -512,7 +512,7 @@ def init_db():
             )
         """)
     # Auditoria de notificações automáticas. O fingerprint evita envio duplicado
-    # da mesma pendência/canal/destinatário no mesmo dia.
+    # do mesmo ciclo/canal/destinatário (inclusive resumo semanal).
     if IS_PG:
         cur.execute("""
             CREATE TABLE IF NOT EXISTS pendencia_notificacoes (

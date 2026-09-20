@@ -56,6 +56,25 @@
   .msg.ok{background:rgba(76,215,146,.12); border:1px solid rgba(76,215,146,.3); color:var(--ok);}
   .credencial-inicial{display:none;margin:0 0 18px;padding:14px 16px;border-radius:9px;border:1px solid rgba(255,182,72,.34);background:rgba(255,182,72,.08)}
   .credencial-inicial.ativo{display:block}.credencial-inicial h3{margin:0 0 5px;font-size:12px;color:var(--accent-2);text-transform:uppercase;letter-spacing:.07em}.credencial-inicial p{margin:0 0 10px;color:var(--muted);font-size:11px;line-height:1.45}.credencial-linha{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.credencial-linha code{background:#0f151e;border:1px solid var(--line);border-radius:6px;padding:8px 10px;color:var(--text);font:700 13px var(--mono)}.btn-copy{background:var(--panel-2);color:var(--text);border:1px solid var(--line);padding:8px 10px}.btn-copy:hover{border-color:var(--accent);color:var(--accent)}
+
+  .modal-envio{position:fixed;inset:0;background:rgba(4,9,15,.72);display:none;align-items:center;justify-content:center;padding:18px;z-index:9999;}
+  .modal-envio.ativo{display:flex;}
+  .modal-envio-card{width:min(560px,100%);background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:20px;box-shadow:0 22px 60px rgba(0,0,0,.35);}
+  .modal-envio-card h3{margin:0 0 8px;font-size:17px;}
+  .modal-envio-card p{margin:0 0 16px;color:var(--muted);font-size:13px;line-height:1.5;}
+  .envio-contatos{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;}
+  .envio-contato{background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:10px 12px;min-width:0;}
+  .envio-contato small{display:block;color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px;}
+  .envio-contato strong{font-size:12px;word-break:break-word;}
+  .envio-acoes{display:flex;gap:8px;flex-wrap:wrap;}
+  .envio-acoes button{flex:1 1 130px;}
+  .btn-email{background:rgba(62,166,255,.14);color:var(--accent);border:1px solid rgba(62,166,255,.35);}
+  .btn-whatsapp{background:rgba(76,215,146,.14);color:var(--ok);border:1px solid rgba(76,215,146,.35);}
+  .btn-ambos{background:rgba(255,182,72,.14);color:var(--accent-2);border:1px solid rgba(255,182,72,.35);}
+  .btn-envio-manual{color:var(--accent);border-color:rgba(62,166,255,.45);}
+  .btn-envio-manual:hover{color:var(--accent);border-color:var(--accent);}
+  .modal-envio button:disabled{opacity:.42;cursor:not-allowed;}
+  @media(max-width:560px){.envio-contatos{grid-template-columns:1fr}}
   @media(max-width:850px){form#user-form{grid-template-columns:1fr 1fr}}
   @media(max-width:560px){form#user-form{grid-template-columns:1fr}}
 </style>
@@ -143,6 +162,7 @@
           <td>
             <div style="display:flex; gap:6px;flex-wrap:wrap;">
               <button class="btn-ghost" onclick='editarContato({{ u.id }}, {{ u.username|tojson }}, {{ (u.email or "")|tojson }}, {{ (u.whatsapp or "")|tojson }})'>Contato</button>
+              <button class="btn-ghost btn-envio-manual" onclick='abrirEnvioResumo({{ u.id }}, {{ u.username|tojson }}, {{ (u.email or "")|tojson }}, {{ (u.whatsapp or "")|tojson }})'>Enviar resumo</button>
               {% if u.precisa_trocar_senha != '1' %}
               <button class="btn-ghost" onclick="forcarTrocaSenha({{ u.id }}, '{{ u.username }}')">Forçar troca de senha</button>
               {% endif %}
@@ -157,6 +177,23 @@
   </div>
 </main>
 {% include '_footer.html' %}
+
+<div class="modal-envio" id="modal-envio" aria-hidden="true">
+  <div class="modal-envio-card" role="dialog" aria-modal="true" aria-labelledby="modal-envio-titulo">
+    <h3 id="modal-envio-titulo">Enviar resumo manual</h3>
+    <p id="modal-envio-subtitulo">Selecione o canal. O resumo usa as pendências do responsável e inclui as lojas pendentes de inauguração com Entrada de TI e data prevista.</p>
+    <div class="envio-contatos">
+      <div class="envio-contato"><small>E-mail cadastrado</small><strong id="envio-email">-</strong></div>
+      <div class="envio-contato"><small>WhatsApp cadastrado</small><strong id="envio-whatsapp">-</strong></div>
+    </div>
+    <div class="envio-acoes">
+      <button type="button" class="btn-email" id="enviar-email">E-mail</button>
+      <button type="button" class="btn-whatsapp" id="enviar-whatsapp">WhatsApp</button>
+      <button type="button" class="btn-ambos" id="enviar-ambos">Ambos</button>
+      <button type="button" class="btn-ghost" id="fechar-envio">Cancelar</button>
+    </div>
+  </div>
+</div>
 
 <script>
 const msg = document.getElementById('msg');
@@ -204,6 +241,61 @@ document.getElementById('copiar-credencial')?.addEventListener('click', async ()
   try{await navigator.clipboard.writeText(`Usuário: ${usuario}\nSenha temporária: ${senha}`);mostrarMsg('Credencial copiada. Compartilhe a senha temporária por um canal seguro.', 'ok');}
   catch(e){mostrarMsg('Não foi possível copiar automaticamente.', 'erro');}
 });
+
+
+let envioUsuarioAtual = null;
+function abrirEnvioResumo(id, username, email, whatsapp){
+  envioUsuarioAtual={id,username,email:email||'',whatsapp:whatsapp||''};
+  document.getElementById('modal-envio-titulo').textContent=`Enviar resumo manual · ${username}`;
+  document.getElementById('envio-email').textContent=email || 'Não informado';
+  document.getElementById('envio-whatsapp').textContent=whatsapp || 'Não informado';
+  document.getElementById('enviar-email').disabled=!email;
+  document.getElementById('enviar-whatsapp').disabled=!whatsapp;
+  document.getElementById('enviar-ambos').disabled=(!email && !whatsapp);
+  const modal=document.getElementById('modal-envio');
+  modal.classList.add('ativo'); modal.setAttribute('aria-hidden','false');
+}
+function fecharEnvioResumo(){
+  const modal=document.getElementById('modal-envio');
+  modal.classList.remove('ativo'); modal.setAttribute('aria-hidden','true');
+  envioUsuarioAtual=null;
+}
+async function enviarResumoManual(canal){
+  if(!envioUsuarioAtual) return;
+  const usuario=envioUsuarioAtual.username;
+  if(!confirm(`Enviar agora o resumo para ${usuario} via ${canal==='AMBOS'?'E-mail e WhatsApp':canal}?`)) return;
+  const botoes=[...document.querySelectorAll('#modal-envio button')];
+  botoes.forEach(b=>b.disabled=true);
+  try{
+    const res=await fetch(`/api/usuarios/${envioUsuarioAtual.id}/enviar-resumo`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json','X-CSRF-Token':CSRF_TOKEN},
+      body:JSON.stringify({canal})
+    });
+    const corpo=await res.json().catch(()=>({}));
+    if(!res.ok){
+      const detalhes=Array.isArray(corpo.detalhes)?` ${corpo.detalhes.join(' | ')}`:'';
+      throw new Error((corpo.erro||'Erro ao enviar resumo.')+detalhes);
+    }
+    const aviso=(Array.isArray(corpo.erros) && corpo.erros.length)?` Atenção: ${corpo.erros.join(' | ')}`:'';
+    fecharEnvioResumo();
+    mostrarMsg(`${corpo.mensagem} Pendências: ${corpo.pendencias}. Lojas pendentes: ${corpo.lojas_pendentes}.${aviso}`, 'ok');
+  }catch(err){
+    alert(err.message||'Erro ao enviar resumo.');
+  }finally{
+    if(envioUsuarioAtual){
+      document.getElementById('enviar-email').disabled=!envioUsuarioAtual.email;
+      document.getElementById('enviar-whatsapp').disabled=!envioUsuarioAtual.whatsapp;
+      document.getElementById('enviar-ambos').disabled=(!envioUsuarioAtual.email && !envioUsuarioAtual.whatsapp);
+      document.getElementById('fechar-envio').disabled=false;
+    }
+  }
+}
+document.getElementById('enviar-email')?.addEventListener('click',()=>enviarResumoManual('EMAIL'));
+document.getElementById('enviar-whatsapp')?.addEventListener('click',()=>enviarResumoManual('WHATSAPP'));
+document.getElementById('enviar-ambos')?.addEventListener('click',()=>enviarResumoManual('AMBOS'));
+document.getElementById('fechar-envio')?.addEventListener('click',fecharEnvioResumo);
+document.getElementById('modal-envio')?.addEventListener('click',(e)=>{if(e.target.id==='modal-envio') fecharEnvioResumo();});
 
 async function editarContato(id, username, emailAtual, whatsappAtual){
   const email = prompt(`E-mail de ${username} para receber alertas:`, emailAtual || '');

@@ -78,38 +78,18 @@ Consulte `AGENTE_IA_CONFIGURACAO.txt` para o passo a passo.
 - Cockpit exibe ações abertas/vencidas por filial e atalho para criar ação vinculada à loja.
 - Relatórios completos em Excel (Resumo, Pendências, Comentários, Evidências e Alertas) e PDF executivo no padrão do sistema.
 
-## v102 — Notificações automáticas da Central de Pendências
+## v104 — Resumo semanal por E-mail e WhatsApp
+A Central envia um **resumo semanal consolidado** (padrão: segunda-feira às 08:00, UTC-3) com pendências vencidas, críticas e que vencem nos próximos 7 dias. O mesmo resumo inclui as **lojas PENDENTES do Acompanhamento de Expansão**, com **Entrada de TI** e **Data de Inauguração**.
 
-A Central de Pendências pode enviar alertas de **vencidas**, **próximas do prazo** e **prioridade crítica** por e-mail e WhatsApp. O responsável recebe nos contatos cadastrados em **Gestão de Usuários**. Também podem ser definidos destinatários gerais de contingência.
-
-### E-mail (SMTP)
-Configure no Render/Koyeb:
-- `SMTP_HOST`
-- `SMTP_PORT` (padrão 587)
-- `SMTP_FROM`
-- `SMTP_USER` (quando exigido)
-- `SMTP_PASSWORD` (quando exigido)
-- `SMTP_USE_TLS=1` (padrão) ou `SMTP_USE_SSL=1` para SMTP SSL
-- `PENDENCIA_ALERT_EMAILS` (opcional, lista separada por vírgula/ponto e vírgula)
-
-### WhatsApp
-Há duas formas suportadas:
-1. Webhook/integrador: `WHATSAPP_WEBHOOK_URL` e opcional `WHATSAPP_WEBHOOK_TOKEN`.
-2. API de WhatsApp: `WHATSAPP_API_URL`, `WHATSAPP_TOKEN` e opcionalmente `WHATSAPP_TEMPLATE_NAME` / `WHATSAPP_TEMPLATE_LANG`.
-
-Use `PENDENCIA_ALERT_WHATSAPP` (opcional) para números gerais de contingência, com DDI+DDD+número.
-
-### Regras e agendamento
-- `PENDENCIA_ALERT_DAYS=3`: quantidade de dias para considerar “próxima do prazo”.
-- `PENDENCIA_CHECK_INTERVAL_SECONDS=3600`: checagem oportunista enquanto o web service está ativo.
-- O sistema limita automaticamente a uma notificação por pendência/canal/destinatário/dia, evitando spam.
-- Para execução garantida mesmo sem tráfego, crie um Cron Job usando `python notify_pendencias.py` com as mesmas variáveis do web service.
-- Alternativamente, configure `NOTIFICATION_CRON_TOKEN` e chame `/tasks/notificar-pendencias` enviando o token em `X-Notification-Token`.
-- `APP_PUBLIC_URL` (opcional) inclui o link da Central no corpo das mensagens.
-
-O histórico de notificações é persistido em `pendencia_notificacoes`, aparece nos detalhes da pendência e também no relatório Excel da Central.
-
+Configuração principal: `PENDENCIA_ALERT_DAYS=7`, `PENDENCIA_WEEKLY_WEEKDAY=0`, `PENDENCIA_WEEKLY_HOUR=8`, `PENDENCIA_WEEKLY_UTC_OFFSET=-3`, além das credenciais SMTP/WhatsApp descritas em `NOTIFICACOES.md`. O sistema registra o envio e evita duplicidade na mesma semana.
 
 ## v103
 - Padronização visual das abas Acompanhamento de Expansão e Cockpit de Implantação com o layout geral do sistema.
 - Créditos padronizados para “Developed by ALM - Expansão de TI” em telas e relatórios.
+
+## v105 — envio manual na Gestão de Usuários
+- Botão **Enviar resumo** por usuário.
+- Seleção de canal: E-mail, WhatsApp ou Ambos.
+- Usa os contatos cadastrados em Gestão de Usuários.
+- Mantém no resumo as pendências do responsável e as lojas pendentes com Entrada de TI/Inauguração.
+- Envio manual auditado sem alterar o agendamento semanal.

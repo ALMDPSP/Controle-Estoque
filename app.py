@@ -64,7 +64,7 @@ import qrcode
 import db
 
 app = Flask(__name__)
-APP_BUILD = "2026-09-20-notificacoes-pendencias-v102"
+APP_BUILD = "2026-09-20-envio-manual-usuarios-v105"
 _DASHBOARD_CACHE = {"expira": 0.0, "dados": None}
 app.secret_key = os.environ.get("SECRET_KEY", "troque-esta-chave-em-producao")
 _RUNNING_HTTPS_HOSTED = bool(
@@ -4336,6 +4336,16 @@ def _normalizar_whatsapp(valor):
     return re.sub(r'\D+', '', str(valor or ''))
 
 
+def _notificacao_agora_local():
+    """Horário local usado para a agenda semanal. Padrão: UTC-3 (São Paulo)."""
+    try:
+        offset = int(os.environ.get('PENDENCIA_WEEKLY_UTC_OFFSET', '-3'))
+    except Exception:
+        offset = -3
+    offset = max(-12, min(14, offset))
+    return datetime.utcnow() + timedelta(hours=offset)
+
+
 def _status_notificacoes():
     smtp_ok = bool(os.environ.get('SMTP_HOST') and os.environ.get('SMTP_FROM'))
     whatsapp_ok = bool(
@@ -4343,138 +4353,33 @@ def _status_notificacoes():
         or (os.environ.get('WHATSAPP_API_URL') and os.environ.get('WHATSAPP_TOKEN'))
     )
     try:
-        dias = max(0, int(os.environ.get('PENDENCIA_ALERT_DAYS', '3')))
+        dias = max(0, int(os.environ.get('PENDENCIA_ALERT_DAYS', '7')))
     except Exception:
-        dias = 3
+        dias = 7
+    try:
+        dia_semana = int(os.environ.get('PENDENCIA_WEEKLY_WEEKDAY', '0'))
+    except Exception:
+        dia_semana = 0
+    try:
+        hora = int(os.environ.get('PENDENCIA_WEEKLY_HOUR', '8'))
+    except Exception:
+        hora = 8
+    dia_semana = max(0, min(6, dia_semana))
+    hora = max(0, min(23, hora))
     return {
         'email_configurado': smtp_ok,
         'whatsapp_configurado': whatsapp_ok,
         'dias_proximidade': dias,
         'automatico': smtp_ok or whatsapp_ok,
         'cron_configurado': bool(os.environ.get('NOTIFICATION_CRON_TOKEN')),
+        'frequencia': 'SEMANAL',
+        'dia_semana': dia_semana,
+        'hora': hora,
     }
 
 
-def _texto_notificacao_pendencia(item, gatilhos):
-    filial = str(item.get('filial') or '-').strip()
-    titulo = str(item.get('titulo') or 'Pendência').strip()
-    responsavel = str(item.get('responsavel') or 'Não definido').strip()
-    prazo = str(item.get('prazo') or 'Sem prazo').strip()
-    prioridade = str(item.get('prioridade') or 'MEDIA').strip().upper()
-    status = str(item.get('status') or 'ABERTA').strip().upper()
-    descricao = re.sub(r'\s+', ' ', str(item.get('descricao') or '').strip())
-    motivos = ', '.join(gatilhos)
-    linhas = [
-        f"Alerta de pendência #{item.get('id')} - {motivos}",
-        f"Filial: {filial}",
-        f"Ação: {titulo}",
-        f"Responsável: {responsavel}",
-        f"Prazo: {prazo}",
-        f"Prioridade: {prioridade}",
-        f"Status: {status}",
-    ]
-    if descricao:
-        linhas.append(f"Descrição: {descricao[:700]}")
-    base_url = (os.environ.get('APP_PUBLIC_URL') or '').strip().rstrip('/')
-    if base_url:
-        linhas.append(f"Acessar Central: {base_url}/central-pendencias")
-    linhas.append("Mensagem automática · Central de Pendências e Ações · Expansão de TI")
-    return '\n'.join(linhas)
-
-
-def _enviar_email_pendencia(destinatario, item, gatilhos):
-    host = (os.environ.get('SMTP_HOST') or '').strip()
-    remetente = (os.environ.get('SMTP_FROM') or '').strip()
-    if not host or not remetente:
-        raise RuntimeError('SMTP não configurado.')
-    try:
-        porta = int(os.environ.get('SMTP_PORT', '587'))
-    except Exception:
-        porta = 587
-    usuario = os.environ.get('SMTP_USER') or ''
-    senha = os.environ.get('SMTP_PASSWORD') or ''
-    use_ssl = str(os.environ.get('SMTP_USE_SSL', '0')).strip().lower() in ('1','true','sim','yes')
-    use_tls = str(os.environ.get('SMTP_USE_TLS', '1')).strip().lower() in ('1','true','sim','yes')
-    assunto = f"[Expansão de TI] Pendência #{item.get('id')} · {' / '.join(gatilhos)}"
-    msg = EmailMessage()
-    msg['From'] = remetente
-    msg['To'] = destinatario
-    msg['Subject'] = assunto
-    msg.set_content(_texto_notificacao_pendencia(item, gatilhos))
-    timeout = 12
-    if use_ssl:
-        smtp = smtplib.SMTP_SSL(host, porta, timeout=timeout, context=ssl.create_default_context())
-    else:
-        smtp = smtplib.SMTP(host, porta, timeout=timeout)
-    try:
-        if (not use_ssl) and use_tls:
-            smtp.starttls(context=ssl.create_default_context())
-        if usuario:
-            smtp.login(usuario, senha)
-        smtp.send_message(msg)
-    finally:
-        try: smtp.quit()
-        except Exception: pass
-
-
-def _enviar_whatsapp_pendencia(destinatario, item, gatilhos):
-    numero = _normalizar_whatsapp(destinatario)
-    if not numero:
-        raise RuntimeError('Número de WhatsApp inválido.')
-    mensagem = _texto_notificacao_pendencia(item, gatilhos)
-    webhook = (os.environ.get('WHATSAPP_WEBHOOK_URL') or '').strip()
-    if webhook:
-        payload = json.dumps({'to': numero, 'message': mensagem, 'pendencia_id': item.get('id'), 'gatilhos': gatilhos}).encode('utf-8')
-        req = urlrequest.Request(webhook, data=payload, headers={'Content-Type':'application/json'}, method='POST')
-        token = (os.environ.get('WHATSAPP_WEBHOOK_TOKEN') or '').strip()
-        if token:
-            req.add_header('Authorization', f'Bearer {token}')
-        with urlrequest.urlopen(req, timeout=15) as resp:
-            if getattr(resp, 'status', 200) >= 300:
-                raise RuntimeError(f'Webhook WhatsApp retornou HTTP {resp.status}.')
-        return
-
-    api_url = (os.environ.get('WHATSAPP_API_URL') or '').strip()
-    token = (os.environ.get('WHATSAPP_TOKEN') or '').strip()
-    if not api_url or not token:
-        raise RuntimeError('WhatsApp não configurado.')
-    template = (os.environ.get('WHATSAPP_TEMPLATE_NAME') or '').strip()
-    if template:
-        lang = (os.environ.get('WHATSAPP_TEMPLATE_LANG') or 'pt_BR').strip()
-        body = {
-            'messaging_product':'whatsapp','to':numero,'type':'template',
-            'template':{
-                'name':template,'language':{'code':lang},
-                'components':[{'type':'body','parameters':[{'type':'text','text':mensagem[:950]}]}],
-            },
-        }
-    else:
-        body = {'messaging_product':'whatsapp','to':numero,'type':'text','text':{'preview_url':False,'body':mensagem[:3500]}}
-    payload = json.dumps(body).encode('utf-8')
-    req = urlrequest.Request(api_url, data=payload, headers={'Content-Type':'application/json','Authorization':f'Bearer {token}'}, method='POST')
-    with urlrequest.urlopen(req, timeout=15) as resp:
-        if getattr(resp, 'status', 200) >= 300:
-            raise RuntimeError(f'API WhatsApp retornou HTTP {resp.status}.')
-
-
-def _contatos_para_pendencia(item):
-    email=[]; whats=[]
-    resp = str(item.get('responsavel') or '').strip()
-    if resp:
-        u = db.buscar_usuario_por_username(resp)
-        if u:
-            if u.get('email'): email.append(str(u.get('email')).strip())
-            if u.get('whatsapp'): whats.append(str(u.get('whatsapp')).strip())
-    email += _split_destinatarios(os.environ.get('PENDENCIA_ALERT_EMAILS'))
-    whats += _split_destinatarios(os.environ.get('PENDENCIA_ALERT_WHATSAPP'))
-    # remove duplicados preservando ordem
-    email = list(dict.fromkeys(x for x in email if x))
-    whats = list(dict.fromkeys(x for x in whats if x))
-    return email, whats
-
-
 def _gatilhos_pendencia(item, hoje=None):
-    hoje = hoje or datetime.now().date()
+    hoje = hoje or _notificacao_agora_local().date()
     status = str(item.get('status') or 'ABERTA').strip().upper()
     if status in {'CONCLUIDA','CANCELADA'}:
         return []
@@ -4485,9 +4390,9 @@ def _gatilhos_pendencia(item, hoje=None):
     if prazo:
         dias = (prazo-hoje).days
         try:
-            limite=max(0,int(os.environ.get('PENDENCIA_ALERT_DAYS','3')))
+            limite=max(0,int(os.environ.get('PENDENCIA_ALERT_DAYS','7')))
         except Exception:
-            limite=3
+            limite=7
         if dias < 0:
             out.append('VENCIDA')
         elif dias <= limite:
@@ -4495,72 +4400,238 @@ def _gatilhos_pendencia(item, hoje=None):
     return out
 
 
+def _lojas_pendentes_resumo_semanal():
+    """Lojas PENDENTES do Acompanhamento, com os dois marcos solicitados."""
+    lojas=[]
+    for x in db.listar_acompanhamento_expansao():
+        if _normalizar_exec(x.get('status_filial')) != 'pendente':
+            continue
+        lojas.append({
+            'filial': str(x.get('filial') or '').strip() or '-',
+            'loja': str(x.get('descricao_filial') or '').strip() or '-',
+            'uf': str(x.get('uf') or '').strip().upper() or '-',
+            'projeto': str(x.get('projeto') or '').strip() or '-',
+            'entrada_ti': _data_acompanhamento_legivel(x.get('entrada_ti')),
+            'entrada_ti_iso': _data_acompanhamento_iso(x.get('entrada_ti')),
+            'inauguracao': _data_acompanhamento_legivel(x.get('inauguracao')),
+            'inauguracao_iso': _data_acompanhamento_iso(x.get('inauguracao')),
+        })
+    lojas.sort(key=lambda x:(x.get('inauguracao_iso') or '9999-99-99', x.get('entrada_ti_iso') or '9999-99-99', x.get('filial') or ''))
+    return lojas
+
+
+def _contatos_responsavel(item):
+    emails=[]; whats=[]
+    resp=str(item.get('responsavel') or '').strip()
+    if resp:
+        u=db.buscar_usuario_por_username(resp)
+        if u:
+            if u.get('email'): emails.append(str(u.get('email')).strip())
+            if u.get('whatsapp'): whats.append(str(u.get('whatsapp')).strip())
+    return list(dict.fromkeys(x for x in emails if x)), list(dict.fromkeys(x for x in whats if x))
+
+
+def _destinatarios_resumo_semanal(pendencias):
+    """Retorna destinatários e as pendências que devem aparecer no resumo de cada um."""
+    email_map={}; whats_map={}
+    todas_ids=[int(x.get('id') or 0) for x in pendencias]
+    for dest in _split_destinatarios(os.environ.get('PENDENCIA_ALERT_EMAILS')):
+        email_map[dest]=set(todas_ids)
+    for dest in _split_destinatarios(os.environ.get('PENDENCIA_ALERT_WHATSAPP')):
+        whats_map[dest]=set(todas_ids)
+    for item in pendencias:
+        item_id=int(item.get('id') or 0)
+        emails, whats=_contatos_responsavel(item)
+        for dest in emails: email_map.setdefault(dest,set()).add(item_id)
+        for dest in whats: whats_map.setdefault(dest,set()).add(item_id)
+    by_id={int(x.get('id') or 0):x for x in pendencias}
+    def expand(mapa):
+        return {dest:[by_id[i] for i in sorted(ids) if i in by_id] for dest,ids in mapa.items()}
+    return expand(email_map), expand(whats_map)
+
+
+
+def _pendencias_resumo_usuario(username, hoje=None):
+    """Pendências do resumo manual de um usuário, apenas quando ele é o responsável."""
+    hoje = hoje or _notificacao_agora_local().date()
+    alvo = str(username or '').strip().casefold()
+    if not alvo:
+        return []
+    itens=[]
+    for item in db.listar_pendencias_acoes():
+        responsavel=str(item.get('responsavel') or '').strip().casefold()
+        if responsavel != alvo:
+            continue
+        if _gatilhos_pendencia(item, hoje):
+            itens.append(item)
+    return itens
+
+
+def _reservar_envio_manual_usuario(canal, destinatario):
+    agora=_notificacao_agora_local()
+    bruto=f"RESUMO_MANUAL_USUARIO|{canal}|{destinatario}|{agora.isoformat()}|{session.get('username')}"
+    fingerprint=hashlib.sha256(bruto.encode('utf-8')).hexdigest()
+    if not db.reservar_notificacao_pendencia(0,canal,'RESUMO MANUAL USUÁRIO',destinatario,fingerprint):
+        return None
+    return fingerprint
+
+def _texto_resumo_semanal(pendencias, lojas, gerado_em=None):
+    agora=gerado_em or _notificacao_agora_local()
+    vencidas=sum(1 for x in pendencias if 'VENCIDA' in _gatilhos_pendencia(x,agora.date()))
+    criticas=sum(1 for x in pendencias if str(x.get('prioridade') or '').strip().upper()=='CRITICA')
+    proximas=sum(1 for x in pendencias if any(g in _gatilhos_pendencia(x,agora.date()) for g in ('PRÓXIMA DO PRAZO','VENCE HOJE')))
+    linhas=[
+        'RESUMO SEMANAL · EXPANSÃO DE TI',
+        f"Gerado em: {agora.strftime('%d/%m/%Y %H:%M')}",
+        '',
+        'PENDÊNCIAS E AÇÕES',
+        f"Total no resumo: {len(pendencias)} | Vencidas: {vencidas} | Próximas do prazo: {proximas} | Críticas: {criticas}",
+    ]
+    if pendencias:
+        for x in sorted(pendencias,key=lambda z:(_parse_data_simples(z.get('prazo')) or datetime(9999,12,31).date(), int(z.get('id') or 0))):
+            gat=' / '.join(_gatilhos_pendencia(x,agora.date())) or 'ACOMPANHAMENTO'
+            linhas.append(f"• #{x.get('id')} | Filial {x.get('filial') or '-'} | {x.get('titulo') or 'Pendência'} | Resp.: {x.get('responsavel') or 'Não definido'} | Prazo: {x.get('prazo') or 'Sem prazo'} | {gat}")
+    else:
+        linhas.append('• Nenhuma pendência vencida, crítica ou próxima do prazo neste ciclo.')
+    linhas += ['', 'LOJAS PENDENTES DE INAUGURAÇÃO', f'Total: {len(lojas)}']
+    if lojas:
+        for x in lojas:
+            linhas.append(f"• Filial {x.get('filial')} | {x.get('loja')} | {x.get('uf')} | Entrada TI: {x.get('entrada_ti')} | Inauguração: {x.get('inauguracao')}")
+    else:
+        linhas.append('• Nenhuma loja pendente de inauguração.')
+    base_url=(os.environ.get('APP_PUBLIC_URL') or '').strip().rstrip('/')
+    if base_url:
+        linhas += ['', f'Central de Pendências: {base_url}/central-pendencias', f'Acompanhamento de Expansão: {base_url}/acompanhamento-expansao']
+    linhas += ['', 'Mensagem automática · Developed by ALM - Expansão de TI']
+    return '\n'.join(linhas)
+
+
+def _enviar_email_texto(destinatario, assunto, texto):
+    host=(os.environ.get('SMTP_HOST') or '').strip(); remetente=(os.environ.get('SMTP_FROM') or '').strip()
+    if not host or not remetente: raise RuntimeError('SMTP não configurado.')
+    try: porta=int(os.environ.get('SMTP_PORT','587'))
+    except Exception: porta=587
+    usuario=os.environ.get('SMTP_USER') or ''; senha=os.environ.get('SMTP_PASSWORD') or ''
+    use_ssl=str(os.environ.get('SMTP_USE_SSL','0')).strip().lower() in ('1','true','sim','yes')
+    use_tls=str(os.environ.get('SMTP_USE_TLS','1')).strip().lower() in ('1','true','sim','yes')
+    msg=EmailMessage(); msg['From']=remetente; msg['To']=destinatario; msg['Subject']=assunto; msg.set_content(texto)
+    if use_ssl: smtp=smtplib.SMTP_SSL(host,porta,timeout=15,context=ssl.create_default_context())
+    else: smtp=smtplib.SMTP(host,porta,timeout=15)
+    try:
+        if (not use_ssl) and use_tls: smtp.starttls(context=ssl.create_default_context())
+        if usuario: smtp.login(usuario,senha)
+        smtp.send_message(msg)
+    finally:
+        try: smtp.quit()
+        except Exception: pass
+
+
+def _quebrar_mensagem_whatsapp(texto, limite=2800):
+    partes=[]; atual=[]; tamanho=0
+    for linha in str(texto or '').splitlines():
+        extra=len(linha)+1
+        if atual and tamanho+extra>limite:
+            partes.append('\n'.join(atual)); atual=[]; tamanho=0
+        if len(linha)>limite:
+            for i in range(0,len(linha),limite):
+                trecho=linha[i:i+limite]
+                if atual: partes.append('\n'.join(atual)); atual=[]; tamanho=0
+                partes.append(trecho)
+            continue
+        atual.append(linha); tamanho+=extra
+    if atual: partes.append('\n'.join(atual))
+    return partes or ['Resumo semanal sem conteúdo.']
+
+
+def _enviar_whatsapp_texto(destinatario, texto):
+    numero=_normalizar_whatsapp(destinatario)
+    if not numero: raise RuntimeError('Número de WhatsApp inválido.')
+    webhook=(os.environ.get('WHATSAPP_WEBHOOK_URL') or '').strip()
+    api_url=(os.environ.get('WHATSAPP_API_URL') or '').strip(); token=(os.environ.get('WHATSAPP_TOKEN') or '').strip()
+    template=(os.environ.get('WHATSAPP_TEMPLATE_NAME') or '').strip()
+    limite=850 if template else 2800
+    partes=_quebrar_mensagem_whatsapp(texto,limite)
+    total=len(partes)
+    for idx,mensagem in enumerate(partes,1):
+        if total>1: mensagem=f"[{idx}/{total}] {mensagem}"
+        if webhook:
+            payload=json.dumps({'to':numero,'message':mensagem,'pendencia_id':0,'gatilhos':['RESUMO SEMANAL']}).encode('utf-8')
+            req=urlrequest.Request(webhook,data=payload,headers={'Content-Type':'application/json'},method='POST')
+            wt=(os.environ.get('WHATSAPP_WEBHOOK_TOKEN') or '').strip()
+            if wt: req.add_header('Authorization',f'Bearer {wt}')
+            with urlrequest.urlopen(req,timeout=15) as resp:
+                if getattr(resp,'status',200)>=300: raise RuntimeError(f'Webhook WhatsApp retornou HTTP {resp.status}.')
+            continue
+        if not api_url or not token: raise RuntimeError('WhatsApp não configurado.')
+        if template:
+            lang=(os.environ.get('WHATSAPP_TEMPLATE_LANG') or 'pt_BR').strip()
+            body={'messaging_product':'whatsapp','to':numero,'type':'template','template':{'name':template,'language':{'code':lang},'components':[{'type':'body','parameters':[{'type':'text','text':mensagem[:950]}]}]}}
+        else:
+            body={'messaging_product':'whatsapp','to':numero,'type':'text','text':{'preview_url':False,'body':mensagem}}
+        payload=json.dumps(body).encode('utf-8')
+        req=urlrequest.Request(api_url,data=payload,headers={'Content-Type':'application/json','Authorization':f'Bearer {token}'},method='POST')
+        with urlrequest.urlopen(req,timeout=15) as resp:
+            if getattr(resp,'status',200)>=300: raise RuntimeError(f'API WhatsApp retornou HTTP {resp.status}.')
+
+
 def _processar_notificacoes_pendencias(force=False, only_id=None):
-    cfg = _status_notificacoes()
+    """Envia um resumo semanal consolidado. `force=True` é usado apenas no teste administrativo."""
+    cfg=_status_notificacoes()
     if not cfg['automatico']:
         return {'ok':False,'configurado':False,'processadas':0,'enviadas':0,'erros':0,'ignoradas':0,'mensagem':'E-mail e WhatsApp ainda não estão configurados.'}
-    hoje = datetime.now().date()
-    itens = db.listar_pendencias_acoes()
+    agora=_notificacao_agora_local(); hoje=agora.date()
+    if not force and (agora.weekday()!=cfg['dia_semana'] or agora.hour<cfg['hora']):
+        return {'ok':True,'configurado':True,'processadas':0,'enviadas':0,'erros':0,'ignoradas':0,'mensagem':f"Resumo semanal aguardando a janela programada (dia {cfg['dia_semana']} às {cfg['hora']:02d}:00)."}
+    itens=[]
+    for item in db.listar_pendencias_acoes():
+        if _gatilhos_pendencia(item,hoje): itens.append(item)
     if only_id is not None:
         itens=[x for x in itens if int(x.get('id') or 0)==int(only_id)]
-    enviados=erros=ignoradas=processadas=0
-    for item in itens:
-        gatilhos=_gatilhos_pendencia(item,hoje)
-        if not gatilhos: continue
-        processadas += 1
-        emails, whats = _contatos_para_pendencia(item)
-        destinos=[]
-        if cfg['email_configurado']: destinos += [('EMAIL',x) for x in emails]
-        if cfg['whatsapp_configurado']: destinos += [('WHATSAPP',x) for x in whats]
-        if not destinos:
-            ignoradas += 1
-            continue
-        # No modo normal, no máximo uma mensagem por pendência/canal/destinatário/dia.
-        # O modo force usa um bucket com hora/minuto para testes administrativos.
-        bucket = datetime.now().strftime('%Y-%m-%d-%H%M') if force else hoje.isoformat()
-        gatilho_txt=' + '.join(gatilhos)
-        for canal,dest in destinos:
-            fp_raw=f"{item.get('id')}|{canal}|{dest}|{bucket}"
+    lojas=_lojas_pendentes_resumo_semanal()
+    email_map,whats_map=_destinatarios_resumo_semanal(itens)
+    enviados=erros=ignoradas=0
+    processadas=len(itens)
+    if not email_map and not whats_map:
+        return {'ok':True,'configurado':True,'processadas':processadas,'enviadas':0,'erros':0,'ignoradas':1,'lojas_pendentes':len(lojas),'mensagem':'Nenhum destinatário configurado para o resumo semanal.'}
+    iso=hoje.isocalendar(); bucket=f"{iso.year}-W{iso.week:02d}"
+    if force: bucket=agora.strftime('%Y-%m-%d-%H%M')
+    assunto=f"[Expansão de TI] Resumo semanal · Pendências e inaugurações · {agora.strftime('%d/%m/%Y')}"
+    for canal,mapa in (('EMAIL',email_map),('WHATSAPP',whats_map)):
+        if canal=='EMAIL' and not cfg['email_configurado']: continue
+        if canal=='WHATSAPP' and not cfg['whatsapp_configurado']: continue
+        for dest,pend_dest in mapa.items():
+            texto=_texto_resumo_semanal(pend_dest,lojas,agora)
+            fp_raw=f"RESUMO_SEMANAL|{canal}|{dest}|{bucket}"
             fingerprint=hashlib.sha256(fp_raw.encode('utf-8')).hexdigest()
-            if not db.reservar_notificacao_pendencia(item.get('id'),canal,gatilho_txt,dest,fingerprint):
-                ignoradas += 1
-                continue
+            if not db.reservar_notificacao_pendencia(0,canal,'RESUMO SEMANAL',dest,fingerprint):
+                ignoradas+=1; continue
             try:
-                if canal=='EMAIL': _enviar_email_pendencia(dest,item,gatilhos)
-                else: _enviar_whatsapp_pendencia(dest,item,gatilhos)
-                db.concluir_notificacao_pendencia(fingerprint,'ENVIADO','Envio concluído.')
-                enviados += 1
+                if canal=='EMAIL': _enviar_email_texto(dest,assunto,texto)
+                else: _enviar_whatsapp_texto(dest,texto)
+                detalhe=f"Resumo semanal enviado. Pendências: {len(pend_dest)} · Lojas pendentes: {len(lojas)}."
+                db.concluir_notificacao_pendencia(fingerprint,'ENVIADO',detalhe); enviados+=1
             except Exception as exc:
-                # Libera a reserva para permitir nova tentativa automática no mesmo dia.
-                db.liberar_notificacao_pendencia(fingerprint)
-                erros += 1
-                print(f"[notificacao] Falha {canal} pendência #{item.get('id')}: {exc}")
-    return {'ok':True,'configurado':True,'processadas':processadas,'enviadas':enviados,'erros':erros,'ignoradas':ignoradas}
+                db.liberar_notificacao_pendencia(fingerprint); erros+=1
+                print(f"[notificacao] Falha {canal} resumo semanal: {exc}")
+    return {'ok':True,'configurado':True,'processadas':processadas,'lojas_pendentes':len(lojas),'enviadas':enviados,'erros':erros,'ignoradas':ignoradas,'mensagem':'Resumo semanal processado.'}
 
 
 def _notificacao_background_worker():
-    try:
-        _processar_notificacoes_pendencias()
-    except Exception as exc:
-        print(f"[notificacao] Verificação automática falhou: {exc}")
+    try: _processar_notificacoes_pendencias()
+    except Exception as exc: print(f"[notificacao] Verificação automática falhou: {exc}")
 
 
 @app.before_request
 def _agendar_notificacoes_automaticas():
-    # Verificação oportunista e não bloqueante: enquanto a aplicação está ativa,
-    # dispara no máximo uma checagem por intervalo. O log no banco evita duplicidades
-    # mesmo com múltiplos workers. Para garantia sem tráfego, use o endpoint de cron.
+    # Faz uma checagem leve por intervalo. O processador só envia na janela semanal
+    # e o fingerprint do banco impede duplicidade na mesma semana.
     global _NOTIFICATION_NEXT_CHECK
-    if request.endpoint == 'static':
-        return None
+    if request.endpoint == 'static': return None
     cfg=_status_notificacoes()
-    if not cfg['automatico']:
-        return None
+    if not cfg['automatico']: return None
     agora=time.time()
-    if agora < _NOTIFICATION_NEXT_CHECK:
-        return None
-    if not _NOTIFICATION_CHECK_LOCK.acquire(blocking=False):
-        return None
+    if agora < _NOTIFICATION_NEXT_CHECK: return None
+    if not _NOTIFICATION_CHECK_LOCK.acquire(blocking=False): return None
     try:
         try: intervalo=max(300,int(os.environ.get('PENDENCIA_CHECK_INTERVAL_SECONDS','3600')))
         except Exception: intervalo=3600
@@ -4569,7 +4640,6 @@ def _agendar_notificacoes_automaticas():
     finally:
         _NOTIFICATION_CHECK_LOCK.release()
     return None
-
 
 def _dados_central_pendencias(filial=None):
     hoje=datetime.now().date()
@@ -4672,8 +4742,6 @@ def api_criar_pendencia():
     if erro: return jsonify({'erro':erro}),400
     item=db.criar_pendencia_acao(dados,session.get('username'))
     db.registrar_movimentacao(0,'pendencia_criada','1',session.get('username'),f"Pendência #{item.get('id')} criada para filial {item.get('filial') or '-'}: {item.get('titulo')}",tabela='sistema')
-    try: threading.Thread(target=_processar_notificacoes_pendencias,kwargs={'only_id':item.get('id')},daemon=True).start()
-    except Exception as exc: print(f"[notificacao] pós-criação: {exc}")
     return jsonify({'ok':True,'item':item,'dados':_dados_central_pendencias()}),201
 
 
@@ -4689,8 +4757,6 @@ def api_atualizar_pendencia(pendencia_id):
     for c in ('filial','titulo','responsavel','prazo','prioridade','status'):
         if c in dados and str(antes.get(c) or '')!=str(item.get(c) or ''): mud.append(f"{c}: {antes.get(c) or '-'} → {item.get(c) or '-'}")
     db.registrar_movimentacao(0,'pendencia_editada','1',session.get('username'),f"Pendência #{pendencia_id} atualizada. "+(' | '.join(mud) or 'Dados atualizados.'),tabela='sistema')
-    try: threading.Thread(target=_processar_notificacoes_pendencias,kwargs={'only_id':pendencia_id},daemon=True).start()
-    except Exception as exc: print(f"[notificacao] pós-edição: {exc}")
     return jsonify({'ok':True,'item':item,'dados':_dados_central_pendencias()})
 
 
@@ -4777,7 +4843,7 @@ def _gerar_excel_pendencias(dados):
     for i,w in enumerate([20,8,12,36,22,14,12,18],1): a.column_dimensions[get_column_letter(i)].width=w
     n=wb.create_sheet('Notificações'); n.append(['ID','Pendência ID','Canal','Gatilho','Destinatário','Status','Detalhe','Enviado em'])
     for cc in n[1]: cc.font=Font(bold=True,color=branco); cc.fill=PatternFill('solid',fgColor=azul)
-    for x in dados.get('notificacoes',[]): n.append([x.get('id'),x.get('pendencia_id'),x.get('canal'),x.get('gatilho'),x.get('destinatario'),x.get('status'),x.get('detalhe'),x.get('enviado_em')])
+    for x in dados.get('notificacoes',[]): n.append([x.get('id'),('Resumo semanal' if int(x.get('pendencia_id') or 0)==0 else x.get('pendencia_id')),x.get('canal'),x.get('gatilho'),x.get('destinatario'),x.get('status'),x.get('detalhe'),x.get('enviado_em')])
     for i,w in enumerate([8,12,14,28,34,14,42,20],1): n.column_dimensions[get_column_letter(i)].width=w
     n.freeze_panes='A2'; n.auto_filter.ref=n.dimensions
     buf=io.BytesIO(); wb.save(buf); buf.seek(0); return buf
@@ -4864,7 +4930,7 @@ def _gerar_pdf_pendencias(dados):
                 pdf.setFillColor(colors.HexColor('#234C74')); pdf.roundRect(margem,yy,totalw,20,4,stroke=0,fill=1); pdf.setFillColor(colors.white); pdf.setFont('Helvetica-Bold',6.5); cx=margem
                 for h,wc in zip(cab,widths): pdf.drawString(cx+3,yy+6,h); cx+=wc
                 yy-=3
-            yy-=20; pdf.setFillColor(colors.HexColor('#182230')); pdf.roundRect(margem,yy,totalw,19,3,stroke=0,fill=1); vals=[n.get('pendencia_id'),n.get('canal'),n.get('gatilho'),n.get('destinatario'),n.get('status'),n.get('enviado_em')]; cx=margem
+            yy-=20; pdf.setFillColor(colors.HexColor('#182230')); pdf.roundRect(margem,yy,totalw,19,3,stroke=0,fill=1); vals=[('Resumo' if int(n.get('pendencia_id') or 0)==0 else n.get('pendencia_id')),n.get('canal'),n.get('gatilho'),n.get('destinatario'),n.get('status'),n.get('enviado_em')]; cx=margem
             for wc,v in zip(widths,vals):
                 txt=str(v or '-'); maxc=max(5,int((wc-6)/4.1)); txt=txt if len(txt)<=maxc else txt[:maxc-1]+'…'; pdf.setFillColor(colors.HexColor('#DCE6F0')); pdf.setFont('Helvetica',6.1); pdf.drawString(cx+3,yy+6.5,txt); cx+=wc
             yy-=3
@@ -6849,6 +6915,72 @@ def api_atualizar_contato_usuario(user_id):
     db.registrar_movimentacao(0,'usuario_contato','1',session.get('username'),f"Contatos de {alvo.get('username')} atualizados para notificações.",tabela='sistema')
     return jsonify({'ok':True})
 
+
+
+@app.route("/api/usuarios/<int:user_id>/enviar-resumo", methods=["POST"])
+@admin_required
+def api_enviar_resumo_usuario(user_id):
+    if not _csrf_ok():
+        return jsonify({"erro":"Token de segurança inválido."}), 400
+    alvo=db.buscar_usuario_por_id(user_id)
+    if not alvo:
+        return jsonify({"erro":"Usuário não encontrado."}),404
+    dados=request.get_json(silent=True) or {}
+    canal=str(dados.get('canal') or 'AMBOS').strip().upper()
+    if canal not in {'EMAIL','WHATSAPP','AMBOS'}:
+        return jsonify({'erro':'Canal inválido.'}),400
+
+    cfg=_status_notificacoes()
+    email=(alvo.get('email') or '').strip()
+    whatsapp=(alvo.get('whatsapp') or '').strip()
+    username=(alvo.get('username') or '').strip()
+    pendencias=_pendencias_resumo_usuario(username)
+    lojas=_lojas_pendentes_resumo_semanal()
+    agora=_notificacao_agora_local()
+    texto=_texto_resumo_semanal(pendencias,lojas,agora)
+    assunto=f"[Expansão de TI] Resumo manual · {username} · {agora.strftime('%d/%m/%Y')}"
+
+    canais=[]
+    if canal in {'EMAIL','AMBOS'}: canais.append(('EMAIL',email,cfg.get('email_configurado')))
+    if canal in {'WHATSAPP','AMBOS'}: canais.append(('WHATSAPP',whatsapp,cfg.get('whatsapp_configurado')))
+    enviados=[]; erros=[]
+    for nome,dest,configurado in canais:
+        if not dest:
+            erros.append(f"{nome}: contato não cadastrado.")
+            continue
+        if not configurado:
+            erros.append(f"{nome}: canal não configurado no servidor.")
+            continue
+        fingerprint=_reservar_envio_manual_usuario(nome,dest)
+        if not fingerprint:
+            erros.append(f"{nome}: não foi possível reservar o registro de auditoria.")
+            continue
+        try:
+            if nome=='EMAIL':
+                _enviar_email_texto(dest,assunto,texto)
+            else:
+                _enviar_whatsapp_texto(dest,texto)
+            detalhe=f"Resumo manual enviado para {username}. Pendências do responsável: {len(pendencias)} · Lojas pendentes: {len(lojas)}. Solicitado por {session.get('username')}."
+            db.concluir_notificacao_pendencia(fingerprint,'ENVIADO',detalhe)
+            enviados.append(nome)
+        except Exception as exc:
+            db.liberar_notificacao_pendencia(fingerprint)
+            erros.append(f"{nome}: {exc}")
+
+    db.registrar_movimentacao(0,'resumo_manual_usuario',str(user_id),session.get('username'),
+        f"Envio manual para {username}. Canal solicitado: {canal}. Enviados: {', '.join(enviados) or 'nenhum'}. Erros: {' | '.join(erros) or 'nenhum'}.",tabela='sistema')
+
+    if not enviados:
+        return jsonify({'erro':'Não foi possível enviar o resumo.','detalhes':erros}),400
+    return jsonify({
+        'ok':True,
+        'usuario':username,
+        'enviados':enviados,
+        'erros':erros,
+        'pendencias':len(pendencias),
+        'lojas_pendentes':len(lojas),
+        'mensagem':f"Resumo enviado para {username} via {', '.join(enviados)}."
+    })
 
 @app.route("/api/usuarios/<int:user_id>/forcar-troca-senha", methods=["POST"])
 @admin_required

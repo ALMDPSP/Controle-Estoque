@@ -1,5 +1,6 @@
-"""Execução agendada dos alertas da Central de Pendências.
-Use em um Cron Job com as mesmas variáveis de ambiente da aplicação.
+"""Execução agendada do resumo semanal da Central de Pendências.
+Recomendado: segunda-feira às 11:00 UTC (08:00 em São Paulo).
+Use as mesmas variáveis de ambiente da aplicação.
 """
 import json
 from app import _processar_notificacoes_pendencias
