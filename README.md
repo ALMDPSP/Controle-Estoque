@@ -93,3 +93,9 @@ Configuração principal: `PENDENCIA_ALERT_DAYS=7`, `PENDENCIA_WEEKLY_WEEKDAY=0`
 - Usa os contatos cadastrados em Gestão de Usuários.
 - Mantém no resumo as pendências do responsável e as lojas pendentes com Entrada de TI/Inauguração.
 - Envio manual auditado sem alterar o agendamento semanal.
+
+
+## v106 — Correção do envio manual 'Ambos'
+- Na Gestão de Usuários, o botão **Ambos** agora executa dois envios independentes: um por E-mail e outro por WhatsApp, reutilizando os mesmos fluxos individuais.
+- Um canal não bloqueia o outro em caso de falha e a interface informa sucesso/falha por canal.
+- O botão **Ambos** só fica habilitado quando o usuário possui E-mail e WhatsApp cadastrados.

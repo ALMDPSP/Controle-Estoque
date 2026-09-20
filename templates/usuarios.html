@@ -251,7 +251,7 @@ function abrirEnvioResumo(id, username, email, whatsapp){
   document.getElementById('envio-whatsapp').textContent=whatsapp || 'Não informado';
   document.getElementById('enviar-email').disabled=!email;
   document.getElementById('enviar-whatsapp').disabled=!whatsapp;
-  document.getElementById('enviar-ambos').disabled=(!email && !whatsapp);
+  document.getElementById('enviar-ambos').disabled=(!email || !whatsapp);
   const modal=document.getElementById('modal-envio');
   modal.classList.add('ativo'); modal.setAttribute('aria-hidden','false');
 }
@@ -260,33 +260,60 @@ function fecharEnvioResumo(){
   modal.classList.remove('ativo'); modal.setAttribute('aria-hidden','true');
   envioUsuarioAtual=null;
 }
+async function requisitarEnvioResumo(canal){
+  const res=await fetch(`/api/usuarios/${envioUsuarioAtual.id}/enviar-resumo`,{
+    method:'POST',
+    headers:{'Content-Type':'application/json','X-CSRF-Token':CSRF_TOKEN},
+    body:JSON.stringify({canal})
+  });
+  const corpo=await res.json().catch(()=>({}));
+  if(!res.ok){
+    const detalhes=Array.isArray(corpo.detalhes)?` ${corpo.detalhes.join(' | ')}`:'';
+    throw new Error((corpo.erro||`Erro ao enviar via ${canal}.`)+detalhes);
+  }
+  return corpo;
+}
+
 async function enviarResumoManual(canal){
   if(!envioUsuarioAtual) return;
-  const usuario=envioUsuarioAtual.username;
+  const atual={...envioUsuarioAtual};
+  const usuario=atual.username;
+  if(canal==='AMBOS' && (!atual.email || !atual.whatsapp)){
+    alert('Para usar Ambos, o usuário precisa ter E-mail e WhatsApp cadastrados.');
+    return;
+  }
   if(!confirm(`Enviar agora o resumo para ${usuario} via ${canal==='AMBOS'?'E-mail e WhatsApp':canal}?`)) return;
   const botoes=[...document.querySelectorAll('#modal-envio button')];
   botoes.forEach(b=>b.disabled=true);
   try{
-    const res=await fetch(`/api/usuarios/${envioUsuarioAtual.id}/enviar-resumo`,{
-      method:'POST',
-      headers:{'Content-Type':'application/json','X-CSRF-Token':CSRF_TOKEN},
-      body:JSON.stringify({canal})
-    });
-    const corpo=await res.json().catch(()=>({}));
-    if(!res.ok){
-      const detalhes=Array.isArray(corpo.detalhes)?` ${corpo.detalhes.join(' | ')}`:'';
-      throw new Error((corpo.erro||'Erro ao enviar resumo.')+detalhes);
+    if(canal==='AMBOS'){
+      const resultados=await Promise.allSettled([
+        requisitarEnvioResumo('EMAIL'),
+        requisitarEnvioResumo('WHATSAPP')
+      ]);
+      const nomes=['E-mail','WhatsApp'];
+      const enviados=[]; const falhas=[];
+      resultados.forEach((r,i)=>{
+        if(r.status==='fulfilled') enviados.push(nomes[i]);
+        else falhas.push(`${nomes[i]}: ${r.reason?.message || 'falha no envio'}`);
+      });
+      if(!enviados.length) throw new Error(`Nenhum canal foi enviado. ${falhas.join(' | ')}`);
+      fecharEnvioResumo();
+      const detalhe=falhas.length?` Falha parcial: ${falhas.join(' | ')}`:'';
+      mostrarMsg(`Resumo enviado para ${usuario}. Canais confirmados: ${enviados.join(' e ')}.${detalhe}`, falhas.length?'erro':'ok');
+      return;
     }
-    const aviso=(Array.isArray(corpo.erros) && corpo.erros.length)?` Atenção: ${corpo.erros.join(' | ')}`:'';
+    const corpo=await requisitarEnvioResumo(canal);
     fecharEnvioResumo();
-    mostrarMsg(`${corpo.mensagem} Pendências: ${corpo.pendencias}. Lojas pendentes: ${corpo.lojas_pendentes}.${aviso}`, 'ok');
+    mostrarMsg(`${corpo.mensagem} Pendências: ${corpo.pendencias}. Lojas pendentes: ${corpo.lojas_pendentes}.`, 'ok');
   }catch(err){
     alert(err.message||'Erro ao enviar resumo.');
   }finally{
+    // Se o modal continuar aberto após erro, restaura os botões.
     if(envioUsuarioAtual){
       document.getElementById('enviar-email').disabled=!envioUsuarioAtual.email;
       document.getElementById('enviar-whatsapp').disabled=!envioUsuarioAtual.whatsapp;
-      document.getElementById('enviar-ambos').disabled=(!envioUsuarioAtual.email && !envioUsuarioAtual.whatsapp);
+      document.getElementById('enviar-ambos').disabled=(!envioUsuarioAtual.email || !envioUsuarioAtual.whatsapp);
       document.getElementById('fechar-envio').disabled=false;
     }
   }
