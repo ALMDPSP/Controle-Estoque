@@ -428,6 +428,101 @@ def init_db():
     except Exception:
         conn.rollback()
 
+    # Central de Pendências e Ações — gestão operacional integrada ao Cockpit.
+    if IS_PG:
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS pendencias_acoes (
+                id SERIAL PRIMARY KEY,
+                filial TEXT,
+                titulo TEXT NOT NULL,
+                descricao TEXT,
+                responsavel TEXT,
+                prazo TEXT,
+                prioridade TEXT NOT NULL DEFAULT 'MEDIA',
+                status TEXT NOT NULL DEFAULT 'ABERTA',
+                origem TEXT DEFAULT 'MANUAL',
+                criado_por TEXT,
+                criado_em TEXT NOT NULL,
+                atualizado_por TEXT,
+                atualizado_em TEXT NOT NULL,
+                concluido_em TEXT
+            )
+        """)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS pendencia_comentarios (
+                id SERIAL PRIMARY KEY,
+                pendencia_id INTEGER NOT NULL,
+                comentario TEXT NOT NULL,
+                usuario TEXT,
+                data_hora TEXT NOT NULL
+            )
+        """)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS pendencia_evidencias (
+                id SERIAL PRIMARY KEY,
+                pendencia_id INTEGER NOT NULL,
+                titulo TEXT NOT NULL,
+                referencia TEXT,
+                arquivo_nome TEXT,
+                mime_type TEXT,
+                conteudo BYTEA,
+                usuario TEXT,
+                data_hora TEXT NOT NULL
+            )
+        """)
+    else:
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS pendencias_acoes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                filial TEXT,
+                titulo TEXT NOT NULL,
+                descricao TEXT,
+                responsavel TEXT,
+                prazo TEXT,
+                prioridade TEXT NOT NULL DEFAULT 'MEDIA',
+                status TEXT NOT NULL DEFAULT 'ABERTA',
+                origem TEXT DEFAULT 'MANUAL',
+                criado_por TEXT,
+                criado_em TEXT NOT NULL,
+                atualizado_por TEXT,
+                atualizado_em TEXT NOT NULL,
+                concluido_em TEXT
+            )
+        """)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS pendencia_comentarios (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                pendencia_id INTEGER NOT NULL,
+                comentario TEXT NOT NULL,
+                usuario TEXT,
+                data_hora TEXT NOT NULL
+            )
+        """)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS pendencia_evidencias (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                pendencia_id INTEGER NOT NULL,
+                titulo TEXT NOT NULL,
+                referencia TEXT,
+                arquivo_nome TEXT,
+                mime_type TEXT,
+                conteudo BLOB,
+                usuario TEXT,
+                data_hora TEXT NOT NULL
+            )
+        """)
+    conn.commit()
+    for idx_sql in (
+        "CREATE INDEX IF NOT EXISTS idx_pend_filial ON pendencias_acoes (filial)",
+        "CREATE INDEX IF NOT EXISTS idx_pend_status ON pendencias_acoes (status)",
+        "CREATE INDEX IF NOT EXISTS idx_pend_prazo ON pendencias_acoes (prazo)",
+        "CREATE INDEX IF NOT EXISTS idx_pend_resp ON pendencias_acoes (responsavel)",
+    ):
+        try:
+            cur.execute(idx_sql); conn.commit()
+        except Exception:
+            conn.rollback()
+
     # Auditoria de importações e validações de arquivos.
     if IS_PG:
         cur.execute("""
@@ -2525,3 +2620,113 @@ def contar_admins():
     cur.close()
     conn.close()
     return total
+
+
+# ---------------------------------------------------------------------
+# Central de Pendências e Ações
+# ---------------------------------------------------------------------
+
+def listar_pendencias_acoes():
+    conn=get_conn(); cur=get_cursor(conn)
+    cur.execute("SELECT * FROM pendencias_acoes ORDER BY CASE prioridade WHEN 'CRITICA' THEN 1 WHEN 'ALTA' THEN 2 WHEN 'MEDIA' THEN 3 ELSE 4 END, CASE WHEN prazo IS NULL OR prazo='' THEN 1 ELSE 0 END, prazo, id DESC")
+    linhas=[dict(x) for x in cur.fetchall()]
+    cur.close(); conn.close()
+    return linhas
+
+
+def buscar_pendencia_acao(pendencia_id):
+    conn=get_conn(); cur=get_cursor(conn)
+    cur.execute(q("SELECT * FROM pendencias_acoes WHERE id=?"),(int(pendencia_id),))
+    row=cur.fetchone(); out=dict(row) if row else None
+    cur.close(); conn.close(); return out
+
+
+def criar_pendencia_acao(dados, usuario):
+    agora=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    status=str(dados.get('status') or 'ABERTA').strip().upper()
+    prioridade=str(dados.get('prioridade') or 'MEDIA').strip().upper()
+    conn=get_conn(); cur=get_cursor(conn)
+    cur.execute(q("""INSERT INTO pendencias_acoes
+        (filial,titulo,descricao,responsavel,prazo,prioridade,status,origem,criado_por,criado_em,atualizado_por,atualizado_em,concluido_em)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)"""),(
+        str(dados.get('filial') or '').strip(), str(dados.get('titulo') or '').strip(),
+        str(dados.get('descricao') or '').strip(), str(dados.get('responsavel') or '').strip(),
+        str(dados.get('prazo') or '').strip(), prioridade, status,
+        str(dados.get('origem') or 'MANUAL').strip().upper(), usuario, agora, usuario, agora,
+        agora if status=='CONCLUIDA' else None,
+    ))
+    pid=cur.lastrowid
+    if IS_PG and not pid:
+        cur.execute("SELECT currval(pg_get_serial_sequence('pendencias_acoes','id')) AS id"); pid=cur.fetchone()['id']
+    conn.commit(); cur.close(); conn.close(); return buscar_pendencia_acao(pid)
+
+
+def atualizar_pendencia_acao(pendencia_id, dados, usuario):
+    atual=buscar_pendencia_acao(pendencia_id)
+    if not atual: return None
+    agora=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    valores={}
+    for campo in ('filial','titulo','descricao','responsavel','prazo','prioridade','status'):
+        if campo in dados:
+            valores[campo]=str(dados.get(campo) or '').strip()
+    if 'prioridade' in valores: valores['prioridade']=valores['prioridade'].upper()
+    if 'status' in valores: valores['status']=valores['status'].upper()
+    if not valores: return atual
+    sets=[]; params=[]
+    for k,v in valores.items(): sets.append(f"{k}=?"); params.append(v)
+    sets += ['atualizado_por=?','atualizado_em=?']; params += [usuario,agora]
+    novo_status=valores.get('status',str(atual.get('status') or '').upper())
+    if novo_status=='CONCLUIDA' and str(atual.get('status') or '').upper()!='CONCLUIDA':
+        sets.append('concluido_em=?'); params.append(agora)
+    elif novo_status!='CONCLUIDA' and str(atual.get('status') or '').upper()=='CONCLUIDA':
+        sets.append('concluido_em=?'); params.append(None)
+    params.append(int(pendencia_id))
+    conn=get_conn(); cur=get_cursor(conn)
+    cur.execute(q(f"UPDATE pendencias_acoes SET {', '.join(sets)} WHERE id=?"),tuple(params))
+    conn.commit(); cur.close(); conn.close(); return buscar_pendencia_acao(pendencia_id)
+
+
+def excluir_pendencia_acao(pendencia_id):
+    conn=get_conn(); cur=get_cursor(conn)
+    cur.execute(q("DELETE FROM pendencia_comentarios WHERE pendencia_id=?"),(int(pendencia_id),))
+    cur.execute(q("DELETE FROM pendencia_evidencias WHERE pendencia_id=?"),(int(pendencia_id),))
+    cur.execute(q("DELETE FROM pendencias_acoes WHERE id=?"),(int(pendencia_id),))
+    n=cur.rowcount; conn.commit(); cur.close(); conn.close(); return n>0
+
+
+def listar_comentarios_pendencia(pendencia_id):
+    conn=get_conn(); cur=get_cursor(conn)
+    cur.execute(q("SELECT * FROM pendencia_comentarios WHERE pendencia_id=? ORDER BY id DESC"),(int(pendencia_id),))
+    out=[dict(x) for x in cur.fetchall()]; cur.close(); conn.close(); return out
+
+
+def adicionar_comentario_pendencia(pendencia_id, comentario, usuario):
+    agora=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    conn=get_conn(); cur=get_cursor(conn)
+    cur.execute(q("INSERT INTO pendencia_comentarios (pendencia_id,comentario,usuario,data_hora) VALUES (?,?,?,?)"),(int(pendencia_id),str(comentario).strip(),usuario,agora))
+    conn.commit(); cur.close(); conn.close(); return listar_comentarios_pendencia(pendencia_id)
+
+
+def listar_evidencias_pendencia(pendencia_id):
+    conn=get_conn(); cur=get_cursor(conn)
+    cur.execute(q("SELECT id,pendencia_id,titulo,referencia,arquivo_nome,mime_type,usuario,data_hora FROM pendencia_evidencias WHERE pendencia_id=? ORDER BY id DESC"),(int(pendencia_id),))
+    out=[dict(x) for x in cur.fetchall()]; cur.close(); conn.close(); return out
+
+
+def adicionar_evidencia_pendencia(pendencia_id, titulo, referencia, usuario, arquivo_nome=None, mime_type=None, conteudo=None):
+    agora=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    conn=get_conn(); cur=get_cursor(conn)
+    cur.execute(q("INSERT INTO pendencia_evidencias (pendencia_id,titulo,referencia,arquivo_nome,mime_type,conteudo,usuario,data_hora) VALUES (?,?,?,?,?,?,?,?)"),(int(pendencia_id),str(titulo).strip(),str(referencia or '').strip(),arquivo_nome,mime_type,conteudo,usuario,agora))
+    conn.commit(); cur.close(); conn.close(); return listar_evidencias_pendencia(pendencia_id)
+
+
+def obter_arquivo_evidencia(evidencia_id):
+    conn=get_conn(); cur=get_cursor(conn)
+    cur.execute(q("SELECT id,pendencia_id,titulo,arquivo_nome,mime_type,conteudo FROM pendencia_evidencias WHERE id=?"),(int(evidencia_id),))
+    row=cur.fetchone(); out=dict(row) if row else None
+    cur.close(); conn.close(); return out
+
+
+def excluir_evidencia_pendencia(evidencia_id):
+    conn=get_conn(); cur=get_cursor(conn); cur.execute(q("DELETE FROM pendencia_evidencias WHERE id=?"),(int(evidencia_id),)); n=cur.rowcount
+    conn.commit(); cur.close(); conn.close(); return n>0

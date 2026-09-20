@@ -60,7 +60,7 @@ import qrcode
 import db
 
 app = Flask(__name__)
-APP_BUILD = "2026-09-19-cockpit-implantacao-v100"
+APP_BUILD = "2026-09-20-central-pendencias-acoes-v101"
 _DASHBOARD_CACHE = {"expira": 0.0, "dados": None}
 app.secret_key = os.environ.get("SECRET_KEY", "troque-esta-chave-em-producao")
 _RUNNING_HTTPS_HOSTED = bool(
@@ -4020,6 +4020,30 @@ def _dados_cockpit_implantacao(incluir_financeiro=True):
     pepi = _decimal_moeda(db.obter_orcamento_pepi_consolidado(), "0.00") if incluir_financeiro else Decimal("0.00")
     saldo = (pepi - valor_total_faltante).quantize(Decimal("0.01")) if incluir_financeiro else Decimal("0.00")
 
+    # Integração com a Central de Pendências e Ações por filial.
+    pend_central = db.listar_pendencias_acoes()
+    status_fechados = {"CONCLUIDA", "CANCELADA"}
+    hoje_central = datetime.now().date()
+    abertas_por_filial = {}
+    vencidas_por_filial = {}
+    criticas_por_filial = {}
+    for p in pend_central:
+        filial_p = str(p.get("filial") or "").strip()
+        status_p = str(p.get("status") or "ABERTA").strip().upper()
+        if not filial_p or status_p in status_fechados:
+            continue
+        abertas_por_filial[filial_p] = abertas_por_filial.get(filial_p, 0) + 1
+        if str(p.get("prioridade") or "").strip().upper() == "CRITICA":
+            criticas_por_filial[filial_p] = criticas_por_filial.get(filial_p, 0) + 1
+        prazo_p = _parse_data_simples(p.get("prazo"))
+        if prazo_p and prazo_p < hoje_central:
+            vencidas_por_filial[filial_p] = vencidas_por_filial.get(filial_p, 0) + 1
+    for loja in lojas:
+        f = loja.get("filial") or ""
+        loja["acoes_abertas"] = abertas_por_filial.get(f, 0)
+        loja["acoes_vencidas"] = vencidas_por_filial.get(f, 0)
+        loja["acoes_criticas"] = criticas_por_filial.get(f, 0)
+
     projetos = {}
     ufs = {}
     for loja in lojas:
@@ -4042,6 +4066,9 @@ def _dados_cockpit_implantacao(incluir_financeiro=True):
             "valor_faltante": format(valor_total_faltante, ".2f") if incluir_financeiro else None,
             "pepi_disponivel": format(pepi, ".2f") if incluir_financeiro else None,
             "saldo_pepi": format(saldo, ".2f") if incluir_financeiro else None,
+            "acoes_abertas": sum(abertas_por_filial.values()),
+            "acoes_vencidas": sum(vencidas_por_filial.values()),
+            "acoes_criticas": sum(criticas_por_filial.values()),
         },
         "criterios": [
             {"nome": "Término da obra definido", "peso": 15},
@@ -4273,6 +4300,297 @@ def _gerar_pdf_cockpit_implantacao(dados):
             txt="Bloqueios: "+" · ".join(loja.get("bloqueios")[:3]); txt=txt if len(txt)<150 else txt[:147]+"…"; pdf.drawString(margem+5,y0+6,txt)
         y0-=3
     footer(page_no); pdf.save(); buf.seek(0); return buf
+
+
+
+# ---------------------------------------------------------------------
+# Central de Pendências e Ações
+# ---------------------------------------------------------------------
+
+def _parse_data_simples(valor):
+    texto=str(valor or '').strip()
+    if not texto:
+        return None
+    for fmt in ('%Y-%m-%d','%d/%m/%Y'):
+        try:
+            return datetime.strptime(texto[:10],fmt).date()
+        except Exception:
+            pass
+    return None
+
+
+def _dados_central_pendencias(filial=None):
+    hoje=datetime.now().date()
+    linhas=db.listar_pendencias_acoes()
+    if filial:
+        alvo=str(filial).strip().lower()
+        linhas=[x for x in linhas if str(x.get('filial') or '').strip().lower()==alvo]
+    acomp={str(x.get('filial') or '').strip():x for x in db.listar_acompanhamento_expansao()}
+    abertas=[]; vencidas=[]; hoje_arr=[]; proximas=[]; criticas=[]; sem_resp=[]
+    status_fechados={'CONCLUIDA','CANCELADA'}
+    por_status={}; por_prioridade={}; por_responsavel={}
+    for x in linhas:
+        status=str(x.get('status') or 'ABERTA').strip().upper()
+        prioridade=str(x.get('prioridade') or 'MEDIA').strip().upper()
+        prazo=_parse_data_simples(x.get('prazo'))
+        dias=(prazo-hoje).days if prazo else None
+        filial_x=str(x.get('filial') or '').strip()
+        ac=acomp.get(filial_x,{})
+        x['loja']=str(ac.get('descricao_filial') or '').strip()
+        x['projeto']=str(ac.get('projeto') or '').strip().upper()
+        x['uf']=str(ac.get('uf') or '').strip().upper()
+        x['dias_prazo']=dias
+        x['vencida']=bool(status not in status_fechados and dias is not None and dias<0)
+        x['vence_hoje']=bool(status not in status_fechados and dias==0)
+        x['alerta_3d']=bool(status not in status_fechados and dias is not None and 0<dias<=3)
+        x['sem_responsavel']=bool(status not in status_fechados and not str(x.get('responsavel') or '').strip())
+        por_status[status]=por_status.get(status,0)+1
+        por_prioridade[prioridade]=por_prioridade.get(prioridade,0)+1
+        resp=str(x.get('responsavel') or 'Sem responsável').strip() or 'Sem responsável'
+        por_responsavel[resp]=por_responsavel.get(resp,0)+1
+        if status not in status_fechados: abertas.append(x)
+        if x['vencida']: vencidas.append(x)
+        if x['vence_hoje']: hoje_arr.append(x)
+        if x['alerta_3d']: proximas.append(x)
+        if status not in status_fechados and prioridade=='CRITICA': criticas.append(x)
+        if x['sem_responsavel']: sem_resp.append(x)
+    return {
+        'gerado_em':datetime.now().strftime('%d/%m/%Y %H:%M'),
+        'resumo':{
+            'total':len(linhas),'abertas':len(abertas),'vencidas':len(vencidas),'vence_hoje':len(hoje_arr),
+            'proximas_3d':len(proximas),'criticas':len(criticas),'sem_responsavel':len(sem_resp),
+            'concluidas':sum(1 for x in linhas if str(x.get('status') or '').upper()=='CONCLUIDA'),
+        },
+        'alertas':{'vencidas':vencidas,'vence_hoje':hoje_arr,'proximas_3d':proximas,'criticas':criticas,'sem_responsavel':sem_resp},
+        'por_status':por_status,'por_prioridade':por_prioridade,'por_responsavel':dict(sorted(por_responsavel.items(),key=lambda kv:(-kv[1],kv[0]))),
+        'pendencias':linhas,
+    }
+
+
+@app.route('/central-pendencias')
+@login_required
+def pagina_central_pendencias():
+    role=session.get('role') or 'user'
+    if role=='user': role='operador'
+    usuarios=[u.get('username') for u in db.listar_usuarios() if u.get('username')]
+    return render_template('central_pendencias.html',username=session.get('username'),role=role,is_admin=role=='admin',pode_editar=role!='consulta',usuarios=usuarios,dados=_dados_central_pendencias(request.args.get('filial')))
+
+
+@app.route('/api/pendencias', methods=['GET'])
+@login_required
+def api_listar_pendencias():
+    return jsonify(_dados_central_pendencias(request.args.get('filial')))
+
+
+@app.route('/api/pendencias/<int:pendencia_id>', methods=['GET'])
+@login_required
+def api_detalhar_pendencia(pendencia_id):
+    item=db.buscar_pendencia_acao(pendencia_id)
+    if not item: return jsonify({'erro':'Pendência não encontrada.'}),404
+    item['comentarios']=db.listar_comentarios_pendencia(pendencia_id)
+    item['evidencias']=db.listar_evidencias_pendencia(pendencia_id)
+    return jsonify(item)
+
+
+def _validar_pendencia_payload(dados, parcial=False):
+    permit_status={'ABERTA','EM ANDAMENTO','AGUARDANDO','CONCLUIDA','CANCELADA'}
+    permit_prio={'BAIXA','MEDIA','ALTA','CRITICA'}
+    if not parcial and not str(dados.get('titulo') or '').strip(): return 'Informe o título da pendência/ação.'
+    if 'status' in dados and str(dados.get('status') or '').strip().upper() not in permit_status: return 'Status inválido.'
+    if 'prioridade' in dados and str(dados.get('prioridade') or '').strip().upper() not in permit_prio: return 'Prioridade inválida.'
+    prazo=str(dados.get('prazo') or '').strip()
+    if prazo and not _parse_data_simples(prazo): return 'Prazo inválido.'
+    return None
+
+
+@app.route('/api/pendencias', methods=['POST'])
+@role_required('admin','gestor','operador')
+def api_criar_pendencia():
+    dados=request.get_json(silent=True) or {}; erro=_validar_pendencia_payload(dados)
+    if erro: return jsonify({'erro':erro}),400
+    item=db.criar_pendencia_acao(dados,session.get('username'))
+    db.registrar_movimentacao(0,'pendencia_criada','1',session.get('username'),f"Pendência #{item.get('id')} criada para filial {item.get('filial') or '-'}: {item.get('titulo')}",tabela='sistema')
+    return jsonify({'ok':True,'item':item,'dados':_dados_central_pendencias()}),201
+
+
+@app.route('/api/pendencias/<int:pendencia_id>', methods=['PUT'])
+@role_required('admin','gestor','operador')
+def api_atualizar_pendencia(pendencia_id):
+    dados=request.get_json(silent=True) or {}; erro=_validar_pendencia_payload(dados,True)
+    if erro: return jsonify({'erro':erro}),400
+    antes=db.buscar_pendencia_acao(pendencia_id)
+    if not antes: return jsonify({'erro':'Pendência não encontrada.'}),404
+    item=db.atualizar_pendencia_acao(pendencia_id,dados,session.get('username'))
+    mud=[]
+    for c in ('filial','titulo','responsavel','prazo','prioridade','status'):
+        if c in dados and str(antes.get(c) or '')!=str(item.get(c) or ''): mud.append(f"{c}: {antes.get(c) or '-'} → {item.get(c) or '-'}")
+    db.registrar_movimentacao(0,'pendencia_editada','1',session.get('username'),f"Pendência #{pendencia_id} atualizada. "+(' | '.join(mud) or 'Dados atualizados.'),tabela='sistema')
+    return jsonify({'ok':True,'item':item,'dados':_dados_central_pendencias()})
+
+
+@app.route('/api/pendencias/<int:pendencia_id>', methods=['DELETE'])
+@role_required('admin','gestor','operador')
+def api_excluir_pendencia(pendencia_id):
+    item=db.buscar_pendencia_acao(pendencia_id)
+    if not item: return jsonify({'erro':'Pendência não encontrada.'}),404
+    db.excluir_pendencia_acao(pendencia_id)
+    db.registrar_movimentacao(0,'pendencia_excluida','1',session.get('username'),f"Pendência #{pendencia_id} excluída: {item.get('titulo')}",tabela='sistema')
+    return jsonify({'ok':True,'dados':_dados_central_pendencias()})
+
+
+@app.route('/api/pendencias/<int:pendencia_id>/comentarios', methods=['POST'])
+@role_required('admin','gestor','operador')
+def api_comentar_pendencia(pendencia_id):
+    if not db.buscar_pendencia_acao(pendencia_id): return jsonify({'erro':'Pendência não encontrada.'}),404
+    dados=request.get_json(silent=True) or {}; comentario=str(dados.get('comentario') or '').strip()
+    if not comentario: return jsonify({'erro':'Digite o comentário.'}),400
+    arr=db.adicionar_comentario_pendencia(pendencia_id,comentario,session.get('username'))
+    db.registrar_movimentacao(0,'pendencia_comentario','1',session.get('username'),f"Comentário adicionado na pendência #{pendencia_id}.",tabela='sistema')
+    return jsonify({'ok':True,'comentarios':arr})
+
+
+@app.route('/api/pendencias/<int:pendencia_id>/evidencias', methods=['POST'])
+@role_required('admin','gestor','operador')
+def api_evidencia_pendencia(pendencia_id):
+    if not db.buscar_pendencia_acao(pendencia_id): return jsonify({'erro':'Pendência não encontrada.'}),404
+    if request.content_type and 'multipart/form-data' in request.content_type:
+        titulo=str(request.form.get('titulo') or '').strip(); referencia=str(request.form.get('referencia') or '').strip(); arquivo=request.files.get('arquivo')
+    else:
+        dados=request.get_json(silent=True) or {}; titulo=str(dados.get('titulo') or '').strip(); referencia=str(dados.get('referencia') or '').strip(); arquivo=None
+    if not titulo: return jsonify({'erro':'Informe o título/descrição da evidência.'}),400
+    arquivo_nome=None; mime_type=None; conteudo=None
+    if arquivo and arquivo.filename:
+        conteudo=arquivo.read()
+        if len(conteudo)>5*1024*1024: return jsonify({'erro':'O arquivo da evidência deve ter no máximo 5 MB.'}),400
+        arquivo_nome=re.sub(r'[^A-Za-z0-9._() -]+','_',arquivo.filename)[:180]
+        mime_type=(arquivo.mimetype or 'application/octet-stream')[:100]
+    if not referencia and not conteudo: return jsonify({'erro':'Informe uma referência ou selecione um arquivo de evidência.'}),400
+    arr=db.adicionar_evidencia_pendencia(pendencia_id,titulo,referencia,session.get('username'),arquivo_nome,mime_type,conteudo)
+    db.registrar_movimentacao(0,'pendencia_evidencia','1',session.get('username'),f"Evidência adicionada na pendência #{pendencia_id}: {titulo}.",tabela='sistema')
+    return jsonify({'ok':True,'evidencias':arr})
+
+
+@app.route('/pendencias/evidencia/<int:evidencia_id>/arquivo')
+@login_required
+def baixar_arquivo_evidencia(evidencia_id):
+    ev=db.obter_arquivo_evidencia(evidencia_id)
+    if not ev or not ev.get('conteudo'): return jsonify({'erro':'Arquivo de evidência não encontrado.'}),404
+    conteudo=ev.get('conteudo')
+    if isinstance(conteudo,memoryview): conteudo=conteudo.tobytes()
+    return send_file(io.BytesIO(bytes(conteudo)),as_attachment=True,download_name=ev.get('arquivo_nome') or f'evidencia_{evidencia_id}',mimetype=ev.get('mime_type') or 'application/octet-stream')
+
+
+def _gerar_excel_pendencias(dados):
+    wb=Workbook(); ws=wb.active; ws.title='Resumo'
+    azul='234C74'; escuro='172331'; branco='FFFFFF'; cinza='DCE6F0'; amarelo='FFB648'; vermelho='FF6B6B'; verde='4CD792'
+    ws.append(['CENTRAL DE PENDÊNCIAS E AÇÕES']); ws['A1'].font=Font(bold=True,size=16,color=branco); ws['A1'].fill=PatternFill('solid',fgColor=azul); ws.merge_cells('A1:D1')
+    ws.append(['Gerado em',dados.get('gerado_em')]);
+    for k,v in [('Total',dados['resumo']['total']),('Abertas',dados['resumo']['abertas']),('Vencidas',dados['resumo']['vencidas']),('Vence hoje',dados['resumo']['vence_hoje']),('Próximas 3 dias',dados['resumo']['proximas_3d']),('Críticas',dados['resumo']['criticas']),('Sem responsável',dados['resumo']['sem_responsavel']),('Concluídas',dados['resumo']['concluidas'])]: ws.append([k,v])
+    ws.column_dimensions['A'].width=25; ws.column_dimensions['B'].width=28
+    p=wb.create_sheet('Pendências'); headers=['ID','Filial','Loja','Projeto','UF','Título','Descrição','Responsável','Prazo','Dias','Prioridade','Status','Origem','Criado por','Criado em','Atualizado por','Atualizado em']
+    p.append(headers)
+    for c in p[1]: c.font=Font(bold=True,color=branco); c.fill=PatternFill('solid',fgColor=azul); c.alignment=Alignment(horizontal='center')
+    for x in dados['pendencias']:
+        p.append([x.get('id'),x.get('filial'),x.get('loja'),x.get('projeto'),x.get('uf'),x.get('titulo'),x.get('descricao'),x.get('responsavel'),x.get('prazo'),x.get('dias_prazo'),x.get('prioridade'),x.get('status'),x.get('origem'),x.get('criado_por'),x.get('criado_em'),x.get('atualizado_por'),x.get('atualizado_em')])
+    for i,w in enumerate([8,12,28,16,7,32,48,22,13,9,12,18,12,18,20,18,20],1): p.column_dimensions[get_column_letter(i)].width=w
+    p.freeze_panes='A2'; p.auto_filter.ref=p.dimensions
+    c=wb.create_sheet('Comentários'); c.append(['Pendência ID','Filial','Título','Comentário','Usuário','Data/hora'])
+    e=wb.create_sheet('Evidências'); e.append(['Pendência ID','Filial','Título pendência','Evidência','Referência','Arquivo','Usuário','Data/hora'])
+    for sh in (c,e):
+        for cc in sh[1]: cc.font=Font(bold=True,color=branco); cc.fill=PatternFill('solid',fgColor=azul)
+    for x in dados['pendencias']:
+        for cm in db.listar_comentarios_pendencia(x['id']): c.append([x['id'],x.get('filial'),x.get('titulo'),cm.get('comentario'),cm.get('usuario'),cm.get('data_hora')])
+        for ev in db.listar_evidencias_pendencia(x['id']): e.append([x['id'],x.get('filial'),x.get('titulo'),ev.get('titulo'),ev.get('referencia'),ev.get('arquivo_nome'),ev.get('usuario'),ev.get('data_hora')])
+    for sh in (c,e):
+        for col in range(1,sh.max_column+1): sh.column_dimensions[get_column_letter(col)].width=min(52,max(12,max(len(str(sh.cell(r,col).value or '')) for r in range(1,min(sh.max_row,200)+1))+2))
+        sh.freeze_panes='A2'; sh.auto_filter.ref=sh.dimensions
+    a=wb.create_sheet('Alertas'); a.append(['Tipo','ID','Filial','Título','Responsável','Prazo','Prioridade','Status'])
+    for cc in a[1]: cc.font=Font(bold=True,color=branco); cc.fill=PatternFill('solid',fgColor=azul)
+    for nome,chave in [('Vencida','vencidas'),('Vence hoje','vence_hoje'),('Próximos 3 dias','proximas_3d'),('Crítica','criticas'),('Sem responsável','sem_responsavel')]:
+        for x in dados['alertas'][chave]: a.append([nome,x.get('id'),x.get('filial'),x.get('titulo'),x.get('responsavel'),x.get('prazo'),x.get('prioridade'),x.get('status')])
+    for i,w in enumerate([20,8,12,36,22,14,12,18],1): a.column_dimensions[get_column_letter(i)].width=w
+    buf=io.BytesIO(); wb.save(buf); buf.seek(0); return buf
+
+
+def _gerar_pdf_pendencias(dados):
+    buf=io.BytesIO(); pdf=canvas.Canvas(buf,pagesize=landscape(A4)); larg,alt=landscape(A4); margem=14*mm
+    def bg(): pdf.setFillColor(colors.HexColor('#0F151C')); pdf.rect(0,0,larg,alt,stroke=0,fill=1)
+    def footer(pg): pdf.setFillColor(colors.HexColor('#70869B')); pdf.setFont('Helvetica',6.5); pdf.drawString(margem,8*mm,'Developed by Expansão de TI'); pdf.drawRightString(larg-margem,8*mm,f'Página {pg}')
+    def titulo(t,sub): bg(); pdf.setFillColor(colors.white); pdf.setFont('Helvetica-Bold',19); pdf.drawString(margem,alt-margem,t); pdf.setFillColor(colors.HexColor('#9DB3C8')); pdf.setFont('Helvetica',8); pdf.drawString(margem,alt-margem-14,sub); pdf.drawRightString(larg-margem,alt-margem-14,f"Gerado em {dados.get('gerado_em')}")
+    titulo('Central de Pendências e Ações','Responsáveis, prazos, prioridades, status, alertas, comentários e evidências do processo de implantação.')
+    cards=[('Abertas',dados['resumo']['abertas'],'#3EA6FF'),('Vencidas',dados['resumo']['vencidas'],'#FF6B6B'),('Vence hoje',dados['resumo']['vence_hoje'],'#FFB648'),('Próx. 3 dias',dados['resumo']['proximas_3d'],'#A78BFA'),('Críticas',dados['resumo']['criticas'],'#FF6B6B'),('Concluídas',dados['resumo']['concluidas'],'#4CD792')]
+    y=alt-margem-67; gap=8; w=(larg-2*margem-gap*5)/6; h=48
+    for i,(lab,val,cor) in enumerate(cards):
+        x=margem+i*(w+gap); pdf.setFillColor(colors.HexColor('#171F29')); pdf.setStrokeColor(colors.HexColor('#2A3645')); pdf.roundRect(x,y,w,h,7,stroke=1,fill=1); pdf.setFillColor(colors.HexColor('#8EA0B3')); pdf.setFont('Helvetica-Bold',6.8); pdf.drawString(x+8,y+h-14,lab.upper()); pdf.setFillColor(colors.HexColor(cor)); pdf.setFont('Helvetica-Bold',17); pdf.drawString(x+8,y+16,str(val))
+    py=22*mm; ph=y-py-15; pdf.setFillColor(colors.HexColor('#151D27')); pdf.roundRect(margem,py,larg-2*margem,ph,9,stroke=0,fill=1); pdf.setFillColor(colors.white); pdf.setFont('Helvetica-Bold',11); pdf.drawString(margem+12,py+ph-20,'Alertas prioritários')
+    alertas=[]
+    for nome,ch in [('VENCIDA','vencidas'),('VENCE HOJE','vence_hoje'),('CRÍTICA','criticas'),('PRÓX. 3 DIAS','proximas_3d'),('SEM RESPONSÁVEL','sem_responsavel')]:
+        for x in dados['alertas'][ch]: alertas.append((nome,x))
+    cy=py+ph-42
+    for nome,x in alertas[:12]:
+        cor='#FF6B6B' if nome in ('VENCIDA','CRÍTICA') else '#FFB648' if nome=='VENCE HOJE' else '#A78BFA'
+        pdf.setFillColor(colors.HexColor('#1B2531')); pdf.roundRect(margem+12,cy-12,larg-2*margem-24,21,4,stroke=0,fill=1); pdf.setFillColor(colors.HexColor(cor)); pdf.setFont('Helvetica-Bold',7); pdf.drawString(margem+20,cy-1,nome); pdf.setFillColor(colors.HexColor('#DCE6F0')); pdf.setFont('Helvetica',7); txt=f"#{x.get('id')} · Filial {x.get('filial') or '-'} · {x.get('titulo')} · Resp.: {x.get('responsavel') or 'Não definido'} · Prazo: {x.get('prazo') or '-'}"; pdf.drawString(margem+85,cy-1,txt[:145]); cy-=25
+    footer(1); pdf.showPage()
+    cols=[('ID',26),('Filial',42),('Loja',110),('Título',150),('Responsável',82),('Prazo',55),('Dias',35),('Prior.',48),('Status',72),('Comentários',50),('Evid.',35)]; tw=sum(x[1] for x in cols); rh=20; pg=2
+    def head():
+        titulo('Detalhamento das Pendências','Situação completa das ações cadastradas, com integração por filial ao Cockpit de Implantação.'); yy=alt-margem-42; pdf.setFillColor(colors.HexColor('#234C74')); pdf.roundRect(margem,yy,tw,20,4,stroke=0,fill=1); pdf.setFillColor(colors.white); pdf.setFont('Helvetica-Bold',6.5); cx=margem
+        for h,wc in cols: pdf.drawString(cx+3,yy+6,h); cx+=wc
+        return yy-3
+    yy=head()
+    for x in dados['pendencias']:
+        if yy-rh<18*mm: footer(pg); pdf.showPage(); pg+=1; yy=head()
+        yy-=rh; pdf.setFillColor(colors.HexColor('#182230')); pdf.roundRect(margem,yy,tw,rh-1,3,stroke=0,fill=1); vals=[x.get('id'),x.get('filial'),x.get('loja'),x.get('titulo'),x.get('responsavel'),x.get('prazo'),x.get('dias_prazo'),x.get('prioridade'),x.get('status'),len(db.listar_comentarios_pendencia(x['id'])),len(db.listar_evidencias_pendencia(x['id']))]; cx=margem
+        for (h,wc),v in zip(cols,vals):
+            txt=str(v if v not in (None,'') else '-'); maxc=max(4,int((wc-6)/4.2)); txt=txt if len(txt)<=maxc else txt[:maxc-1]+'…'; pdf.setFillColor(colors.HexColor('#FF6B6B' if h=='Dias' and isinstance(v,int) and v<0 else '#DCE6F0')); pdf.setFont('Helvetica-Bold' if h in ('Prior.','Status') else 'Helvetica',6.2); pdf.drawString(cx+3,yy+7,txt); cx+=wc
+        yy-=3
+    footer(pg)
+    # Páginas finais: comentários e evidências completos para auditoria.
+    registros_detalhe=[]
+    for x in dados['pendencias']:
+        comentarios=db.listar_comentarios_pendencia(x['id']); evidencias=db.listar_evidencias_pendencia(x['id'])
+        if comentarios or evidencias: registros_detalhe.append((x,comentarios,evidencias))
+    if registros_detalhe:
+        pdf.showPage(); pg+=1; titulo('Comentários e Evidências','Histórico textual e referências anexadas a cada pendência/ação.')
+        yy=alt-margem-43
+        def linhas_texto(txt,maxc=118):
+            txt=str(txt or '').replace('\n',' ').strip(); palavras=txt.split(); linhas=[]; atual=''
+            for pal in palavras:
+                teste=(atual+' '+pal).strip()
+                if len(teste)>maxc and atual: linhas.append(atual); atual=pal
+                else: atual=teste
+            if atual: linhas.append(atual)
+            return linhas or ['-']
+        for x,comentarios,evidencias in registros_detalhe:
+            necessidade=31 + 13*min(4,len(comentarios)+len(evidencias))
+            if yy-necesidade<18*mm:
+                footer(pg); pdf.showPage(); pg+=1; titulo('Comentários e Evidências','Continuação do histórico de auditoria das ações.'); yy=alt-margem-43
+            pdf.setFillColor(colors.HexColor('#1B2531')); pdf.roundRect(margem,yy-22,larg-2*margem,24,5,stroke=0,fill=1); pdf.setFillColor(colors.white); pdf.setFont('Helvetica-Bold',8); pdf.drawString(margem+8,yy-8,f"#{x.get('id')} · Filial {x.get('filial') or '-'} · {str(x.get('titulo') or '')[:90]}"); yy-=29
+            for label,arr in [('Comentário',comentarios),('Evidência',evidencias)]:
+                for item in arr:
+                    texto=item.get('comentario') if label=='Comentário' else f"{item.get('titulo') or ''} | Ref.: {item.get('referencia') or '-'} | Arquivo: {item.get('arquivo_nome') or '-'}"
+                    linhas=linhas_texto(texto)[:3]
+                    altura=12+8*len(linhas)
+                    if yy-altura<18*mm:
+                        footer(pg); pdf.showPage(); pg+=1; titulo('Comentários e Evidências','Continuação do histórico de auditoria das ações.'); yy=alt-margem-43
+                    pdf.setFillColor(colors.HexColor('#151D27')); pdf.roundRect(margem+8,yy-altura+2,larg-2*margem-16,altura,4,stroke=0,fill=1); pdf.setFillColor(colors.HexColor('#3EA6FF' if label=='Comentário' else '#A78BFA')); pdf.setFont('Helvetica-Bold',6.7); pdf.drawString(margem+14,yy-7,label.upper()); pdf.setFillColor(colors.HexColor('#DCE6F0')); pdf.setFont('Helvetica',6.4)
+                    ly=yy-16
+                    for ln in linhas: pdf.drawString(margem+14,ly,ln[:120]); ly-=8
+                    pdf.setFillColor(colors.HexColor('#7E93A8')); pdf.setFont('Helvetica',5.8); pdf.drawRightString(larg-margem-14,yy-7,f"{item.get('usuario') or '-'} · {item.get('data_hora') or ''}"); yy-=altura+4
+            yy-=5
+        footer(pg)
+    pdf.save(); buf.seek(0); return buf
+
+
+@app.route('/export-pendencias')
+@role_required('admin','gestor','operador')
+def exportar_pendencias():
+    dados=_dados_central_pendencias(); return send_file(_gerar_excel_pendencias(dados),as_attachment=True,download_name=f"central_pendencias_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx",mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+
+
+@app.route('/pdf-pendencias')
+@role_required('admin','gestor','operador')
+def relatorio_pdf_pendencias():
+    dados=_dados_central_pendencias(); return send_file(_gerar_pdf_pendencias(dados),as_attachment=True,download_name=f"central_pendencias_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",mimetype='application/pdf')
 
 
 @app.route("/export-cockpit-implantacao")

@@ -69,3 +69,11 @@ Consulte `AGENTE_IA_CONFIGURACAO.txt` para o passo a passo.
 - Indicadores de lojas Prontas, Atenção e Críticas, bloqueios, unidades/itens faltantes e impacto financeiro estimado.
 - Filtros por filial, situação, projeto e UF, com atalho para abrir a filial no Acompanhamento de Expansão.
 - Relatórios completos Excel e PDF disponíveis no Cockpit e na Central de Relatórios.
+
+## v101 — Central de Pendências e Ações
+- Nova aba Central de Pendências e Ações integrada ao Cockpit de Implantação.
+- Cadastro de ação por filial com responsável, prazo, prioridade e status.
+- Comentários cronológicos e evidências com referência e arquivo (até 5 MB), persistidos no banco.
+- Alertas automáticos para vencidas, vencendo hoje, próximas de 3 dias, críticas e sem responsável.
+- Cockpit exibe ações abertas/vencidas por filial e atalho para criar ação vinculada à loja.
+- Relatórios completos em Excel (Resumo, Pendências, Comentários, Evidências e Alertas) e PDF executivo no padrão do sistema.
