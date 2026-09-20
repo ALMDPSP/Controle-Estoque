@@ -114,3 +114,6 @@ Configuração principal: `PENDENCIA_ALERT_DAYS=7`, `PENDENCIA_WEEKLY_WEEKDAY=0`
 - Desativados os processamentos automáticos, resumo semanal, endpoints e Cron de notificações externas.
 - Os campos **E-mail** e **WhatsApp** continuam disponíveis para cadastro e edição na Gestão de Usuários.
 - Os dados de contato e o histórico antigo de notificações permanecem preservados no banco.
+
+## Atualização v110
+No Cockpit de Implantação, a data de Entrada TI continua visível, mas o contador de dias foi removido apenas desse campo. O contador de Inauguração permanece inalterado.
