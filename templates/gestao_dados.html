@@ -8,7 +8,7 @@
 .expurgo{display:flex;gap:10px;align-items:end;flex-wrap:wrap}.expurgo label{display:grid;gap:5px;color:var(--muted);font-size:11px}.expurgo input{width:130px;padding:9px;border:1px solid var(--line);border-radius:8px;background:var(--panel2);color:var(--text)}button.danger-btn{padding:9px 12px;border:1px solid var(--danger);border-radius:8px;background:transparent;color:var(--danger);cursor:pointer;font-weight:700}button.secondary{padding:9px 12px;border:1px solid var(--line);border-radius:8px;background:var(--panel2);color:var(--text);cursor:pointer}.expurgo-status{margin:12px 0 0;color:var(--muted);font-size:11px}
 </style>
 {% include '_mobile_head.html' %}
-</head><body>
+</head><body class="app-standard">
 <header><span class="tag">Administração</span><h1>Gestão de Dados</h1><p>{% if pode_gerenciar_dados %}Administrador · saúde do sistema, integridade da base, backups, exportações e histórico de importações.{% else %}Modo Consulta · visualização da saúde, integridade e histórico da base. Alterações administrativas permanecem bloqueadas.{% endif %}</p></header>
 {% include '_menu.html' %}
 <main>

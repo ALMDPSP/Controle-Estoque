@@ -117,3 +117,15 @@ Configuração principal: `PENDENCIA_ALERT_DAYS=7`, `PENDENCIA_WEEKLY_WEEKDAY=0`
 
 ## Atualização v110
 No Cockpit de Implantação, a data de Entrada TI continua visível, mas o contador de dias foi removido apenas desse campo. O contador de Inauguração permanece inalterado.
+
+
+## v111 — Bloqueios focados na inauguração
+- No Cockpit de Implantação, a coluna de bloqueios mostra somente riscos que podem comprometer a data de inauguração.
+- Considera data de inauguração ausente/vencida, obra, Entrada TI, equipamentos e estoque quando representarem risco à inauguração.
+
+
+## v112 — Padronização visual e de ações
+- Layout de cabeçalho padronizado nas abas operacionais.
+- Barra de ações única para Relatório Excel, Relatório PDF e Importar Excel.
+- Estoque, Imobilizados, Filiais, Projeção, Acompanhamento, Cockpit e Orçamento alinhados ao mesmo padrão.
+- Modais de importação usam os mesmos botões e nomenclatura.

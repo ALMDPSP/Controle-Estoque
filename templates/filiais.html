@@ -20,9 +20,15 @@ dialog{border:1px solid var(--line);background:var(--panel);color:var(--text);bo
 </style>
 {% include '_mobile_head.html' %}
 </head>
-<body>
+<body class="app-standard">
 <header><span class="tag">Destinos</span><h1>Cadastro de Filiais</h1><p>Cadastre, consulte, importe, filtre e gerencie as lojas que alimentam automaticamente a Projeção de abertura e lojas.</p></header>
 {% include '_menu.html' %}
+<div class="app-action-strip" aria-label="Ações da aba Filiais">
+  {% if role in ['admin','gestor','operador','user'] %}<button type="button" class="ui-btn ui-btn-primary" id="btn-cadastro-manual">＋ Cadastrar loja</button>{% endif %}
+  {% if role != 'consulta' %}<a class="ui-btn ui-btn-excel" href="{{ url_for('exportar_filiais_excel') }}">▣ Relatório Excel</a>{% endif %}
+  {% if role in ['admin','gestor','operador','user'] %}<button type="button" class="ui-btn ui-btn-import" id="btn-upload-filiais">↑ Importar Excel</button>{% endif %}
+  <a class="ui-btn ui-btn-secondary" href="{{ url_for('pagina_projecao_lojas') }}">Projeção de Lojas</a>
+</div>
 <main>
 <section class="panel" id="cadastro-manual"><h2>Cadastro manual de loja</h2>
 <p style="margin:-6px 0 14px;color:var(--muted);font-size:11px">Inclua uma loja diretamente pela tela usando os mesmos campos já utilizados pelo cadastro de Filiais. Registros sincronizados pelo Acompanhamento de Expansão também podem ser complementados aqui com a cidade.</p>
@@ -58,10 +64,6 @@ dialog{border:1px solid var(--line);background:var(--panel);color:var(--text);bo
 </div>
 
 <div class="toolbar-actions">
-  {% if role in ['admin','gestor','operador','user'] %}<button type="button" class="primary" id="btn-cadastro-manual">＋ Cadastrar loja manualmente</button>{% endif %}
-  {% if role != 'consulta' %}<a class="download" href="{{ url_for('exportar_filiais_excel') }}">↓ Download Excel</a>{% endif %}
-  {% if role in ['admin','gestor','operador','user'] %}<button type="button" class="upload" id="btn-upload-filiais">↑ Importar Excel</button>{% endif %}
-  <a href="{{ url_for('pagina_projecao_lojas') }}">Abrir projeção de lojas</a>
   {% if role in ['admin','gestor','operador','user'] %}<button type="button" class="danger-fill" id="btn-excluir-selecionadas" style="display:none">Excluir selecionadas</button>{% endif %}
   <span class="toolbar-spacer"></span>
   <span class="selection-count" id="selection-count"></span>
@@ -98,10 +100,10 @@ dialog{border:1px solid var(--line);background:var(--panel);color:var(--text);bo
         <input id="importar-filiais-senha" type="password" autocomplete="current-password" required>
       </div>
     </form>
-    <div class="dlg-actions">
-      <button type="button" class="btn-ghost" id="importar-filiais-cancelar">Cancelar</button>
-      <button type="button" class="btn-ghost" id="importar-filiais-validar">Validar planilha</button>
-      <button type="button" class="btn-primary" id="importar-filiais-enviar">Importar</button>
+    <div class="dlg-actions ui-import-actions">
+      <button type="button" class="ui-btn ui-btn-secondary" id="importar-filiais-cancelar">Cancelar</button>
+      <button type="button" class="ui-btn ui-btn-secondary" id="importar-filiais-validar">Validar planilha</button>
+      <button type="button" class="ui-btn ui-btn-import" id="importar-filiais-enviar">Importar Excel</button>
     </div>
   </div>
 </dialog>

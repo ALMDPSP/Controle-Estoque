@@ -3984,8 +3984,39 @@ def _dados_cockpit_implantacao(incluir_financeiro=True):
         else:
             faixa = "CRITICA"
 
+        # Exibição executiva: somente possíveis bloqueios que podem comprometer a inauguração.
+        bloqueios_inauguracao = []
+        term_iso = _data_acompanhamento_iso(item.get("term_obra"))
+        if not inaug_iso:
+            bloqueios_inauguracao.append("Data de inauguração não definida")
+        elif dias_inaug is not None and dias_inaug < 0:
+            bloqueios_inauguracao.append(f"Data de inauguração vencida há {abs(dias_inaug)} dia(s)")
+
+        if not term_ok:
+            bloqueios_inauguracao.append("Término da obra não definido")
+        elif term_iso and inaug_iso and term_iso > inaug_iso:
+            bloqueios_inauguracao.append("Término da obra posterior à inauguração")
+
+        if not entrada_iso:
+            bloqueios_inauguracao.append("Entrada de TI sem data")
+        elif inaug_iso and entrada_iso > inaug_iso:
+            bloqueios_inauguracao.append("Entrada de TI posterior à inauguração")
+
+        if not equip_ok:
+            bloqueios_inauguracao.append("Equipamentos não separados")
+        elif not enviada_ok:
+            bloqueios_inauguracao.append("Equipamentos ainda não enviados")
+        elif not separacao_ok:
+            bloqueios_inauguracao.append("Separação ainda não concluída")
+
+        if faltantes:
+            bloqueios_inauguracao.append(f"Estoque insuficiente: {sum(x['quantidade'] for x in faltantes)} unidade(s)")
+
+        # Remove duplicidades preservando a ordem de prioridade.
+        bloqueios_inauguracao = list(dict.fromkeys(bloqueios_inauguracao))
+
         filial = str(item.get("filial") or "").strip()
-        for b in bloqueios:
+        for b in bloqueios_inauguracao:
             bloqueios_detalhe.append({"filial": filial, "loja": str(item.get("descricao_filial") or ""), "bloqueio": b})
 
         lojas.append({
@@ -4012,8 +4043,8 @@ def _dados_cockpit_implantacao(incluir_financeiro=True):
             "itens_faltantes": len(faltantes),
             "unidades_faltantes": sum(x["quantidade"] for x in faltantes),
             "faltantes": faltantes,
-            "bloqueios": bloqueios,
-            "bloqueios_total": len(bloqueios),
+            "bloqueios": bloqueios_inauguracao,
+            "bloqueios_total": len(bloqueios_inauguracao),
             "valor_faltante": format(valor_loja, ".2f") if incluir_financeiro else None,
             "observacao_ti": str(item.get("observacao_ti") or "").strip(),
         })
@@ -4093,7 +4124,7 @@ def _gerar_excel_cockpit_implantacao(dados):
         ("Readiness médio", f"{resumo.get('readiness_medio',0)}%"),
         ("Itens faltantes", resumo.get("itens_faltantes")),
         ("Unidades faltantes", resumo.get("unidades_faltantes")),
-        ("Bloqueios", resumo.get("bloqueios")),
+        ("Possíveis bloqueios na inauguração", resumo.get("bloqueios")),
     ]
     if dados.get("financeiro_disponivel"):
         linhas_resumo += [
@@ -4110,7 +4141,7 @@ def _gerar_excel_cockpit_implantacao(dados):
     ws.column_dimensions["B"].width = 20
 
     lojas_ws = wb.create_sheet("Lojas")
-    headers = ["Filial","Loja","Bandeira","UF","Projeto","Readiness %","Faixa","Término obra","Enviada","Em Separação","Equip. separado","Entrada TI","Dias p/ TI","Inauguração","Dias p/ inaug.","Estoque","Itens faltantes","Unid. faltantes","Bloqueios"]
+    headers = ["Filial","Loja","Bandeira","UF","Projeto","Readiness %","Faixa","Término obra","Enviada","Em Separação","Equip. separado","Entrada TI","Dias p/ TI","Inauguração","Dias p/ inaug.","Estoque","Itens faltantes","Unid. faltantes","Possíveis bloqueios na inauguração"]
     if dados.get("financeiro_disponivel"):
         headers.append("Valor faltante")
     for c, h in enumerate(headers, 1):
@@ -4145,8 +4176,8 @@ def _gerar_excel_cockpit_implantacao(dados):
     falt_ws.freeze_panes="A2"; falt_ws.auto_filter.ref=falt_ws.dimensions
     for i,w in enumerate([12,34,14,38,15,16,16,16],1): falt_ws.column_dimensions[get_column_letter(i)].width=w
 
-    bloq_ws = wb.create_sheet("Bloqueios")
-    bh=["Filial","Loja","Bloqueio"]
+    bloq_ws = wb.create_sheet("Bloqueios inauguração")
+    bh=["Filial","Loja","Possível bloqueio para inauguração"]
     for c,h in enumerate(bh,1):
         cell=bloq_ws.cell(1,c,h); cell.font=Font(bold=True,color=branco); cell.fill=PatternFill("solid",fgColor=azul)
     for r_idx, item in enumerate(dados.get("bloqueios") or [],2):
@@ -4217,9 +4248,9 @@ def _gerar_pdf_cockpit_implantacao(dados):
 
     pdf.setFillColor(colors.HexColor("#151D27")); pdf.setStrokeColor(colors.HexColor("#2A3645")); pdf.roundRect(right_x,panel_y,right_w,panel_h,10,stroke=1,fill=1)
     pdf.setFillColor(colors.white); pdf.setFont("Helvetica-Bold",11); pdf.drawString(right_x+12,panel_y+panel_h-21,"Riscos consolidados")
-    pdf.setFillColor(colors.HexColor("#9DB3C8")); pdf.setFont("Helvetica",7.3); pdf.drawString(right_x+12,panel_y+panel_h-33,"Bloqueios e necessidade de equipamentos para o pipeline atual.")
+    pdf.setFillColor(colors.HexColor("#9DB3C8")); pdf.setFont("Helvetica",7.3); pdf.drawString(right_x+12,panel_y+panel_h-33,"Possíveis bloqueios que podem comprometer a data de inauguração.")
     metrics=[
-        ("Bloqueios mapeados",resumo.get("bloqueios",0),"#FFB648"),
+        ("Bloqueios de inauguração",resumo.get("bloqueios",0),"#FFB648"),
         ("Itens do kit faltantes",resumo.get("itens_faltantes",0),"#A78BFA"),
         ("Unidades faltantes",resumo.get("unidades_faltantes",0),"#FF6B6B"),
         ("Inauguradas",resumo.get("inauguradas",0),"#4CD792"),
@@ -4244,7 +4275,7 @@ def _gerar_pdf_cockpit_implantacao(dados):
     if dados.get("financeiro_disponivel"): cols.append(("Valor",62))
     table_w=sum(w for _,w in cols); row_h=20
     def header_detail():
-        titulo_pagina("Detalhamento do Cockpit de Implantação","Situação por loja pendente, com marcos operacionais, estoque e bloqueios.")
+        titulo_pagina("Detalhamento do Cockpit de Implantação","Situação por loja pendente, com marcos operacionais, estoque e possíveis bloqueios para inauguração.")
         y0=alt-margem-42
         pdf.setFillColor(colors.HexColor("#234C74")); pdf.roundRect(margem,y0,table_w,20,4,stroke=0,fill=1)
         pdf.setFillColor(colors.white); pdf.setFont("Helvetica-Bold",6.6); cx=margem
@@ -4274,7 +4305,7 @@ def _gerar_pdf_cockpit_implantacao(dados):
         if loja.get("bloqueios"):
             y0-=15; pdf.setFillColor(colors.HexColor("#101923")); pdf.roundRect(margem,y0+2,table_w,12,3,stroke=0,fill=1)
             pdf.setFillColor(colors.HexColor("#91A7BD")); pdf.setFont("Helvetica",6.1)
-            txt="Bloqueios: "+" · ".join(loja.get("bloqueios")[:3]); txt=txt if len(txt)<150 else txt[:147]+"…"; pdf.drawString(margem+5,y0+6,txt)
+            txt="Possíveis bloqueios: "+" · ".join(loja.get("bloqueios")[:3]); txt=txt if len(txt)<150 else txt[:147]+"…"; pdf.drawString(margem+5,y0+6,txt)
         y0-=3
     footer(page_no); pdf.save(); buf.seek(0); return buf
 

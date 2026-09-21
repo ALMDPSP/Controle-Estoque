@@ -12,12 +12,17 @@
 </style>
 {% include '_mobile_head.html' %}
 </head>
-<body>
+<body class="app-standard">
 <header>
   <div><span class="tag">Financeiro · Expansão</span><h1>Orçamento</h1><p>Planejamento de compra com código, descrição e custo vindos diretamente do Cadastro de Produtos, cruzados com Kit Padrão, estoque de Expansão e projeção de lojas a inaugurar.</p></div>
   {% if pode_gerenciar_orcamento %}<span class="validation">Edição liberada · {{ {'admin':'Administrador','gestor':'Gestor','operador':'Operador','user':'Operador'}.get(role,'Operador') }}</span>{% else %}<span class="validation">Visualização · Consulta</span>{% endif %}
 </header>
 {% include '_menu.html' %}
+<div class="app-action-strip" aria-label="Ações do Orçamento">
+  <a class="ui-btn ui-btn-excel" href="{{ url_for('exportar_orcamento_excel') }}">▣ Relatório Excel</a>
+  <a class="ui-btn ui-btn-pdf" href="{{ url_for('relatorio_pdf_orcamento') }}">▣ Relatório PDF</a>
+  <a class="ui-btn ui-btn-secondary" href="{{ url_for('pagina_produtos') }}">Cadastro de Produtos</a>
+</div>
 <main>
   <section class="pepi-panel">
     <div class="panel">
@@ -56,7 +61,7 @@
         <h2>Sugestão de Pedido de Compra</h2>
         <p>Lista recomendada para atender as lojas a serem inauguradas sem comprar o que já está disponível no estoque de Expansão.</p>
       </div>
-      <div class="pedido-actions"><a class="btn" href="{{ url_for('exportar_orcamento_excel') }}">Relatório Excel</a><a class="btn" href="{{ url_for('relatorio_pdf_orcamento') }}">Relatório PDF</a><button id="copiar-pedido">Copiar sugestão</button><button id="atualizar-pedido" class="primary">Recalcular pedido</button></div>
+      <div class="pedido-actions"><button id="copiar-pedido">Copiar sugestão</button><button id="atualizar-pedido" class="primary">Recalcular pedido</button></div>
     </div>
     <div class="pedido-cards">
       <div class="pedido-kpi"><span>Lojas atendidas</span><strong id="pedido-lojas">0</strong></div>

@@ -22,20 +22,20 @@ main{padding:24px 32px 54px;max-width:1450px;margin:auto}.kpis{display:grid;grid
 @media print{.app-menu,.head-actions{display:none!important}body{background:#fff;color:#111}.box,.kpi{border:1px solid #ccc;background:#fff!important;color:#111!important}.map-static-wrap{background:#f4f6f8!important}.dashboard-grid{grid-template-columns:1fr}.table-wrap{max-height:none;overflow:visible}.updated,.legend-row,.tip-box p,.ranking-note,header p,.kpi small{color:#666!important}}
   </style>
 </head>
-<body>
+<body class="app-standard">
 <header>
   <div>
     <span class="tag">PROJEÇÃO</span>
     <h1>Projeção de abertura e lojas</h1>
     <p>Visão consolidada por estado com lojas ativas, inaugurações planejadas, pendências e distribuição por bandeira.</p>
   </div>
-  <div class="head-actions">
-    <a href="{{ url_for('pagina_filiais') }}">Gerenciar filiais</a>
-    {% if role != 'consulta' %}<a class="primary" href="{{ url_for('exportar_projecao_lojas') }}">Exportar Excel</a>
-    <a href="{{ url_for('exportar_projecao_lojas_pdf') }}">Baixar PDF</a>{% endif %}
-  </div>
 </header>
 {% include '_menu.html' %}
+<div class="app-action-strip" aria-label="Ações da Projeção de Lojas">
+  {% if role != 'consulta' %}<a class="ui-btn ui-btn-excel" href="{{ url_for('exportar_projecao_lojas') }}">▣ Relatório Excel</a>
+  <a class="ui-btn ui-btn-pdf" href="{{ url_for('exportar_projecao_lojas_pdf') }}">▣ Relatório PDF</a>{% endif %}
+  <a class="ui-btn ui-btn-secondary" href="{{ url_for('pagina_filiais') }}">Gerenciar Filiais</a>
+</div>
 <main>
   <section class="kpis">
     <div class="kpi total"><span class="kpi-label">Total geral</span><strong id="k-total">0</strong><small>Ativas + inaugurar + pendentes</small></div>

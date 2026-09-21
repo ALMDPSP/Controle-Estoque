@@ -52,8 +52,6 @@ body{overflow-x:hidden}header{padding-left:16px!important;padding-right:16px!imp
     <a href="#" class="app-admin-locked" data-admin-only="Gestão de Dados" title="Gestão de Dados disponível somente para Administrador">🔒 Gestão de Dados</a>
     {% endif %}
     {% if is_admin %}<a href="{{ url_for('pagina_usuarios') }}" class="{{ 'ativo' if request.endpoint == 'pagina_usuarios' else '' }}">Gestão de Usuários</a>{% endif %}
-    {% if request.endpoint == 'index' and role != 'consulta' %}<a href="/export">⭳ Excel</a><a href="#" id="abrir-importar">⭱ Importar</a>{% endif %}
-    {% if request.endpoint == 'pagina_imobilizados' and role != 'consulta' %}<a href="/export-imobilizados">⭳ Excel</a><a href="#" id="abrir-importar">⭱ Importar</a>{% endif %}
   </div>
   <div class="app-menu-right">
     <div class="global-search-wrap">

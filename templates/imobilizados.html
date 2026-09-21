@@ -332,7 +332,7 @@
 </style>
 {% include '_mobile_head.html' %}
 </head>
-<body>
+<body class="app-standard">
 
 <header>
   <div>
@@ -356,6 +356,14 @@
 <div id="sync-bar" style="text-align:center; font-size:11px; color:var(--muted); padding:6px 0; font-family:var(--mono); background:var(--panel-2); border-bottom:1px solid var(--line);">
   <span id="sync-status">conectado — dados compartilhados em tempo real</span>
 </div>
+
+{% if role != 'consulta' %}
+<div class="app-action-strip" aria-label="Ações da aba Imobilizados">
+  <a class="ui-btn ui-btn-excel" href="/export-imobilizados">▣ Relatório Excel</a>
+  <button type="button" class="ui-btn ui-btn-import" id="abrir-importar">↑ Importar Excel</button>
+  <a class="ui-btn ui-btn-secondary" href="{{ url_for('pagina_relatorios') }}">Central de Relatórios</a>
+</div>
+{% endif %}
 
 <main>
 
@@ -880,10 +888,10 @@
         <input id="importar-senha" type="password" required>
       </div>
     </form>
-    <div class="dlg-actions">
-      <button type="button" class="btn-ghost" id="importar-cancel">Cancelar</button>
-      <button type="button" class="btn-ghost" id="importar-validar">Validar planilha</button>
-      <button type="button" class="btn-primary" id="importar-enviar">Importar</button>
+    <div class="dlg-actions ui-import-actions">
+      <button type="button" class="ui-btn ui-btn-secondary" id="importar-cancel">Cancelar</button>
+      <button type="button" class="ui-btn ui-btn-secondary" id="importar-validar">Validar planilha</button>
+      <button type="button" class="ui-btn ui-btn-import" id="importar-enviar">Importar Excel</button>
     </div>
   </div>
 </dialog>

@@ -9,7 +9,7 @@
 <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}?v=4">
 <script>
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => navigator.serviceWorker.register('/service-worker.js?v=47').catch(() => {}));
+  window.addEventListener('load', () => navigator.serviceWorker.register('/service-worker.js?v=48').catch(() => {}));
 }
 </script>
 <style>
@@ -147,4 +147,92 @@ input,select,textarea,button{max-width:100%}
   main{padding-left:10px!important;padding-right:10px!important}
   .panel,.card{padding-left:12px!important;padding-right:12px!important}
 }
+</style>
+
+
+<style id="alm-ui-standard-v112">
+/* Padrão visual compartilhado das telas operacionais */
+body.app-standard>header{
+  padding:26px 32px 18px!important;
+  border-bottom:1px solid var(--line,#2b3444)!important;
+  display:flex!important;
+  justify-content:space-between!important;
+  align-items:flex-end!important;
+  gap:14px!important;
+  flex-wrap:wrap!important;
+  background:transparent!important;
+}
+body.app-standard>header .tag,
+body.app-standard>header .brand .tag{
+  display:inline-flex!important;
+  align-items:center!important;
+  min-height:24px!important;
+  padding:3px 8px!important;
+  border:1px solid var(--accent-2,var(--accent2,#ffb648))!important;
+  border-radius:4px!important;
+  background:transparent!important;
+  color:var(--accent-2,var(--accent2,#ffb648))!important;
+  font:700 11px var(--mono,Consolas,monospace)!important;
+  letter-spacing:.10em!important;
+  text-transform:uppercase!important;
+}
+body.app-standard>header h1{font-size:23px!important;line-height:1.2!important;margin:7px 0 3px!important;font-weight:650!important;letter-spacing:0!important}
+body.app-standard>header p{margin:0!important;color:var(--muted,#8b96a8)!important;font-size:13px!important;line-height:1.5!important;max-width:900px}
+body.app-standard .panel{border-radius:12px}
+
+/* Barra única para ações de cada aba */
+.app-action-strip{
+  max-width:1500px;
+  margin:0 auto;
+  padding:12px 32px 0;
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex-wrap:wrap;
+}
+.app-action-strip .app-action-note{margin-right:auto;color:var(--muted,#8b96a8);font-size:10px;line-height:1.4}
+.ui-btn{
+  min-height:38px!important;
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  gap:7px!important;
+  padding:8px 12px!important;
+  border:1px solid var(--line,#2b3444)!important;
+  border-radius:8px!important;
+  background:var(--panel-2,var(--panel2,#212934))!important;
+  color:var(--text,#e7ebf1)!important;
+  text-decoration:none!important;
+  font:700 11px "Segoe UI",Inter,system-ui,sans-serif!important;
+  line-height:1.15!important;
+  cursor:pointer!important;
+  white-space:nowrap!important;
+  box-shadow:none!important;
+}
+.ui-btn:hover{border-color:#526079!important;filter:brightness(1.06)}
+.ui-btn:disabled{opacity:.45!important;cursor:not-allowed!important;filter:none!important}
+.ui-btn-excel{color:var(--ok,#4cd792)!important;border-color:rgba(76,215,146,.38)!important;background:rgba(76,215,146,.08)!important}
+.ui-btn-pdf{color:#ff9b9b!important;border-color:rgba(255,107,107,.38)!important;background:rgba(255,107,107,.08)!important}
+.ui-btn-import{color:var(--accent-2,var(--accent2,#ffb648))!important;border-color:rgba(255,182,72,.40)!important;background:rgba(255,182,72,.08)!important}
+.ui-btn-primary{background:var(--accent,#3ea6ff)!important;border-color:var(--accent,#3ea6ff)!important;color:#08131f!important}
+.ui-btn-danger{color:var(--danger,#ff6b6b)!important;border-color:rgba(255,107,107,.42)!important;background:rgba(255,107,107,.08)!important}
+.ui-btn-secondary{color:var(--text,#e7ebf1)!important}
+
+/* Mesmo padrão dentro de modais de importação */
+.ui-import-actions{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;margin-top:16px}
+
+@media(max-width:850px){
+  body.app-standard>header{padding:20px 16px 15px!important}
+  .app-action-strip{padding:10px 12px 0}
+  .app-action-strip .app-action-note{width:100%;margin-right:0}
+  .ui-btn{min-height:42px!important}
+}
+@media(max-width:600px){
+  .app-action-strip{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .app-action-strip .app-action-note{grid-column:1/-1}
+  .app-action-strip .ui-btn{width:100%!important;white-space:normal!important;text-align:center}
+  .ui-import-actions{display:grid;grid-template-columns:1fr}
+  .ui-import-actions .ui-btn{width:100%!important}
+}
+@media(max-width:390px){.app-action-strip{grid-template-columns:1fr}}
 </style>

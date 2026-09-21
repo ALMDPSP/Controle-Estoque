@@ -13,7 +13,7 @@
 </style>
 {% include '_mobile_head.html' %}
 </head>
-<body>
+<body class="app-standard">
 <header><div><span class="tag">Dashboard</span><h1>Visão geral do estoque</h1><p>Resumo executivo, alertas de expansão, meta de inauguração salva na simulação e movimentações recentes.</p></div><div class="head-actions">{% if role != 'consulta' %}<a href="{{ url_for('gerar_backup') }}" id="btn-backup-dashboard">Gerar backup agora</a><a href="{{ url_for('pagina_relatorios') }}">Central de relatórios</a>{% endif %}<a class="primary" href="{{ url_for('index') }}">Abrir Estoque</a><div class="backup-status" id="backup-status"></div></div></header>
 {% include '_menu.html' %}
 <main>

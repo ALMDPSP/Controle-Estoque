@@ -29,19 +29,19 @@ main{padding:26px 32px 60px;max-width:1500px;margin:0 auto}.kpis{display:grid;gr
 @media(max-width:650px){.edit-grid{grid-template-columns:1fr}.edit-grid .full{grid-column:auto}}
 </style>
 </head>
-<body>
+<body class="app-standard">
 <header>
   <div><span class="tag">EXPANSÃO</span><h1>Acompanhamento de Expansão</h1><p>Visão consolidada do cronograma de obra, entrada de TI e inauguração, com acompanhamento de entregas e projeção geral de alcance.</p></div>
-  <div class="head-actions">
-    <span style="font-size:10px;color:var(--muted);align-self:center">Alterações desta aba sincronizam automaticamente com Filiais.</span>
-    <button type="button" id="btn-macro-cronograma">◫ Visualizar Entrada de TI e Inauguração</button>
-    {% if role != 'consulta' %}<a href="{{ url_for('relatorio_pdf_acompanhamento_expansao') }}">⭳ Relatório PDF</a>
-    <a href="{{ url_for('exportar_acompanhamento_expansao') }}">⭳ Download Excel</a>{% endif %}
-    {% if role != 'consulta' %}<button type="button" id="btn-upload">⭱ Upload Excel</button>{% endif %}
-    <a href="{{ url_for('pagina_projecao_lojas') }}">Projeção de abertura</a>
-  </div>
+  <div class="head-actions"><span style="font-size:10px;color:var(--muted);align-self:center">Alterações desta aba sincronizam automaticamente com Filiais.</span></div>
 </header>
 {% include '_menu.html' %}
+<div class="app-action-strip" aria-label="Ações do Acompanhamento de Expansão">
+  {% if role != 'consulta' %}<a class="ui-btn ui-btn-excel" href="{{ url_for('exportar_acompanhamento_expansao') }}">▣ Relatório Excel</a>
+  <a class="ui-btn ui-btn-pdf" href="{{ url_for('relatorio_pdf_acompanhamento_expansao') }}">▣ Relatório PDF</a>
+  <button type="button" class="ui-btn ui-btn-import" id="btn-upload">↑ Importar Excel</button>{% endif %}
+  <button type="button" class="ui-btn ui-btn-secondary" id="btn-macro-cronograma">Visualizar Entrada de TI e Inauguração</button>
+  <a class="ui-btn ui-btn-secondary" href="{{ url_for('pagina_projecao_lojas') }}">Projeção de abertura</a>
+</div>
 <main>
   <section class="kpis">
     <div class="kpi total"><span>Total acompanhado</span><strong id="k-total">0</strong><small>Filiais/projetos na base</small></div>
@@ -200,7 +200,7 @@ main{padding:26px 32px 60px;max-width:1500px;margin:0 auto}.kpis{display:grid;gr
       <label for="upload-pass">Sua senha</label>
       <input type="password" id="upload-pass" autocomplete="current-password" required placeholder="Confirme sua senha">
       <div class="modal-status" id="upload-status"></div>
-      <div class="modal-actions"><button type="button" id="upload-cancel">Cancelar</button><button type="button" id="upload-validate">Validar planilha</button><button type="submit" class="primary" id="upload-send">Importar planilha</button></div>
+      <div class="modal-actions ui-import-actions"><button type="button" class="ui-btn ui-btn-secondary" id="upload-cancel">Cancelar</button><button type="button" class="ui-btn ui-btn-secondary" id="upload-validate">Validar planilha</button><button type="submit" class="ui-btn ui-btn-import" id="upload-send">Importar Excel</button></div>
     </form>
   </div>
 </div>
