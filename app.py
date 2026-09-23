@@ -64,7 +64,7 @@ import qrcode
 import db
 
 app = Flask(__name__)
-APP_BUILD = "2026-09-20-envio-manual-usuarios-v105"
+APP_BUILD = "2026-09-23-baixa-estoque-filial-v113"
 _DASHBOARD_CACHE = {"expira": 0.0, "dados": None}
 app.secret_key = os.environ.get("SECRET_KEY", "troque-esta-chave-em-producao")
 _RUNNING_HTTPS_HOSTED = bool(
@@ -932,6 +932,47 @@ def api_busca_global():
 def _normalizar_exec(valor):
     texto=unicodedata.normalize("NFD",str(valor or "").strip().lower())
     return "".join(c for c in texto if unicodedata.category(c)!="Mn")
+
+
+CAMPOS_OBRIGATORIOS_BAIXA_ENVIO = [
+    ("nf_saida", "NF de saída"),
+    ("data_saida", "Data de saída"),
+    ("filial_destino", "Filial / destino"),
+    ("nro_imobilizado", "Nº imobilizado"),
+    ("nro_serie", "Nº série"),
+    ("nro_patrimonio", "Nº patrimônio"),
+]
+
+def _preparar_baixa_envio_item(item_antes, dados):
+    """Valida e normaliza uma baixa definitiva do Estoque para uma filial.
+
+    Cada linha do Estoque representa uma unidade. Ao salvar Status=Enviado,
+    a unidade sai do saldo (qtde=0), mas permanece cadastrada para auditoria
+    e para compor a ficha da filial de destino.
+    """
+    item_antes = item_antes or {}
+    dados = dict(dados or {})
+    combinado = dict(item_antes)
+    combinado.update(dados)
+    if _normalizar_exec(combinado.get("status")) != "enviado":
+        return dados, None
+
+    faltantes = [rotulo for campo, rotulo in CAMPOS_OBRIGATORIOS_BAIXA_ENVIO if not str(combinado.get(campo) or "").strip()]
+    if faltantes:
+        return dados, (
+            "Para gravar o item como Enviado e dar baixa no estoque, preencha: "
+            + ", ".join(faltantes) + "."
+        )
+
+    codigo_filial = str(combinado.get("filial_destino") or "").strip()
+    if not db.buscar_filial_por_codigo(codigo_filial):
+        return dados, "A filial / destino informada não foi encontrada no cadastro de Filiais."
+
+    dados["status"] = "Enviado"
+    dados["qtde"] = "0"
+    for campo, _rotulo in CAMPOS_OBRIGATORIOS_BAIXA_ENVIO:
+        dados[campo] = str(combinado.get(campo) or "").strip()
+    return dados, None
 
 def _data_acompanhamento_iso(valor):
     """Converte datas do Acompanhamento para ISO quando possível."""
@@ -2007,15 +2048,77 @@ def pagina_filiais():
 @app.route("/filiais/<int:filial_id>")
 @login_required
 def pagina_filial_detalhe(filial_id):
-    filial=db.buscar_filial_por_id(filial_id)
+    filial = db.buscar_filial_por_id(filial_id)
     if not filial:
         return redirect(url_for("pagina_filiais"))
-    codigo=str(filial.get("codigo") or "")
-    itens=[x for x in db.listar_itens() if str(x.get("filial_destino") or "")==codigo]
-    imobs=[x for x in db.listar_imobilizados() if str(x.get("filial_destino") or "")==codigo]
-    visao=_calcular_visao_executiva()
-    proj=next((x for x in visao.get("planejadas",[]) if int(x.get("id") or 0)==filial_id),None)
-    return render_template("filial_detalhe.html",filial=filial,itens=itens,imobs=imobs,projecao=proj,username=session.get("username"),role=session.get("role") or "user",is_admin=session.get("role")=="admin")
+
+    codigo = str(filial.get("codigo") or "").strip()
+    itens = [x for x in db.listar_itens() if str(x.get("filial_destino") or "").strip() == codigo]
+    imobs = [x for x in db.listar_imobilizados() if str(x.get("filial_destino") or "").strip() == codigo]
+    enviados = [x for x in itens if _normalizar_exec(x.get("status")) == "enviado"]
+    kit = db.listar_kit_padrao_loja()
+
+    # Cruza o Kit padrão da loja com as unidades efetivamente baixadas do Estoque.
+    # Primeiro usa código; quando o Kit não tem código, usa a descrição normalizada.
+    ids_usados = set()
+    kit_filial = []
+    total_necessario = 0
+    total_atendido = 0
+    for k in kit:
+        try:
+            necessario = max(1, int(float(k.get("quantidade") or 1)))
+        except Exception:
+            necessario = 1
+        codigo_k = str(k.get("codigo") or "").strip()
+        desc_k = _normalizar_exec(k.get("descricao"))
+        candidatos = []
+        for item in enviados:
+            iid = item.get("id")
+            if iid in ids_usados:
+                continue
+            codigo_i = str(item.get("codigo") or "").strip()
+            desc_i = _normalizar_exec(item.get("descricao"))
+            combina = bool(codigo_k and codigo_i == codigo_k)
+            if not codigo_k:
+                combina = bool(desc_k and desc_i and (desc_k == desc_i or desc_k in desc_i or desc_i in desc_k))
+            if combina:
+                candidatos.append(item)
+        candidatos.sort(key=lambda x: (str(x.get("data_saida") or ""), int(x.get("id") or 0)))
+        for item in candidatos:
+            ids_usados.add(item.get("id"))
+        enviados_qtd = len(candidatos)
+        atendido = min(necessario, enviados_qtd)
+        faltam = max(0, necessario - enviados_qtd)
+        status_kit = "Completo" if faltam == 0 else ("Parcial" if enviados_qtd else "Pendente")
+        total_necessario += necessario
+        total_atendido += atendido
+        kit_filial.append({
+            "codigo": codigo_k,
+            "descricao": str(k.get("descricao") or "Item sem descrição"),
+            "necessario": necessario,
+            "enviados": enviados_qtd,
+            "faltam": faltam,
+            "status": status_kit,
+            "itens": candidatos,
+        })
+
+    itens_extras = [x for x in enviados if x.get("id") not in ids_usados]
+    totais_kit = {
+        "necessario": total_necessario,
+        "atendido": total_atendido,
+        "faltam": max(0, total_necessario - total_atendido),
+        "completos": sum(1 for x in kit_filial if x.get("status") == "Completo"),
+        "linhas": len(kit_filial),
+    }
+
+    visao = _calcular_visao_executiva()
+    proj = next((x for x in visao.get("planejadas", []) if int(x.get("id") or 0) == filial_id), None)
+    return render_template(
+        "filial_detalhe.html", filial=filial, itens=itens, imobs=imobs, enviados=enviados,
+        kit_filial=kit_filial, itens_extras=itens_extras, totais_kit=totais_kit, projecao=proj,
+        username=session.get("username"), role=session.get("role") or "user",
+        is_admin=session.get("role") == "admin"
+    )
 
 
 @app.route("/projecao-lojas")
@@ -5936,7 +6039,6 @@ def api_editar_imobilizados_em_lote():
     codigo_alvo, campos, erro = _preparar_edicao_massa_por_codigo(payload)
     if erro:
         return jsonify({"erro": erro}), 400
-
     registros = [
         item for item in (db.listar_imobilizados() or [])
         if str(item.get("codigo") or "").strip() == codigo_alvo
@@ -6277,6 +6379,10 @@ def api_criar():
     erro_obrigatorios = _validar_campos_obrigatorios_cadastro(dados)
     if erro_obrigatorios:
         return jsonify({"erro": erro_obrigatorios}), 400
+    if _normalizar_exec(dados.get("status")) == "enviado":
+        return jsonify({
+            "erro": "Para enviar um item a uma filial, cadastre-o primeiro no estoque e depois use a ação 'Baixa de estoque'."
+        }), 400
 
     base = {
         "codigo": codigo,
@@ -6324,6 +6430,10 @@ def api_atualizar(item_id):
     if not item_antes:
         return jsonify({"erro": "Item não encontrado."}), 404
 
+    dados, erro_baixa = _preparar_baixa_envio_item(item_antes, dados)
+    if erro_baixa:
+        return jsonify({"erro": erro_baixa}), 400
+
     dados["atualizado_por"] = session.get("username")
     dados["atualizado_em"] = datetime.now().strftime("%Y-%m-%d %H:%M")
     ok = db.atualizar_item(item_id, dados)
@@ -6340,7 +6450,12 @@ def api_atualizar(item_id):
         if qtde_antes is not None and qtde_depois < qtde_antes:
             diferenca = qtde_antes - qtde_depois
             if dados.get("nf_saida"):
-                obs = f"Saída registrada (NF {dados.get('nf_saida')}, destino: {dados.get('filial_destino') or dados.get('vd_loja') or '-'})"
+                obs = (
+                    f"Baixa de estoque / envio para filial "
+                    f"(NF {dados.get('nf_saida')}, destino: {dados.get('filial_destino') or dados.get('vd_loja') or '-'}, "
+                    f"imobilizado: {dados.get('nro_imobilizado') or '-'}, série: {dados.get('nro_serie') or '-'}, "
+                    f"patrimônio: {dados.get('nro_patrimonio') or '-'})"
+                )
                 tipo_mov = "saida"
             else:
                 obs = "Retirada de estoque"
@@ -6367,6 +6482,10 @@ def api_editar_itens_em_lote():
     codigo_alvo, campos, erro = _preparar_edicao_massa_por_codigo(payload)
     if erro:
         return jsonify({"erro": erro}), 400
+    if _normalizar_exec(campos.get("status")) == "enviado":
+        return jsonify({
+            "erro": "O status Enviado não pode ser aplicado em massa. Use 'Baixa de estoque' por unidade para informar NF, data, filial, Nº imobilizado, Nº série e Nº patrimônio."
+        }), 400
 
     registros = [
         item for item in (db.listar_itens() or [])

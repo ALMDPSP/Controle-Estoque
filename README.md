@@ -129,3 +129,12 @@ No Cockpit de Implantação, a data de Entrada TI continua visível, mas o conta
 - Barra de ações única para Relatório Excel, Relatório PDF e Importar Excel.
 - Estoque, Imobilizados, Filiais, Projeção, Acompanhamento, Cockpit e Orçamento alinhados ao mesmo padrão.
 - Modais de importação usam os mesmos botões e nomenclatura.
+
+## v113 — Baixa de estoque e consumo por filial
+- No Estoque, a ação **Baixa de estoque** transforma a unidade em **Enviado** e zera a quantidade do saldo.
+- A baixa exige **NF de saída, Data de saída, Filial/destino, Nº imobilizado, Nº série e Nº patrimônio**.
+- O envio em massa para status Enviado é bloqueado para preservar os identificadores únicos de cada unidade.
+- A aba **Filiais > Abrir** cruza os itens enviados com o **Kit padrão da loja** e mostra status Completo, Parcial ou Pendente.
+- A ficha da filial passa a exibir também o espelho completo dos dados do grid de Estoque vinculados à filial.
+- O registro baixado permanece no banco para histórico e auditoria, mas deixa de compor o saldo disponível do Estoque.
+

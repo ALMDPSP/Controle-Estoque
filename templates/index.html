@@ -619,8 +619,8 @@
           <option value=""></option>
           <option value="Reservado">Reservado</option>
           <option value="Separado">Separado</option>
-          <option value="Enviado">Enviado</option>
         </select>
+        <small style="display:block;margin-top:5px;color:var(--muted);font-size:10px;line-height:1.35;">Para enviar à filial, salve o item em estoque e use <strong>Baixa de estoque</strong>.</small>
       </div>
       <div class="field">
         <label for="tipo_estoque">Tipo de Estoque *</label>
@@ -914,39 +914,54 @@
   </div>
 </dialog>
 
-<dialog id="edit-dialog">
+<dialog id="edit-dialog" style="width:min(650px,94vw);">
   <div class="dlg-body">
-    <h3>Registrar saída do item</h3>
+    <h3>Baixa de estoque · Envio para filial</h3>
     <input type="hidden" id="edit-id">
-    <p style="margin:0 0 14px; font-size:13px; color:var(--muted);">
-      Quantidade atual: <strong id="edit-qtde-atual" style="color:var(--text);">0</strong>
+    <p style="margin:0 0 14px; font-size:13px; color:var(--muted); line-height:1.5;">
+      Ao confirmar, esta unidade será marcada como <strong style="color:var(--accent);">Enviado</strong> e a quantidade ficará <strong>0</strong> no saldo do Estoque. O registro continuará disponível para auditoria e será exibido na filial de destino.
     </p>
-    <div class="field">
-      <label for="edit-qtde_saida">Quantidade que está saindo</label>
-      <input id="edit-qtde_saida" type="number" min="1" step="1" placeholder="Ex: 2">
-    </div>
-    <p style="margin:-6px 0 14px; font-size:13px; color:var(--muted);">
-      Ficará em estoque: <strong id="edit-qtde-resultado" style="color:var(--accent);">0</strong>
-    </p>
-    <div class="field">
-      <label for="edit-nf_saida">NF de saída</label>
-      <input id="edit-nf_saida" placeholder="Nº nota fiscal">
-    </div>
-    <div class="field">
-      <label for="edit-data_saida">Data de saída</label>
-      <input id="edit-data_saida" type="date">
-    </div>
-    <div class="field">
-      <label for="edit-vd_loja">VD / referência de saída</label>
-      <input id="edit-vd_loja" placeholder="VD / responsável / observação">
-    </div>
-    <div class="field">
-      <label for="edit-filial_destino">Filial / destino</label>
-      <select id="edit-filial_destino"><option value="">Selecione a filial...</option></select>
+    <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 14px;">
+      <div class="field">
+        <label>Quantidade atual</label>
+        <input id="edit-qtde-atual-input" readonly>
+      </div>
+      <div class="field">
+        <label>Status após a baixa</label>
+        <input value="Enviado" readonly>
+      </div>
+      <div class="field">
+        <label for="edit-nf_saida">NF de saída *</label>
+        <input id="edit-nf_saida" placeholder="Nº nota fiscal" required>
+      </div>
+      <div class="field">
+        <label for="edit-data_saida">Data de saída *</label>
+        <input id="edit-data_saida" type="date" required>
+      </div>
+      <div class="field" style="grid-column:1/-1;">
+        <label for="edit-filial_destino">Filial / destino *</label>
+        <select id="edit-filial_destino" required><option value="">Selecione a filial...</option></select>
+      </div>
+      <div class="field">
+        <label for="edit-nro_imobilizado">Nº imobilizado *</label>
+        <input id="edit-nro_imobilizado" placeholder="Nº imobilizado" required>
+      </div>
+      <div class="field">
+        <label for="edit-nro_serie">Nº série *</label>
+        <input id="edit-nro_serie" placeholder="Nº série" required>
+      </div>
+      <div class="field">
+        <label for="edit-nro_patrimonio">Nº patrimônio *</label>
+        <input id="edit-nro_patrimonio" placeholder="Nº patrimônio" required>
+      </div>
+      <div class="field">
+        <label for="edit-vd_loja">VD / referência de saída</label>
+        <input id="edit-vd_loja" placeholder="VD / responsável / observação">
+      </div>
     </div>
     <div class="dlg-actions">
       <button type="button" class="btn-ghost" id="edit-cancel">Cancelar</button>
-      <button type="button" class="btn-primary" id="edit-save">Confirmar saída</button>
+      <button type="button" class="btn-primary" id="edit-save">Confirmar baixa e enviar</button>
     </div>
   </div>
 </dialog>
@@ -1123,7 +1138,7 @@
       </div>
       <div class="field">
         <label><input type="checkbox" class="bulk-enable" data-field="status" data-target="bulk-status"> Alterar status</label>
-        <select id="bulk-status" disabled><option value=""></option><option value="Reservado">Reservado</option><option value="Separado">Separado</option><option value="Enviado">Enviado</option></select>
+        <select id="bulk-status" disabled><option value=""></option><option value="Reservado">Reservado</option><option value="Separado">Separado</option></select><small style="display:block;margin-top:5px;color:var(--muted);font-size:10px;">Envio é feito por unidade em “Baixa de estoque”.</small>
       </div>
       <div class="field">
         <label><input type="checkbox" class="bulk-enable" data-field="tipo_estoque" data-target="bulk-tipo_estoque"> Alterar tipo de estoque</label>
@@ -1347,7 +1362,7 @@ function renderizar(){
       <td class="linha-acoes">
         <div class="row-actions">
           ${PODE_EDITAR && !saiu ? `<button class="btn-ghost" onclick="abrirQtde(${it.id}, ${qtdeAtual})">Retirar do estoque</button>` : ''}
-          ${PODE_EDITAR && !saiu ? `<button class="btn-ghost" onclick="abrirSaida(${it.id}, ${qtdeAtual})">Registrar saída</button>` : ''}
+          ${PODE_EDITAR && !saiu ? `<button class="btn-ghost" onclick="abrirSaida(${it.id}, ${qtdeAtual})">Baixa de estoque</button>` : ''}
           ${PODE_EDITAR ? `<button class="btn-ghost" onclick="abrirEdicaoCompleta(${it.id})">Editar</button>` : ''}
           <button class="btn-ghost" onclick="abrirHistorico(${it.id})">Histórico</button>
           ${PODE_EDITAR ? `<button class="btn-ghost" onclick="excluirItem(${it.id})">Excluir</button>` : ''}
@@ -2609,67 +2624,57 @@ buscaInput.addEventListener('input', () => { itensExibidos = PAGINA_TAMANHO; ren
 const dialog = document.getElementById('edit-dialog');
 let qtdeAtualSaida = 0;
 function abrirSaida(id, qtdeAtual){
+  const item = (itensCache || []).find(i => Number(i.id) === Number(id));
   qtdeAtualSaida = Number(qtdeAtual) || 0;
   document.getElementById('edit-id').value = id;
-  document.getElementById('edit-qtde-atual').textContent = qtdeAtualSaida;
-  document.getElementById('edit-qtde_saida').value = '';
-  document.getElementById('edit-qtde-resultado').textContent = qtdeAtualSaida;
-  document.getElementById('edit-nf_saida').value = '';
-  document.getElementById('edit-data_saida').value = new Date().toISOString().slice(0,10);
-  document.getElementById('edit-vd_loja').value = '';
-  document.getElementById('edit-filial_destino').value = '';
+  document.getElementById('edit-qtde-atual-input').value = String(qtdeAtualSaida);
+  document.getElementById('edit-nf_saida').value = item?.nf_saida || '';
+  document.getElementById('edit-data_saida').value = item?.data_saida || new Date().toISOString().slice(0,10);
+  document.getElementById('edit-vd_loja').value = item?.vd_loja || '';
+  document.getElementById('edit-filial_destino').value = item?.filial_destino || '';
+  document.getElementById('edit-nro_imobilizado').value = item?.nro_imobilizado || '';
+  document.getElementById('edit-nro_serie').value = item?.nro_serie || '';
+  document.getElementById('edit-nro_patrimonio').value = item?.nro_patrimonio || '';
   dialog.showModal();
-  document.getElementById('edit-qtde_saida').focus();
+  document.getElementById('edit-nf_saida').focus();
 }
-document.getElementById('edit-qtde_saida').addEventListener('input', (e) => {
-  const saindo = Number(e.target.value) || 0;
-  const resultado = Math.max(0, qtdeAtualSaida - saindo);
-  document.getElementById('edit-qtde-resultado').textContent = resultado;
-});
 document.getElementById('edit-cancel').addEventListener('click', () => dialog.close());
 document.getElementById('edit-save').addEventListener('click', async () => {
   const id = document.getElementById('edit-id').value;
-  const qtdeSaida = Number(document.getElementById('edit-qtde_saida').value);
-  if(!qtdeSaida || qtdeSaida <= 0){
-    alert('Digite quantos itens estão saindo (um número maior que zero).');
-    return;
-  }
-  if(qtdeSaida > qtdeAtualSaida){
-    alert(`Você não pode dar saída em mais do que a quantidade atual (${qtdeAtualSaida}).`);
-    return;
-  }
-  const itemAntes = itensCache.find(i => i.id === Number(id));
-  const valoresAnteriores = itemAntes ? {
-    qtde: itemAntes.qtde, nf_saida: itemAntes.nf_saida,
-    data_saida: itemAntes.data_saida, vd_loja: itemAntes.vd_loja, filial_destino: itemAntes.filial_destino,
-  } : null;
-  const novaQtde = qtdeAtualSaida - qtdeSaida;
+  const itemAntes = (itensCache || []).find(i => Number(i.id) === Number(id));
   const dados = {
-    qtde: String(novaQtde),
-    nf_saida: document.getElementById('edit-nf_saida').value,
+    status: 'Enviado',
+    qtde: '0',
+    nf_saida: document.getElementById('edit-nf_saida').value.trim(),
     data_saida: document.getElementById('edit-data_saida').value,
-    vd_loja: document.getElementById('edit-vd_loja').value,
+    vd_loja: document.getElementById('edit-vd_loja').value.trim(),
     filial_destino: document.getElementById('edit-filial_destino').value,
+    nro_imobilizado: document.getElementById('edit-nro_imobilizado').value.trim(),
+    nro_serie: document.getElementById('edit-nro_serie').value.trim(),
+    nro_patrimonio: document.getElementById('edit-nro_patrimonio').value.trim(),
   };
+  const obrigatorios = [
+    ['nf_saida','NF de saída'], ['data_saida','Data de saída'], ['filial_destino','Filial / destino'],
+    ['nro_imobilizado','Nº imobilizado'], ['nro_serie','Nº série'], ['nro_patrimonio','Nº patrimônio']
+  ];
+  const faltantes = obrigatorios.filter(([campo]) => !String(dados[campo] || '').trim()).map(([,rotulo]) => rotulo);
+  if(faltantes.length){
+    alert(`Para dar baixa e enviar, preencha: ${faltantes.join(', ')}.`);
+    return;
+  }
+  if(!confirm('Confirmar a baixa desta unidade do Estoque e vinculá-la à filial selecionada?')) return;
   const res = await fetch(`/api/itens/${id}`, {
     method: 'PUT',
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify(dados)
   });
+  const resposta = await res.json().catch(() => ({}));
   if(res.ok){
     dialog.close();
-    carregarItens();
-    if(valoresAnteriores){
-      mostrarToast(`Saída de ${qtdeSaida} registrada.`, async () => {
-        await fetch(`/api/itens/${id}`, {
-          method: 'PUT',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify(valoresAnteriores)
-        });
-      });
-    }
+    await carregarItens();
+    mostrarToast(`Baixa concluída. Item enviado para a filial ${formatarFilialDestino(dados.filial_destino) || dados.filial_destino}.`);
   } else {
-    alert('Erro ao registrar saída.');
+    alert(resposta.erro || 'Erro ao registrar a baixa de estoque.');
   }
 });
 
@@ -3101,6 +3106,18 @@ document.getElementById('fe-save').addEventListener('click', async () => {
     val_aquis: document.getElementById('fe-val_aquis').value,
     chamado: document.getElementById('fe-chamado').value,
   };
+  if(String(dados.status || '').toLowerCase() === 'enviado'){
+    const obrigatoriosEnvio = [
+      ['nf_saida','NF de saída'], ['data_saida','Data de saída'], ['filial_destino','Filial / destino'],
+      ['nro_imobilizado','Nº imobilizado'], ['nro_serie','Nº série'], ['nro_patrimonio','Nº patrimônio']
+    ];
+    const faltantesEnvio = obrigatoriosEnvio.filter(([campo]) => !String(dados[campo] || '').trim()).map(([,rotulo]) => rotulo);
+    if(faltantesEnvio.length){
+      alert(`Status Enviado dá baixa automática no estoque. Preencha: ${faltantesEnvio.join(', ')}.`);
+      return;
+    }
+    dados.qtde = '0';
+  }
   const res = await fetch(`/api/itens/${id}`, {
     method: 'PUT',
     headers: {'Content-Type': 'application/json'},
