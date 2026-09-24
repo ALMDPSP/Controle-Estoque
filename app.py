@@ -64,7 +64,7 @@ import qrcode
 import db
 
 app = Flask(__name__)
-APP_BUILD = "2026-09-23-baixa-estoque-filial-v113"
+APP_BUILD = "2026-09-24-agente-ia-fallback-v114"
 _DASHBOARD_CACHE = {"expira": 0.0, "dados": None}
 app.secret_key = os.environ.get("SECRET_KEY", "troque-esta-chave-em-producao")
 _RUNNING_HTTPS_HOSTED = bool(
@@ -6999,7 +6999,7 @@ def api_excluir_usuario(user_id):
 # Agente IA — consultas seguras, somente leitura
 # ---------------------------------------------------------------------
 
-GROQ_DEFAULT_MODEL = "qwen/qwen3.6-27b"
+GROQ_DEFAULT_MODEL = "qwen/qwen3.8-27b"
 GEMINI_DEFAULT_MODEL = "gemini-3.5-flash-lite"
 CLOUDFLARE_DEFAULT_MODEL = "@cf/google/gemma-4-26b-a4b-it"
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
@@ -7007,7 +7007,8 @@ GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/openai/chat/c
 AI_MAX_HISTORY = 10
 AI_MAX_TOOL_ROUNDS = 6
 AI_MAX_OUTPUT_TOKENS = 1200
-AI_PROVIDER_TIMEOUT = 45
+AI_PROVIDER_TIMEOUT = 8
+AI_TOTAL_TIMEOUT = 25
 
 
 def _agente_role():
@@ -7407,7 +7408,19 @@ def api_agente_ia_status():
 
 
 def _groq_model():
-    return os.environ.get("GROQ_MODEL", GROQ_DEFAULT_MODEL).strip() or GROQ_DEFAULT_MODEL
+    modelo = os.environ.get("GROQ_MODEL", GROQ_DEFAULT_MODEL).strip() or GROQ_DEFAULT_MODEL
+    # Migração automática de modelos Groq já descontinuados. Isso evita que
+    # uma variável antiga no Render derrube o Agente IA após uma depreciação.
+    migracoes = {
+        "qwen/qwen3.6-27b": "qwen/qwen3.8-27b",
+        "qwen/qwen3-32b": "openai/gpt-oss-120b",
+        "meta-llama/llama-4-scout-17b-16e-instruct": "openai/gpt-oss-120b",
+        "llama-3.1-8b-instant": "openai/gpt-oss-20b",
+        "llama-3.3-70b-versatile": "openai/gpt-oss-120b",
+        "groq/compound": "openai/gpt-oss-120b",
+        "groq/compound-mini": "openai/gpt-oss-20b",
+    }
+    return migracoes.get(modelo, modelo)
 
 
 def _gemini_model():
@@ -7423,8 +7436,12 @@ def _cloudflare_api_url():
     return f"https://api.cloudflare.com/client/v4/accounts/{account_id}/ai/v1/chat/completions"
 
 
-def _provider_chat(url, api_key, payload, provider_name):
-    """Chamada HTTPS OpenAI-compatible para Groq, Gemini e Cloudflare."""
+def _provider_chat(url, api_key, payload, provider_name, timeout=None):
+    """Chamada HTTPS OpenAI-compatible para Groq, Gemini e Cloudflare.
+
+    Cada provedor recebe um timeout curto para preservar tempo para o fallback.
+    O limite global da conversa é controlado separadamente pela rota do agente.
+    """
     corpo = json.dumps(payload, ensure_ascii=False).encode("utf-8")
     req = urlrequest.Request(
         url,
@@ -7433,10 +7450,11 @@ def _provider_chat(url, api_key, payload, provider_name):
         headers={
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
-            "User-Agent": "Controle-Estoque-Agente-IA/75",
+            "User-Agent": "Controle-Estoque-Agente-IA/114",
         },
     )
-    with urlrequest.urlopen(req, timeout=AI_PROVIDER_TIMEOUT) as resp:
+    limite = AI_PROVIDER_TIMEOUT if timeout is None else max(1, float(timeout))
+    with urlrequest.urlopen(req, timeout=limite) as resp:
         return json.loads(resp.read().decode("utf-8"))
 
 
@@ -7487,12 +7505,14 @@ def _agente_base_mensagens(pergunta, historico, role):
     return mensagens
 
 
-def _agente_loop_openai_compat(provider, api_url, api_key, model, pergunta, historico, role):
+def _agente_loop_openai_compat(provider, api_url, api_key, model, pergunta, historico, role, deadline=None):
     mensagens = _agente_base_mensagens(pergunta, historico, role)
     tools = _agente_tools(role)
     ferramentas_usadas = []
 
     for _ in range(AI_MAX_TOOL_ROUNDS):
+        if deadline is not None and time.monotonic() >= deadline:
+            raise TimeoutError(f"Tempo total do Agente IA esgotado durante {provider}")
         payload = {
             "model": model,
             "messages": mensagens,
@@ -7506,7 +7526,13 @@ def _agente_loop_openai_compat(provider, api_url, api_key, model, pergunta, hist
         if provider == "Groq":
             payload["max_completion_tokens"] = AI_MAX_OUTPUT_TOKENS
 
-        resposta = _provider_chat(api_url, api_key, payload, provider)
+        timeout_chamada = AI_PROVIDER_TIMEOUT
+        if deadline is not None:
+            restante = deadline - time.monotonic()
+            if restante <= 1:
+                raise TimeoutError(f"Sem tempo restante para consultar {provider}")
+            timeout_chamada = min(AI_PROVIDER_TIMEOUT, restante)
+        resposta = _provider_chat(api_url, api_key, payload, provider, timeout=timeout_chamada)
         escolhas = resposta.get("choices") or []
         if not escolhas:
             raise RuntimeError(f"{provider} não retornou escolhas")
@@ -7613,13 +7639,19 @@ def api_agente_ia_chat():
     role = _agente_role()
     historico = _agente_historico_seguro(dados.get("historico"))
     falhas = []
+    deadline = time.monotonic() + AI_TOTAL_TIMEOUT
 
     # Ordem fixa solicitada: Groq -> Gemini -> Cloudflare.
+    # O limite global impede que um provedor lento faça o Gunicorn encerrar
+    # o worker antes que o fallback tenha chance de responder.
     for indice, cfg in enumerate(provedores):
+        if time.monotonic() >= deadline:
+            falhas.append("Tempo total do fallback esgotado antes do próximo provedor.")
+            break
         try:
             resultado = _agente_loop_openai_compat(
                 cfg["nome"], cfg["url"], cfg["key"], cfg["model"],
-                pergunta, historico, role,
+                pergunta, historico, role, deadline=deadline,
             )
             if indice > 0:
                 resultado["fallback_usado"] = True

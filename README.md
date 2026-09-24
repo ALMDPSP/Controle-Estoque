@@ -58,7 +58,7 @@ O menu do sistema inclui a página **Celular**, que mostra o endereço de acesso
 - `GROQ_API_KEY` (principal)
 - `GEMINI_API_KEY` (fallback 1)
 - `CLOUDFLARE_ACCOUNT_ID` + `CLOUDFLARE_API_TOKEN` (fallback 2)
-- `GROQ_MODEL`, `GEMINI_MODEL` e `CLOUDFLARE_MODEL` são opcionais.
+- `GROQ_MODEL`, `GEMINI_MODEL` e `CLOUDFLARE_MODEL` são opcionais. O sistema migra automaticamente IDs Groq conhecidos que já foram descontinuados e usa timeout curto por provedor para preservar o fallback.
 
 Consulte `AGENTE_IA_CONFIGURACAO.txt` para o passo a passo.
 
