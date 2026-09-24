@@ -161,3 +161,11 @@ No Cockpit de Implantação, a data de Entrada TI continua visível, mas o conta
 - A baixa automática de estoque ao marcar Inaugurada deixa de ser usada no fluxo normal; a movimentação passa a ocorrer pelo processo de **Baixa de estoque**.
 - Nova aba **Equipamentos no Parque**, ao lado de Filiais, com visão geral consolidada das lojas ativas: total de unidades, tipos, unidades rastreadas, unidades legado e distribuição por equipamento.
 - A nova aba possui relatórios **Excel** e **PDF** seguindo o padrão visual do sistema.
+
+
+## v118 — Correção dos relatórios PDF de Estoque e Imobilizados
+- Restaurados os relatórios PDF de Estoque e Imobilizados na Central de Relatórios.
+- A aba Estoque passou a gerar PDF no servidor, eliminando a dependência do jsPDF/CDN para esta ação.
+- A aba Imobilizados voltou a exibir o botão Relatório PDF.
+- Os dois PDFs trazem resumo, dados operacionais, rastreabilidade, movimentação e auditoria, com paginação e layout compatível com grandes volumes.
+- Mantido o padrão visual da v117/v116.

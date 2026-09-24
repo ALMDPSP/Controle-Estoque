@@ -64,7 +64,7 @@ import qrcode
 import db
 
 app = Flask(__name__)
-APP_BUILD = "2026-09-24-parque-equipamentos-v117"
+APP_BUILD = "2026-09-24-relatorios-pdf-estoque-imobilizados-v118"
 _DASHBOARD_CACHE = {"expira": 0.0, "dados": None}
 app.secret_key = os.environ.get("SECRET_KEY", "troque-esta-chave-em-producao")
 _RUNNING_HTTPS_HOSTED = bool(
@@ -6593,6 +6593,191 @@ def api_enviar_estoque_em_lote():
     return jsonify({"ok": True, "imobilizados_enviados": total_enviados, "criados_no_estoque": total_criados})
 
 
+def _texto_pdf(valor):
+    """Texto seguro para células Paragraph do ReportLab."""
+    if valor is None:
+        return "-"
+    texto = str(valor).strip()
+    if not texto:
+        return "-"
+    return (texto.replace("&", "&amp;")
+                 .replace("<", "&lt;")
+                 .replace(">", "&gt;"))
+
+
+def _numero_inteiro_seguro(valor, padrao=0):
+    try:
+        return int(float(valor or 0))
+    except (TypeError, ValueError):
+        return padrao
+
+
+def _gerar_pdf_equipamentos(itens, titulo, subtitulo, prefixo_arquivo):
+    """Gera PDF operacional no servidor, sem depender de bibliotecas JS/CDN.
+
+    O relatório é dividido em duas seções para continuar legível mesmo com
+    milhares de registros: visão operacional e rastreabilidade/movimentação.
+    """
+    itens = list(itens or [])
+    buffer = io.BytesIO()
+    largura_pagina, altura_pagina = landscape(A4)
+    margem = 9 * mm
+
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=landscape(A4),
+        rightMargin=margem,
+        leftMargin=margem,
+        topMargin=17 * mm,
+        bottomMargin=15 * mm,
+        title=titulo,
+        author="Expansão de TI",
+    )
+
+    estilos = getSampleStyleSheet()
+    estilo_titulo = ParagraphStyle(
+        "RptTitulo", parent=estilos["Heading1"], fontName="Helvetica-Bold",
+        fontSize=17, leading=20, textColor=colors.HexColor("#1A2029"), spaceAfter=3 * mm,
+    )
+    estilo_sub = ParagraphStyle(
+        "RptSub", parent=estilos["BodyText"], fontName="Helvetica",
+        fontSize=8.5, leading=11, textColor=colors.HexColor("#66707D"), spaceAfter=4 * mm,
+    )
+    estilo_secao = ParagraphStyle(
+        "RptSecao", parent=estilos["Heading2"], fontName="Helvetica-Bold",
+        fontSize=11, leading=14, textColor=colors.HexColor("#1A2029"), spaceBefore=2 * mm, spaceAfter=2 * mm,
+    )
+    estilo_celula = ParagraphStyle(
+        "RptCelula", parent=estilos["BodyText"], fontName="Helvetica",
+        fontSize=5.8, leading=7.1, textColor=colors.HexColor("#1A2029"),
+    )
+    estilo_celula_centro = ParagraphStyle(
+        "RptCelulaCentro", parent=estilo_celula, alignment=TA_CENTER,
+    )
+
+    def P(valor, centro=False):
+        return Paragraph(_texto_pdf(valor), estilo_celula_centro if centro else estilo_celula)
+
+    total_unidades = sum(max(0, _numero_inteiro_seguro(x.get("qtde"), 1)) for x in itens)
+    com_serie = sum(1 for x in itens if str(x.get("nro_serie") or "").strip())
+    com_patrimonio = sum(1 for x in itens if str(x.get("nro_patrimonio") or "").strip())
+    com_destino = sum(1 for x in itens if str(x.get("filial_destino") or "").strip())
+
+    historia = [
+        Paragraph(_texto_pdf(titulo), estilo_titulo),
+        Paragraph(
+            _texto_pdf(subtitulo) + "<br/>Gerado em " + datetime.now().strftime("%d/%m/%Y %H:%M"),
+            estilo_sub,
+        ),
+    ]
+
+    resumo = [
+        ["REGISTROS", "UNIDADES", "COM Nº SÉRIE", "COM PATRIMÔNIO", "COM FILIAL DESTINO"],
+        [str(len(itens)), str(total_unidades), str(com_serie), str(com_patrimonio), str(com_destino)],
+    ]
+    t_resumo = Table(resumo, colWidths=[52 * mm] * 5, hAlign="LEFT")
+    t_resumo.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#212934")),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.HexColor("#D8DEE9")),
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("FONTSIZE", (0, 0), (-1, 0), 6.5),
+        ("BACKGROUND", (0, 1), (-1, 1), colors.HexColor("#F5F7FA")),
+        ("TEXTCOLOR", (0, 1), (-1, 1), colors.HexColor("#2876BE")),
+        ("FONTNAME", (0, 1), (-1, 1), "Helvetica-Bold"),
+        ("FONTSIZE", (0, 1), (-1, 1), 13),
+        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("BOX", (0, 0), (-1, -1), 0.35, colors.HexColor("#DDE2E8")),
+        ("INNERGRID", (0, 0), (-1, -1), 0.25, colors.HexColor("#E6E9ED")),
+        ("TOPPADDING", (0, 0), (-1, -1), 4),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+    ]))
+    historia.extend([t_resumo, Spacer(1, 5 * mm)])
+
+    historia.append(Paragraph("Dados operacionais", estilo_secao))
+    cab1 = ["ID", "Código", "Descrição", "Qtd.", "UF", "Local", "Armazenamento", "Status", "Tipo estoque", "Filial destino", "Nº imobilizado", "Nº série", "Patrimônio"]
+    dados1 = [[Paragraph(c, estilo_celula_centro) for c in cab1]]
+    for it in itens:
+        dados1.append([
+            P(it.get("id"), True), P(it.get("codigo"), True), P(it.get("descricao")),
+            P(it.get("qtde"), True), P(it.get("localizacao"), True), P(it.get("local")),
+            P(it.get("armazenagem")), P(it.get("status")), P(it.get("tipo_estoque")),
+            P(it.get("filial_destino")), P(it.get("nro_imobilizado")), P(it.get("nro_serie")), P(it.get("nro_patrimonio")),
+        ])
+    col1 = [8, 16, 48, 8, 8, 19, 19, 16, 19, 24, 20, 25, 20]
+    t1 = Table(dados1, colWidths=[x * mm for x in col1], repeatRows=1, hAlign="LEFT")
+    t1.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1A2029")),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("FONTSIZE", (0, 0), (-1, 0), 5.7),
+        ("ALIGN", (0, 0), (-1, 0), "CENTER"),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("GRID", (0, 0), (-1, -1), 0.22, colors.HexColor("#D8DEE6")),
+        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#F6F8FA")]),
+        ("LEFTPADDING", (0, 0), (-1, -1), 2),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 2),
+        ("TOPPADDING", (0, 0), (-1, -1), 2.3),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 2.3),
+    ]))
+    historia.append(t1)
+
+    historia.extend([PageBreak(), Paragraph("Movimentação e auditoria", estilo_secao)])
+    cab2 = ["ID", "Código", "NF entrada", "Data entrada", "NF saída", "Data saída", "VD / referência", "Pedido", "ValAquis.", "Chamado", "Criado por", "Alterado por", "Alterado em"]
+    dados2 = [[Paragraph(c, estilo_celula_centro) for c in cab2]]
+    for it in itens:
+        dados2.append([
+            P(it.get("id"), True), P(it.get("codigo"), True), P(it.get("nf_entrada")), P(it.get("data_entrada")),
+            P(it.get("nf_saida")), P(it.get("data_saida")), P(it.get("vd_loja")), P(it.get("pedido")),
+            P(it.get("val_aquis")), P(it.get("chamado")), P(it.get("criado_por")), P(it.get("atualizado_por")), P(it.get("atualizado_em")),
+        ])
+    col2 = [8, 17, 19, 19, 19, 19, 24, 18, 18, 18, 23, 23, 25]
+    t2 = Table(dados2, colWidths=[x * mm for x in col2], repeatRows=1, hAlign="LEFT")
+    t2.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#2876BE")),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("FONTSIZE", (0, 0), (-1, 0), 5.7),
+        ("ALIGN", (0, 0), (-1, 0), "CENTER"),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("GRID", (0, 0), (-1, -1), 0.22, colors.HexColor("#D8DEE6")),
+        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#F6F8FA")]),
+        ("LEFTPADDING", (0, 0), (-1, -1), 2),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 2),
+        ("TOPPADDING", (0, 0), (-1, -1), 2.3),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 2.3),
+    ]))
+    historia.append(t2)
+
+    def rodape(c, d):
+        c.saveState()
+        c.setStrokeColor(colors.HexColor("#D8DEE6"))
+        c.setLineWidth(0.4)
+        c.line(margem, 10 * mm, largura_pagina - margem, 10 * mm)
+        c.setFont("Helvetica", 6.5)
+        c.setFillColor(colors.HexColor("#7A8492"))
+        c.drawString(margem, 6.5 * mm, "© 2026 · Developed by ALM - Expansão de TI")
+        c.drawRightString(largura_pagina - margem, 6.5 * mm, f"Página {d.page}")
+        c.restoreState()
+
+    doc.build(historia, onFirstPage=rodape, onLaterPages=rodape)
+    buffer.seek(0)
+    nome = f"{prefixo_arquivo}_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf"
+    return buffer, nome
+
+
+@app.route("/export-imobilizados-pdf")
+@role_required("admin", "gestor", "operador")
+def exportar_imobilizados_pdf():
+    buffer, nome = _gerar_pdf_equipamentos(
+        db.listar_imobilizados(),
+        "Relatório de Imobilizados",
+        "Cadastro completo dos equipamentos imobilizados, com dados operacionais, rastreabilidade e auditoria.",
+        "imobilizados",
+    )
+    return send_file(buffer, as_attachment=True, download_name=nome, mimetype="application/pdf")
+
+
 @app.route("/export-imobilizados")
 @role_required("admin", "gestor", "operador")
 def exportar_imobilizados_excel():
@@ -7021,6 +7206,18 @@ def api_excluir_em_lote():
 @login_required
 def api_movimentacoes(item_id):
     return jsonify(db.listar_movimentacoes(item_id, tabela="itens"))
+
+
+@app.route("/export-pdf")
+@role_required("admin", "gestor", "operador")
+def exportar_estoque_pdf():
+    buffer, nome = _gerar_pdf_equipamentos(
+        db.listar_itens(),
+        "Relatório de Estoque",
+        "Cadastro completo do estoque, com dados operacionais, rastreabilidade e auditoria.",
+        "estoque",
+    )
+    return send_file(buffer, as_attachment=True, download_name=nome, mimetype="application/pdf")
 
 
 @app.route("/export")
