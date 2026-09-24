@@ -64,7 +64,7 @@ import qrcode
 import db
 
 app = Flask(__name__)
-APP_BUILD = "2026-09-24-filiais-parque-estoque-ia-v115"
+APP_BUILD = "2026-09-24-layout-padrao-global-v116"
 _DASHBOARD_CACHE = {"expira": 0.0, "dados": None}
 app.secret_key = os.environ.get("SECRET_KEY", "troque-esta-chave-em-producao")
 _RUNNING_HTTPS_HOSTED = bool(
@@ -7636,7 +7636,7 @@ def _provider_chat(url, api_key, payload, provider_name, timeout=None):
         headers={
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
-            "User-Agent": "Controle-Estoque-Agente-IA/115",
+            "User-Agent": "Controle-Estoque-Agente-IA/116",
         },
     )
     limite = AI_PROVIDER_TIMEOUT if timeout is None else max(1, float(timeout))

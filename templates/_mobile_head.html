@@ -9,7 +9,7 @@
 <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}?v=4">
 <script>
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => navigator.serviceWorker.register('/service-worker.js?v=49').catch(() => {}));
+  window.addEventListener('load', () => navigator.serviceWorker.register('/service-worker.js?v=50').catch(() => {}));
 }
 </script>
 <style>
@@ -236,3 +236,173 @@ body.app-standard .panel{border-radius:12px}
 }
 @media(max-width:390px){.app-action-strip{grid-template-columns:1fr}}
 </style>
+
+
+<style id="alm-ui-standard-v116">
+/* v116 · padrão geral de botões, ações, links e formulários */
+body.app-standard main{max-width:1500px;margin-left:auto;margin-right:auto}
+body.app-standard .panel,
+body.app-standard .card{border-radius:12px!important;border-color:var(--line,#2b3444)!important}
+body.app-standard .panel>h2:first-child,
+body.app-standard .card>h2:first-child{font-weight:700;letter-spacing:.01em}
+
+/* Barra/agrupamentos de ação sempre com o mesmo ritmo visual */
+body.app-standard .head-actions,
+body.app-standard .toolbar-actions,
+body.app-standard .row-actions,
+body.app-standard .acoes,
+body.app-standard .actions,
+body.app-standard .controls,
+body.app-standard .form-actions,
+body.app-standard .dlg-actions,
+body.app-standard .card-actions,
+body.app-standard .ui-card-actions,
+body.app-standard .pager{
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+}
+body.app-standard .head-actions{justify-content:flex-end}
+body.app-standard .toolbar-actions{min-height:42px}
+body.app-standard .card-actions,
+body.app-standard .ui-card-actions{margin-top:auto}
+
+/* Um único desenho para ações clicáveis */
+body.app-standard .ui-btn,
+body.app-standard .btn-primary,
+body.app-standard .btn-ghost,
+body.app-standard .btn-copy,
+body.app-standard a.btn,
+body.app-standard button.primary,
+body.app-standard button.ghost,
+body.app-standard button.danger-fill,
+body.app-standard .actions>a,
+body.app-standard .head-actions>a,
+body.app-standard .toolbar-actions>a,
+body.app-standard .toolbar-actions>button,
+body.app-standard .pager>button{
+  min-height:40px!important;
+  display:inline-flex!important;align-items:center!important;justify-content:center!important;
+  gap:7px!important;padding:8px 12px!important;
+  border:1px solid var(--line,#2b3444)!important;border-radius:9px!important;
+  background:var(--panel-2,var(--panel2,#212934))!important;color:var(--text,#e7ebf1)!important;
+  text-decoration:none!important;font:700 11px "Segoe UI",Inter,system-ui,sans-serif!important;
+  line-height:1.15!important;cursor:pointer!important;white-space:nowrap!important;
+  box-shadow:none!important;transition:border-color .15s ease,background .15s ease,transform .15s ease,opacity .15s ease!important;
+}
+body.app-standard .ui-btn:hover,
+body.app-standard .btn-primary:hover,
+body.app-standard .btn-ghost:hover,
+body.app-standard .btn-copy:hover,
+body.app-standard a.btn:hover,
+body.app-standard button.primary:hover,
+body.app-standard button.ghost:hover,
+body.app-standard .actions>a:hover,
+body.app-standard .head-actions>a:hover,
+body.app-standard .toolbar-actions>a:hover,
+body.app-standard .toolbar-actions>button:hover,
+body.app-standard .pager>button:hover{border-color:#526079!important;transform:translateY(-1px);filter:none!important}
+body.app-standard .ui-btn:disabled,
+body.app-standard button:disabled{opacity:.45!important;cursor:not-allowed!important;transform:none!important}
+
+body.app-standard .ui-btn.ui-btn-primary,
+body.app-standard .btn-primary,
+body.app-standard button.primary{
+  background:var(--accent,#3ea6ff)!important;border-color:var(--accent,#3ea6ff)!important;color:#08131f!important;
+}
+body.app-standard .ui-btn.ui-btn-secondary,
+body.app-standard .btn-copy,
+body.app-standard .btn-ghost,
+body.app-standard button.ghost{background:var(--panel-2,var(--panel2,#212934))!important;color:var(--text,#e7ebf1)!important}
+body.app-standard .ui-btn.ui-btn-link{
+  background:rgba(62,166,255,.055)!important;border-color:rgba(62,166,255,.24)!important;color:#b9dcff!important;
+}
+body.app-standard .ui-btn.ui-btn-link:hover{background:rgba(62,166,255,.10)!important;border-color:rgba(62,166,255,.44)!important}
+body.app-standard .ui-btn.ui-btn-danger,
+body.app-standard button.danger-fill{
+  color:var(--danger,#ff6b6b)!important;border-color:rgba(255,107,107,.42)!important;background:rgba(255,107,107,.08)!important;
+}
+body.app-standard .ui-btn.ui-btn-excel{color:var(--ok,#4cd792)!important;border-color:rgba(76,215,146,.38)!important;background:rgba(76,215,146,.08)!important}
+body.app-standard .ui-btn.ui-btn-pdf{color:#ff9b9b!important;border-color:rgba(255,107,107,.38)!important;background:rgba(255,107,107,.08)!important}
+body.app-standard .ui-btn.ui-btn-import{color:var(--accent-2,var(--accent2,#ffb648))!important;border-color:rgba(255,182,72,.40)!important;background:rgba(255,182,72,.08)!important}
+body.app-standard .ui-btn.ui-btn-sm,
+body.app-standard .row-actions .ui-btn,
+body.app-standard .acoes .ui-btn{min-height:32px!important;padding:6px 9px!important;font-size:10px!important;border-radius:7px!important}
+
+/* Campos e filtros com o mesmo desenho em todas as abas */
+body.app-standard input:not([type="checkbox"]):not([type="radio"]),
+body.app-standard select,
+body.app-standard textarea{
+  border-radius:9px!important;border:1px solid var(--line,#2b3444)!important;
+  background:var(--panel-2,var(--panel2,#212934))!important;color:var(--text,#e7ebf1)!important;
+  outline:none!important;box-shadow:none!important;
+}
+body.app-standard input:not([type="checkbox"]):not([type="radio"]):focus,
+body.app-standard select:focus,
+body.app-standard textarea:focus{border-color:var(--accent,#3ea6ff)!important;box-shadow:0 0 0 2px rgba(62,166,255,.08)!important}
+
+/* Links contextuais/atalhos com comportamento previsível */
+body.app-standard .app-context-links{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+body.app-standard .app-context-links .ui-btn{min-width:0}
+body.app-standard .app-action-strip{border-bottom:1px solid rgba(43,52,68,.45);padding-bottom:12px}
+body.app-standard .app-action-strip+.app-action-strip{padding-top:8px}
+
+/* Cards de relatórios: ações alinhadas ao rodapé e sem estilos isolados */
+body.app-standard .grid>.card{gap:8px}
+body.app-standard .grid>.card>.ui-btn{width:100%!important;margin-top:0!important}
+body.app-standard .grid>.card>.ui-btn+.ui-btn{margin-top:0!important}
+body.app-standard .grid>.card>a:not(.ui-btn){color:#a9d7ff;text-decoration:none;font-size:11px}
+body.app-standard .grid>.card>a:not(.ui-btn):hover{text-decoration:underline}
+
+/* Paginação e ações de tabela */
+body.app-standard .pager>button{min-width:94px}
+body.app-standard .selection-count,
+body.app-standard .contador,
+body.app-standard .table-count{font-size:10px!important;color:var(--muted,#8b96a8)!important}
+
+@media(max-width:850px){
+  body.app-standard .head-actions{width:100%;justify-content:flex-start}
+  body.app-standard .head-actions .ui-btn{flex:1 1 150px}
+}
+@media(max-width:600px){
+  body.app-standard .head-actions,
+  body.app-standard .toolbar-actions,
+  body.app-standard .app-context-links{display:grid!important;grid-template-columns:1fr 1fr!important;width:100%!important}
+  body.app-standard .head-actions .ui-btn,
+  body.app-standard .toolbar-actions .ui-btn,
+  body.app-standard .app-context-links .ui-btn{width:100%!important;white-space:normal!important;text-align:center!important}
+  body.app-standard .toolbar-spacer{display:none!important}
+}
+@media(max-width:390px){
+  body.app-standard .head-actions,
+  body.app-standard .toolbar-actions,
+  body.app-standard .app-context-links{grid-template-columns:1fr!important}
+}
+</style>
+<script id="alm-ui-auto-v116">
+(function(){
+  function texto(el){return (el.textContent||'').replace(/\s+/g,' ').trim().toLowerCase()}
+  function ignorar(el){return !!el.closest('.view-tabs,.hotspots,.loja-3d,.store-3d,.quick-grid,.quick-actions,.chart-tabs,.chart-actions') || el.matches('.view-tab,.hotspot,.tira-teima-device,.app-mobile-toggle,.app-scan-link')}
+  function classificar(el){
+    if(!el || ignorar(el)) return;
+    const t=texto(el);
+    if(!t || t.length>95) return;
+    const container=el.closest('.app-action-strip,.head-actions,.toolbar-actions,.row-actions,.acoes,.actions,.controls,.form-actions,.dlg-actions,.ui-import-actions,.pager,.card');
+    const known=el.matches('.btn-primary,.btn-ghost,.btn-copy,.primary,.ghost,.danger-fill,a.btn,.ui-btn');
+    if(!container && !known) return;
+    el.classList.add('ui-btn');
+    if(el.closest('.row-actions,.acoes') || /editar|contato|histórico|historico|resetar|forçar|forcar/.test(t)) el.classList.add('ui-btn-sm');
+    if(/excel/.test(t)) el.classList.add('ui-btn-excel');
+    else if(/pdf|imprimir/.test(t)) el.classList.add('ui-btn-pdf');
+    else if(/importar|upload|subir/.test(t)) el.classList.add('ui-btn-import');
+    else if(/excluir|apagar|remover/.test(t)) el.classList.add('ui-btn-danger');
+    else if(/abrir|gerenciar|voltar|histórico|historico|acompanhamento|projeção|projecao|cadastro de produtos|central de relatórios|central de relatorios/.test(t) && el.tagName==='A') el.classList.add('ui-btn-link');
+    else if(/cadastrar|adicionar|salvar|confirmar|gerar backup|buscar|recalcular|atualizar cálculo|atualizar calculo|copiar/.test(t)) el.classList.add('ui-btn-primary');
+    else el.classList.add('ui-btn-secondary');
+  }
+  function aplicar(){
+    document.querySelectorAll('body.app-standard main a,body.app-standard main button,body.app-standard>header a,body.app-standard>header button,.app-action-strip a,.app-action-strip button').forEach(classificar);
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',aplicar); else aplicar();
+  const obs=new MutationObserver(m=>{for(const x of m){for(const n of x.addedNodes){if(n.nodeType!==1)continue;if(n.matches?.('a,button'))classificar(n);n.querySelectorAll?.('a,button').forEach(classificar)}}});
+  document.addEventListener('DOMContentLoaded',()=>{const main=document.querySelector('body.app-standard main');if(main)obs.observe(main,{childList:true,subtree:true})});
+})();
+</script>

@@ -22,7 +22,7 @@ details{min-width:330px}summary{cursor:pointer;color:var(--accent);font-weight:7
 <body class="app-standard">
 <header>
   <div><h1>{{ filial.codigo }} · {{ filial.nome or 'Filial' }}</h1><p>{{ filial.cidade or '-' }} / {{ filial.uf or '-' }} · {{ filial.bandeira or 'Sem bandeira' }}</p></div>
-  <a class="back" href="{{ url_for('pagina_filiais') }}">Voltar para Filiais</a>
+  <a class="ui-btn ui-btn-link back" href="{{ url_for('pagina_filiais') }}">Voltar para Filiais</a>
 </header>
 {% include '_menu.html' %}
 <main>

@@ -83,7 +83,7 @@ main{padding:26px 32px 60px;max-width:1500px;margin:0 auto}.kpis{display:grid;gr
   </section>
 
   <section class="filters">
-    <div class="filters-head"><div><h2>Detalhamento da planilha</h2><p>Filtre os registros por status, projeto, bandeira e UF.</p></div><div class="filters-toolbar"><div class="table-count" id="table-count">0 registro(s)</div>{% if role != 'consulta' %}<div class="selection-count" id="selection-count"></div><button type="button" class="table-danger" id="btn-delete-selected">Excluir selecionados</button>{% endif %}</div></div>
+    <div class="filters-head"><div><h2>Detalhamento da planilha</h2><p>Filtre os registros por status, projeto, bandeira e UF.</p></div><div class="filters-toolbar"><div class="table-count" id="table-count">0 registro(s)</div>{% if role != 'consulta' %}<div class="selection-count" id="selection-count"></div><button type="button" class="ui-btn ui-btn-danger table-danger" id="btn-delete-selected">Excluir selecionados</button>{% endif %}</div></div>
     <div class="filter-grid">
       <input id="f-busca" placeholder="Pesquisar filial, descrição ou observação...">
       <select id="f-status"><option value="">Todos os status</option></select>

@@ -14,10 +14,11 @@ form{display:grid;grid-template-columns:1fr 2fr 1fr auto;gap:14px 16px;align-ite
 table{width:100%;border-collapse:collapse;font-size:13px}th{text-align:left;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.06em;padding:10px;border-bottom:1px solid var(--line)}td{padding:10px;border-bottom:1px solid var(--line)}.codigo{font-family:var(--mono);color:var(--accent)}.actions{display:flex;gap:7px;justify-content:flex-end}.empty{color:var(--muted);text-align:center;padding:22px}.hint{margin:0 0 16px;color:var(--muted);font-size:12px;line-height:1.5}
 @media(max-width:800px){form{grid-template-columns:1fr 1fr}.field:nth-child(2){grid-column:span 2}.primary{grid-column:span 2}}@media(max-width:560px){header,nav,main{padding-left:16px;padding-right:16px}form{grid-template-columns:1fr}.field:nth-child(2),.primary{grid-column:auto}.actions{justify-content:flex-start}table{display:block;overflow-x:auto;white-space:nowrap}}
 </style>
+{% include '_mobile_head.html' %}
 </head>
-<body>
+<body class="app-standard">
 <header><div class="brand"><span class="tag">Cadastro</span><strong>Controle de Ativos</strong></div><h1>Cadastro de itens</h1><p class="subtitle">Cadastre aqui os itens que poderão ser utilizados no Estoque e nos Imobilizados.</p></header>
-<nav><div style="display:flex;gap:8px;flex-wrap:wrap"><a href="{{ url_for('index') }}">Estoque</a><a href="{{ url_for('pagina_imobilizados') }}">Imobilizados</a><a class="nav-active" href="{{ url_for('pagina_cadastro_itens') }}">Cadastro de itens</a></div><div style="display:flex;gap:14px;align-items:center"><span style="color:var(--muted)">Logado como <strong style="color:var(--text)">{{ username }}</strong></span>{% if is_admin %}<a href="{{ url_for('pagina_usuarios') }}">Gestão de Usuários</a>{% endif %}<a href="{{ url_for('logout') }}">Sair</a></div></nav>
+{% include '_menu.html' %}
 <main>
 <section class="panel">
   <h2>Novo cadastro de item</h2>
@@ -27,7 +28,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th{text-align:left;colo
     <div class="field"><label for="codigo">Código do item *</label><input id="codigo" required placeholder="EX: EQP-0231" autocomplete="off"></div>
     <div class="field"><label for="descricao">Descrição *</label><input id="descricao" required placeholder="Descrição do item"></div>
     <div class="field"><label for="unidade">Unidade</label><input id="unidade" value="UN" placeholder="UN"></div>
-    <button class="primary" type="submit">Cadastrar item</button>
+    <button class="ui-btn ui-btn-primary" type="submit">Cadastrar item</button>
   </form>
 </section>
 <section class="panel">
@@ -35,6 +36,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th{text-align:left;colo
   <div id="tabela-wrap"><p class="empty">Carregando...</p></div>
 </section>
 </main>
+{% include '_footer.html' %}
 <script>
 const msg=document.getElementById('msg');
 const form=document.getElementById('cadastro-form');
@@ -47,7 +49,7 @@ async function carregarItens(){
     if(!res.ok) throw new Error('HTTP '+res.status);
     const itens=await res.json();
     if(!itens.length){wrap.innerHTML='<p class="empty">Nenhum item cadastrado.</p>';return;}
-    wrap.innerHTML=`<table><thead><tr><th>Código</th><th>Descrição</th><th>Unidade</th><th style="text-align:right">Ações</th></tr></thead><tbody>${itens.map(it=>`<tr><td class="codigo">${escapeHtml(it.codigo||'')}</td><td>${escapeHtml(it.descricao||'')}</td><td>${escapeHtml(it.unidade||'UN')}</td><td><div class="actions"><button class="ghost danger" onclick="excluirItem(${Number(it.id)},'${escapeHtml(it.codigo||'')}')">Excluir</button></div></td></tr>`).join('')}</tbody></table>`;
+    wrap.innerHTML=`<table><thead><tr><th>Código</th><th>Descrição</th><th>Unidade</th><th style="text-align:right">Ações</th></tr></thead><tbody>${itens.map(it=>`<tr><td class="codigo">${escapeHtml(it.codigo||'')}</td><td>${escapeHtml(it.descricao||'')}</td><td>${escapeHtml(it.unidade||'UN')}</td><td><div class="actions"><button class="ui-btn ui-btn-danger ui-btn-sm" onclick="excluirItem(${Number(it.id)},'${escapeHtml(it.codigo||'')}')">Excluir</button></div></td></tr>`).join('')}</tbody></table>`;
   }catch(err){console.error(err);wrap.innerHTML='<p class="empty">Não foi possível carregar os itens cadastrados.</p>'}
 }
 async function excluirItem(id,codigo){

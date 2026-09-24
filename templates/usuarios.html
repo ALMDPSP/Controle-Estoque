@@ -94,7 +94,7 @@
   <div class="credencial-inicial" id="credencial-inicial">
     <h3>Credencial inicial · somente Administrador</h3>
     <p>A senha temporária é exibida somente agora e não é armazenada em texto aberto. O usuário deverá alterá-la no primeiro acesso.</p>
-    <div class="credencial-linha"><code id="credencial-usuario">-</code><code id="credencial-senha">-</code><button type="button" class="btn-copy" id="copiar-credencial">Copiar credencial</button></div>
+    <div class="credencial-linha"><code id="credencial-usuario">-</code><code id="credencial-senha">-</code><button type="button" class="ui-btn ui-btn-secondary btn-copy" id="copiar-credencial">Copiar credencial</button></div>
   </div>
   <div class="panel">
     <h2>Novo usuário</h2>
@@ -119,7 +119,7 @@
       </div>
       <div class="field"><label for="email">E-mail</label><input id="email" type="email" placeholder="usuario@empresa.com"></div>
       <div class="field"><label for="whatsapp">WhatsApp</label><input id="whatsapp" placeholder="5511999999999"></div>
-      <button type="submit" class="btn-primary">Adicionar usuário</button>
+      <button type="submit" class="ui-btn ui-btn-primary btn-primary">Adicionar usuário</button>
     </form>
   </div>
 
@@ -161,12 +161,12 @@
           </td>
           <td>
             <div style="display:flex; gap:6px;flex-wrap:wrap;">
-              <button class="btn-ghost" onclick='editarContato({{ u.id }}, {{ u.username|tojson }}, {{ (u.email or "")|tojson }}, {{ (u.whatsapp or "")|tojson }})'>Contato</button>
+              <button class="ui-btn ui-btn-secondary ui-btn-sm btn-ghost" onclick='editarContato({{ u.id }}, {{ u.username|tojson }}, {{ (u.email or "")|tojson }}, {{ (u.whatsapp or "")|tojson }})'>Contato</button>
               {% if u.precisa_trocar_senha != '1' %}
-              <button class="btn-ghost" onclick="forcarTrocaSenha({{ u.id }}, '{{ u.username }}')">Forçar troca de senha</button>
+              <button class="ui-btn ui-btn-secondary ui-btn-sm btn-ghost" onclick="forcarTrocaSenha({{ u.id }}, '{{ u.username }}')">Forçar troca de senha</button>
               {% endif %}
-              {% if u.mfa_enabled == '1' %}<button class="btn-ghost" onclick="resetMfa({{ u.id }}, '{{ u.username }}')">Resetar MFA</button>{% endif %}
-              <button class="btn-ghost" onclick="excluirUsuario({{ u.id }})">Excluir</button>
+              {% if u.mfa_enabled == '1' %}<button class="ui-btn ui-btn-secondary ui-btn-sm btn-ghost" onclick="resetMfa({{ u.id }}, '{{ u.username }}')">Resetar MFA</button>{% endif %}
+              <button class="ui-btn ui-btn-danger ui-btn-sm btn-ghost" onclick="excluirUsuario({{ u.id }})">Excluir</button>
             </div>
           </td>
         </tr>

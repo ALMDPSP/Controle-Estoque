@@ -144,3 +144,10 @@ No Cockpit de Implantação, a data de Entrada TI continua visível, mas o conta
 - Em **Abrir filial**, foi adicionado o resumo do parque por código/equipamento.
 - Quando uma loja passa para **INAUGURADA** no Acompanhamento, o sistema consome somente a diferença do Kit ainda não baixada, usando Estoque Expansão disponível.
 - A baixa de inauguração é idempotente: itens já enviados à filial não são descontados novamente. Se faltar estoque, a inauguração é mantida e a falta é informada/auditada.
+
+
+## v116 — Padronização geral de interface
+- Botões, links de ação, atalhos, filtros e paginação usam um padrão visual único.
+- Ações recebem semântica consistente: primária, secundária/link, Excel, PDF, Importar e Excluir.
+- Cabeçalhos, barras de ação e ações em cards/tabelas foram alinhados para desktop e celular.
+- Cadastro de Itens foi integrado ao menu e ao shell visual compartilhado.
