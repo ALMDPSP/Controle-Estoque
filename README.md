@@ -44,23 +44,22 @@ O menu do sistema inclui a página **Celular**, que mostra o endereço de acesso
 - Consulta: somente leitura nas áreas operacionais; Orçamento, Relatórios, downloads/exports/backup e Gestão de Dados bloqueados.
 
 
-## Agente IA com fallback gratuito (v75 - Groq → Gemini → Cloudflare)
+## Agente IA — Gemini → Cloudflare (v115)
 
 - Aba **Agente IA** integrada ao menu do sistema.
-- Ordem automática: **Groq → Gemini → Cloudflare Workers AI**.
-- Quando um provedor atinge limite, falha ou fica indisponível, o sistema tenta o próximo.
+- Ordem automática: **Gemini → Cloudflare Workers AI**.
+- O Groq foi retirado do fluxo para evitar interrupções frequentes por limite/depreciação de modelo.
+- Quando o Gemini falha, atinge limite ou fica indisponível, o sistema tenta o Cloudflare.
 - Não depende de Ollama, servidor próprio nem computador ligado.
 - O agente permanece somente leitura e respeita as mesmas permissões por perfil.
 - A interface informa a rota configurada, o provedor que respondeu e quando houve fallback.
 
 ### Variáveis de ambiente
 
-- `GROQ_API_KEY` (principal)
-- `GEMINI_API_KEY` (fallback 1)
-- `CLOUDFLARE_ACCOUNT_ID` + `CLOUDFLARE_API_TOKEN` (fallback 2)
-- `GROQ_MODEL`, `GEMINI_MODEL` e `CLOUDFLARE_MODEL` são opcionais. O sistema migra automaticamente IDs Groq conhecidos que já foram descontinuados e usa timeout curto por provedor para preservar o fallback.
-
-Consulte `AGENTE_IA_CONFIGURACAO.txt` para o passo a passo.
+- `GEMINI_API_KEY` (principal)
+- `CLOUDFLARE_ACCOUNT_ID` + `CLOUDFLARE_API_TOKEN` (fallback)
+- `GEMINI_MODEL` e `CLOUDFLARE_MODEL` são opcionais.
+- `GROQ_API_KEY` e `GROQ_MODEL` não são mais utilizados e podem ser removidos do Render.
 
 ## v100 — Cockpit de Implantação
 - Nova aba Cockpit de Implantação com readiness por loja pendente.
@@ -138,3 +137,10 @@ No Cockpit de Implantação, a data de Entrada TI continua visível, mas o conta
 - A ficha da filial passa a exibir também o espelho completo dos dados do grid de Estoque vinculados à filial.
 - O registro baixado permanece no banco para histórico e auditoria, mas deixa de compor o saldo disponível do Estoque.
 
+
+## v115 — Parque de Filiais e consumo na inauguração
+- Na aba **Filiais**, filiais inativas passam a exibir o **Kit padrão = OK** por regra de negócio, mantendo as quantidades reais para rastreabilidade.
+- A visão de Filiais mostra **Equipamentos no parque**, **Tipos de equipamento** e quantidade unitária por filial.
+- Em **Abrir filial**, foi adicionado o resumo do parque por código/equipamento.
+- Quando uma loja passa para **INAUGURADA** no Acompanhamento, o sistema consome somente a diferença do Kit ainda não baixada, usando Estoque Expansão disponível.
+- A baixa de inauguração é idempotente: itens já enviados à filial não são descontados novamente. Se faltar estoque, a inauguração é mantida e a falta é informada/auditada.

@@ -435,7 +435,7 @@ createForm?.addEventListener('submit', async e=>{
   try{
     const r=await fetch('/api/acompanhamento-expansao/cadastrar', {method:'POST', headers:{'Content-Type':'application/json','X-CSRF-Token':EDIT_CSRF}, body:JSON.stringify(payload)});
     const d=await respostaJsonSegura(r); if(!r.ok) throw new Error(d.erro||'Não foi possível cadastrar a loja.');
-    createMsg.textContent='Loja salva no Acompanhamento e sincronizada com Filiais.'; createMsg.className='modal-status ok'; window.appToast?.('Loja cadastrada no Acompanhamento e sincronizada com Filiais.','ok');
+    const b=d.baixa_inauguracao||{}; let msg='Loja salva no Acompanhamento e sincronizada com Filiais.'; if(Number(b.consumidas||0)>0) msg+=` Baixa automática: ${b.consumidas} unidade(s) consumida(s) do Estoque Expansão.`; if(Number(b.faltantes||0)>0) msg+=` Atenção: ${b.faltantes} unidade(s) do Kit sem estoque disponível.`; createMsg.textContent=msg; createMsg.className='modal-status ok'; window.appToast?.(msg,Number(b.faltantes||0)>0?'aviso':'ok');
     await init();
     setTimeout(()=>{ limparCadastroManual(); const card=document.getElementById('manual-card'); if(card) card.open=false; },700);
   }catch(err){ createMsg.textContent=err.message; createMsg.className='modal-status error'; }
@@ -472,7 +472,7 @@ editForm.addEventListener('submit', async e=>{
   try{
     const r=await fetch(`/api/acompanhamento-expansao/${id}`, {method:'PUT', headers:{'Content-Type':'application/json','X-CSRF-Token':EDIT_CSRF}, body:JSON.stringify(payload)});
     const d=await r.json(); if(!r.ok) throw new Error(d.erro||'Não foi possível salvar.');
-    editMsg.textContent='Alterações salvas e sincronizadas com Filiais.'; editMsg.className='modal-status ok'; window.appToast?.('Acompanhamento atualizado e Filiais sincronizada.','ok');
+    const b=d.baixa_inauguracao||{}; let msg='Alterações salvas e sincronizadas com Filiais.'; if(Number(b.consumidas||0)>0) msg+=` Baixa automática: ${b.consumidas} unidade(s) consumida(s) do Estoque Expansão.`; if(Number(b.faltantes||0)>0) msg+=` Atenção: ${b.faltantes} unidade(s) do Kit sem estoque disponível.`; editMsg.textContent=msg; editMsg.className='modal-status ok'; window.appToast?.(msg,Number(b.faltantes||0)>0?'aviso':'ok');
     await init(); setTimeout(fecharEdicao, 450);
   }catch(err){ editMsg.textContent=err.message; editMsg.className='modal-status error'; }
   finally{ save.disabled=false; editForm.classList.remove('saving'); }
@@ -509,7 +509,7 @@ document.getElementById('upload-form').addEventListener('submit', async e=>{
   try{
     const r=await fetch('/api/acompanhamento-expansao/importar', {method:'POST', body:fd});
     const d=await respostaJsonSegura(r); if(!r.ok) throw new Error(d.erro||'Falha na importação');
-    let texto=`Importação concluída: ${d.criadas||0} criado(s), ${d.atualizadas||0} atualizado(s), ${d.sem_alteracao||0} sem alteração. ${d.filiais_sincronizadas||0} filial(is) sincronizada(s).`;
+    let texto=`Importação concluída: ${d.criadas||0} criado(s), ${d.atualizadas||0} atualizado(s), ${d.sem_alteracao||0} sem alteração. ${d.filiais_sincronizadas||0} filial(is) sincronizada(s).`; if(Number(d.baixas_inauguracao||0)>0) texto+=` ${d.baixas_inauguracao} unidade(s) consumida(s) automaticamente por inauguração.`; if(Number(d.faltantes_inauguracao||0)>0) texto+=` Atenção: ${d.faltantes_inauguracao} unidade(s) sem estoque para completar Kits inaugurados.`;
     if(d.modo==='substituir') texto+=` Base substituída: ${d.removidos||0} registro(s) anteriores removidos; ${d.filiais_inativadas||0} filial(is) fora da nova planilha inativada(s).`;
     statusEl.textContent=texto;
     statusEl.className='modal-status ok'; window.appToast?.('Acompanhamento de Expansão atualizado.','ok'); document.getElementById('upload-pass').value=''; setTimeout(async()=>{ modal.classList.remove('open'); await init(); }, 1100);

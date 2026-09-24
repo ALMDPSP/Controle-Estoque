@@ -9,10 +9,11 @@
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:"Segoe UI",system-ui,sans-serif}
 header{padding:26px 32px 18px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap;align-items:end}
 h1{margin:0;font-size:24px}header p{margin:5px 0 0;color:var(--muted);font-size:12px}.back{color:var(--text);text-decoration:none;border:1px solid var(--line);background:var(--panel2);padding:9px 12px;border-radius:8px;font-size:11px}
-main{max-width:1540px;margin:auto;padding:24px 32px 54px}.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.card,.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:15px}.card span{display:block;color:var(--muted);font-size:9px;text-transform:uppercase}.card strong{display:block;margin-top:7px;font:800 19px var(--mono)}
+main{max-width:1540px;margin:auto;padding:24px 32px 54px}.grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px}.card,.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:15px}.card span{display:block;color:var(--muted);font-size:9px;text-transform:uppercase}.card strong{display:block;margin-top:7px;font:800 19px var(--mono)}
 .ok{color:var(--ok)}.warn{color:var(--warn)}.danger{color:var(--danger)}.accent{color:var(--accent)}.panel{margin-top:14px}.panel h2{margin:0;font-size:14px}.panel-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:12px}.panel-head p{margin:4px 0 0;color:var(--muted);font-size:11px;line-height:1.45}.detail{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}.d{background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:10px}.d span{display:block;color:var(--muted);font-size:9px}.d b{display:block;margin-top:4px;font-size:12px}
 .table-wrap{overflow:auto;border:1px solid var(--line);border-radius:9px}.table-wrap.limited{max-height:520px}table{width:100%;border-collapse:collapse;font-size:11px;white-space:nowrap}th,td{padding:8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}th{position:sticky;top:0;background:#171e27;z-index:1;font-size:9px;color:var(--muted);text-transform:uppercase}tr:last-child td{border-bottom:0}.codigo{font:700 11px var(--mono);color:#d7e9ff}.badge{display:inline-flex;align-items:center;border-radius:999px;padding:4px 7px;border:1px solid var(--line);font:700 9px var(--mono)}.badge.ok{background:rgba(76,215,146,.09);border-color:rgba(76,215,146,.28)}.badge.warn{background:rgba(255,182,72,.08);border-color:rgba(255,182,72,.28)}.badge.danger{background:rgba(255,107,107,.08);border-color:rgba(255,107,107,.28)}.badge.accent{background:rgba(62,166,255,.08);border-color:rgba(62,166,255,.28)}
 details{min-width:330px}summary{cursor:pointer;color:var(--accent);font-weight:700}.unit-list{margin-top:8px;display:grid;gap:7px}.unit{background:#151c24;border:1px solid var(--line);border-radius:8px;padding:8px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px 10px;white-space:normal}.unit span{color:var(--muted);font-size:9px}.unit b{display:block;color:var(--text);font-size:10px;margin-top:2px;word-break:break-word}.empty{padding:18px;color:var(--muted);text-align:center;white-space:normal}.hint{padding:10px 12px;border-radius:9px;border:1px solid rgba(62,166,255,.25);background:rgba(62,166,255,.06);color:var(--muted);font-size:11px;line-height:1.45}
+@media(max-width:1100px){.grid{grid-template-columns:repeat(3,1fr)}}
 @media(max-width:900px){header,main{padding-left:14px;padding-right:14px}.grid{grid-template-columns:1fr 1fr}.detail{grid-template-columns:1fr 1fr}.unit{grid-template-columns:1fr 1fr}}
 @media(max-width:520px){.grid,.detail,.unit{grid-template-columns:1fr}}
 </style>
@@ -28,8 +29,10 @@ details{min-width:330px}summary{cursor:pointer;color:var(--accent);font-weight:7
   <section class="grid">
     <div class="card"><span>Status da filial</span><strong class="{{ 'ok' if filial.ativo == '1' else 'accent' if filial.ativo == 'inaugurar' else 'warn' }}">{{ {'1':'Ativa','0':'Inativa','inaugurar':'A inaugurar','pendente':'Pendente'}.get(filial.ativo,filial.ativo) }}</strong></div>
     <div class="card"><span>Previsão de abertura</span><strong>{{ filial.previsao_abertura or 'Não informada' }}</strong></div>
-    <div class="card"><span>Kit padrão enviado</span><strong class="{{ 'ok' if totais_kit.faltam == 0 and totais_kit.necessario else 'warn' }}">{{ totais_kit.atendido }} / {{ totais_kit.necessario }}</strong></div>
+    <div class="card"><span>Kit padrão</span>{% if totais_kit.forcado_ok %}<strong class="ok">OK</strong>{% else %}<strong class="{{ 'ok' if totais_kit.faltam == 0 and totais_kit.necessario else 'warn' }}">{{ totais_kit.atendido }} / {{ totais_kit.necessario }}</strong>{% endif %}</div>
     <div class="card"><span>Unidades baixadas / enviadas</span><strong class="accent">{{ enviados|length }}</strong></div>
+    <div class="card"><span>Equipamentos no parque</span><strong class="ok">{{ parque_total_unidades }}</strong></div>
+    <div class="card"><span>Tipos de equipamento</span><strong class="accent">{{ parque_total_tipos }}</strong></div>
   </section>
 
   <section class="panel">
@@ -46,8 +49,8 @@ details{min-width:330px}summary{cursor:pointer;color:var(--accent);font-weight:7
 
   <section class="panel">
     <div class="panel-head">
-      <div><h2>Kit padrão da filial</h2><p>O status é calculado pelas unidades que receberam baixa no Estoque com <strong>Status = Enviado</strong> e esta filial como destino.</p></div>
-      <div class="hint">Completo: quantidade do Kit atendida · Parcial: parte enviada · Pendente: nenhuma unidade enviada.</div>
+      <div><h2>Kit padrão da filial</h2><p>O status é calculado pelas unidades que receberam baixa no Estoque com <strong>Status = Enviado</strong> e esta filial como destino.{% if totais_kit.forcado_ok %} Como a filial está <strong>Inativa</strong>, o Kit padrão é considerado <strong>OK</strong> por regra de negócio.{% endif %}</p></div>
+      <div class="hint">{% if totais_kit.forcado_ok %}Filial inativa: Kit padrão considerado OK. As quantidades reais permanecem visíveis para consulta.{% else %}Completo: quantidade do Kit atendida · Parcial: parte enviada · Pendente: nenhuma unidade enviada.{% endif %}</div>
     </div>
     <div class="table-wrap limited">
       <table>
@@ -60,7 +63,7 @@ details{min-width:330px}summary{cursor:pointer;color:var(--accent);font-weight:7
             <td>{{ k.necessario }}</td>
             <td>{{ k.enviados }}</td>
             <td>{{ k.faltam }}</td>
-            <td><span class="badge {{ 'ok' if k.status == 'Completo' else 'warn' if k.status == 'Parcial' else 'danger' }}">{{ k.status }}</span></td>
+            <td><span class="badge {{ 'ok' if k.status in ['Completo','OK'] else 'warn' if k.status == 'Parcial' else 'danger' }}">{{ k.status }}</span></td>
             <td>
               {% if k.itens %}
               <details>
@@ -86,6 +89,15 @@ details{min-width:330px}summary{cursor:pointer;color:var(--accent);font-weight:7
         {% endfor %}
         </tbody>
       </table>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head"><div><h2>Parque de equipamentos da filial</h2><p>Quantidade física vinculada à filial, agrupada por código. Ativos identificados por imobilizado, série ou patrimônio são deduplicados entre Estoque e Imobilizados.</p></div><div class="hint">Total no parque: <strong>{{ parque_total_unidades }}</strong> unidade(s) · <strong>{{ parque_total_tipos }}</strong> tipo(s) de equipamento.</div></div>
+    <div class="table-wrap">
+      <table><thead><tr><th>Código</th><th>Equipamento</th><th>Quantidade unitária no parque</th></tr></thead><tbody>
+      {% for p in parque_por_item %}<tr><td class="codigo">{{ p.codigo }}</td><td>{{ p.descricao }}</td><td><strong>{{ p.unidades }}</strong></td></tr>{% else %}<tr><td colspan="3" class="empty">Nenhum equipamento vinculado a esta filial.</td></tr>{% endfor %}
+      </tbody></table>
     </div>
   </section>
 

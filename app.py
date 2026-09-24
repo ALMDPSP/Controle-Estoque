@@ -64,7 +64,7 @@ import qrcode
 import db
 
 app = Flask(__name__)
-APP_BUILD = "2026-09-24-agente-ia-fallback-v114"
+APP_BUILD = "2026-09-24-filiais-parque-estoque-ia-v115"
 _DASHBOARD_CACHE = {"expira": 0.0, "dados": None}
 app.secret_key = os.environ.get("SECRET_KEY", "troque-esta-chave-em-producao")
 _RUNNING_HTTPS_HOSTED = bool(
@@ -974,6 +974,88 @@ def _preparar_baixa_envio_item(item_antes, dados):
         dados[campo] = str(combinado.get(campo) or "").strip()
     return dados, None
 
+
+def _equipamento_combina_kit(item, item_kit):
+    codigo_k = str((item_kit or {}).get("codigo") or "").strip()
+    codigo_i = str((item or {}).get("codigo") or "").strip()
+    if codigo_k:
+        return codigo_i == codigo_k
+    desc_k = _normalizar_exec((item_kit or {}).get("descricao"))
+    desc_i = _normalizar_exec((item or {}).get("descricao"))
+    return bool(desc_k and desc_i and (desc_k == desc_i or desc_k in desc_i or desc_i in desc_k))
+
+
+def _qtd_registro_parque(item):
+    try:
+        qtd = int(float((item or {}).get("qtde") or 0))
+    except (TypeError, ValueError):
+        qtd = 0
+    return max(1, qtd)
+
+
+def _chave_fisica_equipamento(item, origem):
+    filial = str((item or {}).get("filial_destino") or "").strip()
+    codigo = str((item or {}).get("codigo") or "").strip()
+    for campo in ("nro_imobilizado", "nro_serie", "nro_patrimonio"):
+        valor = str((item or {}).get(campo) or "").strip()
+        if valor:
+            return (filial, codigo, campo, valor)
+    return (filial, codigo, origem, int((item or {}).get("id") or 0))
+
+
+def _resumo_parque_filiais():
+    resumo = {}
+    vistos = set()
+    for origem, registros in (("estoque", db.listar_itens()), ("imobilizados", db.listar_imobilizados())):
+        for item in registros or []:
+            filial = str(item.get("filial_destino") or "").strip()
+            if not filial:
+                continue
+            chave = _chave_fisica_equipamento(item, origem)
+            if chave in vistos:
+                continue
+            vistos.add(chave)
+            qtd = _qtd_registro_parque(item)
+            codigo = str(item.get("codigo") or "").strip() or "SEM-CODIGO"
+            desc = str(item.get("descricao") or "Item sem descrição").strip()
+            f = resumo.setdefault(filial, {"unidades": 0, "tipos": set(), "por_item": {}})
+            f["unidades"] += qtd
+            f["tipos"].add(codigo)
+            g = f["por_item"].setdefault(codigo, {"codigo": codigo, "descricao": desc, "unidades": 0})
+            g["unidades"] += qtd
+    for f in resumo.values():
+        f["tipos_total"] = len(f["tipos"])
+        f["por_item_lista"] = sorted(f["por_item"].values(), key=lambda x: (x.get("codigo") or "", x.get("descricao") or ""))
+    return resumo
+
+
+def _status_kit_filial_resumo(filial, itens_estoque=None, kit=None):
+    if str((filial or {}).get("ativo") or "").strip() == "0":
+        return "OK"
+    codigo_filial = str((filial or {}).get("codigo") or "").strip()
+    enviados = [x for x in (itens_estoque if itens_estoque is not None else db.listar_itens())
+               if str(x.get("filial_destino") or "").strip() == codigo_filial
+               and _normalizar_exec(x.get("status")) == "enviado"]
+    kit = kit if kit is not None else db.listar_kit_padrao_loja()
+    if not kit:
+        return "Sem kit"
+    usados = set(); teve_algum = False; completo = True
+    for k in kit:
+        try:
+            necessario = max(1, int(float(k.get("quantidade") or 1)))
+        except Exception:
+            necessario = 1
+        candidatos = [x for x in enviados if x.get("id") not in usados and _equipamento_combina_kit(x, k)]
+        for x in candidatos:
+            usados.add(x.get("id"))
+        teve_algum = teve_algum or bool(candidatos)
+        if len(candidatos) < necessario:
+            completo = False
+    if completo:
+        return "Completo"
+    return "Parcial" if teve_algum else "Pendente"
+
+
 def _data_acompanhamento_iso(valor):
     """Converte datas do Acompanhamento para ISO quando possível."""
     texto = str(valor or "").strip()
@@ -996,6 +1078,91 @@ def _data_acompanhamento_legivel(valor):
             pass
     texto = str(valor or "").strip()
     return texto if texto else "A DEFINIR"
+
+
+def _qtd_disponivel_num(valor):
+    try:
+        return float(valor or 0)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def _consolidar_baixa_inauguracao(dados_acompanhamento, usuario):
+    """Baixa automática somente da diferença ainda não enviada do Kit padrão.
+
+    É idempotente: tudo o que já foi enviado/vinculado à filial é contado antes da
+    baixa. Somente registros disponíveis do Estoque Expansão são consumidos.
+    """
+    dados = dados_acompanhamento or {}
+    if _normalizar_exec(dados.get("status_filial")) != "inaugurada":
+        return {"consumidas": 0, "faltantes": 0, "itens_faltantes": []}
+    filial = str(dados.get("filial") or "").strip()
+    if not filial:
+        return {"consumidas": 0, "faltantes": 0, "itens_faltantes": []}
+
+    itens = db.listar_itens() or []
+    kit = db.listar_kit_padrao_loja() or []
+    enviados = [x for x in itens if str(x.get("filial_destino") or "").strip() == filial and _normalizar_exec(x.get("status")) == "enviado"]
+    disponiveis = [x for x in itens if _normalizar_exec(x.get("tipo_estoque")) == "expansao"
+                   and _normalizar_exec(x.get("status")) != "enviado"
+                   and not str(x.get("filial_destino") or "").strip()
+                   and _qtd_disponivel_num(x.get("qtde")) > 0]
+    usados_enviados = set(); usados_disponiveis = set()
+    consumidas = 0; faltantes_total = 0; itens_faltantes = []
+    data_saida = _data_acompanhamento_iso(dados.get("inauguracao")) or datetime.now().strftime("%Y-%m-%d")
+    agora = datetime.now().strftime("%Y-%m-%d %H:%M")
+
+    for k in kit:
+        try:
+            necessario = max(1, int(float(k.get("quantidade") or 1)))
+        except Exception:
+            necessario = 1
+        ja = [x for x in enviados if x.get("id") not in usados_enviados and _equipamento_combina_kit(x, k)]
+        for x in ja[:necessario]:
+            usados_enviados.add(x.get("id"))
+        faltam = max(0, necessario - len(ja))
+        if not faltam:
+            continue
+        candidatos = [x for x in disponiveis if x.get("id") not in usados_disponiveis and _equipamento_combina_kit(x, k)]
+        candidatos.sort(key=lambda x: int(x.get("id") or 0))
+        baixar = candidatos[:faltam]
+        for item in baixar:
+            item_id = int(item.get("id"))
+            db.atualizar_item(item_id, {
+                "status": "Enviado",
+                "qtde": "0",
+                "filial_destino": filial,
+                "data_saida": str(item.get("data_saida") or data_saida),
+                "vd_loja": str(item.get("vd_loja") or "Baixa automática na inauguração"),
+                "atualizado_por": usuario or "sistema",
+                "atualizado_em": agora,
+            })
+            db.registrar_movimentacao(
+                item_id, "saida_inauguracao", "1", usuario or "sistema",
+                f"Baixa automática na inauguração da filial {filial}; diferença do Kit padrão ainda não consumida.",
+            )
+            usados_disponiveis.add(item_id)
+            consumidas += 1
+        restante = max(0, faltam - len(baixar))
+        if restante:
+            faltantes_total += restante
+            itens_faltantes.append({
+                "codigo": str(k.get("codigo") or "").strip(),
+                "descricao": str(k.get("descricao") or "Item sem descrição").strip(),
+                "faltam": restante,
+            })
+
+    if consumidas or faltantes_total:
+        try:
+            db.registrar_movimentacao(
+                0, "consolidacao_inauguracao", str(consumidas), usuario or "sistema",
+                f"Filial {filial}: {consumidas} unidade(s) consumida(s) automaticamente na inauguração; {faltantes_total} unidade(s) sem estoque para completar o Kit.",
+                tabela="sistema",
+            )
+        except Exception:
+            app.logger.exception("Falha ao registrar auditoria da consolidação de inauguração da filial %s", filial)
+    return {"consumidas": consumidas, "faltantes": faltantes_total, "itens_faltantes": itens_faltantes}
+
 
 def _pipeline_acompanhamento_expansao():
     """Fonte única do pipeline: status PENDENTE/INAUGURADA do Acompanhamento de Expansão."""
@@ -2057,31 +2224,27 @@ def pagina_filial_detalhe(filial_id):
     imobs = [x for x in db.listar_imobilizados() if str(x.get("filial_destino") or "").strip() == codigo]
     enviados = [x for x in itens if _normalizar_exec(x.get("status")) == "enviado"]
     kit = db.listar_kit_padrao_loja()
+    filial_inativa = str(filial.get("ativo") or "").strip() == "0"
 
     # Cruza o Kit padrão da loja com as unidades efetivamente baixadas do Estoque.
-    # Primeiro usa código; quando o Kit não tem código, usa a descrição normalizada.
+    # Para filiais inativas, o Kit é considerado OK por regra de negócio, mas as
+    # quantidades reais continuam visíveis para preservar a rastreabilidade.
     ids_usados = set()
     kit_filial = []
     total_necessario = 0
-    total_atendido = 0
+    total_atendido_real = 0
     for k in kit:
         try:
             necessario = max(1, int(float(k.get("quantidade") or 1)))
         except Exception:
             necessario = 1
         codigo_k = str(k.get("codigo") or "").strip()
-        desc_k = _normalizar_exec(k.get("descricao"))
         candidatos = []
         for item in enviados:
             iid = item.get("id")
             if iid in ids_usados:
                 continue
-            codigo_i = str(item.get("codigo") or "").strip()
-            desc_i = _normalizar_exec(item.get("descricao"))
-            combina = bool(codigo_k and codigo_i == codigo_k)
-            if not codigo_k:
-                combina = bool(desc_k and desc_i and (desc_k == desc_i or desc_k in desc_i or desc_i in desc_k))
-            if combina:
+            if _equipamento_combina_kit(item, k):
                 candidatos.append(item)
         candidatos.sort(key=lambda x: (str(x.get("data_saida") or ""), int(x.get("id") or 0)))
         for item in candidatos:
@@ -2089,9 +2252,12 @@ def pagina_filial_detalhe(filial_id):
         enviados_qtd = len(candidatos)
         atendido = min(necessario, enviados_qtd)
         faltam = max(0, necessario - enviados_qtd)
-        status_kit = "Completo" if faltam == 0 else ("Parcial" if enviados_qtd else "Pendente")
+        if filial_inativa:
+            status_kit = "OK"
+        else:
+            status_kit = "Completo" if faltam == 0 else ("Parcial" if enviados_qtd else "Pendente")
         total_necessario += necessario
-        total_atendido += atendido
+        total_atendido_real += atendido
         kit_filial.append({
             "codigo": codigo_k,
             "descricao": str(k.get("descricao") or "Item sem descrição"),
@@ -2105,17 +2271,26 @@ def pagina_filial_detalhe(filial_id):
     itens_extras = [x for x in enviados if x.get("id") not in ids_usados]
     totais_kit = {
         "necessario": total_necessario,
-        "atendido": total_atendido,
-        "faltam": max(0, total_necessario - total_atendido),
-        "completos": sum(1 for x in kit_filial if x.get("status") == "Completo"),
+        "atendido": total_atendido_real,
+        "faltam": max(0, total_necessario - total_atendido_real),
+        "completos": sum(1 for x in kit_filial if x.get("status") in ("Completo", "OK")),
         "linhas": len(kit_filial),
+        "forcado_ok": filial_inativa,
     }
+
+    parque_filiais = _resumo_parque_filiais()
+    parque = parque_filiais.get(codigo) or {"unidades": 0, "tipos_total": 0, "por_item_lista": []}
+    parque_total_unidades = int(parque.get("unidades") or 0)
+    parque_total_tipos = int(parque.get("tipos_total") or 0)
+    parque_por_item = parque.get("por_item_lista") or []
 
     visao = _calcular_visao_executiva()
     proj = next((x for x in visao.get("planejadas", []) if int(x.get("id") or 0) == filial_id), None)
     return render_template(
         "filial_detalhe.html", filial=filial, itens=itens, imobs=imobs, enviados=enviados,
         kit_filial=kit_filial, itens_extras=itens_extras, totais_kit=totais_kit, projecao=proj,
+        parque_total_unidades=parque_total_unidades, parque_total_tipos=parque_total_tipos,
+        parque_por_item=parque_por_item,
         username=session.get("username"), role=session.get("role") or "user",
         is_admin=session.get("role") == "admin"
     )
@@ -2774,12 +2949,19 @@ def api_cadastrar_acompanhamento_expansao():
         app.logger.exception("Erro ao sincronizar filial %s a partir do Acompanhamento", filial)
         return jsonify({"erro": "Não foi possível sincronizar a loja com a aba Filiais. Nenhuma alteração foi mantida no Acompanhamento."}), 500
 
+    baixa_inauguracao = {"consumidas": 0, "faltantes": 0, "itens_faltantes": []}
+    if _normalizar_exec(status_filial) == "inaugurada":
+        try:
+            baixa_inauguracao = _consolidar_baixa_inauguracao(payload, session.get("username"))
+        except Exception:
+            app.logger.exception("Falha na baixa automática da inauguração da filial %s", filial)
+
     db.registrar_movimentacao(
         0, "cadastro_acompanhamento_expansao", "1", session.get("username"),
         f"Nova loja cadastrada no Acompanhamento de Expansão · Filial {filial} · {descricao} · {projeto} · {status_filial}",
         tabela="sistema"
     )
-    return jsonify({"ok": True, "registro": registro, "filial_sincronizada": sync_filial}), 201
+    return jsonify({"ok": True, "registro": registro, "filial_sincronizada": sync_filial, "baixa_inauguracao": baixa_inauguracao}), 201
 
 
 @app.route("/api/acompanhamento-expansao/<int:registro_id>", methods=["PUT"])
@@ -2839,6 +3021,14 @@ def api_atualizar_acompanhamento_expansao(registro_id):
         app.logger.exception("Erro ao sincronizar Filiais após alteração do acompanhamento %s", registro_id)
         return jsonify({"erro": "Não foi possível sincronizar a alteração com a aba Filiais. O Acompanhamento foi restaurado."}), 500
 
+    baixa_inauguracao = {"consumidas": 0, "faltantes": 0, "itens_faltantes": []}
+    virou_inaugurada = (_normalizar_exec(anterior.get("status_filial")) != "inaugurada" and _normalizar_exec(payload.get("status_filial")) == "inaugurada")
+    if virou_inaugurada:
+        try:
+            baixa_inauguracao = _consolidar_baixa_inauguracao(payload, session.get("username"))
+        except Exception:
+            app.logger.exception("Falha na baixa automática da inauguração da filial %s", filial)
+
     alteracoes = []
     for campo, rotulo in (("filial","Filial"),("bandeira","Bandeira"),("descricao_filial","Descrição"),("uf","UF"),("projeto","Projeto"),("status_filial","Status"),("enviada","Enviada"),("em_separacao","Em Separação"),("equip_separado","Equip. separado"),("term_obra","Término obra"),("entrada_ti","Entrada TI"),("inauguracao","Inauguração"),("observacao_ti","Observação TI")):
         antes = str(anterior.get(campo) or "").strip()
@@ -2852,7 +3042,7 @@ def api_atualizar_acompanhamento_expansao(registro_id):
         )
 
     atualizado = db.buscar_acompanhamento_expansao_por_id(registro_id)
-    return jsonify({"ok": True, "registro": atualizado, "filial_sincronizada": sync_filial})
+    return jsonify({"ok": True, "registro": atualizado, "filial_sincronizada": sync_filial, "baixa_inauguracao": baixa_inauguracao})
 
 
 @app.route("/api/acompanhamento-expansao/<int:registro_id>", methods=["DELETE"])
@@ -3115,10 +3305,16 @@ def api_importar_acompanhamento_expansao():
 
         sincronizadas = 0
         falhas_sincronizacao = []
+        baixas_inauguracao = 0
+        faltantes_inauguracao = 0
         for item in registros:
             try:
                 _sincronizar_filial_a_partir_acompanhamento(item, usuario)
                 sincronizadas += 1
+                if _normalizar_exec(item.get("status_filial")) == "inaugurada":
+                    baixa = _consolidar_baixa_inauguracao(item, usuario)
+                    baixas_inauguracao += int(baixa.get("consumidas") or 0)
+                    faltantes_inauguracao += int(baixa.get("faltantes") or 0)
             except Exception as sync_err:
                 codigo_sync = str(item.get("filial") or "").strip()
                 falhas_sincronizacao.append(codigo_sync or "sem código")
@@ -3148,6 +3344,7 @@ def api_importar_acompanhamento_expansao():
             "sem_alteracao":sem_alteracao, "ignoradas":0, "erros":[], "removidos":removidos,
             "filiais_sincronizadas": sincronizadas, "filiais_inativadas": filiais_inativadas,
             "falhas_sincronizacao": falhas_sincronizacao,
+            "baixas_inauguracao": baixas_inauguracao, "faltantes_inauguracao": faltantes_inauguracao,
         })
     except ValueError as e:
         return jsonify({"erro":str(e)}), 400
@@ -3204,7 +3401,21 @@ def pagina_loja_virtual():
 @login_required
 def api_listar_filiais():
     incluir_inativas = request.args.get("inativas", "1") != "0"
-    return jsonify(db.listar_filiais(incluir_inativas=incluir_inativas))
+    filiais = db.listar_filiais(incluir_inativas=incluir_inativas)
+    parque = _resumo_parque_filiais()
+    itens_estoque = db.listar_itens() or []
+    kit = db.listar_kit_padrao_loja() or []
+    resposta = []
+    for filial in filiais:
+        item = dict(filial)
+        codigo = str(item.get("codigo") or "").strip()
+        resumo = parque.get(codigo) or {}
+        item["equipamentos_unidades"] = int(resumo.get("unidades") or 0)
+        item["equipamentos_tipos"] = int(resumo.get("tipos_total") or 0)
+        item["equipamentos_codigos"] = sorted(list(resumo.get("tipos") or []))
+        item["kit_status"] = _status_kit_filial_resumo(item, itens_estoque=itens_estoque, kit=kit)
+        resposta.append(item)
+    return jsonify(resposta)
 
 
 def _texto_celula_excel_filial(celula):
@@ -6999,14 +7210,11 @@ def api_excluir_usuario(user_id):
 # Agente IA — consultas seguras, somente leitura
 # ---------------------------------------------------------------------
 
-GROQ_DEFAULT_MODEL = "qwen/qwen3.8-27b"
 GEMINI_DEFAULT_MODEL = "gemini-3.5-flash-lite"
 CLOUDFLARE_DEFAULT_MODEL = "@cf/google/gemma-4-26b-a4b-it"
-GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
 GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
 AI_MAX_HISTORY = 10
 AI_MAX_TOOL_ROUNDS = 6
-AI_MAX_OUTPUT_TOKENS = 1200
 AI_PROVIDER_TIMEOUT = 8
 AI_TOTAL_TIMEOUT = 25
 
@@ -7270,7 +7478,7 @@ def _agente_consultar_movimentacoes(args, role):
 
 
 def _agente_tools(role):
-    """Ferramentas no formato de tool calling da API Groq / Chat Completions."""
+    """Ferramentas no formato de tool calling compatível com Chat Completions."""
     funcoes = [
         {"name": "resumo_executivo", "description": "Obtém um resumo executivo atual do sistema, estoque e capacidade de expansão.", "parameters": {"type": "object", "properties": {}, "additionalProperties": False}},
         {"name": "consultar_estoque", "description": "Consulta o estoque atual agrupado por código, descrição e finalidade.", "parameters": {"type": "object", "properties": {"termo": {"type": "string", "description": "Código ou parte da descrição; vazio para todos."}, "finalidade": {"type": "string", "description": "Ex.: Expansão, Sustentação, Requalificação; vazio para todas."}, "limite": {"type": "integer", "minimum": 1, "maximum": 80}}, "additionalProperties": False}},
@@ -7361,23 +7569,18 @@ def _agente_historico_seguro(historico):
 @login_required
 def api_agente_ia_status():
     role = _agente_role()
-    groq_ok = bool(os.environ.get("GROQ_API_KEY", "").strip())
     gemini_ok = bool(os.environ.get("GEMINI_API_KEY", "").strip())
     cf_token_ok = bool(os.environ.get("CLOUDFLARE_API_TOKEN", "").strip())
     cf_account_ok = bool(os.environ.get("CLOUDFLARE_ACCOUNT_ID", "").strip())
     cloudflare_ok = cf_token_ok and cf_account_ok
 
     rota = []
-    if groq_ok:
-        rota.append("Groq")
     if gemini_ok:
         rota.append("Gemini")
     if cloudflare_ok:
         rota.append("Cloudflare")
 
-    if groq_ok:
-        provedor, modelo = "Groq", _groq_model()
-    elif gemini_ok:
+    if gemini_ok:
         provedor, modelo = "Gemini", _gemini_model()
     elif cloudflare_ok:
         provedor, modelo = "Cloudflare", _cloudflare_model()
@@ -7389,13 +7592,11 @@ def api_agente_ia_status():
         "configurado": bool(rota),
         "modelo": modelo,
         "modelos": {
-            "groq": _groq_model(),
             "gemini": _gemini_model(),
             "cloudflare": _cloudflare_model(),
         },
         "provedor": provedor,
         "rota": rota,
-        "groq_configurado": groq_ok,
         "gemini_configurado": gemini_ok,
         "cloudflare_configurado": cloudflare_ok,
         "cloudflare_token_configurado": cf_token_ok,
@@ -7406,21 +7607,6 @@ def api_agente_ia_status():
         "orcamento_disponivel": role != "consulta",
     })
 
-
-def _groq_model():
-    modelo = os.environ.get("GROQ_MODEL", GROQ_DEFAULT_MODEL).strip() or GROQ_DEFAULT_MODEL
-    # Migração automática de modelos Groq já descontinuados. Isso evita que
-    # uma variável antiga no Render derrube o Agente IA após uma depreciação.
-    migracoes = {
-        "qwen/qwen3.6-27b": "qwen/qwen3.8-27b",
-        "qwen/qwen3-32b": "openai/gpt-oss-120b",
-        "meta-llama/llama-4-scout-17b-16e-instruct": "openai/gpt-oss-120b",
-        "llama-3.1-8b-instant": "openai/gpt-oss-20b",
-        "llama-3.3-70b-versatile": "openai/gpt-oss-120b",
-        "groq/compound": "openai/gpt-oss-120b",
-        "groq/compound-mini": "openai/gpt-oss-20b",
-    }
-    return migracoes.get(modelo, modelo)
 
 
 def _gemini_model():
@@ -7437,7 +7623,7 @@ def _cloudflare_api_url():
 
 
 def _provider_chat(url, api_key, payload, provider_name, timeout=None):
-    """Chamada HTTPS OpenAI-compatible para Groq, Gemini e Cloudflare.
+    """Chamada HTTPS OpenAI-compatible para Gemini e Cloudflare.
 
     Cada provedor recebe um timeout curto para preservar tempo para o fallback.
     O limite global da conversa é controlado separadamente pela rota do agente.
@@ -7450,7 +7636,7 @@ def _provider_chat(url, api_key, payload, provider_name, timeout=None):
         headers={
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
-            "User-Agent": "Controle-Estoque-Agente-IA/114",
+            "User-Agent": "Controle-Estoque-Agente-IA/115",
         },
     )
     limite = AI_PROVIDER_TIMEOUT if timeout is None else max(1, float(timeout))
@@ -7482,7 +7668,7 @@ def _provider_erro_amigavel(provider, exc):
             return "A autenticação do Cloudflare falhou. Confira CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID e a permissão Workers AI Read."
         if p == "gemini":
             return "A chave GEMINI_API_KEY não foi aceita. Gere ou copie novamente a chave no Google AI Studio."
-        return "A chave GROQ_API_KEY não foi aceita. Confira a chave criada no Groq."
+        return f"A autenticação do {provider} falhou."
 
     if codigo == 429:
         return f"O limite gratuito do {provider} foi atingido temporariamente. O agente vai tentar o próximo provedor."
@@ -7520,11 +7706,7 @@ def _agente_loop_openai_compat(provider, api_url, api_key, model, pergunta, hist
             "tool_choice": "auto",
             "temperature": 0.2,
         }
-        # Nem todos os endpoints OpenAI-compatible aceitam exatamente o mesmo
-        # nome para limite de saída. O Groq aceita max_completion_tokens; para
-        # Gemini/Cloudflare deixamos o servidor aplicar o padrão para máxima compatibilidade.
-        if provider == "Groq":
-            payload["max_completion_tokens"] = AI_MAX_OUTPUT_TOKENS
+        # Gemini/Cloudflare aplicam seus limites padrão de saída para máxima compatibilidade.
 
         timeout_chamada = AI_PROVIDER_TIMEOUT
         if deadline is not None:
@@ -7586,15 +7768,6 @@ def _agente_loop_openai_compat(provider, api_url, api_key, model, pergunta, hist
 def _provider_configs():
     configs = []
 
-    groq_key = os.environ.get("GROQ_API_KEY", "").strip()
-    if groq_key:
-        configs.append({
-            "nome": "Groq",
-            "url": GROQ_API_URL,
-            "key": groq_key,
-            "model": _groq_model(),
-        })
-
     gemini_key = os.environ.get("GEMINI_API_KEY", "").strip()
     if gemini_key:
         configs.append({
@@ -7626,7 +7799,7 @@ def api_agente_ia_chat():
     provedores = _provider_configs()
     if not provedores:
         return jsonify({
-            "erro": "Agente IA ainda não está configurado. Configure GROQ_API_KEY, GEMINI_API_KEY e/ou Cloudflare no Render."
+            "erro": "Agente IA ainda não está configurado. Configure GEMINI_API_KEY e/ou Cloudflare no Render."
         }), 503
 
     dados = request.get_json(silent=True) or {}
@@ -7641,7 +7814,7 @@ def api_agente_ia_chat():
     falhas = []
     deadline = time.monotonic() + AI_TOTAL_TIMEOUT
 
-    # Ordem fixa solicitada: Groq -> Gemini -> Cloudflare.
+    # Ordem fixa atual: Gemini -> Cloudflare.
     # O limite global impede que um provedor lento faça o Gunicorn encerrar
     # o worker antes que o fallback tenha chance de responder.
     for indice, cfg in enumerate(provedores):
