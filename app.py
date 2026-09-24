@@ -64,7 +64,7 @@ import qrcode
 import db
 
 app = Flask(__name__)
-APP_BUILD = "2026-09-24-layout-padrao-global-v116"
+APP_BUILD = "2026-09-24-parque-equipamentos-v117"
 _DASHBOARD_CACHE = {"expira": 0.0, "dados": None}
 app.secret_key = os.environ.get("SECRET_KEY", "troque-esta-chave-em-producao")
 _RUNNING_HTTPS_HOSTED = bool(
@@ -1003,7 +1003,13 @@ def _chave_fisica_equipamento(item, origem):
     return (filial, codigo, origem, int((item or {}).get("id") or 0))
 
 
-def _resumo_parque_filiais():
+def _parque_real_filiais():
+    """Retorna somente equipamentos realmente vinculados às filiais.
+
+    O parque real usa os registros existentes em Estoque e Imobilizados e
+    deduplica ativos identificados por imobilizado, série ou patrimônio.
+    Nenhuma quantidade virtual/legada é criada aqui.
+    """
     resumo = {}
     vistos = set()
     for origem, registros in (("estoque", db.listar_itens()), ("imobilizados", db.listar_imobilizados())):
@@ -1021,13 +1027,254 @@ def _resumo_parque_filiais():
             f = resumo.setdefault(filial, {"unidades": 0, "tipos": set(), "por_item": {}})
             f["unidades"] += qtd
             f["tipos"].add(codigo)
-            g = f["por_item"].setdefault(codigo, {"codigo": codigo, "descricao": desc, "unidades": 0})
+            g = f["por_item"].setdefault(codigo, {
+                "codigo": codigo, "descricao": desc, "unidades": 0,
+                "reais": 0, "legado": 0,
+            })
             g["unidades"] += qtd
+            g["reais"] += qtd
     for f in resumo.values():
         f["tipos_total"] = len(f["tipos"])
         f["por_item_lista"] = sorted(f["por_item"].values(), key=lambda x: (x.get("codigo") or "", x.get("descricao") or ""))
     return resumo
 
+
+def _resumo_parque_filiais(incluir_legado_ativas=True, somente_ativas=False):
+    """Visão do parque por filial.
+
+    Regra v117:
+    - lojas ATIVAS antigas recebem, para fins de parque, no mínimo o Kit padrão
+      completo, mesmo quando não existe rastreabilidade histórica no Estoque;
+    - a diferença é classificada como ``legado`` e NÃO movimenta o estoque;
+    - lojas A INAUGURAR/PENDENTES nunca recebem preenchimento legado; nelas só
+      contam unidades realmente baixadas/vinculadas;
+    - ``somente_ativas=True`` é usado na visão geral do parque operacional.
+    """
+    real = _parque_real_filiais()
+    filiais = db.listar_filiais(incluir_inativas=True) or []
+    kit = db.listar_kit_padrao_loja() or []
+    saida = {}
+
+    for filial in filiais:
+        codigo_filial = str(filial.get("codigo") or "").strip()
+        if not codigo_filial:
+            continue
+        ativa = str(filial.get("ativo") or "").strip() == "1"
+        if somente_ativas and not ativa:
+            continue
+
+        base = real.get(codigo_filial) or {"unidades": 0, "tipos": set(), "por_item": {}}
+        por_item = {}
+        for codigo_item, item in (base.get("por_item") or {}).items():
+            por_item[codigo_item] = dict(item)
+
+        if ativa and incluir_legado_ativas:
+            for k in kit:
+                codigo_k = str(k.get("codigo") or "").strip() or "SEM-CODIGO"
+                desc_k = str(k.get("descricao") or "Item sem descrição").strip()
+                try:
+                    necessario = max(1, int(float(k.get("quantidade") or 1)))
+                except Exception:
+                    necessario = 1
+                g = por_item.setdefault(codigo_k, {
+                    "codigo": codigo_k, "descricao": desc_k,
+                    "unidades": 0, "reais": 0, "legado": 0,
+                })
+                reais = int(g.get("reais") or 0)
+                faltam_legado = max(0, necessario - reais)
+                if faltam_legado:
+                    g["legado"] = int(g.get("legado") or 0) + faltam_legado
+                    g["unidades"] = int(g.get("unidades") or 0) + faltam_legado
+                if not g.get("descricao"):
+                    g["descricao"] = desc_k
+
+        itens_lista = sorted(por_item.values(), key=lambda x: (x.get("codigo") or "", x.get("descricao") or ""))
+        tipos = {str(x.get("codigo") or "SEM-CODIGO") for x in itens_lista if int(x.get("unidades") or 0) > 0}
+        saida[codigo_filial] = {
+            "unidades": sum(int(x.get("unidades") or 0) for x in itens_lista),
+            "reais": sum(int(x.get("reais") or 0) for x in itens_lista),
+            "legado": sum(int(x.get("legado") or 0) for x in itens_lista),
+            "tipos": tipos,
+            "tipos_total": len(tipos),
+            "por_item": por_item,
+            "por_item_lista": itens_lista,
+            "filial": dict(filial),
+        }
+    return saida
+
+
+def _faltantes_kit_real_filial(codigo_filial, itens_estoque=None, kit=None):
+    """Calcula o que ainda falta baixar REALMENTE do Estoque para completar o Kit."""
+    codigo_filial = str(codigo_filial or "").strip()
+    itens_estoque = itens_estoque if itens_estoque is not None else (db.listar_itens() or [])
+    kit = kit if kit is not None else (db.listar_kit_padrao_loja() or [])
+    enviados = [
+        x for x in itens_estoque
+        if str(x.get("filial_destino") or "").strip() == codigo_filial
+        and _normalizar_exec(x.get("status")) == "enviado"
+    ]
+    usados = set()
+    faltantes = []
+    for k in kit:
+        try:
+            necessario = max(1, int(float(k.get("quantidade") or 1)))
+        except Exception:
+            necessario = 1
+        candidatos = [x for x in enviados if x.get("id") not in usados and _equipamento_combina_kit(x, k)]
+        candidatos.sort(key=lambda x: int(x.get("id") or 0))
+        for x in candidatos[:necessario]:
+            usados.add(x.get("id"))
+        falta = max(0, necessario - min(necessario, len(candidatos)))
+        if falta:
+            faltantes.append({
+                "codigo": str(k.get("codigo") or "").strip(),
+                "descricao": str(k.get("descricao") or "Item sem descrição").strip(),
+                "faltam": falta,
+            })
+    return faltantes
+
+
+def _kit_real_completo_filial(codigo_filial):
+    kit = db.listar_kit_padrao_loja() or []
+    return bool(kit) and not _faltantes_kit_real_filial(codigo_filial, kit=kit)
+
+
+def _kit_vinculado_filial(filial):
+    """Monta apenas o Kit padrão efetivamente vinculado à loja.
+
+    Para lojas ativas antigas, completa a diferença como legado operacional,
+    sem criar linhas fictícias no Estoque. Para lojas ainda não ativas, mostra
+    somente o que já recebeu baixa real.
+    """
+    codigo_filial = str((filial or {}).get("codigo") or "").strip()
+    ativa = str((filial or {}).get("ativo") or "").strip() == "1"
+    kit = db.listar_kit_padrao_loja() or []
+    itens = db.listar_itens() or []
+    enviados = [x for x in itens if str(x.get("filial_destino") or "").strip() == codigo_filial and _normalizar_exec(x.get("status")) == "enviado"]
+    usados = set()
+    linhas = []
+    for k in kit:
+        try:
+            necessario = max(1, int(float(k.get("quantidade") or 1)))
+        except Exception:
+            necessario = 1
+        candidatos = [x for x in enviados if x.get("id") not in usados and _equipamento_combina_kit(x, k)]
+        candidatos.sort(key=lambda x: int(x.get("id") or 0))
+        usados_agora = candidatos[:necessario]
+        for x in usados_agora:
+            usados.add(x.get("id"))
+        reais = min(necessario, len(usados_agora))
+        legado = max(0, necessario - reais) if ativa else 0
+        vinculado = reais + legado
+        if vinculado <= 0:
+            continue
+        if legado and reais:
+            situacao = "Rastreado + legado"
+        elif legado:
+            situacao = "Legado"
+        else:
+            situacao = "Rastreado"
+        linhas.append({
+            "codigo": str(k.get("codigo") or "").strip(),
+            "descricao": str(k.get("descricao") or "Item sem descrição").strip(),
+            "padrao": necessario,
+            "vinculado": vinculado,
+            "reais": reais,
+            "legado": legado,
+            "situacao": situacao,
+        })
+    return linhas
+
+
+def _ativar_filial_se_kit_real_completo(codigo_filial, usuario=None):
+    """Promove loja A inaugurar/Pendente para Ativa após a última baixa do Kit.
+
+    A promoção usa exclusivamente unidades reais com Status=Enviado. O legado
+    só existe para lojas que já eram ativas antes desta regra.
+    """
+    codigo_filial = str(codigo_filial or "").strip()
+    if not codigo_filial:
+        return {"ativada": False, "motivo": "sem_filial"}
+    filial = db.buscar_filial_por_codigo(codigo_filial)
+    if not filial:
+        return {"ativada": False, "motivo": "filial_nao_encontrada"}
+    status_atual = str(filial.get("ativo") or "").strip()
+    if status_atual == "1":
+        return {"ativada": False, "motivo": "ja_ativa"}
+    if status_atual not in ("inaugurar", "pendente"):
+        return {"ativada": False, "motivo": "status_nao_elegivel"}
+    faltantes = _faltantes_kit_real_filial(codigo_filial)
+    if faltantes:
+        return {"ativada": False, "motivo": "kit_incompleto", "faltantes": faltantes}
+
+    db.atualizar_filial(
+        int(filial["id"]), str(filial.get("codigo") or ""), str(filial.get("nome") or ""),
+        str(filial.get("cidade") or ""), str(filial.get("uf") or ""), "1",
+        bandeira=filial.get("bandeira"), previsao_abertura=filial.get("previsao_abertura"),
+    )
+
+    # Mantém o Acompanhamento coerente: Kit completo por baixa = loja inaugurada/ativa.
+    try:
+        for acomp in db.listar_acompanhamento_expansao() or []:
+            if str(acomp.get("filial") or "").strip() != codigo_filial:
+                continue
+            if _normalizar_exec(acomp.get("status_filial")) == "inaugurada":
+                break
+            payload = dict(acomp)
+            payload["status_filial"] = "INAUGURADA"
+            db.atualizar_acompanhamento_expansao(int(acomp["id"]), payload, usuario or "sistema")
+            break
+    except Exception:
+        app.logger.exception("Falha ao sincronizar inauguração automática da filial %s", codigo_filial)
+
+    try:
+        db.registrar_movimentacao(
+            0, "ativacao_filial_kit_completo", "1", usuario or "sistema",
+            f"Filial {codigo_filial} promovida automaticamente para Ativa após completar o Kit padrão com baixas reais do Estoque.",
+            tabela="sistema",
+        )
+    except Exception:
+        app.logger.exception("Falha ao auditar ativação automática da filial %s", codigo_filial)
+    return {"ativada": True, "motivo": "kit_completo"}
+
+
+def _dados_equipamentos_parque():
+    """Consolida o parque operacional geral das lojas ATIVAS."""
+    parque = _resumo_parque_filiais(incluir_legado_ativas=True, somente_ativas=True)
+    agregado = {}
+    total_unidades = total_reais = total_legado = 0
+    filiais_com_parque = 0
+    for codigo_filial, dados in parque.items():
+        if int(dados.get("unidades") or 0) > 0:
+            filiais_com_parque += 1
+        total_unidades += int(dados.get("unidades") or 0)
+        total_reais += int(dados.get("reais") or 0)
+        total_legado += int(dados.get("legado") or 0)
+        for item in dados.get("por_item_lista") or []:
+            codigo = str(item.get("codigo") or "SEM-CODIGO")
+            g = agregado.setdefault(codigo, {
+                "codigo": codigo,
+                "descricao": str(item.get("descricao") or "Item sem descrição"),
+                "unidades": 0, "reais": 0, "legado": 0, "filiais": 0,
+            })
+            qtd = int(item.get("unidades") or 0)
+            if qtd > 0:
+                g["filiais"] += 1
+            g["unidades"] += qtd
+            g["reais"] += int(item.get("reais") or 0)
+            g["legado"] += int(item.get("legado") or 0)
+
+    filiais_ativas = sum(1 for f in (db.listar_filiais(incluir_inativas=True) or []) if str(f.get("ativo") or "") == "1")
+    itens = sorted(agregado.values(), key=lambda x: (x.get("codigo") or "", x.get("descricao") or ""))
+    return {
+        "total_unidades": total_unidades,
+        "total_reais": total_reais,
+        "total_legado": total_legado,
+        "tipos_total": len([x for x in itens if int(x.get("unidades") or 0) > 0]),
+        "filiais_ativas": filiais_ativas,
+        "filiais_com_parque": filiais_com_parque,
+        "itens": itens,
+    }
 
 def _status_kit_filial_resumo(filial, itens_estoque=None, kit=None):
     if str((filial or {}).get("ativo") or "").strip() == "0":
@@ -1085,83 +1332,6 @@ def _qtd_disponivel_num(valor):
         return float(valor or 0)
     except (TypeError, ValueError):
         return 0.0
-
-
-def _consolidar_baixa_inauguracao(dados_acompanhamento, usuario):
-    """Baixa automática somente da diferença ainda não enviada do Kit padrão.
-
-    É idempotente: tudo o que já foi enviado/vinculado à filial é contado antes da
-    baixa. Somente registros disponíveis do Estoque Expansão são consumidos.
-    """
-    dados = dados_acompanhamento or {}
-    if _normalizar_exec(dados.get("status_filial")) != "inaugurada":
-        return {"consumidas": 0, "faltantes": 0, "itens_faltantes": []}
-    filial = str(dados.get("filial") or "").strip()
-    if not filial:
-        return {"consumidas": 0, "faltantes": 0, "itens_faltantes": []}
-
-    itens = db.listar_itens() or []
-    kit = db.listar_kit_padrao_loja() or []
-    enviados = [x for x in itens if str(x.get("filial_destino") or "").strip() == filial and _normalizar_exec(x.get("status")) == "enviado"]
-    disponiveis = [x for x in itens if _normalizar_exec(x.get("tipo_estoque")) == "expansao"
-                   and _normalizar_exec(x.get("status")) != "enviado"
-                   and not str(x.get("filial_destino") or "").strip()
-                   and _qtd_disponivel_num(x.get("qtde")) > 0]
-    usados_enviados = set(); usados_disponiveis = set()
-    consumidas = 0; faltantes_total = 0; itens_faltantes = []
-    data_saida = _data_acompanhamento_iso(dados.get("inauguracao")) or datetime.now().strftime("%Y-%m-%d")
-    agora = datetime.now().strftime("%Y-%m-%d %H:%M")
-
-    for k in kit:
-        try:
-            necessario = max(1, int(float(k.get("quantidade") or 1)))
-        except Exception:
-            necessario = 1
-        ja = [x for x in enviados if x.get("id") not in usados_enviados and _equipamento_combina_kit(x, k)]
-        for x in ja[:necessario]:
-            usados_enviados.add(x.get("id"))
-        faltam = max(0, necessario - len(ja))
-        if not faltam:
-            continue
-        candidatos = [x for x in disponiveis if x.get("id") not in usados_disponiveis and _equipamento_combina_kit(x, k)]
-        candidatos.sort(key=lambda x: int(x.get("id") or 0))
-        baixar = candidatos[:faltam]
-        for item in baixar:
-            item_id = int(item.get("id"))
-            db.atualizar_item(item_id, {
-                "status": "Enviado",
-                "qtde": "0",
-                "filial_destino": filial,
-                "data_saida": str(item.get("data_saida") or data_saida),
-                "vd_loja": str(item.get("vd_loja") or "Baixa automática na inauguração"),
-                "atualizado_por": usuario or "sistema",
-                "atualizado_em": agora,
-            })
-            db.registrar_movimentacao(
-                item_id, "saida_inauguracao", "1", usuario or "sistema",
-                f"Baixa automática na inauguração da filial {filial}; diferença do Kit padrão ainda não consumida.",
-            )
-            usados_disponiveis.add(item_id)
-            consumidas += 1
-        restante = max(0, faltam - len(baixar))
-        if restante:
-            faltantes_total += restante
-            itens_faltantes.append({
-                "codigo": str(k.get("codigo") or "").strip(),
-                "descricao": str(k.get("descricao") or "Item sem descrição").strip(),
-                "faltam": restante,
-            })
-
-    if consumidas or faltantes_total:
-        try:
-            db.registrar_movimentacao(
-                0, "consolidacao_inauguracao", str(consumidas), usuario or "sistema",
-                f"Filial {filial}: {consumidas} unidade(s) consumida(s) automaticamente na inauguração; {faltantes_total} unidade(s) sem estoque para completar o Kit.",
-                tabela="sistema",
-            )
-        except Exception:
-            app.logger.exception("Falha ao registrar auditoria da consolidação de inauguração da filial %s", filial)
-    return {"consumidas": consumidas, "faltantes": faltantes_total, "itens_faltantes": itens_faltantes}
 
 
 def _pipeline_acompanhamento_expansao():
@@ -2219,80 +2389,110 @@ def pagina_filial_detalhe(filial_id):
     if not filial:
         return redirect(url_for("pagina_filiais"))
 
-    codigo = str(filial.get("codigo") or "").strip()
-    itens = [x for x in db.listar_itens() if str(x.get("filial_destino") or "").strip() == codigo]
-    imobs = [x for x in db.listar_imobilizados() if str(x.get("filial_destino") or "").strip() == codigo]
-    enviados = [x for x in itens if _normalizar_exec(x.get("status")) == "enviado"]
-    kit = db.listar_kit_padrao_loja()
-    filial_inativa = str(filial.get("ativo") or "").strip() == "0"
-
-    # Cruza o Kit padrão da loja com as unidades efetivamente baixadas do Estoque.
-    # Para filiais inativas, o Kit é considerado OK por regra de negócio, mas as
-    # quantidades reais continuam visíveis para preservar a rastreabilidade.
-    ids_usados = set()
-    kit_filial = []
-    total_necessario = 0
-    total_atendido_real = 0
-    for k in kit:
-        try:
-            necessario = max(1, int(float(k.get("quantidade") or 1)))
-        except Exception:
-            necessario = 1
-        codigo_k = str(k.get("codigo") or "").strip()
-        candidatos = []
-        for item in enviados:
-            iid = item.get("id")
-            if iid in ids_usados:
-                continue
-            if _equipamento_combina_kit(item, k):
-                candidatos.append(item)
-        candidatos.sort(key=lambda x: (str(x.get("data_saida") or ""), int(x.get("id") or 0)))
-        for item in candidatos:
-            ids_usados.add(item.get("id"))
-        enviados_qtd = len(candidatos)
-        atendido = min(necessario, enviados_qtd)
-        faltam = max(0, necessario - enviados_qtd)
-        if filial_inativa:
-            status_kit = "OK"
-        else:
-            status_kit = "Completo" if faltam == 0 else ("Parcial" if enviados_qtd else "Pendente")
-        total_necessario += necessario
-        total_atendido_real += atendido
-        kit_filial.append({
-            "codigo": codigo_k,
-            "descricao": str(k.get("descricao") or "Item sem descrição"),
-            "necessario": necessario,
-            "enviados": enviados_qtd,
-            "faltam": faltam,
-            "status": status_kit,
-            "itens": candidatos,
-        })
-
-    itens_extras = [x for x in enviados if x.get("id") not in ids_usados]
-    totais_kit = {
-        "necessario": total_necessario,
-        "atendido": total_atendido_real,
-        "faltam": max(0, total_necessario - total_atendido_real),
-        "completos": sum(1 for x in kit_filial if x.get("status") in ("Completo", "OK")),
-        "linhas": len(kit_filial),
-        "forcado_ok": filial_inativa,
-    }
-
-    parque_filiais = _resumo_parque_filiais()
-    parque = parque_filiais.get(codigo) or {"unidades": 0, "tipos_total": 0, "por_item_lista": []}
-    parque_total_unidades = int(parque.get("unidades") or 0)
-    parque_total_tipos = int(parque.get("tipos_total") or 0)
-    parque_por_item = parque.get("por_item_lista") or []
-
-    visao = _calcular_visao_executiva()
-    proj = next((x for x in visao.get("planejadas", []) if int(x.get("id") or 0) == filial_id), None)
+    kit_vinculado = _kit_vinculado_filial(filial)
+    total_vinculado = sum(int(x.get("vinculado") or 0) for x in kit_vinculado)
+    total_rastreado = sum(int(x.get("reais") or 0) for x in kit_vinculado)
+    total_legado = sum(int(x.get("legado") or 0) for x in kit_vinculado)
     return render_template(
-        "filial_detalhe.html", filial=filial, itens=itens, imobs=imobs, enviados=enviados,
-        kit_filial=kit_filial, itens_extras=itens_extras, totais_kit=totais_kit, projecao=proj,
-        parque_total_unidades=parque_total_unidades, parque_total_tipos=parque_total_tipos,
-        parque_por_item=parque_por_item,
+        "filial_detalhe.html",
+        filial=filial,
+        kit_vinculado=kit_vinculado,
+        total_vinculado=total_vinculado,
+        total_rastreado=total_rastreado,
+        total_legado=total_legado,
         username=session.get("username"), role=session.get("role") or "user",
-        is_admin=session.get("role") == "admin"
+        is_admin=session.get("role") == "admin",
+    )
+
+
+@app.route("/equipamentos-parque")
+@login_required
+def pagina_equipamentos_parque():
+    return render_template(
+        "equipamentos_parque.html",
+        dados=_dados_equipamentos_parque(),
+        username=session.get("username"), role=session.get("role") or "user",
+        is_admin=session.get("role") == "admin",
+    )
+
+
+@app.route("/export-equipamentos-parque")
+@login_required
+def exportar_equipamentos_parque_excel():
+    dados = _dados_equipamentos_parque()
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Equipamentos no Parque"
+    ws.append(["EQUIPAMENTOS NO PARQUE - VISÃO GERAL"])
+    ws.append(["Total no parque", dados["total_unidades"]])
+    ws.append(["Tipos de equipamento", dados["tipos_total"]])
+    ws.append(["Filiais ativas", dados["filiais_ativas"]])
+    ws.append(["Unidades rastreadas", dados["total_reais"]])
+    ws.append(["Unidades legado", dados["total_legado"]])
+    ws.append([])
+    ws.append(["Código", "Equipamento", "Total no parque", "Rastreado", "Legado", "Filiais com o item"])
+    for item in dados["itens"]:
+        ws.append([
+            item.get("codigo"), item.get("descricao"), int(item.get("unidades") or 0),
+            int(item.get("reais") or 0), int(item.get("legado") or 0), int(item.get("filiais") or 0),
+        ])
+    for cell in ws[1]:
+        cell.font = Font(bold=True, size=14)
+    for cell in ws[8]:
+        cell.font = Font(bold=True)
+        cell.fill = PatternFill("solid", fgColor="D9EAF7")
+    ws.freeze_panes = "A9"
+    for col, largura in {"A":18,"B":42,"C":18,"D":16,"E":16,"F":20}.items():
+        ws.column_dimensions[col].width = largura
+    buf = io.BytesIO(); wb.save(buf); buf.seek(0)
+    return send_file(
+        buf, as_attachment=True,
+        download_name=f"equipamentos_parque_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx",
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+
+
+@app.route("/export-equipamentos-parque-pdf")
+@login_required
+def exportar_equipamentos_parque_pdf():
+    dados = _dados_equipamentos_parque()
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=landscape(A4), rightMargin=12*mm, leftMargin=12*mm, topMargin=12*mm, bottomMargin=12*mm)
+    estilos = getSampleStyleSheet()
+    titulo = ParagraphStyle("tituloParque", parent=estilos["Heading1"], fontSize=16, leading=19, spaceAfter=8)
+    normal = ParagraphStyle("normalParque", parent=estilos["BodyText"], fontSize=8.5, leading=11)
+    story = [
+        Paragraph("Equipamentos no Parque — Visão Geral", titulo),
+        Paragraph(
+            f"Total no parque: <b>{dados['total_unidades']}</b> · Tipos: <b>{dados['tipos_total']}</b> · "
+            f"Filiais ativas: <b>{dados['filiais_ativas']}</b> · Rastreado: <b>{dados['total_reais']}</b> · "
+            f"Legado: <b>{dados['total_legado']}</b>", normal,
+        ), Spacer(1, 6*mm)
+    ]
+    linhas = [["Código","Equipamento","Total","Rastreado","Legado","Filiais"]]
+    for item in dados["itens"]:
+        linhas.append([
+            str(item.get("codigo") or "-"), str(item.get("descricao") or "-"),
+            str(int(item.get("unidades") or 0)), str(int(item.get("reais") or 0)),
+            str(int(item.get("legado") or 0)), str(int(item.get("filiais") or 0)),
+        ])
+    tabela = Table(linhas, repeatRows=1, colWidths=[28*mm,88*mm,25*mm,25*mm,25*mm,24*mm])
+    tabela.setStyle(TableStyle([
+        ("BACKGROUND", (0,0), (-1,0), colors.HexColor("#D9EAF7")),
+        ("TEXTCOLOR", (0,0), (-1,0), colors.HexColor("#17324D")),
+        ("FONTNAME", (0,0), (-1,0), "Helvetica-Bold"),
+        ("FONTSIZE", (0,0), (-1,-1), 8),
+        ("GRID", (0,0), (-1,-1), 0.35, colors.HexColor("#B8C4D1")),
+        ("VALIGN", (0,0), (-1,-1), "MIDDLE"),
+        ("ALIGN", (2,1), (-1,-1), "CENTER"),
+        ("ROWBACKGROUNDS", (0,1), (-1,-1), [colors.white, colors.HexColor("#F6F8FA")]),
+    ]))
+    story.append(tabela)
+    doc.build(story); buf.seek(0)
+    return send_file(
+        buf, as_attachment=True,
+        download_name=f"equipamentos_parque_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
+        mimetype="application/pdf",
     )
 
 
@@ -2913,6 +3113,17 @@ def api_cadastrar_acompanhamento_expansao():
     if obrigatorios:
         return jsonify({"erro": "Preencha os campos obrigatórios: " + ", ".join(obrigatorios) + "."}), 400
 
+    if _normalizar_exec(status_filial) == "inaugurada":
+        filial_existente = db.buscar_filial_por_codigo(filial)
+        ja_ativa = bool(filial_existente and str(filial_existente.get("ativo") or "") == "1")
+        if not ja_ativa:
+            faltantes_kit = _faltantes_kit_real_filial(filial)
+            if faltantes_kit:
+                return jsonify({
+                    "erro": "A loja só pode ser marcada como Inaugurada/Ativa depois que o Kit padrão receber baixa real no Estoque.",
+                    "faltantes_kit": faltantes_kit,
+                }), 409
+
     payload = {
         "filial": filial,
         "bandeira": bandeira,
@@ -2950,11 +3161,6 @@ def api_cadastrar_acompanhamento_expansao():
         return jsonify({"erro": "Não foi possível sincronizar a loja com a aba Filiais. Nenhuma alteração foi mantida no Acompanhamento."}), 500
 
     baixa_inauguracao = {"consumidas": 0, "faltantes": 0, "itens_faltantes": []}
-    if _normalizar_exec(status_filial) == "inaugurada":
-        try:
-            baixa_inauguracao = _consolidar_baixa_inauguracao(payload, session.get("username"))
-        except Exception:
-            app.logger.exception("Falha na baixa automática da inauguração da filial %s", filial)
 
     db.registrar_movimentacao(
         0, "cadastro_acompanhamento_expansao", "1", session.get("username"),
@@ -2995,6 +3201,18 @@ def api_atualizar_acompanhamento_expansao(registro_id):
         "observacao_ti": str(dados.get("observacao_ti") or "").strip(),
     }
 
+
+    if _normalizar_exec(payload.get("status_filial")) == "inaugurada":
+        filial_existente = db.buscar_filial_por_codigo(filial)
+        ja_ativa = bool(filial_existente and str(filial_existente.get("ativo") or "") == "1")
+        if not ja_ativa:
+            faltantes_kit = _faltantes_kit_real_filial(filial)
+            if faltantes_kit:
+                return jsonify({
+                    "erro": "A loja só pode ser marcada como Inaugurada/Ativa depois que o Kit padrão receber baixa real no Estoque.",
+                    "faltantes_kit": faltantes_kit,
+                }), 409
+
     # Evita duplicidade da chave FILIAL caso o código seja alterado manualmente.
     for existente in db.listar_acompanhamento_expansao():
         if int(existente.get("id") or 0) != registro_id and str(existente.get("filial") or "").strip() == filial:
@@ -3022,12 +3240,6 @@ def api_atualizar_acompanhamento_expansao(registro_id):
         return jsonify({"erro": "Não foi possível sincronizar a alteração com a aba Filiais. O Acompanhamento foi restaurado."}), 500
 
     baixa_inauguracao = {"consumidas": 0, "faltantes": 0, "itens_faltantes": []}
-    virou_inaugurada = (_normalizar_exec(anterior.get("status_filial")) != "inaugurada" and _normalizar_exec(payload.get("status_filial")) == "inaugurada")
-    if virou_inaugurada:
-        try:
-            baixa_inauguracao = _consolidar_baixa_inauguracao(payload, session.get("username"))
-        except Exception:
-            app.logger.exception("Falha na baixa automática da inauguração da filial %s", filial)
 
     alteracoes = []
     for campo, rotulo in (("filial","Filial"),("bandeira","Bandeira"),("descricao_filial","Descrição"),("uf","UF"),("projeto","Projeto"),("status_filial","Status"),("enviada","Enviada"),("em_separacao","Em Separação"),("equip_separado","Equip. separado"),("term_obra","Término obra"),("entrada_ti","Entrada TI"),("inauguracao","Inauguração"),("observacao_ti","Observação TI")):
@@ -3235,6 +3447,24 @@ def api_validar_importacao_acompanhamento_expansao():
         if not registros:
             return jsonify({"erro":"Nenhum registro válido foi encontrado na planilha."}), 400
 
+        itens_estoque_validacao = db.listar_itens() or []
+        kit_validacao = db.listar_kit_padrao_loja() or []
+        bloqueadas = []
+        for reg in registros:
+            if _normalizar_exec(reg.get("status_filial")) != "inaugurada":
+                continue
+            codigo_reg = str(reg.get("filial") or "").strip()
+            filial_existente = db.buscar_filial_por_codigo(codigo_reg)
+            if filial_existente and str(filial_existente.get("ativo") or "") == "1":
+                continue
+            if _faltantes_kit_real_filial(codigo_reg, itens_estoque=itens_estoque_validacao, kit=kit_validacao):
+                bloqueadas.append(codigo_reg or "sem código")
+        if bloqueadas:
+            return jsonify({
+                "erro": "A planilha contém lojas marcadas como Inaugurada sem o Kit padrão baixado no Estoque.",
+                "filiais_bloqueadas": bloqueadas[:50],
+            }), 400
+
         atuais = db.listar_acompanhamento_expansao()
         atuais_codigos = {str(x.get("filial") or "").strip() for x in atuais}
         novos_codigos = {str(x.get("filial") or "").strip() for x in registros}
@@ -3281,6 +3511,28 @@ def api_importar_acompanhamento_expansao():
         if not registros:
             return jsonify({"erro":"Nenhum registro válido foi encontrado na planilha."}), 400
 
+        # v117: uma loja nova não pode entrar como INAUGURADA/ATIVA sem que o
+        # Kit padrão esteja realmente baixado no Estoque. Lojas que já eram
+        # ativas antes desta regra são tratadas como legado e podem permanecer ativas.
+        itens_estoque_validacao = db.listar_itens() or []
+        kit_validacao = db.listar_kit_padrao_loja() or []
+        bloqueadas = []
+        for reg in registros:
+            if _normalizar_exec(reg.get("status_filial")) != "inaugurada":
+                continue
+            codigo_reg = str(reg.get("filial") or "").strip()
+            filial_existente = db.buscar_filial_por_codigo(codigo_reg)
+            if filial_existente and str(filial_existente.get("ativo") or "") == "1":
+                continue
+            faltantes = _faltantes_kit_real_filial(codigo_reg, itens_estoque=itens_estoque_validacao, kit=kit_validacao)
+            if faltantes:
+                bloqueadas.append(codigo_reg or "sem código")
+        if bloqueadas:
+            return jsonify({
+                "erro": "Existem lojas marcadas como Inaugurada sem Kit padrão baixado no Estoque. Nenhuma alteração foi realizada.",
+                "filiais_bloqueadas": bloqueadas[:50],
+            }), 400
+
         usuario = session.get("username")
         removidos = 0
         filiais_inativadas = 0
@@ -3311,10 +3563,6 @@ def api_importar_acompanhamento_expansao():
             try:
                 _sincronizar_filial_a_partir_acompanhamento(item, usuario)
                 sincronizadas += 1
-                if _normalizar_exec(item.get("status_filial")) == "inaugurada":
-                    baixa = _consolidar_baixa_inauguracao(item, usuario)
-                    baixas_inauguracao += int(baixa.get("consumidas") or 0)
-                    faltantes_inauguracao += int(baixa.get("faltantes") or 0)
             except Exception as sync_err:
                 codigo_sync = str(item.get("filial") or "").strip()
                 falhas_sincronizacao.append(codigo_sync or "sem código")
@@ -3401,21 +3649,9 @@ def pagina_loja_virtual():
 @login_required
 def api_listar_filiais():
     incluir_inativas = request.args.get("inativas", "1") != "0"
-    filiais = db.listar_filiais(incluir_inativas=incluir_inativas)
-    parque = _resumo_parque_filiais()
-    itens_estoque = db.listar_itens() or []
-    kit = db.listar_kit_padrao_loja() or []
-    resposta = []
-    for filial in filiais:
-        item = dict(filial)
-        codigo = str(item.get("codigo") or "").strip()
-        resumo = parque.get(codigo) or {}
-        item["equipamentos_unidades"] = int(resumo.get("unidades") or 0)
-        item["equipamentos_tipos"] = int(resumo.get("tipos_total") or 0)
-        item["equipamentos_codigos"] = sorted(list(resumo.get("tipos") or []))
-        item["kit_status"] = _status_kit_filial_resumo(item, itens_estoque=itens_estoque, kit=kit)
-        resposta.append(item)
-    return jsonify(resposta)
+    # A lista de Filiais agora exibe somente dados cadastrais/status. O parque
+    # e o Kit ficam nas telas específicas, reduzindo também o tempo de carga.
+    return jsonify(db.listar_filiais(incluir_inativas=incluir_inativas) or [])
 
 
 def _texto_celula_excel_filial(celula):
@@ -6680,7 +6916,15 @@ def api_atualizar(item_id):
     else:
         db.registrar_movimentacao(item_id, "edicao", None, session.get("username"), "Dados do item editados")
 
-    return jsonify({"ok": True})
+    ativacao = {"ativada": False}
+    if _normalizar_exec(dados.get("status")) == "enviado" and str(dados.get("filial_destino") or item_antes.get("filial_destino") or "").strip():
+        codigo_destino = str(dados.get("filial_destino") or item_antes.get("filial_destino") or "").strip()
+        try:
+            ativacao = _ativar_filial_se_kit_real_completo(codigo_destino, session.get("username"))
+        except Exception:
+            app.logger.exception("Falha ao verificar ativação automática da filial %s após baixa", codigo_destino)
+
+    return jsonify({"ok": True, "ativacao_filial": ativacao})
 
 
 @app.route("/api/itens/editar-em-lote", methods=["POST"])

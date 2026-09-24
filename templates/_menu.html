@@ -31,7 +31,8 @@ body{overflow-x:hidden}header{padding-left:16px!important;padding-right:16px!imp
     <a href="{{ url_for('pagina_orcamento') }}" class="{{ 'ativo' if request.endpoint == 'pagina_orcamento' else '' }}">Orçamento</a>
     {% endif %}
     <a href="{{ url_for('pagina_imobilizados') }}" class="{{ 'ativo' if request.endpoint == 'pagina_imobilizados' else '' }}">Imobilizados</a>
-    <a href="{{ url_for('pagina_filiais') }}" class="{{ 'ativo' if request.endpoint == 'pagina_filiais' else '' }}">Filiais</a>
+    <a href="{{ url_for('pagina_filiais') }}" class="{{ 'ativo' if request.endpoint in ['pagina_filiais','pagina_filial_detalhe'] else '' }}">Filiais</a>
+    <a href="{{ url_for('pagina_equipamentos_parque') }}" class="{{ 'ativo' if request.endpoint == 'pagina_equipamentos_parque' else '' }}">Equipamentos no Parque</a>
     <a href="{{ url_for('pagina_projecao_lojas') }}" class="{{ 'ativo' if request.endpoint == 'pagina_projecao_lojas' else '' }}">Projeção de abertura e lojas</a>
     <a href="{{ url_for('pagina_acompanhamento_expansao') }}" class="{{ 'ativo' if request.endpoint == 'pagina_acompanhamento_expansao' else '' }}">Acompanhamento de Expansão</a>
     <a href="{{ url_for('pagina_cockpit_implantacao') }}" class="{{ 'ativo' if request.endpoint == 'pagina_cockpit_implantacao' else '' }}">Cockpit de Implantação</a>

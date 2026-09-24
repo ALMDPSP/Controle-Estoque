@@ -2672,7 +2672,9 @@ document.getElementById('edit-save').addEventListener('click', async () => {
   if(res.ok){
     dialog.close();
     await carregarItens();
-    mostrarToast(`Baixa concluída. Item enviado para a filial ${formatarFilialDestino(dados.filial_destino) || dados.filial_destino}.`);
+    const ativada=Boolean(resposta?.ativacao_filial?.ativada);
+    const msgBase=`Baixa concluída. Item enviado para a filial ${formatarFilialDestino(dados.filial_destino) || dados.filial_destino}.`;
+    mostrarToast(ativada ? `${msgBase} Kit padrão completo: filial promovida para Ativa/Inaugurada.` : msgBase);
   } else {
     alert(resposta.erro || 'Erro ao registrar a baixa de estoque.');
   }
@@ -3123,12 +3125,15 @@ document.getElementById('fe-save').addEventListener('click', async () => {
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify(dados)
   });
+  const resposta = await res.json().catch(()=>({}));
   if(res.ok){
     feDialog.close();
-    carregarItens();
+    await carregarItens();
+    if(resposta?.ativacao_filial?.ativada){
+      mostrarToast('Kit padrão completo: a filial foi promovida automaticamente para Ativa/Inaugurada.');
+    }
   } else {
-    const erro = await res.json();
-    alert(erro.erro || 'Erro ao salvar alterações.');
+    alert(resposta.erro || 'Erro ao salvar alterações.');
   }
 });
 

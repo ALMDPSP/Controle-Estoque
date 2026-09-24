@@ -151,3 +151,13 @@ No Cockpit de Implantação, a data de Entrada TI continua visível, mas o conta
 - Ações recebem semântica consistente: primária, secundária/link, Excel, PDF, Importar e Excluir.
 - Cabeçalhos, barras de ação e ações em cards/tabelas foram alinhados para desktop e celular.
 - Cadastro de Itens foi integrado ao menu e ao shell visual compartilhado.
+
+## v117 — Equipamentos no Parque e regra de ativação
+- A aba **Filiais** foi simplificada: saem do grid as colunas Kit padrão, Equip. unitários, Tipos e Previsão.
+- O botão **Abrir** passa a mostrar somente o **Kit padrão vinculado à filial**.
+- Lojas **Ativas** antigas recebem, para fins de parque, no mínimo o Kit padrão completo mesmo sem histórico de estoque suficiente; a diferença é classificada como **Legado** e não cria baixa fictícia.
+- Lojas **A inaugurar/Pendentes** só recebem itens vinculados por baixa real do Estoque. Ao completar o Kit padrão com unidades reais enviadas, a filial é promovida automaticamente para **Ativa/Inaugurada**.
+- A marcação manual de uma loja nova como **Inaugurada** no Acompanhamento é bloqueada enquanto houver itens do Kit padrão sem baixa real.
+- A baixa automática de estoque ao marcar Inaugurada deixa de ser usada no fluxo normal; a movimentação passa a ocorrer pelo processo de **Baixa de estoque**.
+- Nova aba **Equipamentos no Parque**, ao lado de Filiais, com visão geral consolidada das lojas ativas: total de unidades, tipos, unidades rastreadas, unidades legado e distribuição por equipamento.
+- A nova aba possui relatórios **Excel** e **PDF** seguindo o padrão visual do sistema.
