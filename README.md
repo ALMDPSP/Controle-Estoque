@@ -1,3 +1,15 @@
+# Controle de Estoque — v119
+
+## Relatório Executivo · Estoque de Expansão x Kit Padrão
+
+- Novo relatório executivo na aba **Relatórios**, disponível em **Excel e PDF**.
+- Mostra a quantidade disponível no Estoque de Expansão e a quantidade exigida por item no Kit Padrão.
+- Calcula quantas **lojas completas** podem ser abertas; o item com menor cobertura define a capacidade total.
+- Exibe meta salva, lojas pendentes, item(ns) limitante(s), saldo/falta por item e cobertura da meta.
+- Inclui visão financeira usando o custo do Cadastro de Produtos: valor do estoque do Kit, valor do Kit por loja, valor necessário para a meta e compra estimada para cobrir faltas.
+- Itens sem custo continuam no cálculo físico de capacidade, mas são sinalizados e não entram nos totais financeiros.
+- Mantém todos os recursos e correções das versões v116, v117 e v118.
+
 # Controle de Estoque — v109
 
 Atualização: Loja Virtual 3D com **Gaveta - Horizontal**, **Display tela cliente** e **Teclado Automação TC55 teclas Gertec PS2** movidos do Balcão de atendimento para a **Frente de PDV**.
