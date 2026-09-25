@@ -64,7 +64,7 @@ import qrcode
 import db
 
 app = Flask(__name__)
-APP_BUILD = "2026-09-24-relatorio-executivo-estoque-kit-v119"
+APP_BUILD = "2026-09-25-relatorio-executivo-cenarios-v120"
 _DASHBOARD_CACHE = {"expira": 0.0, "dados": None}
 app.secret_key = os.environ.get("SECRET_KEY", "troque-esta-chave-em-producao")
 _RUNNING_HTTPS_HOSTED = bool(
@@ -761,12 +761,12 @@ def _formatar_moeda_br(valor):
 
 
 def _calcular_relatorio_executivo_estoque_kit():
-    """Monta a visão executiva Estoque de Expansão x Kit Padrão.
+    """Visão executiva priorizando capacidade de abertura, gargalos e cenários.
 
-    A capacidade de lojas segue a mesma regra do simulador do Dashboard:
-    para cada item do Kit Padrão calcula estoque de Expansão // quantidade por
-    loja; a menor cobertura determina quantas lojas completas podem ser abertas.
-    Os valores financeiros usam o custo unitário do Cadastro de Produtos.
+    Regra principal: para cada item do Kit Padrão, calcula Estoque de Expansão
+    // quantidade exigida por loja. O menor resultado determina quantas lojas
+    completas podem ser abertas imediatamente. Os cenários mostram o complemento
+    necessário para a próxima loja, para o pipeline atual e para a meta salva.
     """
     def qtd_num(valor):
         try:
@@ -797,7 +797,6 @@ def _calcular_relatorio_executivo_estoque_kit():
             return False
         if a == b:
             return True
-        # Evita somar, por exemplo, Scanner com fio no saldo de Scanner sem fio.
         if ("scanner com fio" in a and "scanner sem fio" in b) or ("scanner sem fio" in a and "scanner com fio" in b):
             return False
         return len(a) >= 6 and len(b) >= 6 and (a in b or b in a)
@@ -815,9 +814,6 @@ def _calcular_relatorio_executivo_estoque_kit():
         return sorted(candidatos, key=lambda x: x[0])[0][1] if candidatos else None
 
     def estoque_disponivel(prod, k):
-        # Replica a regra do simulador: quando o Kit possui código, o vínculo é
-        # estritamente por código; descrição é fallback somente para itens antigos
-        # do Kit que ainda não possuem código vinculado.
         codigo_kit = str(k.get("codigo") or "").strip().lower()
         descricoes = [k.get("descricao"), (prod or {}).get("descricao")]
         total = 0
@@ -836,8 +832,6 @@ def _calcular_relatorio_executivo_estoque_kit():
     total_unidades_kit_estoque = 0
     valor_estoque_kit = Decimal("0.00")
     valor_kit_loja = Decimal("0.00")
-    valor_necessario_meta = Decimal("0.00")
-    valor_faltante_meta = Decimal("0.00")
     itens_sem_custo = 0
 
     for k in kit:
@@ -845,9 +839,6 @@ def _calcular_relatorio_executivo_estoque_kit():
         qtd_por_loja = max(1, qtd_num(k.get("quantidade")) or qtd_num((prod or {}).get("qtde_por_loja")) or 1)
         disponivel = estoque_disponivel(prod, k)
         lojas_suportadas = disponivel // qtd_por_loja
-        necessario_meta = qtd_por_loja * meta_lojas
-        saldo_meta = disponivel - necessario_meta
-        faltam_meta = max(0, -saldo_meta)
 
         custo = Decimal("0.00")
         custo_informado = False
@@ -862,14 +853,9 @@ def _calcular_relatorio_executivo_estoque_kit():
 
         valor_estoque = (custo * disponivel).quantize(Decimal("0.01")) if custo_informado else Decimal("0.00")
         valor_kit_item = (custo * qtd_por_loja).quantize(Decimal("0.01")) if custo_informado else Decimal("0.00")
-        valor_meta_item = (custo * necessario_meta).quantize(Decimal("0.01")) if custo_informado else Decimal("0.00")
-        valor_faltante_item = (custo * faltam_meta).quantize(Decimal("0.01")) if custo_informado else Decimal("0.00")
-
         total_unidades_kit_estoque += disponivel
         valor_estoque_kit += valor_estoque
         valor_kit_loja += valor_kit_item
-        valor_necessario_meta += valor_meta_item
-        valor_faltante_meta += valor_faltante_item
 
         linhas.append({
             "codigo": str((prod or {}).get("codigo") or k.get("codigo") or "").strip(),
@@ -877,16 +863,10 @@ def _calcular_relatorio_executivo_estoque_kit():
             "estoque": disponivel,
             "qtd_por_loja": qtd_por_loja,
             "lojas_suportadas": lojas_suportadas,
-            "necessario_meta": necessario_meta,
-            "saldo_meta": saldo_meta,
-            "faltam_meta": faltam_meta,
             "custo": custo,
             "custo_informado": custo_informado,
             "valor_estoque": valor_estoque,
             "valor_kit_loja": valor_kit_item,
-            "valor_meta": valor_meta_item,
-            "valor_faltante_meta": valor_faltante_item,
-            "situacao_meta": "Atende" if saldo_meta >= 0 else "Falta",
         })
 
     if linhas:
@@ -896,27 +876,120 @@ def _calcular_relatorio_executivo_estoque_kit():
         capacidade = 0
         limitantes = []
 
-    cobertura_meta = (Decimal(capacidade) / Decimal(meta_lojas) * Decimal("100")) if meta_lojas else Decimal("0")
-    valor_kits_capacidade = (valor_kit_loja * capacidade).quantize(Decimal("0.01"))
-    lojas_apos_meta = max(0, capacidade - meta_lojas)
+    def calcular_alvo(alvo):
+        alvo = max(0, int(alvo or 0))
+        unidades_faltantes = 0
+        valor_faltante = Decimal("0.00")
+        faltas = []
+        sem_custo_falta = 0
+        for item in linhas:
+            necessario = item["qtd_por_loja"] * alvo
+            falta = max(0, necessario - item["estoque"])
+            if falta:
+                unidades_faltantes += falta
+                if item["custo_informado"]:
+                    valor_faltante += item["custo"] * falta
+                else:
+                    sem_custo_falta += 1
+                faltas.append({
+                    **item,
+                    "necessario": necessario,
+                    "falta": falta,
+                    "valor_falta": (item["custo"] * falta).quantize(Decimal("0.01")) if item["custo_informado"] else Decimal("0.00"),
+                })
+        faltas.sort(key=lambda x: (x["lojas_suportadas"], -x["falta"], x["descricao"].lower()))
+        return {
+            "alvo": alvo,
+            "unidades_faltantes": unidades_faltantes,
+            "valor_faltante": valor_faltante.quantize(Decimal("0.01")),
+            "itens_com_falta": len(faltas),
+            "faltas": faltas,
+            "sem_custo_falta": sem_custo_falta,
+            "atendido": unidades_faltantes == 0,
+        }
 
+    proxima = calcular_alvo(capacidade + 1)
+    pipeline_alvo = lojas_pendentes if lojas_pendentes > 0 else meta_lojas
+    pipeline_cenario = calcular_alvo(pipeline_alvo)
+    meta_cenario = calcular_alvo(meta_lojas)
+
+    def resumo_criticos(faltas, limite=3):
+        nomes = []
+        for x in faltas[:limite]:
+            nomes.append(x.get("codigo") or x.get("descricao") or "-")
+        return ", ".join(nomes) if nomes else "Nenhum"
+
+    cenarios = [
+        {
+            "nome": "Estoque atual",
+            "descricao": "Sem compra adicional",
+            "lojas": capacidade,
+            "unidades_faltantes": 0,
+            "itens_com_falta": 0,
+            "valor_faltante": Decimal("0.00"),
+            "situacao": "Disponível agora" if capacidade > 0 else "Sem loja completa",
+            "criticos": ", ".join((x.get("codigo") or x.get("descricao") or "-") for x in limitantes[:3]) or "-",
+        },
+        {
+            "nome": "Próxima loja",
+            "descricao": "O que falta para abrir mais 1 loja",
+            "lojas": capacidade + 1,
+            "unidades_faltantes": proxima["unidades_faltantes"],
+            "itens_com_falta": proxima["itens_com_falta"],
+            "valor_faltante": proxima["valor_faltante"],
+            "situacao": "Atendido" if proxima["atendido"] else "Requer complemento",
+            "criticos": resumo_criticos(proxima["faltas"]),
+        },
+        {
+            "nome": "Pipeline atual",
+            "descricao": "Cobertura das lojas pendentes",
+            "lojas": pipeline_alvo,
+            "unidades_faltantes": pipeline_cenario["unidades_faltantes"],
+            "itens_com_falta": pipeline_cenario["itens_com_falta"],
+            "valor_faltante": pipeline_cenario["valor_faltante"],
+            "situacao": "Atendido" if pipeline_cenario["atendido"] else "Requer complemento",
+            "criticos": resumo_criticos(pipeline_cenario["faltas"]),
+        },
+        {
+            "nome": "Meta salva",
+            "descricao": "Cobertura da meta definida no sistema",
+            "lojas": meta_lojas,
+            "unidades_faltantes": meta_cenario["unidades_faltantes"],
+            "itens_com_falta": meta_cenario["itens_com_falta"],
+            "valor_faltante": meta_cenario["valor_faltante"],
+            "situacao": "Atendido" if meta_cenario["atendido"] else "Requer complemento",
+            "criticos": resumo_criticos(meta_cenario["faltas"]),
+        },
+    ]
+
+    for item in linhas:
+        item["necessario_meta"] = item["qtd_por_loja"] * meta_lojas
+        item["saldo_meta"] = item["estoque"] - item["necessario_meta"]
+        item["faltam_meta"] = max(0, -item["saldo_meta"])
+        item["situacao_meta"] = "Atende" if item["saldo_meta"] >= 0 else "Falta"
+        item["valor_meta"] = (item["custo"] * item["necessario_meta"]).quantize(Decimal("0.01")) if item["custo_informado"] else Decimal("0.00")
+        item["valor_faltante_meta"] = (item["custo"] * item["faltam_meta"]).quantize(Decimal("0.01")) if item["custo_informado"] else Decimal("0.00")
+
+    cobertura_meta = (Decimal(capacidade) / Decimal(meta_lojas) * Decimal("100")) if meta_lojas else Decimal("0")
     linhas.sort(key=lambda x: (x["lojas_suportadas"], x["codigo"], x["descricao"].lower()))
     return {
         "gerado_em": datetime.now(),
         "meta_lojas": meta_lojas,
         "lojas_pendentes": lojas_pendentes,
         "capacidade_lojas": capacidade,
-        "lojas_apos_meta": lojas_apos_meta,
         "cobertura_meta": cobertura_meta.quantize(Decimal("0.1")),
         "total_unidades_expansao": total_unidades_expansao,
         "total_unidades_kit_estoque": total_unidades_kit_estoque,
         "valor_estoque_kit": valor_estoque_kit.quantize(Decimal("0.01")),
         "valor_kit_loja": valor_kit_loja.quantize(Decimal("0.01")),
-        "valor_kits_capacidade": valor_kits_capacidade,
-        "valor_necessario_meta": valor_necessario_meta.quantize(Decimal("0.01")),
-        "valor_faltante_meta": valor_faltante_meta.quantize(Decimal("0.01")),
+        "valor_faltante_meta": meta_cenario["valor_faltante"],
         "itens_sem_custo": itens_sem_custo,
         "limitantes": limitantes,
+        "ranking_gargalos": linhas[:5],
+        "proxima_loja": proxima,
+        "pipeline_cenario": pipeline_cenario,
+        "meta_cenario": meta_cenario,
+        "cenarios": cenarios,
         "linhas": linhas,
     }
 
@@ -929,246 +1002,191 @@ def exportar_relatorio_executivo_estoque_kit_excel():
     ws = wb.active
     ws.title = "Executivo"
 
-    escuro = "1A2029"
-    azul = "2876BE"
-    verde = "2B915D"
-    laranja = "CD8018"
-    vermelho = "B43C2D"
-    cinza = "66707D"
-    claro = "F5F7FA"
-    borda = Border(
-        left=Side(style="thin", color="E1E5EA"), right=Side(style="thin", color="E1E5EA"),
-        top=Side(style="thin", color="E1E5EA"), bottom=Side(style="thin", color="E1E5EA"),
-    )
+    escuro = "1A2029"; azul = "2876BE"; verde = "2B915D"; laranja = "CD8018"; vermelho = "B43C2D"; cinza = "66707D"; claro = "F5F7FA"
+    borda = Border(left=Side(style="thin", color="E1E5EA"), right=Side(style="thin", color="E1E5EA"), top=Side(style="thin", color="E1E5EA"), bottom=Side(style="thin", color="E1E5EA"))
 
     ws.merge_cells("A1:M1")
-    ws["A1"] = "Relatório Executivo · Estoque de Expansão x Kit Padrão"
+    ws["A1"] = "Relatório Executivo · Capacidade de Abertura de Lojas"
     ws["A1"].font = Font(name="Aptos Display", size=18, bold=True, color="FFFFFF")
     ws["A1"].fill = PatternFill("solid", fgColor=escuro)
     ws["A1"].alignment = Alignment(vertical="center")
     ws.row_dimensions[1].height = 30
     ws.merge_cells("A2:M2")
-    ws["A2"] = f"Gerado em {dados['gerado_em'].strftime('%d/%m/%Y %H:%M')} · cálculo somente com Estoque classificado como Expansão"
+    ws["A2"] = f"Estoque de Expansão x Kit Padrão · Gerado em {dados['gerado_em'].strftime('%d/%m/%Y %H:%M')}"
     ws["A2"].font = Font(size=9, color=cinza)
 
+    limitante_txt = ", ".join((x.get("codigo") or x.get("descricao") or "-") for x in dados["limitantes"][:3]) or "-"
+    proxima_falta = dados["proxima_loja"]["unidades_faltantes"]
     cards = [
-        ("Lojas completas possíveis", dados["capacidade_lojas"], verde),
-        ("Meta salva", dados["meta_lojas"], azul),
-        ("Lojas pendentes", dados["lojas_pendentes"], azul),
-        ("Unidades em Expansão", dados["total_unidades_expansao"], escuro),
-        ("Valor do estoque do Kit", float(dados["valor_estoque_kit"]), verde),
-        ("Valor do Kit por loja", float(dados["valor_kit_loja"]), azul),
-        ("Compra estimada p/ meta", float(dados["valor_faltante_meta"]), laranja if dados["valor_faltante_meta"] > 0 else verde),
-        ("Cobertura da meta", float(dados["cobertura_meta"]) / 100, verde if dados["capacidade_lojas"] >= dados["meta_lojas"] else laranja),
+        ("LOJAS POSSÍVEIS AGORA", dados["capacidade_lojas"], verde),
+        ("ITEM LIMITANTE", limitante_txt, laranja),
+        ("PRÓXIMA LOJA · UNIDADES FALTANTES", proxima_falta, laranja if proxima_falta else verde),
+        ("LOJAS PENDENTES NO PIPELINE", dados["lojas_pendentes"], azul),
     ]
-    linha = 4
     for i, (rotulo, valor, cor) in enumerate(cards):
-        col = 1 if i % 2 == 0 else 7
-        if i and i % 2 == 0:
-            linha += 2
-        ws.merge_cells(start_row=linha, start_column=col, end_row=linha, end_column=col+4)
-        ws.cell(linha, col, rotulo).font = Font(size=9, bold=True, color=cinza)
-        ws.cell(linha, col).fill = PatternFill("solid", fgColor=claro)
-        ws.merge_cells(start_row=linha+1, start_column=col, end_row=linha+1, end_column=col+4)
-        c = ws.cell(linha+1, col, valor)
-        c.font = Font(name="Aptos Display", size=15, bold=True, color=cor)
+        col = 1 + (i % 2) * 7
+        row = 4 + (i // 2) * 3
+        ws.merge_cells(start_row=row, start_column=col, end_row=row, end_column=col+4)
+        ws.cell(row, col, rotulo).font = Font(size=9, bold=True, color=cinza)
+        ws.merge_cells(start_row=row+1, start_column=col, end_row=row+1, end_column=col+4)
+        c = ws.cell(row+1, col, valor)
+        c.font = Font(size=16 if i != 1 else 11, bold=True, color=cor)
         c.fill = PatternFill("solid", fgColor=claro)
-        if "Valor" in rotulo or "Compra" in rotulo:
-            c.number_format = 'R$ #,##0.00'
-        if "Cobertura" in rotulo:
-            c.number_format = '0.0%'
-    linha += 4
+        c.alignment = Alignment(vertical="center", wrap_text=True)
+        for cc in range(col, col+5):
+            ws.cell(row+1, cc).border = borda
+        ws.row_dimensions[row+1].height = 30
 
-    ws.merge_cells(start_row=linha, start_column=1, end_row=linha, end_column=13)
-    limitantes = ", ".join((x.get("codigo") or x.get("descricao") or "-") for x in dados["limitantes"]) or "-"
-    ws.cell(linha, 1, f"Item(ns) limitante(s): {limitantes}").font = Font(bold=True, color=laranja)
-    linha += 2
+    row = 11
+    ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=13)
+    ws.cell(row, 1, "PROJEÇÃO POR CENÁRIO").font = Font(size=11, bold=True, color="FFFFFF")
+    ws.cell(row, 1).fill = PatternFill("solid", fgColor=azul)
+    headers = ["Cenário", "Objetivo (lojas)", "Situação", "Itens com falta", "Unidades faltantes", "Compra estimada", "Itens críticos"]
+    row += 1
+    cols = [1, 3, 5, 7, 9, 11, 12]
+    spans = [(1,2),(3,4),(5,6),(7,8),(9,10),(11,11),(12,13)]
+    for h,(c1,c2) in zip(headers, spans):
+        if c1 != c2: ws.merge_cells(start_row=row,start_column=c1,end_row=row,end_column=c2)
+        cell=ws.cell(row,c1,h); cell.font=Font(bold=True,color="FFFFFF",size=9); cell.fill=PatternFill("solid",fgColor=escuro); cell.alignment=Alignment(horizontal="center",vertical="center")
+    for cen in dados["cenarios"]:
+        row += 1
+        vals=[cen["nome"],cen["lojas"],cen["situacao"],cen["itens_com_falta"],cen["unidades_faltantes"],float(cen["valor_faltante"]),cen["criticos"]]
+        for val,(c1,c2),idx in zip(vals,spans,range(len(vals))):
+            if c1 != c2: ws.merge_cells(start_row=row,start_column=c1,end_row=row,end_column=c2)
+            cell=ws.cell(row,c1,val); cell.border=borda; cell.alignment=Alignment(horizontal="center" if idx not in (0,6) else "left",vertical="center",wrap_text=True)
+            for cc in range(c1,c2+1): ws.cell(row,cc).border=borda
+            if idx==5: cell.number_format='R$ #,##0.00'
+        ws.cell(row,5).font=Font(bold=True,color=verde if cen["situacao"] in ("Disponível agora","Atendido") else laranja)
 
-    headers = [
-        "Código", "Item", "Estoque Expansão", "Qtd./loja", "Lojas suportadas",
-        f"Necessário p/ meta ({dados['meta_lojas']})", "Saldo/Falta p/ meta", "Situação",
-        "Custo unit.", "Valor em estoque", "Valor Kit/loja", "Valor necessário meta", "Compra p/ meta",
-    ]
-    for col, h in enumerate(headers, 1):
-        c = ws.cell(linha, col, h)
-        c.font = Font(size=9, bold=True, color="FFFFFF")
-        c.fill = PatternFill("solid", fgColor=escuro)
-        c.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
-        c.border = borda
-    header_row = linha
-    linha += 1
+    row += 2
+    ws.merge_cells(start_row=row,start_column=1,end_row=row,end_column=13)
+    ws.cell(row,1,"RANKING DE GARGALOS · ITENS QUE LIMITAM PRIMEIRO A ABERTURA").font=Font(size=11,bold=True,color="FFFFFF")
+    ws.cell(row,1).fill=PatternFill("solid",fgColor=laranja)
+    row += 1
+    garg_headers=["Posição","Código","Item","Estoque","Qtd./loja","Cobertura (lojas)","Falta p/ próxima loja"]
+    garg_spans=[(1,1),(2,3),(4,7),(8,8),(9,9),(10,11),(12,13)]
+    for h,(c1,c2) in zip(garg_headers,garg_spans):
+        if c1!=c2: ws.merge_cells(start_row=row,start_column=c1,end_row=row,end_column=c2)
+        cell=ws.cell(row,c1,h); cell.font=Font(bold=True,color="FFFFFF",size=9); cell.fill=PatternFill("solid",fgColor=escuro); cell.alignment=Alignment(horizontal="center")
+    for pos,item in enumerate(dados["ranking_gargalos"],1):
+        row += 1
+        falta_proxima=max(0,(dados["capacidade_lojas"]+1)*item["qtd_por_loja"]-item["estoque"])
+        vals=[pos,item["codigo"] or "-",item["descricao"],item["estoque"],item["qtd_por_loja"],item["lojas_suportadas"],falta_proxima]
+        for val,(c1,c2),idx in zip(vals,garg_spans,range(len(vals))):
+            if c1!=c2: ws.merge_cells(start_row=row,start_column=c1,end_row=row,end_column=c2)
+            cell=ws.cell(row,c1,val); cell.border=borda; cell.alignment=Alignment(horizontal="center" if idx not in (1,2) else "left",vertical="center",wrap_text=True)
+            for cc in range(c1,c2+1): ws.cell(row,cc).border=borda
+        if item["lojas_suportadas"]==dados["capacidade_lojas"]:
+            for cc in range(1,14): ws.cell(row,cc).fill=PatternFill("solid",fgColor="FFF4E5")
 
+    row += 2
+    ws.merge_cells(start_row=row,start_column=1,end_row=row,end_column=13)
+    ws.cell(row,1,"DETALHAMENTO · ESTOQUE x KIT PADRÃO").font=Font(size=11,bold=True,color="FFFFFF")
+    ws.cell(row,1).fill=PatternFill("solid",fgColor=escuro)
+    row += 1
+    header_row=row
+    headers=["Código","Item","Estoque","Qtd./loja","Lojas suportadas",f"Nec. meta {dados['meta_lojas']}","Saldo meta","Situação","Custo unit.","Valor estoque","Kit/loja","Valor meta","Compra meta"]
+    for col,h in enumerate(headers,1):
+        c=ws.cell(row,col,h); c.font=Font(bold=True,color="FFFFFF",size=8); c.fill=PatternFill("solid",fgColor=escuro); c.alignment=Alignment(horizontal="center",vertical="center",wrap_text=True); c.border=borda
     for item in dados["linhas"]:
-        vals = [
-            item["codigo"] or "-", item["descricao"], item["estoque"], item["qtd_por_loja"], item["lojas_suportadas"],
-            item["necessario_meta"], item["saldo_meta"], item["situacao_meta"],
-            float(item["custo"]) if item["custo_informado"] else None,
-            float(item["valor_estoque"]) if item["custo_informado"] else None,
-            float(item["valor_kit_loja"]) if item["custo_informado"] else None,
-            float(item["valor_meta"]) if item["custo_informado"] else None,
-            float(item["valor_faltante_meta"]) if item["custo_informado"] else None,
-        ]
-        for col, val in enumerate(vals, 1):
-            c = ws.cell(linha, col, val)
-            c.border = borda
-            c.alignment = Alignment(vertical="center", wrap_text=(col == 2), horizontal="center" if col not in (1,2) else "left")
-            if linha % 2 == 0:
-                c.fill = PatternFill("solid", fgColor="F8FAFC")
-            if col in (9,10,11,12,13) and val is not None:
-                c.number_format = 'R$ #,##0.00'
-        ws.cell(linha, 8).font = Font(bold=True, color=verde if item["situacao_meta"] == "Atende" else vermelho)
-        if item["saldo_meta"] < 0:
-            ws.cell(linha, 7).font = Font(bold=True, color=vermelho)
-        linha += 1
+        row += 1
+        vals=[item["codigo"] or "-",item["descricao"],item["estoque"],item["qtd_por_loja"],item["lojas_suportadas"],item["necessario_meta"],item["saldo_meta"],item["situacao_meta"],float(item["custo"]) if item["custo_informado"] else None,float(item["valor_estoque"]) if item["custo_informado"] else None,float(item["valor_kit_loja"]) if item["custo_informado"] else None,float(item["valor_meta"]) if item["custo_informado"] else None,float(item["valor_faltante_meta"]) if item["custo_informado"] else None]
+        for col,val in enumerate(vals,1):
+            c=ws.cell(row,col,val); c.border=borda; c.alignment=Alignment(vertical="center",wrap_text=(col==2),horizontal="center" if col not in (1,2) else "left")
+            if row%2==0: c.fill=PatternFill("solid",fgColor="F8FAFC")
+            if col in (9,10,11,12,13) and val is not None: c.number_format='R$ #,##0.00'
+        ws.cell(row,8).font=Font(bold=True,color=verde if item["situacao_meta"]=="Atende" else vermelho)
+        if item["lojas_suportadas"]==dados["capacidade_lojas"]:
+            for cc in range(1,14): ws.cell(row,cc).fill=PatternFill("solid",fgColor="FFF8ED")
 
-    larguras = [16, 38, 17, 12, 16, 20, 18, 13, 15, 18, 17, 20, 17]
-    for idx, largura in enumerate(larguras, 1):
-        ws.column_dimensions[get_column_letter(idx)].width = largura
-    ws.freeze_panes = f"A{header_row+1}"
-    ws.auto_filter.ref = f"A{header_row}:M{max(header_row, ws.max_row)}"
-    ws.sheet_view.showGridLines = False
-    ws.page_setup.orientation = "landscape"
-    ws.page_setup.fitToWidth = 1
-    ws.page_setup.fitToHeight = 0
-    ws.sheet_properties.pageSetUpPr.fitToPage = True
-    ws.oddFooter.center.text = "© 2026 · Developed by ALM - Expansão de TI"
-    ws.oddFooter.right.text = "Página &P de &N"
+    larguras=[16,38,15,12,17,17,15,13,15,18,16,18,18]
+    for idx,largura in enumerate(larguras,1): ws.column_dimensions[get_column_letter(idx)].width=largura
+    ws.freeze_panes=f"A{header_row+1}"; ws.sheet_view.showGridLines=False
+    ws.page_setup.orientation="landscape"; ws.page_setup.fitToWidth=1; ws.page_setup.fitToHeight=0; ws.sheet_properties.pageSetUpPr.fitToPage=True
+    ws.oddFooter.center.text="© 2026 · Developed by ALM - Expansão de TI"; ws.oddFooter.right.text="Página &P de &N"
 
-    notas = wb.create_sheet("Premissas")
-    notas.append(["Premissa", "Regra"])
-    notas.append(["Capacidade de abertura", "Menor resultado de Estoque de Expansão dividido pela quantidade do item no Kit Padrão."])
-    notas.append(["Valor do estoque do Kit", "Quantidade disponível dos itens do Kit Padrão multiplicada pelo custo do Cadastro de Produtos."])
-    notas.append(["Valor do Kit por loja", "Soma do custo unitário × quantidade necessária por loja de todos os itens do Kit Padrão."])
-    notas.append(["Compra estimada para a meta", "Somente faltas para atingir a meta salva; itens sem custo cadastrado ficam fora do valor financeiro."])
-    notas.append(["Itens sem custo", dados["itens_sem_custo"]])
-    notas.column_dimensions["A"].width = 32
-    notas.column_dimensions["B"].width = 100
-    notas["A1"].font = notas["B1"].font = Font(bold=True, color="FFFFFF")
-    notas["A1"].fill = notas["B1"].fill = PatternFill("solid", fgColor=escuro)
-    notas.sheet_view.showGridLines = False
+    cen_ws=wb.create_sheet("Cenários")
+    cen_ws.append(["Cenário","Lojas objetivo","Situação","Itens com falta","Unidades faltantes","Compra estimada","Itens críticos"])
+    for cen in dados["cenarios"]:
+        cen_ws.append([cen["nome"],cen["lojas"],cen["situacao"],cen["itens_com_falta"],cen["unidades_faltantes"],float(cen["valor_faltante"]),cen["criticos"]])
+    for c in cen_ws[1]: c.font=Font(bold=True,color="FFFFFF"); c.fill=PatternFill("solid",fgColor=escuro); c.alignment=Alignment(horizontal="center")
+    for r in range(2,cen_ws.max_row+1): cen_ws.cell(r,6).number_format='R$ #,##0.00'
+    for i,w in enumerate([22,16,22,16,18,20,55],1): cen_ws.column_dimensions[get_column_letter(i)].width=w
+    cen_ws.freeze_panes="A2"; cen_ws.sheet_view.showGridLines=False
 
-    buf = io.BytesIO()
-    wb.save(buf)
-    buf.seek(0)
-    return send_file(
-        buf, as_attachment=True,
-        download_name=f"relatorio_executivo_estoque_kit_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx",
-        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    )
+    notas=wb.create_sheet("Premissas")
+    notas.append(["Premissa","Regra"])
+    notas.append(["Lojas possíveis agora","Menor cobertura entre todos os itens do Kit: Estoque de Expansão dividido pela quantidade exigida por loja."])
+    notas.append(["Item limitante","Item ou itens com a menor quantidade de lojas suportadas; eles determinam a capacidade real de abertura."])
+    notas.append(["Próxima loja","Quantidade complementar necessária para elevar a capacidade atual em exatamente uma loja."])
+    notas.append(["Pipeline atual","Compara o estoque com a quantidade de lojas pendentes identificadas no acompanhamento de expansão."])
+    notas.append(["Meta salva","Compara o estoque com a meta de lojas definida no sistema."])
+    notas.append(["Financeiro","Valores usam o custo do Cadastro de Produtos; itens sem custo continuam no cálculo físico."])
+    notas.append(["Itens sem custo",dados["itens_sem_custo"]])
+    notas.column_dimensions["A"].width=32; notas.column_dimensions["B"].width=110
+    for c in notas[1]: c.font=Font(bold=True,color="FFFFFF"); c.fill=PatternFill("solid",fgColor=escuro)
+    notas.sheet_view.showGridLines=False
+
+    buf=io.BytesIO(); wb.save(buf); buf.seek(0)
+    return send_file(buf,as_attachment=True,download_name=f"relatorio_executivo_capacidade_lojas_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx",mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 
 @app.route("/relatorio-executivo-estoque-kit.pdf")
 @role_required("admin", "gestor", "operador")
 def exportar_relatorio_executivo_estoque_kit_pdf():
-    dados = _calcular_relatorio_executivo_estoque_kit()
-    buf = io.BytesIO()
-    doc = SimpleDocTemplate(
-        buf, pagesize=landscape(A4), rightMargin=10*mm, leftMargin=10*mm,
-        topMargin=11*mm, bottomMargin=12*mm,
-        title="Relatório Executivo - Estoque x Kit Padrão",
-        author="Expansão de TI",
-    )
-    styles = getSampleStyleSheet()
-    styles.add(ParagraphStyle(name="ExecTitulo", parent=styles["Title"], fontSize=17, leading=20, textColor=colors.HexColor("#1A2029"), spaceAfter=4))
-    styles.add(ParagraphStyle(name="ExecSub", parent=styles["Normal"], fontSize=8.5, leading=11, textColor=colors.HexColor("#66707D"), spaceAfter=8))
-    styles.add(ParagraphStyle(name="ExecCard", parent=styles["Normal"], fontSize=9, leading=11, textColor=colors.HexColor("#1A2029")))
-    styles.add(ParagraphStyle(name="ExecCell", parent=styles["Normal"], fontSize=6.7, leading=8.2, textColor=colors.HexColor("#20242B")))
-    story = [
-        Paragraph("Relatório Executivo · Estoque de Expansão x Kit Padrão", styles["ExecTitulo"]),
-        Paragraph(
-            f"Gerado em {dados['gerado_em'].strftime('%d/%m/%Y %H:%M')} · capacidade calculada somente com o estoque classificado como Expansão.",
-            styles["ExecSub"],
-        ),
+    dados=_calcular_relatorio_executivo_estoque_kit()
+    buf=io.BytesIO()
+    doc=SimpleDocTemplate(buf,pagesize=landscape(A4),rightMargin=10*mm,leftMargin=10*mm,topMargin=10*mm,bottomMargin=12*mm,title="Relatório Executivo - Capacidade de Abertura",author="Expansão de TI")
+    styles=getSampleStyleSheet()
+    styles.add(ParagraphStyle(name="ExecTituloV120",parent=styles["Title"],fontSize=17,leading=20,textColor=colors.HexColor("#1A2029"),spaceAfter=3))
+    styles.add(ParagraphStyle(name="ExecSubV120",parent=styles["Normal"],fontSize=8.3,leading=10.5,textColor=colors.HexColor("#66707D"),spaceAfter=6))
+    styles.add(ParagraphStyle(name="ExecCellV120",parent=styles["Normal"],fontSize=6.5,leading=7.8,textColor=colors.HexColor("#20242B")))
+    styles.add(ParagraphStyle(name="ExecHeroV120",parent=styles["Normal"],fontSize=10,leading=12,textColor=colors.HexColor("#1A2029")))
+    story=[Paragraph("Relatório Executivo · Capacidade de Abertura de Lojas",styles["ExecTituloV120"]),Paragraph(f"Estoque de Expansão x Kit Padrão · Gerado em {dados['gerado_em'].strftime('%d/%m/%Y %H:%M')}. Prioridade: lojas possíveis, gargalos e projeção por cenário.",styles["ExecSubV120"])]
+
+    limitante_txt=", ".join((x.get("codigo") or x.get("descricao") or "-") for x in dados["limitantes"][:3]) or "-"
+    hero=[
+        ["LOJAS POSSÍVEIS AGORA",str(dados["capacidade_lojas"]),"ITEM LIMITANTE",limitante_txt],
+        ["PRÓXIMA LOJA · UNIDADES FALTANTES",str(dados["proxima_loja"]["unidades_faltantes"]),"LOJAS PENDENTES NO PIPELINE",str(dados["lojas_pendentes"])],
     ]
+    ht=Table(hero,colWidths=[55*mm,27*mm,55*mm,45*mm],hAlign="LEFT")
+    ht.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,-1),colors.HexColor("#F5F7FA")),("BOX",(0,0),(-1,-1),0.45,colors.HexColor("#DDE3EA")),("INNERGRID",(0,0),(-1,-1),0.3,colors.HexColor("#E1E5EA")),("FONTNAME",(0,0),(0,-1),"Helvetica-Bold"),("FONTNAME",(2,0),(2,-1),"Helvetica-Bold"),("TEXTCOLOR",(0,0),(0,-1),colors.HexColor("#66707D")),("TEXTCOLOR",(2,0),(2,-1),colors.HexColor("#66707D")),("FONTNAME",(1,0),(1,-1),"Helvetica-Bold"),("FONTNAME",(3,0),(3,-1),"Helvetica-Bold"),("FONTSIZE",(1,0),(1,-1),14),("FONTSIZE",(3,0),(3,-1),9),("VALIGN",(0,0),(-1,-1),"MIDDLE"),("LEFTPADDING",(0,0),(-1,-1),5),("RIGHTPADDING",(0,0),(-1,-1),5),("TOPPADDING",(0,0),(-1,-1),6),("BOTTOMPADDING",(0,0),(-1,-1),6)]))
+    story.extend([ht,Spacer(1,4*mm),Paragraph("<b>Projeção por cenário</b>",styles["ExecHeroV120"])])
 
-    cards = [
-        ["Lojas completas possíveis", str(dados["capacidade_lojas"]), "Meta salva", str(dados["meta_lojas"])],
-        ["Lojas pendentes", str(dados["lojas_pendentes"]), "Unidades em Expansão", str(dados["total_unidades_expansao"])],
-        ["Valor do estoque do Kit", _formatar_moeda_br(dados["valor_estoque_kit"]), "Valor do Kit por loja", _formatar_moeda_br(dados["valor_kit_loja"])],
-        ["Compra estimada p/ meta", _formatar_moeda_br(dados["valor_faltante_meta"]), "Cobertura da meta", f"{dados['cobertura_meta']}%"],
-    ]
-    cards_table = Table(cards, colWidths=[49*mm, 34*mm, 49*mm, 34*mm], hAlign="LEFT")
-    cards_table.setStyle(TableStyle([
-        ("BACKGROUND", (0,0), (-1,-1), colors.HexColor("#F5F7FA")),
-        ("BOX", (0,0), (-1,-1), 0.4, colors.HexColor("#DDE3EA")),
-        ("INNERGRID", (0,0), (-1,-1), 0.3, colors.HexColor("#E1E5EA")),
-        ("FONTNAME", (0,0), (-1,-1), "Helvetica"),
-        ("FONTNAME", (0,0), (-1,-1), "Helvetica"),
-        ("FONTNAME", (0,0), (0,-1), "Helvetica-Bold"),
-        ("FONTNAME", (2,0), (2,-1), "Helvetica-Bold"),
-        ("TEXTCOLOR", (0,0), (0,-1), colors.HexColor("#66707D")),
-        ("TEXTCOLOR", (2,0), (2,-1), colors.HexColor("#66707D")),
-        ("FONTSIZE", (0,0), (-1,-1), 8),
-        ("VALIGN", (0,0), (-1,-1), "MIDDLE"),
-        ("LEFTPADDING", (0,0), (-1,-1), 5), ("RIGHTPADDING", (0,0), (-1,-1), 5),
-        ("TOPPADDING", (0,0), (-1,-1), 5), ("BOTTOMPADDING", (0,0), (-1,-1), 5),
-    ]))
-    story.extend([cards_table, Spacer(1, 5*mm)])
+    scen=[["Cenário","Lojas","Situação","Itens c/ falta","Unid. faltantes","Compra estimada","Itens críticos"]]
+    for c in dados["cenarios"]:
+        scen.append([c["nome"],str(c["lojas"]),c["situacao"],str(c["itens_com_falta"]),str(c["unidades_faltantes"]),_formatar_moeda_br(c["valor_faltante"]),Paragraph(c["criticos"],styles["ExecCellV120"])])
+    st=Table(scen,repeatRows=1,colWidths=[31*mm,15*mm,29*mm,22*mm,23*mm,27*mm,54*mm])
+    st.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,0),colors.HexColor("#2876BE")),("TEXTCOLOR",(0,0),(-1,0),colors.white),("FONTNAME",(0,0),(-1,0),"Helvetica-Bold"),("FONTSIZE",(0,0),(-1,0),7),("FONTSIZE",(0,1),(-1,-1),7),("GRID",(0,0),(-1,-1),0.35,colors.HexColor("#D9E0E7")),("ROWBACKGROUNDS",(0,1),(-1,-1),[colors.white,colors.HexColor("#F8FAFC")]),("ALIGN",(1,1),(5,-1),"CENTER"),("VALIGN",(0,0),(-1,-1),"MIDDLE"),("LEFTPADDING",(0,0),(-1,-1),3),("RIGHTPADDING",(0,0),(-1,-1),3),("TOPPADDING",(0,0),(-1,-1),4),("BOTTOMPADDING",(0,0),(-1,-1),4)]))
+    story.extend([st,Spacer(1,4*mm),Paragraph("<b>Ranking de gargalos</b> · os primeiros itens abaixo são os que reduzem primeiro a quantidade de lojas que podem ser abertas.",styles["ExecSubV120"])])
 
-    limitantes = ", ".join((x.get("codigo") or x.get("descricao") or "-") for x in dados["limitantes"]) or "-"
-    story.append(Paragraph(f"<b>Item(ns) limitante(s):</b> {limitantes}", styles["ExecCard"]))
-    if dados["itens_sem_custo"]:
-        story.append(Paragraph(f"<b>Atenção:</b> {dados['itens_sem_custo']} item(ns) do Kit estão sem custo cadastrado; esses itens não entram nos totais financeiros.", styles["ExecSub"]))
-    else:
-        story.append(Spacer(1, 2*mm))
+    garg=[["#","Código","Item","Estoque","Qtd./loja","Cobertura","Falta p/ próxima"]]
+    for pos,item in enumerate(dados["ranking_gargalos"],1):
+        falta=max(0,(dados["capacidade_lojas"]+1)*item["qtd_por_loja"]-item["estoque"])
+        garg.append([str(pos),item["codigo"] or "-",Paragraph(item["descricao"] or "-",styles["ExecCellV120"]),str(item["estoque"]),str(item["qtd_por_loja"]),str(item["lojas_suportadas"]),str(falta)])
+    gt=Table(garg,repeatRows=1,colWidths=[9*mm,22*mm,72*mm,20*mm,20*mm,22*mm,28*mm])
+    gst=[("BACKGROUND",(0,0),(-1,0),colors.HexColor("#CD8018")),("TEXTCOLOR",(0,0),(-1,0),colors.white),("FONTNAME",(0,0),(-1,0),"Helvetica-Bold"),("FONTSIZE",(0,0),(-1,-1),7),("GRID",(0,0),(-1,-1),0.35,colors.HexColor("#D9E0E7")),("ROWBACKGROUNDS",(0,1),(-1,-1),[colors.white,colors.HexColor("#F8FAFC")]),("ALIGN",(0,1),(1,-1),"CENTER"),("ALIGN",(3,1),(-1,-1),"CENTER"),("VALIGN",(0,0),(-1,-1),"MIDDLE")]
+    for i,item in enumerate(dados["ranking_gargalos"],1):
+        if item["lojas_suportadas"]==dados["capacidade_lojas"]: gst.append(("BACKGROUND",(0,i),(-1,i),colors.HexColor("#FFF4E5")))
+    gt.setStyle(TableStyle(gst)); story.extend([gt,PageBreak()])
 
-    cab = ["Código", "Item", "Estoque", "Qtd./loja", "Lojas", f"Nec. meta {dados['meta_lojas']}", "Saldo meta", "Custo unit.", "Valor estoque", "Kit/loja", "Compra meta"]
-    tabela = [cab]
+    story.extend([Paragraph("Detalhamento · Estoque de Expansão x Kit Padrão",styles["ExecTituloV120"]),Paragraph("A tabela detalha a cobertura individual de cada item. A menor cobertura determina a capacidade real de abertura.",styles["ExecSubV120"])])
+    cab=["Código","Item","Estoque","Qtd./loja","Lojas","Nec. meta","Saldo","Custo unit.","Valor estoque","Compra meta"]
+    tab=[cab]
     for item in dados["linhas"]:
-        tabela.append([
-            item["codigo"] or "-",
-            Paragraph(item["descricao"] or "-", styles["ExecCell"]),
-            str(item["estoque"]), str(item["qtd_por_loja"]), str(item["lojas_suportadas"]),
-            str(item["necessario_meta"]), str(item["saldo_meta"]),
-            _formatar_moeda_br(item["custo"]) if item["custo_informado"] else "Sem custo",
-            _formatar_moeda_br(item["valor_estoque"]) if item["custo_informado"] else "-",
-            _formatar_moeda_br(item["valor_kit_loja"]) if item["custo_informado"] else "-",
-            _formatar_moeda_br(item["valor_faltante_meta"]) if item["custo_informado"] else "-",
-        ])
-    t = Table(tabela, repeatRows=1, colWidths=[16*mm, 43*mm, 16*mm, 16*mm, 13*mm, 18*mm, 17*mm, 20*mm, 23*mm, 20*mm, 22*mm])
-    estilo = [
-        ("BACKGROUND", (0,0), (-1,0), colors.HexColor("#1A2029")),
-        ("TEXTCOLOR", (0,0), (-1,0), colors.white),
-        ("FONTNAME", (0,0), (-1,0), "Helvetica-Bold"),
-        ("FONTSIZE", (0,0), (-1,0), 6.5),
-        ("ALIGN", (2,1), (-1,-1), "CENTER"),
-        ("VALIGN", (0,0), (-1,-1), "MIDDLE"),
-        ("GRID", (0,0), (-1,-1), 0.35, colors.HexColor("#D9E0E7")),
-        ("FONTSIZE", (0,1), (-1,-1), 6.5),
-        ("ROWBACKGROUNDS", (0,1), (-1,-1), [colors.white, colors.HexColor("#F8FAFC")]),
-        ("LEFTPADDING", (0,0), (-1,-1), 2.5), ("RIGHTPADDING", (0,0), (-1,-1), 2.5),
-        ("TOPPADDING", (0,0), (-1,-1), 3.5), ("BOTTOMPADDING", (0,0), (-1,-1), 3.5),
-    ]
-    for i, item in enumerate(dados["linhas"], start=1):
-        if item["saldo_meta"] < 0:
-            estilo.append(("TEXTCOLOR", (6,i), (6,i), colors.HexColor("#B43C2D")))
-            estilo.append(("FONTNAME", (6,i), (6,i), "Helvetica-Bold"))
-        if item["lojas_suportadas"] == dados["capacidade_lojas"]:
-            estilo.append(("BACKGROUND", (0,i), (-1,i), colors.HexColor("#FFF8ED")))
-    t.setStyle(TableStyle(estilo))
-    story.extend([t, Spacer(1, 4*mm)])
-    story.append(Paragraph(
-        "Leitura executiva: a quantidade de lojas completas é determinada pelo item de menor cobertura. "
-        "O valor do estoque e a projeção financeira consideram o custo do Cadastro de Produtos; itens sem custo permanecem no cálculo físico, mas não no financeiro.",
-        styles["ExecSub"],
-    ))
+        tab.append([item["codigo"] or "-",Paragraph(item["descricao"] or "-",styles["ExecCellV120"]),str(item["estoque"]),str(item["qtd_por_loja"]),str(item["lojas_suportadas"]),str(item["necessario_meta"]),str(item["saldo_meta"]),_formatar_moeda_br(item["custo"]) if item["custo_informado"] else "Sem custo",_formatar_moeda_br(item["valor_estoque"]) if item["custo_informado"] else "-",_formatar_moeda_br(item["valor_faltante_meta"]) if item["custo_informado"] else "-"])
+    dt=Table(tab,repeatRows=1,colWidths=[17*mm,55*mm,18*mm,18*mm,16*mm,20*mm,18*mm,24*mm,27*mm,27*mm])
+    estilo=[("BACKGROUND",(0,0),(-1,0),colors.HexColor("#1A2029")),("TEXTCOLOR",(0,0),(-1,0),colors.white),("FONTNAME",(0,0),(-1,0),"Helvetica-Bold"),("FONTSIZE",(0,0),(-1,-1),6.6),("ALIGN",(2,1),(-1,-1),"CENTER"),("VALIGN",(0,0),(-1,-1),"MIDDLE"),("GRID",(0,0),(-1,-1),0.35,colors.HexColor("#D9E0E7")),("ROWBACKGROUNDS",(0,1),(-1,-1),[colors.white,colors.HexColor("#F8FAFC")]),("LEFTPADDING",(0,0),(-1,-1),2.5),("RIGHTPADDING",(0,0),(-1,-1),2.5),("TOPPADDING",(0,0),(-1,-1),3.2),("BOTTOMPADDING",(0,0),(-1,-1),3.2)]
+    for i,item in enumerate(dados["linhas"],1):
+        if item["saldo_meta"]<0: estilo.extend([("TEXTCOLOR",(6,i),(6,i),colors.HexColor("#B43C2D")),("FONTNAME",(6,i),(6,i),"Helvetica-Bold")])
+        if item["lojas_suportadas"]==dados["capacidade_lojas"]: estilo.append(("BACKGROUND",(0,i),(-1,i),colors.HexColor("#FFF8ED")))
+    dt.setStyle(TableStyle(estilo)); story.extend([dt,Spacer(1,4*mm)])
+    story.append(Paragraph(f"Leitura executiva: hoje o estoque permite abrir <b>{dados['capacidade_lojas']} loja(s) completa(s)</b>. Para a próxima loja faltam <b>{dados['proxima_loja']['unidades_faltantes']} unidade(s)</b> distribuídas em <b>{dados['proxima_loja']['itens_com_falta']} item(ns)</b>. O financeiro é complementar e não altera o cálculo físico de capacidade.",styles["ExecSubV120"]))
 
-    def rodape(canvas_pdf, doc_pdf):
-        canvas_pdf.saveState()
-        canvas_pdf.setFont("Helvetica", 7)
-        canvas_pdf.setFillColor(colors.HexColor("#7B8794"))
-        canvas_pdf.drawString(10*mm, 6*mm, "Developed by ALM - Expansão de TI")
-        canvas_pdf.drawRightString(landscape(A4)[0]-10*mm, 6*mm, f"Página {doc_pdf.page}")
-        canvas_pdf.restoreState()
-
-    doc.build(story, onFirstPage=rodape, onLaterPages=rodape)
-    buf.seek(0)
-    return send_file(
-        buf, as_attachment=True,
-        download_name=f"relatorio_executivo_estoque_kit_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
-        mimetype="application/pdf",
-    )
-
+    def rodape(canvas_pdf,doc_pdf):
+        canvas_pdf.saveState(); canvas_pdf.setFont("Helvetica",7); canvas_pdf.setFillColor(colors.HexColor("#7B8794")); canvas_pdf.drawString(10*mm,6*mm,"Developed by ALM - Expansão de TI"); canvas_pdf.drawRightString(landscape(A4)[0]-10*mm,6*mm,f"Página {doc_pdf.page}"); canvas_pdf.restoreState()
+    doc.build(story,onFirstPage=rodape,onLaterPages=rodape); buf.seek(0)
+    return send_file(buf,as_attachment=True,download_name=f"relatorio_executivo_capacidade_lojas_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",mimetype="application/pdf")
 
 @app.route("/usuarios")
 @admin_required

@@ -1,4 +1,4 @@
-# Controle de Estoque — v119
+# Controle de Estoque — v120
 
 ## Relatório Executivo · Estoque de Expansão x Kit Padrão
 
@@ -181,3 +181,12 @@ No Cockpit de Implantação, a data de Entrada TI continua visível, mas o conta
 - A aba Imobilizados voltou a exibir o botão Relatório PDF.
 - Os dois PDFs trazem resumo, dados operacionais, rastreabilidade, movimentação e auditoria, com paginação e layout compatível com grandes volumes.
 - Mantido o padrão visual da v117/v116.
+
+
+## v120 — Relatório Executivo por Cenários
+- Prioriza **quantas lojas completas podem ser abertas agora** com o Estoque de Expansão.
+- Destaca o **item limitante** e um ranking dos principais gargalos do Kit Padrão.
+- Inclui cenários: **Estoque atual**, **Próxima loja**, **Pipeline atual** e **Meta salva**.
+- Para cada cenário calcula itens/unidades faltantes, itens críticos e compra estimada.
+- Excel ganhou aba **Cenários** e o PDF abre com um resumo executivo antes do detalhamento.
+- Valores financeiros continuam como apoio, sem alterar o cálculo físico de capacidade.
