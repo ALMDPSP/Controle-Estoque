@@ -24,6 +24,11 @@ body{overflow-x:hidden}header{padding-left:16px!important;padding-right:16px!imp
     <a href="{{ url_for('dashboard') }}" class="{{ 'ativo' if request.endpoint == 'dashboard' else '' }}">Dashboard</a>
     <a href="{{ url_for('pagina_agente_ia') }}" class="app-ai-link {{ 'ativo' if request.endpoint == 'pagina_agente_ia' else '' }}">✦ Agente IA</a>
     <a href="{{ url_for('index') }}" class="{{ 'ativo' if request.endpoint == 'index' else '' }}">Estoque</a>
+    {% if role == 'consulta' %}
+    <a href="#" class="app-admin-locked" data-role-locked="Expedição" title="Expedição e baixa bloqueadas para o perfil Consulta">🔒 Expedição</a>
+    {% else %}
+    <a href="{{ url_for('pagina_expedicao') }}" class="{{ 'ativo' if request.endpoint == 'pagina_expedicao' else '' }}">Expedição</a>
+    {% endif %}
     <a href="{{ url_for('pagina_produtos') }}" class="{{ 'ativo' if request.endpoint == 'pagina_produtos' else '' }}">Cadastro de Produtos</a>
     {% if role == 'consulta' %}
     <a href="#" class="app-admin-locked" data-role-locked="Orçamento" title="Orçamento bloqueado para o perfil Consulta">🔒 Orçamento</a>

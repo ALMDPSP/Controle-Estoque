@@ -556,7 +556,7 @@
   <button type="button" class="ui-btn ui-btn-excel" id="btn-baixar-relatorio-excel">▣ Relatório Excel</button>
   <a class="ui-btn ui-btn-pdf" href="{{ url_for('exportar_estoque_pdf') }}">▣ Relatório PDF</a>
   <button type="button" class="ui-btn ui-btn-import" id="abrir-importar">↑ Importar Excel</button>
-  <button type="button" class="ui-btn ui-btn-primary" id="abrir-baixa-rapida">⇩ Baixa rápida para filial</button>
+  <a class="ui-btn ui-btn-primary" href="{{ url_for('pagina_expedicao') }}">⇩ Abrir Expedição</a>
   <a class="ui-btn ui-btn-secondary" href="{{ url_for('pagina_relatorios') }}">Central de Relatórios</a>
 </div>
 {% endif %}
@@ -936,74 +936,6 @@
     <div class="dlg-actions">
       <button type="button" class="btn-ghost" id="qtde-cancel">Cancelar</button>
       <button type="button" class="btn-primary" id="qtde-save">Confirmar retirada</button>
-    </div>
-  </div>
-</dialog>
-
-<dialog id="baixa-rapida-dialog" style="width:min(1120px,96vw);max-width:1120px;">
-  <div class="dlg-body">
-    <h3>Baixa rápida para filial · Completar Kit</h3>
-    <p style="margin:-5px 0 13px;color:var(--muted);font-size:12px;line-height:1.5;">Selecione uma loja <strong>A inaugurar/Pendente</strong>. O sistema mostra somente o que falta do Kit, cruza com o Estoque de Expansão e permite baixar várias unidades em uma única confirmação.</p>
-
-    <div class="br-dialog-grid" style="display:grid;grid-template-columns:2fr 1fr 1fr 2fr;gap:10px 12px;">
-      <div class="field wide">
-        <label for="br-filial">Filial / destino *</label>
-        <select id="br-filial"><option value="">Selecione uma loja pendente...</option></select>
-      </div>
-      <div class="field">
-        <label for="br-nf">NF de saída *</label>
-        <input id="br-nf" placeholder="Nº nota fiscal">
-      </div>
-      <div class="field">
-        <label for="br-data">Data de saída *</label>
-        <input id="br-data" type="date">
-      </div>
-      <div class="field">
-        <label for="br-vd">VD / referência</label>
-        <input id="br-vd" placeholder="VD / responsável / observação">
-      </div>
-    </div>
-
-    <div id="br-sem-filial" class="br-empty">Selecione uma filial para carregar o Kit e o saldo disponível.</div>
-    <div id="br-conteudo" hidden>
-      <div class="br-grid">
-        <div class="br-card info"><span>Kit da filial</span><strong id="br-total-kit">0</strong><small>unidades previstas</small></div>
-        <div class="br-card ok"><span>Já baixado</span><strong id="br-ja-enviado">0</strong><small>unidades rastreadas</small></div>
-        <div class="br-card warn"><span>Ainda falta</span><strong id="br-total-falta">0</strong><small>unidades para completar</small></div>
-        <div class="br-card info"><span>Progresso do Kit</span><strong id="br-percentual">0%</strong><small id="br-status-kit">em preparação</small></div>
-      </div>
-      <div class="br-progress"><span id="br-progress-bar"></span></div>
-
-      <div class="br-section-title"><strong>O que falta para a loja</strong><small>Saldo automático considera somente Estoque de Expansão.</small></div>
-      <div class="br-table-wrap">
-        <table class="br-table">
-          <thead><tr><th>Código</th><th>Item</th><th>Kit</th><th>Já enviado</th><th>Falta</th><th>Disponível</th><th>Ação</th></tr></thead>
-          <tbody id="br-kit-body"></tbody>
-        </table>
-      </div>
-
-      <div class="br-scan">
-        <div class="field"><label for="br-scan-input">Leitor / busca rápida por patrimônio, série ou imobilizado</label><input id="br-scan-input" placeholder="Bipe o código e pressione Enter"></div>
-        <button type="button" class="ui-btn ui-btn-secondary" id="br-scan-add">Adicionar equipamento</button>
-        <small style="color:var(--muted);max-width:300px;line-height:1.35;">Útil para validar fisicamente as unidades durante a separação.</small>
-      </div>
-
-      <div class="br-section-title"><strong>Equipamentos selecionados para a baixa</strong><small id="br-selecao-resumo">0 selecionados</small></div>
-      <div class="br-table-wrap" style="max-height:330px;">
-        <table class="br-table">
-          <thead><tr><th>Código / item</th><th>ID estoque</th><th>Nº imobilizado *</th><th>Nº série *</th><th>Nº patrimônio *</th><th></th></tr></thead>
-          <tbody id="br-selecionados-body"></tbody>
-        </table>
-      </div>
-      <div id="br-validacao" class="br-alert">Use “Preencher Kit automaticamente” para selecionar as unidades necessárias.</div>
-    </div>
-
-    <div class="dlg-actions br-actions" style="position:sticky;bottom:-20px;padding:12px 0 0;background:var(--panel);margin-top:12px;">
-      <button type="button" class="ui-btn ui-btn-link" id="br-manual">Baixa manual / avançada</button>
-      <button type="button" class="ui-btn ui-btn-secondary" id="br-limpar">Limpar seleção</button>
-      <button type="button" class="ui-btn ui-btn-primary" id="br-auto">Preencher Kit automaticamente</button>
-      <button type="button" class="ui-btn ui-btn-primary" id="br-confirmar">Confirmar baixa</button>
-      <button type="button" class="ui-btn ui-btn-link" id="br-cancelar">Fechar</button>
     </div>
   </div>
 </dialog>

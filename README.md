@@ -205,3 +205,12 @@ No Cockpit de Implantação, a data de Entrada TI continua visível, mas o conta
 - NF, data e referência são informadas uma única vez para o lote.
 - Baixa em transação única com auditoria; ao completar o Kit real, a filial é promovida conforme a regra vigente.
 - A Baixa individual/avançada permanece disponível para exceções e lojas já ativas.
+
+
+## v124 — Central de Expedição e Baixa
+- A baixa rápida saiu do modal da aba Estoque e ganhou uma aba operacional própria: **Expedição**.
+- A nova central consolida Filiais, Acompanhamento de Expansão, Kit Padrão, Estoque de Expansão e equipamentos já vinculados à filial.
+- Exibe fila de lojas pendentes com progresso do Kit, faltantes, disponibilidade, separação, equipamento separado e status de envio.
+- A operação da filial traz contexto de obra, Entrada de TI e inauguração, além de NF/data/referência, preenchimento automático do Kit e leitor por patrimônio/série/imobilizado.
+- A baixa continua sendo feita em lote/transação única, com auditoria e ativação automática da filial quando o Kit real fica completo.
+- A aba Estoque mantém a baixa manual/avançada para exceções e passa a direcionar a operação padrão para a Central de Expedição.

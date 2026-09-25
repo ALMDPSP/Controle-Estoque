@@ -69,7 +69,7 @@ import qrcode
 import db
 
 app = Flask(__name__)
-APP_BUILD = "2026-09-25-baixa-rapida-filial-v123"
+APP_BUILD = "2026-09-25-central-expedicao-v124"
 _DASHBOARD_CACHE = {"expira": 0.0, "dados": None}
 app.secret_key = os.environ.get("SECRET_KEY", "troque-esta-chave-em-producao")
 _RUNNING_HTTPS_HOSTED = bool(
@@ -700,6 +700,17 @@ def pagina_inicial():
 def index():
     return render_template(
         "index.html",
+        username=session.get("username"),
+        role=session.get("role") or "user",
+        is_admin=session.get("role") == "admin",
+    )
+
+
+@app.route("/expedicao")
+@page_role_required("admin", "gestor", "operador")
+def pagina_expedicao():
+    return render_template(
+        "expedicao.html",
         username=session.get("username"),
         role=session.get("role") or "user",
         is_admin=session.get("role") == "admin",
@@ -7764,17 +7775,17 @@ def _identificacao_item_completa(item):
     return all(str((item or {}).get(campo) or "").strip() for campo in ("nro_imobilizado", "nro_serie", "nro_patrimonio"))
 
 
-def _dados_baixa_rapida_filial(codigo_filial):
+def _dados_baixa_rapida_filial(codigo_filial, filial_cache=None, itens_cache=None, kit_cache=None, acompanhamento_cache=None):
     codigo_filial = str(codigo_filial or "").strip()
-    filial = db.buscar_filial_por_codigo(codigo_filial)
+    filial = (filial_cache or {}).get(codigo_filial) if filial_cache is not None else db.buscar_filial_por_codigo(codigo_filial)
     if not filial:
         return None, "Filial não encontrada."
     status = _status_filial_normalizado(filial.get("ativo"))
-    kit = db.listar_kit_padrao_loja() or []
+    kit = kit_cache if kit_cache is not None else (db.listar_kit_padrao_loja() or [])
     if not kit:
         return None, "O Kit padrão está vazio. Cadastre o Kit antes de usar a baixa rápida."
 
-    itens = db.listar_itens() or []
+    itens = itens_cache if itens_cache is not None else (db.listar_itens() or [])
     enviados = [
         x for x in itens
         if str(x.get("filial_destino") or "").strip() == codigo_filial
@@ -7836,9 +7847,19 @@ def _dados_baixa_rapida_filial(codigo_filial):
         })
 
     percentual = round((total_enviado / total_kit * 100), 1) if total_kit else 0
+    acompanhamento = None
+    if acompanhamento_cache is not None:
+        acompanhamento = acompanhamento_cache.get(codigo_filial)
+    else:
+        try:
+            acompanhamento = next((a for a in (db.listar_acompanhamento_expansao() or []) if str(a.get("filial") or "").strip() == codigo_filial), None)
+        except Exception:
+            acompanhamento = None
+
     return {
         "filial": filial,
         "status": status,
+        "acompanhamento": acompanhamento or {},
         "kit": linhas,
         "resumo": {
             "total_kit": total_kit,
@@ -7846,8 +7867,91 @@ def _dados_baixa_rapida_filial(codigo_filial):
             "faltam": total_falta,
             "percentual": percentual,
             "kit_completo": total_falta == 0,
+            "saldo_cobre_faltantes": all(int(x.get("disponivel_expansao") or 0) >= int(x.get("faltam") or 0) for x in linhas),
         },
     }, None
+
+
+def _resumo_central_expedicao():
+    """Consolida Filiais, Acompanhamento, Kit e Estoque numa fila operacional."""
+    filiais = db.listar_filiais(incluir_inativas=True) or []
+    filial_cache = {str(f.get("codigo") or "").strip(): f for f in filiais if str(f.get("codigo") or "").strip()}
+    itens = db.listar_itens() or []
+    kit = db.listar_kit_padrao_loja() or []
+    acompanhamento = db.listar_acompanhamento_expansao() or []
+    acomp_cache = {str(a.get("filial") or "").strip(): a for a in acompanhamento if str(a.get("filial") or "").strip()}
+
+    pendentes = [f for f in filiais if _status_filial_normalizado(f.get("ativo")) in ("inaugurar", "pendente")]
+    linhas = []
+    prontos_saldo = 0
+    kit_completo = 0
+    for filial in pendentes:
+        codigo = str(filial.get("codigo") or "").strip()
+        dados, erro = _dados_baixa_rapida_filial(
+            codigo, filial_cache=filial_cache, itens_cache=itens, kit_cache=kit, acompanhamento_cache=acomp_cache
+        )
+        if erro or not dados:
+            continue
+        r = dados.get("resumo") or {}
+        a = dados.get("acompanhamento") or {}
+        saldo_ok = bool(r.get("saldo_cobre_faltantes"))
+        if saldo_ok and int(r.get("faltam") or 0) > 0:
+            prontos_saldo += 1
+        if bool(r.get("kit_completo")):
+            kit_completo += 1
+        linhas.append({
+            "codigo": codigo,
+            "nome": str(filial.get("nome") or a.get("descricao_filial") or "").strip(),
+            "cidade": str(filial.get("cidade") or "").strip(),
+            "uf": str(filial.get("uf") or a.get("uf") or "").strip().upper(),
+            "status": _status_filial_normalizado(filial.get("ativo")),
+            "projeto": str(a.get("projeto") or "").strip(),
+            "term_obra": str(a.get("term_obra") or "").strip(),
+            "entrada_ti": str(a.get("entrada_ti") or "").strip(),
+            "inauguracao": str(a.get("inauguracao") or filial.get("previsao_abertura") or "").strip(),
+            "enviada": str(a.get("enviada") or "").strip().upper(),
+            "em_separacao": str(a.get("em_separacao") or "").strip().upper(),
+            "equip_separado": str(a.get("equip_separado") or "").strip().upper(),
+            "total_kit": int(r.get("total_kit") or 0),
+            "ja_enviado": int(r.get("ja_enviado") or 0),
+            "faltam": int(r.get("faltam") or 0),
+            "percentual": float(r.get("percentual") or 0),
+            "saldo_cobre_faltantes": saldo_ok,
+            "kit_completo": bool(r.get("kit_completo")),
+        })
+
+    def data_sort(valor):
+        txt = str(valor or "").strip()
+        iso = _data_acompanhamento_iso(txt) if txt else None
+        return iso or "9999-99-99"
+
+    linhas.sort(key=lambda x: (data_sort(x.get("inauguracao")), str(x.get("codigo") or "")))
+    expansao_disponivel = sum(
+        _qtd_estoque_int(x) for x in itens
+        if _normalizar_exec(x.get("tipo_estoque")) == "expansao" and _normalizar_exec(x.get("status")) != "enviado"
+    )
+    try:
+        capacidade = int((_calcular_relatorio_executivo_estoque_kit() or {}).get("capacidade_lojas") or 0)
+    except Exception:
+        capacidade = 0
+
+    return {
+        "gerado_em": datetime.now().strftime("%d/%m/%Y %H:%M"),
+        "lojas": linhas,
+        "resumo": {
+            "lojas_pendentes": len(linhas),
+            "capacidade_lojas": capacidade,
+            "lojas_saldo_individual": prontos_saldo,
+            "kits_completos_pendentes": kit_completo,
+            "unidades_expansao": expansao_disponivel,
+        },
+    }
+
+
+@app.route("/api/expedicao/resumo", methods=["GET"])
+@edit_required
+def api_expedicao_resumo():
+    return jsonify(_resumo_central_expedicao())
 
 
 @app.route("/api/baixa-rapida/filial/<codigo_filial>", methods=["GET"])
