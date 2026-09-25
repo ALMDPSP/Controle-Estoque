@@ -190,3 +190,9 @@ No Cockpit de Implantação, a data de Entrada TI continua visível, mas o conta
 - Para cada cenário calcula itens/unidades faltantes, itens críticos e compra estimada.
 - Excel ganhou aba **Cenários** e o PDF abre com um resumo executivo antes do detalhamento.
 - Valores financeiros continuam como apoio, sem alterar o cálculo físico de capacidade.
+
+
+## v122 — Relatório Executivo padronizado
+- PDF no mesmo padrão dark dos demais relatórios executivos.
+- Gráfico por cenário com criticidade, linha da meta e item limitante destacado.
+- Ranking visual dos 5 maiores gargalos no PDF e Excel.

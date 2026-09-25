@@ -50,7 +50,9 @@ from werkzeug.security import check_password_hash
 from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
-from openpyxl.chart import BarChart, Reference
+from openpyxl.chart import BarChart, LineChart, Reference
+from openpyxl.chart.series import DataPoint
+from openpyxl.chart.shapes import GraphicalProperties
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.units import mm
@@ -67,7 +69,7 @@ import qrcode
 import db
 
 app = Flask(__name__)
-APP_BUILD = "2026-09-25-relatorio-executivo-grafico-v121"
+APP_BUILD = "2026-09-25-relatorio-executivo-padrao-v122"
 _DASHBOARD_CACHE = {"expira": 0.0, "dados": None}
 app.secret_key = os.environ.get("SECRET_KEY", "troque-esta-chave-em-producao")
 _RUNNING_HTTPS_HOSTED = bool(
@@ -1148,25 +1150,34 @@ def exportar_relatorio_executivo_estoque_kit_excel():
     cen_ws.freeze_panes="A2"; cen_ws.sheet_view.showGridLines=False
 
     graf_ws = wb.create_sheet("Gráfico Cenários")
-    graf_ws.append(["Cenário","Lojas","Item limitante"])
+    graf_ws.append(["Cenário","Lojas","Meta","Criticidade","Item limitante"])
+    cores_criticidade = {"Atendido": verde, "Atenção": laranja, "Crítico": vermelho}
     for cen in dados["cenarios"]:
-        graf_ws.append([cen["nome"], cen["lojas"], cen.get("item_limitante") or "-"])
+        itens_falta = int(cen.get("itens_com_falta") or 0)
+        unidades_falta = int(cen.get("unidades_faltantes") or 0)
+        criticidade = "Atendido" if unidades_falta == 0 else ("Atenção" if itens_falta <= 2 else "Crítico")
+        graf_ws.append([cen["nome"], cen["lojas"], dados["meta_lojas"], criticidade, cen.get("item_limitante") or "-"])
     for c in graf_ws[1]:
         c.font=Font(bold=True,color="FFFFFF")
         c.fill=PatternFill("solid",fgColor=escuro)
         c.alignment=Alignment(horizontal="center")
-    for r in range(2, graf_ws.max_row+1):
-        graf_ws.cell(r,3).fill = PatternFill("solid", fgColor="FFF4E5")
-        graf_ws.cell(r,3).font = Font(bold=True, color=laranja)
-    for i,w in enumerate([24,12,42],1):
+    for r in range(2, 2+len(dados["cenarios"])):
+        criticidade = graf_ws.cell(r,4).value
+        cor = cores_criticidade.get(criticidade, azul)
+        graf_ws.cell(r,4).fill = PatternFill("solid", fgColor=cor)
+        graf_ws.cell(r,4).font = Font(bold=True, color="FFFFFF")
+        graf_ws.cell(r,5).fill = PatternFill("solid", fgColor="FFF4E5")
+        graf_ws.cell(r,5).font = Font(bold=True, color=laranja)
+    for i,w in enumerate([24,12,12,16,42],1):
         graf_ws.column_dimensions[get_column_letter(i)].width=w
+
     chart = BarChart()
-    chart.type = "bar"
+    chart.type = "col"
     chart.style = 10
     chart.title = "Capacidade de abertura por cenário"
-    chart.y_axis.title = "Cenário"
-    chart.x_axis.title = "Quantidade de lojas"
-    chart.height = 8
+    chart.y_axis.title = "Quantidade de lojas"
+    chart.x_axis.title = "Cenário"
+    chart.height = 9
     chart.width = 18
     data = Reference(graf_ws, min_col=2, min_row=1, max_row=1+len(dados["cenarios"]))
     cats = Reference(graf_ws, min_col=1, min_row=2, max_row=1+len(dados["cenarios"]))
@@ -1174,9 +1185,68 @@ def exportar_relatorio_executivo_estoque_kit_excel():
     chart.set_categories(cats)
     chart.legend = None
     if chart.series:
-        chart.series[0].graphicalProperties.solidFill = azul
-        chart.series[0].graphicalProperties.line.solidFill = azul
-    graf_ws.add_chart(chart, "E2")
+        pontos=[]
+        for idx, cen in enumerate(dados["cenarios"]):
+            itens_falta=int(cen.get("itens_com_falta") or 0)
+            unidades_falta=int(cen.get("unidades_faltantes") or 0)
+            cor = verde if unidades_falta == 0 else (laranja if itens_falta <= 2 else vermelho)
+            pontos.append(DataPoint(idx=idx, spPr=GraphicalProperties(solidFill=cor)))
+        chart.series[0].dPt = pontos
+
+    linha_meta = LineChart()
+    meta_ref = Reference(graf_ws, min_col=3, min_row=1, max_row=1+len(dados["cenarios"]))
+    linha_meta.add_data(meta_ref, titles_from_data=True)
+    linha_meta.set_categories(cats)
+    linha_meta.y_axis.axId = 200
+    linha_meta.y_axis.crosses = "max"
+    linha_meta.y_axis.majorGridlines = None
+    linha_meta.y_axis.title = None
+    linha_meta.legend = None
+    if linha_meta.series:
+        linha_meta.series[0].graphicalProperties.line.solidFill = "8F6BFF"
+        linha_meta.series[0].graphicalProperties.line.width = 28000
+    chart += linha_meta
+    graf_ws.add_chart(chart, "G2")
+
+    inicio_rank = 9
+    graf_ws.cell(inicio_rank,1,"TOP 5 GARGALOS").font = Font(bold=True,color="FFFFFF")
+    graf_ws.cell(inicio_rank,1).fill = PatternFill("solid",fgColor=laranja)
+    graf_ws.merge_cells(start_row=inicio_rank,start_column=1,end_row=inicio_rank,end_column=5)
+    graf_ws.append([])
+    hdr = inicio_rank + 1
+    headers_rank=["Posição","Item","Estoque","Qtd./loja","Cobertura (lojas)"]
+    for col,h in enumerate(headers_rank,1):
+        c=graf_ws.cell(hdr,col,h); c.font=Font(bold=True,color="FFFFFF"); c.fill=PatternFill("solid",fgColor=escuro); c.alignment=Alignment(horizontal="center")
+    for pos,item in enumerate(dados["ranking_gargalos"][:5],1):
+        rr=hdr+pos
+        graf_ws.cell(rr,1,pos)
+        graf_ws.cell(rr,2,item.get("codigo") or item.get("descricao") or "-")
+        graf_ws.cell(rr,3,item.get("estoque") or 0)
+        graf_ws.cell(rr,4,item.get("qtd_por_loja") or 0)
+        graf_ws.cell(rr,5,item.get("lojas_suportadas") or 0)
+        for cc in range(1,6):
+            graf_ws.cell(rr,cc).border=borda
+            graf_ws.cell(rr,cc).alignment=Alignment(horizontal="center" if cc != 2 else "left")
+        if int(item.get("lojas_suportadas") or 0) == int(dados["capacidade_lojas"] or 0):
+            for cc in range(1,6): graf_ws.cell(rr,cc).fill=PatternFill("solid",fgColor="FFF4E5")
+
+    rank_chart = BarChart()
+    rank_chart.type = "bar"
+    rank_chart.style = 10
+    rank_chart.title = "Ranking visual dos 5 maiores gargalos"
+    rank_chart.x_axis.title = "Cobertura em lojas"
+    rank_chart.y_axis.title = "Item"
+    rank_chart.height = 8
+    rank_chart.width = 18
+    rank_data=Reference(graf_ws,min_col=5,min_row=hdr,max_row=hdr+min(5,len(dados["ranking_gargalos"])))
+    rank_cats=Reference(graf_ws,min_col=2,min_row=hdr+1,max_row=hdr+min(5,len(dados["ranking_gargalos"])))
+    rank_chart.add_data(rank_data,titles_from_data=True)
+    rank_chart.set_categories(rank_cats)
+    rank_chart.legend=None
+    if rank_chart.series:
+        rank_chart.series[0].graphicalProperties.solidFill = laranja
+        rank_chart.series[0].graphicalProperties.line.solidFill = laranja
+    graf_ws.add_chart(rank_chart,"G20")
     graf_ws.sheet_view.showGridLines=False
 
     notas=wb.create_sheet("Premissas")
@@ -1199,84 +1269,236 @@ def exportar_relatorio_executivo_estoque_kit_excel():
 @app.route("/relatorio-executivo-estoque-kit.pdf")
 @role_required("admin", "gestor", "operador")
 def exportar_relatorio_executivo_estoque_kit_pdf():
-    dados=_calcular_relatorio_executivo_estoque_kit()
-    buf=io.BytesIO()
-    doc=SimpleDocTemplate(buf,pagesize=landscape(A4),rightMargin=10*mm,leftMargin=10*mm,topMargin=10*mm,bottomMargin=12*mm,title="Relatório Executivo - Capacidade de Abertura",author="Expansão de TI")
-    styles=getSampleStyleSheet()
-    styles.add(ParagraphStyle(name="ExecTituloV120",parent=styles["Title"],fontSize=17,leading=20,textColor=colors.HexColor("#1A2029"),spaceAfter=3))
-    styles.add(ParagraphStyle(name="ExecSubV120",parent=styles["Normal"],fontSize=8.3,leading=10.5,textColor=colors.HexColor("#66707D"),spaceAfter=6))
-    styles.add(ParagraphStyle(name="ExecCellV120",parent=styles["Normal"],fontSize=6.5,leading=7.8,textColor=colors.HexColor("#20242B")))
-    styles.add(ParagraphStyle(name="ExecHeroV120",parent=styles["Normal"],fontSize=10,leading=12,textColor=colors.HexColor("#1A2029")))
-    story=[Paragraph("Relatório Executivo · Capacidade de Abertura de Lojas",styles["ExecTituloV120"]),Paragraph(f"Estoque de Expansão x Kit Padrão · Gerado em {dados['gerado_em'].strftime('%d/%m/%Y %H:%M')}. Prioridade: lojas possíveis, gargalos e projeção por cenário.",styles["ExecSubV120"])]
+    dados = _calcular_relatorio_executivo_estoque_kit()
+    buf = io.BytesIO()
+    pdf = canvas.Canvas(buf, pagesize=landscape(A4))
+    larg, alt = landscape(A4)
+    margem = 14 * mm
+    area_w = larg - (2 * margem)
 
-    limitante_txt=", ".join((x.get("codigo") or x.get("descricao") or "-") for x in dados["limitantes"][:3]) or "-"
-    hero=[
-        ["LOJAS POSSÍVEIS AGORA",str(dados["capacidade_lojas"]),"ITEM LIMITANTE",limitante_txt],
-        ["PRÓXIMA LOJA · UNIDADES FALTANTES",str(dados["proxima_loja"]["unidades_faltantes"]),"LOJAS PENDENTES NO PIPELINE",str(dados["lojas_pendentes"])],
+    bg = "#0F1620"
+    painel = "#151D27"
+    painel2 = "#182230"
+    borda = "#2A3645"
+    texto = "#FFFFFF"
+    texto2 = "#9DB3C8"
+    azul = "#5AB4FF"
+    verde = "#52D69A"
+    laranja = "#FFBE55"
+    vermelho = "#FF7E88"
+    roxo = "#A78BFA"
+
+    def draw_bg():
+        pdf.setFillColor(colors.HexColor(bg))
+        pdf.rect(0, 0, larg, alt, stroke=0, fill=1)
+
+    def footer(page_no):
+        pdf.setStrokeColor(colors.HexColor("#253241"))
+        pdf.line(margem, 10 * mm, larg - margem, 10 * mm)
+        pdf.setFillColor(colors.HexColor("#8EA1B4"))
+        pdf.setFont("Helvetica", 7.5)
+        pdf.drawString(margem, 6.5 * mm, "© 2026 · Developed by ALM - Expansão de TI · Relatório Executivo Estoque x Kit Padrão")
+        pdf.drawRightString(larg - margem, 6.5 * mm, f"Página {page_no}")
+
+    def header(titulo, subtitulo):
+        draw_bg()
+        pdf.setFillColor(colors.white)
+        pdf.setFont("Helvetica-Bold", 20)
+        pdf.drawString(margem, alt - margem, titulo)
+        pdf.setFillColor(colors.HexColor(texto2))
+        pdf.setFont("Helvetica", 8.6)
+        pdf.drawString(margem, alt - margem - 14, subtitulo)
+        pdf.drawRightString(larg - margem, alt - margem - 14, dados["gerado_em"].strftime("Gerado em %d/%m/%Y às %H:%M"))
+
+    def panel(x,y,w,h,title=None,subtitle=None):
+        pdf.setFillColor(colors.HexColor(painel))
+        pdf.setStrokeColor(colors.HexColor(borda))
+        pdf.roundRect(x,y,w,h,10,stroke=1,fill=1)
+        if title:
+            pdf.setFillColor(colors.white)
+            pdf.setFont("Helvetica-Bold", 11)
+            pdf.drawString(x+12,y+h-20,title)
+        if subtitle:
+            pdf.setFillColor(colors.HexColor(texto2))
+            pdf.setFont("Helvetica", 7.2)
+            pdf.drawString(x+12,y+h-32,subtitle[:100])
+
+    def kpi(x,y,w,h,label,value,accent,detail=""):
+        pdf.setFillColor(colors.HexColor(painel2))
+        pdf.setStrokeColor(colors.HexColor("#314255"))
+        pdf.roundRect(x,y,w,h,10,stroke=1,fill=1)
+        pdf.setFillColor(colors.HexColor("#9AB0C5"))
+        pdf.setFont("Helvetica-Bold",6.6)
+        pdf.drawString(x+9,y+h-13,label.upper())
+        pdf.setFillColor(colors.HexColor(accent))
+        pdf.setFont("Helvetica-Bold",15 if len(str(value)) < 12 else 9.5)
+        val=str(value)
+        if len(val)>28: val=val[:27]+"…"
+        pdf.drawString(x+9,y+18,val)
+        if detail:
+            pdf.setFillColor(colors.HexColor("#7F95AA"))
+            pdf.setFont("Helvetica",6.3)
+            pdf.drawString(x+9,y+7,detail[:40])
+
+    def criticidade(c):
+        itens=int(c.get("itens_com_falta") or 0)
+        unidades=int(c.get("unidades_faltantes") or 0)
+        if unidades == 0: return "Atendido", verde
+        if itens <= 2: return "Atenção", laranja
+        return "Crítico", vermelho
+
+    def short(s,n=30):
+        s=str(s or "-")
+        return s if len(s)<=n else s[:n-1]+"…"
+
+    # Página 1 — visão executiva no mesmo padrão dos demais relatórios
+    header("Relatório Executivo · Estoque x Kit Padrão", "Capacidade de abertura, item limitante, cenários, meta e principais gargalos do Estoque de Expansão.")
+    limitante = ", ".join((x.get("codigo") or x.get("descricao") or "-") for x in dados["limitantes"][:3]) or "-"
+    gap=8
+    kpi_y=alt-margem-65
+    kpi_w=(area_w-gap*5)/6.0
+    kpis=[
+        ("Lojas possíveis agora",dados["capacidade_lojas"],verde,"Capacidade sem compra"),
+        ("Item limitante",limitante,laranja,"Define a capacidade atual"),
+        ("Falta p/ próxima",dados["proxima_loja"]["unidades_faltantes"],laranja if dados["proxima_loja"]["unidades_faltantes"] else verde,"Unidades para +1 loja"),
+        ("Pipeline pendente",dados["lojas_pendentes"],azul,"Lojas aguardando abertura"),
+        ("Meta salva",dados["meta_lojas"],roxo,"Objetivo configurado"),
+        ("Cobertura da meta",f"{dados['cobertura_meta']}%",verde if dados["capacidade_lojas"]>=dados["meta_lojas"] else laranja,"Capacidade atual / meta"),
     ]
-    ht=Table(hero,colWidths=[55*mm,27*mm,55*mm,45*mm],hAlign="LEFT")
-    ht.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,-1),colors.HexColor("#F5F7FA")),("BOX",(0,0),(-1,-1),0.45,colors.HexColor("#DDE3EA")),("INNERGRID",(0,0),(-1,-1),0.3,colors.HexColor("#E1E5EA")),("FONTNAME",(0,0),(0,-1),"Helvetica-Bold"),("FONTNAME",(2,0),(2,-1),"Helvetica-Bold"),("TEXTCOLOR",(0,0),(0,-1),colors.HexColor("#66707D")),("TEXTCOLOR",(2,0),(2,-1),colors.HexColor("#66707D")),("FONTNAME",(1,0),(1,-1),"Helvetica-Bold"),("FONTNAME",(3,0),(3,-1),"Helvetica-Bold"),("FONTSIZE",(1,0),(1,-1),14),("FONTSIZE",(3,0),(3,-1),9),("VALIGN",(0,0),(-1,-1),"MIDDLE"),("LEFTPADDING",(0,0),(-1,-1),5),("RIGHTPADDING",(0,0),(-1,-1),5),("TOPPADDING",(0,0),(-1,-1),6),("BOTTOMPADDING",(0,0),(-1,-1),6)]))
-    story.extend([ht,Spacer(1,4*mm),Paragraph("<b>Capacidade de abertura por cenário</b>",styles["ExecHeroV120"])])
+    for i,(lab,val,cor,det) in enumerate(kpis):
+        kpi(margem+i*(kpi_w+gap),kpi_y,kpi_w,49,lab,val,cor,det)
 
-    valores_cenario = [int(c.get("lojas") or 0) for c in dados["cenarios"]]
-    max_val = max(valores_cenario) if valores_cenario else 0
-    desenho = Drawing(520, 165)
-    desenho.add(String(5, 150, "Gráfico · quantas lojas conseguimos abrir em cada cenário", fontName="Helvetica-Bold", fontSize=9, fillColor=colors.HexColor("#1A2029")))
-    graf = VerticalBarChart()
-    graf.x = 30
-    graf.y = 35
-    graf.height = 90
-    graf.width = 450
-    graf.data = [valores_cenario]
-    graf.categoryAxis.categoryNames = [c.get("nome") for c in dados["cenarios"]]
-    graf.categoryAxis.labels.boxAnchor = "ne"
-    graf.categoryAxis.labels.angle = 25
-    graf.categoryAxis.labels.fontName = "Helvetica"
-    graf.categoryAxis.labels.fontSize = 7
-    graf.valueAxis.valueMin = 0
-    graf.valueAxis.valueMax = max(max_val + 1, 1)
-    graf.valueAxis.valueStep = max(1, int((max_val + 4) / 5)) if max_val else 1
-    graf.valueAxis.labels.fontSize = 7
-    graf.bars[0].fillColor = colors.HexColor("#2876BE")
-    graf.bars[0].strokeColor = colors.HexColor("#2876BE")
-    desenho.add(graf)
-    desenho.add(String(30, 12, "Os itens limitantes de cada cenário estão destacados na tabela abaixo.", fontName="Helvetica", fontSize=7, fillColor=colors.HexColor("#66707D")))
-    story.extend([desenho, Spacer(1, 3*mm), Paragraph("<b>Projeção por cenário</b>",styles["ExecHeroV120"])])
+    content_top=kpi_y-14
+    content_bottom=22*mm
+    left_w=475
+    right_gap=12
+    right_x=margem+left_w+right_gap
+    right_w=larg-margem-right_x
+    content_h=content_top-content_bottom
 
-    scen=[["Cenário","Lojas","Situação","Item limitante","Itens c/ falta","Unid. faltantes","Compra estimada","Itens críticos"]]
-    for c in dados["cenarios"]:
-        scen.append([c["nome"],str(c["lojas"]),c["situacao"],Paragraph(c.get("item_limitante") or "-",styles["ExecCellV120"]),str(c["itens_com_falta"]),str(c["unidades_faltantes"]),_formatar_moeda_br(c["valor_faltante"]),Paragraph(c["criticos"],styles["ExecCellV120"])])
-    st=Table(scen,repeatRows=1,colWidths=[23*mm,13*mm,25*mm,46*mm,17*mm,20*mm,24*mm,42*mm])
-    st_style=[("BACKGROUND",(0,0),(-1,0),colors.HexColor("#2876BE")),("TEXTCOLOR",(0,0),(-1,0),colors.white),("FONTNAME",(0,0),(-1,0),"Helvetica-Bold"),("FONTSIZE",(0,0),(-1,0),7),("FONTSIZE",(0,1),(-1,-1),6.8),("GRID",(0,0),(-1,-1),0.35,colors.HexColor("#D9E0E7")),("ROWBACKGROUNDS",(0,1),(-1,-1),[colors.white,colors.HexColor("#F8FAFC")]),("ALIGN",(1,1),(1,-1),"CENTER"),("ALIGN",(4,1),(6,-1),"CENTER"),("VALIGN",(0,0),(-1,-1),"MIDDLE"),("LEFTPADDING",(0,0),(-1,-1),3),("RIGHTPADDING",(0,0),(-1,-1),3),("TOPPADDING",(0,0),(-1,-1),4),("BOTTOMPADDING",(0,0),(-1,-1),4),("BACKGROUND",(3,1),(3,-1),colors.HexColor("#FFF4E5")),("TEXTCOLOR",(3,1),(3,-1),colors.HexColor("#B86A06")),("FONTNAME",(3,1),(3,-1),"Helvetica-Bold")]
-    st.setStyle(TableStyle(st_style))
-    story.extend([st,Spacer(1,4*mm),Paragraph("<b>Ranking de gargalos</b> · os primeiros itens abaixo são os que reduzem primeiro a quantidade de lojas que podem ser abertas.",styles["ExecSubV120"])])
+    panel(margem,content_bottom,left_w,content_h,"Capacidade de abertura por cenário","A linha pontilhada representa a meta salva. As cores indicam criticidade do complemento necessário.")
+    chart_x=margem+22
+    chart_y=content_bottom+78
+    chart_w=left_w-48
+    row_gap=45
+    max_lojas=max([int(c.get("lojas") or 0) for c in dados["cenarios"]]+[int(dados["meta_lojas"] or 0),1])
+    bar_start=chart_x+108
+    bar_w=chart_w-145
+    meta_x=bar_start+(bar_w*(int(dados["meta_lojas"] or 0)/max_lojas)) if max_lojas else bar_start
+    pdf.setStrokeColor(colors.HexColor(roxo))
+    pdf.setDash(4,3)
+    pdf.line(meta_x,chart_y-10,meta_x,chart_y+row_gap*len(dados["cenarios"])-3)
+    pdf.setDash()
+    pdf.setFillColor(colors.HexColor(roxo)); pdf.setFont("Helvetica-Bold",6.5)
+    pdf.drawCentredString(meta_x,chart_y+row_gap*len(dados["cenarios"])+2,f"META {dados['meta_lojas']}")
 
-    garg=[["#","Código","Item","Estoque","Qtd./loja","Cobertura","Falta p/ próxima"]]
-    for pos,item in enumerate(dados["ranking_gargalos"],1):
-        falta=max(0,(dados["capacidade_lojas"]+1)*item["qtd_por_loja"]-item["estoque"])
-        garg.append([str(pos),item["codigo"] or "-",Paragraph(item["descricao"] or "-",styles["ExecCellV120"]),str(item["estoque"]),str(item["qtd_por_loja"]),str(item["lojas_suportadas"]),str(falta)])
-    gt=Table(garg,repeatRows=1,colWidths=[9*mm,22*mm,72*mm,20*mm,20*mm,22*mm,28*mm])
-    gst=[("BACKGROUND",(0,0),(-1,0),colors.HexColor("#CD8018")),("TEXTCOLOR",(0,0),(-1,0),colors.white),("FONTNAME",(0,0),(-1,0),"Helvetica-Bold"),("FONTSIZE",(0,0),(-1,-1),7),("GRID",(0,0),(-1,-1),0.35,colors.HexColor("#D9E0E7")),("ROWBACKGROUNDS",(0,1),(-1,-1),[colors.white,colors.HexColor("#F8FAFC")]),("ALIGN",(0,1),(1,-1),"CENTER"),("ALIGN",(3,1),(-1,-1),"CENTER"),("VALIGN",(0,0),(-1,-1),"MIDDLE")]
-    for i,item in enumerate(dados["ranking_gargalos"],1):
-        if item["lojas_suportadas"]==dados["capacidade_lojas"]: gst.append(("BACKGROUND",(0,i),(-1,i),colors.HexColor("#FFF4E5")))
-    gt.setStyle(TableStyle(gst)); story.extend([gt,PageBreak()])
+    for idx,c in enumerate(dados["cenarios"]):
+        yy=chart_y+(len(dados["cenarios"])-1-idx)*row_gap
+        crit,cor=criticidade(c)
+        pdf.setFillColor(colors.HexColor("#DDE8F3")); pdf.setFont("Helvetica-Bold",8)
+        pdf.drawString(chart_x,yy+8,short(c.get("nome"),22))
+        pdf.setFillColor(colors.HexColor("#8299AF")); pdf.setFont("Helvetica",6.3)
+        pdf.drawString(chart_x,yy-2,crit)
+        pdf.setFillColor(colors.HexColor("#0D1721")); pdf.roundRect(bar_start,yy,bar_w,16,8,stroke=0,fill=1)
+        valor=int(c.get("lojas") or 0)
+        bw=max(5,bar_w*(valor/max_lojas)) if valor else 5
+        pdf.setFillColor(colors.HexColor(cor)); pdf.roundRect(bar_start,yy,bw,16,8,stroke=0,fill=1)
+        pdf.setFillColor(colors.white); pdf.setFont("Helvetica-Bold",8)
+        pdf.drawRightString(bar_start+bar_w+28,yy+5,str(valor))
 
-    story.extend([Paragraph("Detalhamento · Estoque de Expansão x Kit Padrão",styles["ExecTituloV120"]),Paragraph("A tabela detalha a cobertura individual de cada item. A menor cobertura determina a capacidade real de abertura.",styles["ExecSubV120"])])
-    cab=["Código","Item","Estoque","Qtd./loja","Lojas","Nec. meta","Saldo","Custo unit.","Valor estoque","Compra meta"]
-    tab=[cab]
-    for item in dados["linhas"]:
-        tab.append([item["codigo"] or "-",Paragraph(item["descricao"] or "-",styles["ExecCellV120"]),str(item["estoque"]),str(item["qtd_por_loja"]),str(item["lojas_suportadas"]),str(item["necessario_meta"]),str(item["saldo_meta"]),_formatar_moeda_br(item["custo"]) if item["custo_informado"] else "Sem custo",_formatar_moeda_br(item["valor_estoque"]) if item["custo_informado"] else "-",_formatar_moeda_br(item["valor_faltante_meta"]) if item["custo_informado"] else "-"])
-    dt=Table(tab,repeatRows=1,colWidths=[17*mm,55*mm,18*mm,18*mm,16*mm,20*mm,18*mm,24*mm,27*mm,27*mm])
-    estilo=[("BACKGROUND",(0,0),(-1,0),colors.HexColor("#1A2029")),("TEXTCOLOR",(0,0),(-1,0),colors.white),("FONTNAME",(0,0),(-1,0),"Helvetica-Bold"),("FONTSIZE",(0,0),(-1,-1),6.6),("ALIGN",(2,1),(-1,-1),"CENTER"),("VALIGN",(0,0),(-1,-1),"MIDDLE"),("GRID",(0,0),(-1,-1),0.35,colors.HexColor("#D9E0E7")),("ROWBACKGROUNDS",(0,1),(-1,-1),[colors.white,colors.HexColor("#F8FAFC")]),("LEFTPADDING",(0,0),(-1,-1),2.5),("RIGHTPADDING",(0,0),(-1,-1),2.5),("TOPPADDING",(0,0),(-1,-1),3.2),("BOTTOMPADDING",(0,0),(-1,-1),3.2)]
-    for i,item in enumerate(dados["linhas"],1):
-        if item["saldo_meta"]<0: estilo.extend([("TEXTCOLOR",(6,i),(6,i),colors.HexColor("#B43C2D")),("FONTNAME",(6,i),(6,i),"Helvetica-Bold")])
-        if item["lojas_suportadas"]==dados["capacidade_lojas"]: estilo.append(("BACKGROUND",(0,i),(-1,i),colors.HexColor("#FFF8ED")))
-    dt.setStyle(TableStyle(estilo)); story.extend([dt,Spacer(1,4*mm)])
-    story.append(Paragraph(f"Leitura executiva: hoje o estoque permite abrir <b>{dados['capacidade_lojas']} loja(s) completa(s)</b>. Para a próxima loja faltam <b>{dados['proxima_loja']['unidades_faltantes']} unidade(s)</b> distribuídas em <b>{dados['proxima_loja']['itens_com_falta']} item(ns)</b>. O financeiro é complementar e não altera o cálculo físico de capacidade.",styles["ExecSubV120"]))
+    # Ranking visual de gargalos
+    rank_y=content_bottom+20
+    pdf.setFillColor(colors.white); pdf.setFont("Helvetica-Bold",9)
+    pdf.drawString(margem+14,rank_y+42,"Top 5 gargalos")
+    pdf.setFillColor(colors.HexColor(texto2)); pdf.setFont("Helvetica",6.4)
+    pdf.drawString(margem+14,rank_y+31,"Menor cobertura por item. O primeiro grupo define a capacidade real.")
+    rank_items=dados["ranking_gargalos"][:5]
+    rank_max=max([int(x.get("lojas_suportadas") or 0) for x in rank_items]+[1])
+    rx=margem+14
+    for i,item in enumerate(rank_items):
+        yy=rank_y+19-i*10
+        nome=short(item.get("codigo") or item.get("descricao"),24)
+        cobertura=int(item.get("lojas_suportadas") or 0)
+        cor=laranja if cobertura==int(dados["capacidade_lojas"] or 0) else azul
+        pdf.setFillColor(colors.HexColor("#D5E2EE")); pdf.setFont("Helvetica",6.2); pdf.drawString(rx,yy,nome)
+        bx=rx+105; bw=125
+        pdf.setFillColor(colors.HexColor("#0D1721")); pdf.roundRect(bx,yy-1,bw,7,3,stroke=0,fill=1)
+        pdf.setFillColor(colors.HexColor(cor)); pdf.roundRect(bx,yy-1,max(4,bw*(cobertura/rank_max)),7,3,stroke=0,fill=1)
+        pdf.setFillColor(colors.white); pdf.setFont("Helvetica-Bold",6.4); pdf.drawRightString(bx+bw+22,yy,str(cobertura))
 
-    def rodape(canvas_pdf,doc_pdf):
-        canvas_pdf.saveState(); canvas_pdf.setFont("Helvetica",7); canvas_pdf.setFillColor(colors.HexColor("#7B8794")); canvas_pdf.drawString(10*mm,6*mm,"Developed by ALM - Expansão de TI"); canvas_pdf.drawRightString(landscape(A4)[0]-10*mm,6*mm,f"Página {doc_pdf.page}"); canvas_pdf.restoreState()
-    doc.build(story,onFirstPage=rodape,onLaterPages=rodape); buf.seek(0)
+    panel(right_x,content_bottom,right_w,content_h,"Cenários e itens limitantes","Leitura direta para decisão de compra e priorização.")
+    card_h=(content_h-58)/4.0
+    for idx,c in enumerate(dados["cenarios"]):
+        y=content_top-44-(idx+1)*card_h+4
+        crit,cor=criticidade(c)
+        pdf.setFillColor(colors.HexColor("#1B2531")); pdf.roundRect(right_x+12,y,right_w-24,card_h-8,8,stroke=0,fill=1)
+        pdf.setFillColor(colors.HexColor(cor)); pdf.setFont("Helvetica-Bold",8.2); pdf.drawString(right_x+20,y+card_h-25,short(c.get("nome"),22))
+        pdf.setFillColor(colors.white); pdf.setFont("Helvetica-Bold",12); pdf.drawRightString(right_x+right_w-20,y+card_h-25,f"{c.get('lojas',0)} loja(s)")
+        pdf.setFillColor(colors.HexColor("#9DB3C8")); pdf.setFont("Helvetica",6.4); pdf.drawString(right_x+20,y+card_h-38,f"Criticidade: {crit} · Falta: {c.get('unidades_faltantes',0)} unid. / {c.get('itens_com_falta',0)} item(ns)")
+        pdf.setFillColor(colors.HexColor(cor)); pdf.setFont("Helvetica-Bold",6.7); pdf.drawString(right_x+20,y+11,"LIMITANTE")
+        pdf.setFillColor(colors.HexColor("#DDE8F3")); pdf.setFont("Helvetica-Bold",7.2); pdf.drawString(right_x+68,y+11,short(c.get("item_limitante"),35))
+
+    footer(1)
+    pdf.showPage()
+
+    # Página 2+ — detalhamento no mesmo tema escuro
+    colunas=[
+        ("Código",16*mm),("Item",51*mm),("Estoque",17*mm),("Qtd./loja",18*mm),("Lojas",16*mm),
+        ("Nec. meta",20*mm),("Saldo",17*mm),("Custo unit.",24*mm),("Valor estoque",27*mm),("Compra meta",27*mm)
+    ]
+    row_h=18
+    page_no=2
+    linhas=dados["linhas"]
+    idx=0
+    while idx < len(linhas) or idx == 0:
+        header("Detalhamento · Estoque de Expansão x Kit Padrão", "A menor cobertura entre os itens determina quantas lojas completas podem ser abertas.")
+        y=alt-margem-54
+        pdf.setFillColor(colors.HexColor("#1B2531")); pdf.roundRect(margem,y-2,area_w,26,7,stroke=0,fill=1)
+        cx=margem
+        pdf.setFillColor(colors.HexColor("#A8BED1")); pdf.setFont("Helvetica-Bold",6.6)
+        for nome,w in colunas:
+            pdf.drawString(cx+3,y+7,nome)
+            cx+=w
+        y-=row_h
+        while idx < len(linhas) and y > 28*mm:
+            item=linhas[idx]
+            limitante=int(item.get("lojas_suportadas") or 0)==int(dados["capacidade_lojas"] or 0)
+            pdf.setFillColor(colors.HexColor("#30291F" if limitante else ("#151D27" if idx%2==0 else "#131B25")))
+            pdf.roundRect(margem,y-4,area_w,row_h-2,4,stroke=0,fill=1)
+            vals=[
+                item.get("codigo") or "-", item.get("descricao") or "-", item.get("estoque") or 0, item.get("qtd_por_loja") or 0,
+                item.get("lojas_suportadas") or 0,item.get("necessario_meta") or 0,item.get("saldo_meta") or 0,
+                _formatar_moeda_br(item.get("custo")) if item.get("custo_informado") else "Sem custo",
+                _formatar_moeda_br(item.get("valor_estoque")) if item.get("custo_informado") else "-",
+                _formatar_moeda_br(item.get("valor_faltante_meta")) if item.get("custo_informado") else "-",
+            ]
+            cx=margem
+            for ci,((nome,w),v) in enumerate(zip(colunas,vals)):
+                if ci==1: txt=short(v,40)
+                else: txt=short(v,18)
+                if ci==6 and int(item.get("saldo_meta") or 0)<0:
+                    pdf.setFillColor(colors.HexColor(vermelho)); pdf.setFont("Helvetica-Bold",6.5)
+                elif limitante and ci in (0,1,4):
+                    pdf.setFillColor(colors.HexColor(laranja)); pdf.setFont("Helvetica-Bold",6.5)
+                else:
+                    pdf.setFillColor(colors.HexColor("#D9E5F0")); pdf.setFont("Helvetica",6.3)
+                if ci >= 2:
+                    pdf.drawCentredString(cx+w/2,y+2,txt)
+                else:
+                    pdf.drawString(cx+3,y+2,txt)
+                cx+=w
+            y-=row_h
+            idx+=1
+        if not linhas:
+            pdf.setFillColor(colors.HexColor(texto2)); pdf.setFont("Helvetica",9); pdf.drawString(margem,y,"Nenhum item do Kit Padrão encontrado.")
+        footer(page_no)
+        if idx < len(linhas):
+            pdf.showPage(); page_no+=1
+        else:
+            break
+
+    pdf.save()
+    buf.seek(0)
     return send_file(buf,as_attachment=True,download_name=f"relatorio_executivo_capacidade_lojas_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",mimetype="application/pdf")
 
 @app.route("/usuarios")
