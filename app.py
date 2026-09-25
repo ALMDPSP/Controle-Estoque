@@ -50,6 +50,7 @@ from werkzeug.security import check_password_hash
 from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
+from openpyxl.chart import BarChart, Reference
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.units import mm
@@ -58,13 +59,15 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak
+from reportlab.graphics.shapes import Drawing, String
+from reportlab.graphics.charts.barcharts import VerticalBarChart
 from cryptography.fernet import Fernet, InvalidToken
 import qrcode
 
 import db
 
 app = Flask(__name__)
-APP_BUILD = "2026-09-25-relatorio-executivo-cenarios-v120"
+APP_BUILD = "2026-09-25-relatorio-executivo-grafico-v121"
 _DASHBOARD_CACHE = {"expira": 0.0, "dados": None}
 app.secret_key = os.environ.get("SECRET_KEY", "troque-esta-chave-em-producao")
 _RUNNING_HTTPS_HOSTED = bool(
@@ -919,6 +922,27 @@ def _calcular_relatorio_executivo_estoque_kit():
             nomes.append(x.get("codigo") or x.get("descricao") or "-")
         return ", ".join(nomes) if nomes else "Nenhum"
 
+    def _nome_item_exec(item):
+        return item.get("codigo") or item.get("descricao") or "-"
+
+    def resumo_limitantes(lista, limite=3):
+        nomes = [_nome_item_exec(x) for x in (lista or []) if _nome_item_exec(x)]
+        return ", ".join(nomes[:limite]) if nomes else "-"
+
+    def limitante_do_cenario(tipo, faltas=None):
+        faltas = faltas or []
+        if tipo == "atual":
+            return resumo_limitantes(limitantes)
+        if faltas:
+            ordenadas = sorted(
+                faltas,
+                key=lambda x: (-int(x.get("falta") or 0), int(x.get("lojas_suportadas") or 0), (x.get("descricao") or "").lower())
+            )
+            principais = [_nome_item_exec(x) for x in ordenadas[:3] if _nome_item_exec(x)]
+            if principais:
+                return ", ".join(principais)
+        return resumo_limitantes(limitantes)
+
     cenarios = [
         {
             "nome": "Estoque atual",
@@ -929,6 +953,7 @@ def _calcular_relatorio_executivo_estoque_kit():
             "valor_faltante": Decimal("0.00"),
             "situacao": "Disponível agora" if capacidade > 0 else "Sem loja completa",
             "criticos": ", ".join((x.get("codigo") or x.get("descricao") or "-") for x in limitantes[:3]) or "-",
+            "item_limitante": limitante_do_cenario("atual"),
         },
         {
             "nome": "Próxima loja",
@@ -939,6 +964,7 @@ def _calcular_relatorio_executivo_estoque_kit():
             "valor_faltante": proxima["valor_faltante"],
             "situacao": "Atendido" if proxima["atendido"] else "Requer complemento",
             "criticos": resumo_criticos(proxima["faltas"]),
+            "item_limitante": limitante_do_cenario("proxima", proxima["faltas"]),
         },
         {
             "nome": "Pipeline atual",
@@ -949,6 +975,7 @@ def _calcular_relatorio_executivo_estoque_kit():
             "valor_faltante": pipeline_cenario["valor_faltante"],
             "situacao": "Atendido" if pipeline_cenario["atendido"] else "Requer complemento",
             "criticos": resumo_criticos(pipeline_cenario["faltas"]),
+            "item_limitante": limitante_do_cenario("pipeline", pipeline_cenario["faltas"]),
         },
         {
             "nome": "Meta salva",
@@ -959,6 +986,7 @@ def _calcular_relatorio_executivo_estoque_kit():
             "valor_faltante": meta_cenario["valor_faltante"],
             "situacao": "Atendido" if meta_cenario["atendido"] else "Requer complemento",
             "criticos": resumo_criticos(meta_cenario["faltas"]),
+            "item_limitante": limitante_do_cenario("meta", meta_cenario["faltas"]),
         },
     ]
 
@@ -1041,22 +1069,24 @@ def exportar_relatorio_executivo_estoque_kit_excel():
     ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=13)
     ws.cell(row, 1, "PROJEÇÃO POR CENÁRIO").font = Font(size=11, bold=True, color="FFFFFF")
     ws.cell(row, 1).fill = PatternFill("solid", fgColor=azul)
-    headers = ["Cenário", "Objetivo (lojas)", "Situação", "Itens com falta", "Unidades faltantes", "Compra estimada", "Itens críticos"]
+    headers = ["Cenário", "Lojas", "Situação", "Item limitante", "Itens com falta", "Unidades faltantes", "Compra estimada", "Itens críticos"]
     row += 1
-    cols = [1, 3, 5, 7, 9, 11, 12]
-    spans = [(1,2),(3,4),(5,6),(7,8),(9,10),(11,11),(12,13)]
+    spans = [(1,2),(3,3),(4,5),(6,8),(9,9),(10,10),(11,11),(12,13)]
     for h,(c1,c2) in zip(headers, spans):
         if c1 != c2: ws.merge_cells(start_row=row,start_column=c1,end_row=row,end_column=c2)
         cell=ws.cell(row,c1,h); cell.font=Font(bold=True,color="FFFFFF",size=9); cell.fill=PatternFill("solid",fgColor=escuro); cell.alignment=Alignment(horizontal="center",vertical="center")
     for cen in dados["cenarios"]:
         row += 1
-        vals=[cen["nome"],cen["lojas"],cen["situacao"],cen["itens_com_falta"],cen["unidades_faltantes"],float(cen["valor_faltante"]),cen["criticos"]]
+        vals=[cen["nome"],cen["lojas"],cen["situacao"],cen.get("item_limitante") or "-",cen["itens_com_falta"],cen["unidades_faltantes"],float(cen["valor_faltante"]),cen["criticos"]]
         for val,(c1,c2),idx in zip(vals,spans,range(len(vals))):
             if c1 != c2: ws.merge_cells(start_row=row,start_column=c1,end_row=row,end_column=c2)
-            cell=ws.cell(row,c1,val); cell.border=borda; cell.alignment=Alignment(horizontal="center" if idx not in (0,6) else "left",vertical="center",wrap_text=True)
+            cell=ws.cell(row,c1,val); cell.border=borda; cell.alignment=Alignment(horizontal="center" if idx not in (0,3,7) else "left",vertical="center",wrap_text=True)
             for cc in range(c1,c2+1): ws.cell(row,cc).border=borda
-            if idx==5: cell.number_format='R$ #,##0.00'
-        ws.cell(row,5).font=Font(bold=True,color=verde if cen["situacao"] in ("Disponível agora","Atendido") else laranja)
+            if idx==6: cell.number_format='R$ #,##0.00'
+        ws.cell(row,4).font=Font(bold=True,color=verde if cen["situacao"] in ("Disponível agora","Atendido") else laranja)
+        for cc in range(6,9):
+            ws.cell(row,cc).fill=PatternFill("solid",fgColor="FFF4E5")
+        ws.cell(row,6).font=Font(bold=True,color=laranja)
 
     row += 2
     ws.merge_cells(start_row=row,start_column=1,end_row=row,end_column=13)
@@ -1106,13 +1136,48 @@ def exportar_relatorio_executivo_estoque_kit_excel():
     ws.oddFooter.center.text="© 2026 · Developed by ALM - Expansão de TI"; ws.oddFooter.right.text="Página &P de &N"
 
     cen_ws=wb.create_sheet("Cenários")
-    cen_ws.append(["Cenário","Lojas objetivo","Situação","Itens com falta","Unidades faltantes","Compra estimada","Itens críticos"])
+    cen_ws.append(["Cenário","Lojas objetivo","Situação","Item limitante","Itens com falta","Unidades faltantes","Compra estimada","Itens críticos"])
     for cen in dados["cenarios"]:
-        cen_ws.append([cen["nome"],cen["lojas"],cen["situacao"],cen["itens_com_falta"],cen["unidades_faltantes"],float(cen["valor_faltante"]),cen["criticos"]])
+        cen_ws.append([cen["nome"],cen["lojas"],cen["situacao"],cen.get("item_limitante") or "-",cen["itens_com_falta"],cen["unidades_faltantes"],float(cen["valor_faltante"]),cen["criticos"]])
     for c in cen_ws[1]: c.font=Font(bold=True,color="FFFFFF"); c.fill=PatternFill("solid",fgColor=escuro); c.alignment=Alignment(horizontal="center")
-    for r in range(2,cen_ws.max_row+1): cen_ws.cell(r,6).number_format='R$ #,##0.00'
-    for i,w in enumerate([22,16,22,16,18,20,55],1): cen_ws.column_dimensions[get_column_letter(i)].width=w
+    for r in range(2,cen_ws.max_row+1):
+        cen_ws.cell(r,7).number_format='R$ #,##0.00'
+        cen_ws.cell(r,4).fill=PatternFill("solid",fgColor="FFF4E5")
+        cen_ws.cell(r,4).font=Font(bold=True,color=laranja)
+    for i,w in enumerate([22,16,22,34,16,18,20,45],1): cen_ws.column_dimensions[get_column_letter(i)].width=w
     cen_ws.freeze_panes="A2"; cen_ws.sheet_view.showGridLines=False
+
+    graf_ws = wb.create_sheet("Gráfico Cenários")
+    graf_ws.append(["Cenário","Lojas","Item limitante"])
+    for cen in dados["cenarios"]:
+        graf_ws.append([cen["nome"], cen["lojas"], cen.get("item_limitante") or "-"])
+    for c in graf_ws[1]:
+        c.font=Font(bold=True,color="FFFFFF")
+        c.fill=PatternFill("solid",fgColor=escuro)
+        c.alignment=Alignment(horizontal="center")
+    for r in range(2, graf_ws.max_row+1):
+        graf_ws.cell(r,3).fill = PatternFill("solid", fgColor="FFF4E5")
+        graf_ws.cell(r,3).font = Font(bold=True, color=laranja)
+    for i,w in enumerate([24,12,42],1):
+        graf_ws.column_dimensions[get_column_letter(i)].width=w
+    chart = BarChart()
+    chart.type = "bar"
+    chart.style = 10
+    chart.title = "Capacidade de abertura por cenário"
+    chart.y_axis.title = "Cenário"
+    chart.x_axis.title = "Quantidade de lojas"
+    chart.height = 8
+    chart.width = 18
+    data = Reference(graf_ws, min_col=2, min_row=1, max_row=1+len(dados["cenarios"]))
+    cats = Reference(graf_ws, min_col=1, min_row=2, max_row=1+len(dados["cenarios"]))
+    chart.add_data(data, titles_from_data=True)
+    chart.set_categories(cats)
+    chart.legend = None
+    if chart.series:
+        chart.series[0].graphicalProperties.solidFill = azul
+        chart.series[0].graphicalProperties.line.solidFill = azul
+    graf_ws.add_chart(chart, "E2")
+    graf_ws.sheet_view.showGridLines=False
 
     notas=wb.create_sheet("Premissas")
     notas.append(["Premissa","Regra"])
@@ -1151,13 +1216,39 @@ def exportar_relatorio_executivo_estoque_kit_pdf():
     ]
     ht=Table(hero,colWidths=[55*mm,27*mm,55*mm,45*mm],hAlign="LEFT")
     ht.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,-1),colors.HexColor("#F5F7FA")),("BOX",(0,0),(-1,-1),0.45,colors.HexColor("#DDE3EA")),("INNERGRID",(0,0),(-1,-1),0.3,colors.HexColor("#E1E5EA")),("FONTNAME",(0,0),(0,-1),"Helvetica-Bold"),("FONTNAME",(2,0),(2,-1),"Helvetica-Bold"),("TEXTCOLOR",(0,0),(0,-1),colors.HexColor("#66707D")),("TEXTCOLOR",(2,0),(2,-1),colors.HexColor("#66707D")),("FONTNAME",(1,0),(1,-1),"Helvetica-Bold"),("FONTNAME",(3,0),(3,-1),"Helvetica-Bold"),("FONTSIZE",(1,0),(1,-1),14),("FONTSIZE",(3,0),(3,-1),9),("VALIGN",(0,0),(-1,-1),"MIDDLE"),("LEFTPADDING",(0,0),(-1,-1),5),("RIGHTPADDING",(0,0),(-1,-1),5),("TOPPADDING",(0,0),(-1,-1),6),("BOTTOMPADDING",(0,0),(-1,-1),6)]))
-    story.extend([ht,Spacer(1,4*mm),Paragraph("<b>Projeção por cenário</b>",styles["ExecHeroV120"])])
+    story.extend([ht,Spacer(1,4*mm),Paragraph("<b>Capacidade de abertura por cenário</b>",styles["ExecHeroV120"])])
 
-    scen=[["Cenário","Lojas","Situação","Itens c/ falta","Unid. faltantes","Compra estimada","Itens críticos"]]
+    valores_cenario = [int(c.get("lojas") or 0) for c in dados["cenarios"]]
+    max_val = max(valores_cenario) if valores_cenario else 0
+    desenho = Drawing(520, 165)
+    desenho.add(String(5, 150, "Gráfico · quantas lojas conseguimos abrir em cada cenário", fontName="Helvetica-Bold", fontSize=9, fillColor=colors.HexColor("#1A2029")))
+    graf = VerticalBarChart()
+    graf.x = 30
+    graf.y = 35
+    graf.height = 90
+    graf.width = 450
+    graf.data = [valores_cenario]
+    graf.categoryAxis.categoryNames = [c.get("nome") for c in dados["cenarios"]]
+    graf.categoryAxis.labels.boxAnchor = "ne"
+    graf.categoryAxis.labels.angle = 25
+    graf.categoryAxis.labels.fontName = "Helvetica"
+    graf.categoryAxis.labels.fontSize = 7
+    graf.valueAxis.valueMin = 0
+    graf.valueAxis.valueMax = max(max_val + 1, 1)
+    graf.valueAxis.valueStep = max(1, int((max_val + 4) / 5)) if max_val else 1
+    graf.valueAxis.labels.fontSize = 7
+    graf.bars[0].fillColor = colors.HexColor("#2876BE")
+    graf.bars[0].strokeColor = colors.HexColor("#2876BE")
+    desenho.add(graf)
+    desenho.add(String(30, 12, "Os itens limitantes de cada cenário estão destacados na tabela abaixo.", fontName="Helvetica", fontSize=7, fillColor=colors.HexColor("#66707D")))
+    story.extend([desenho, Spacer(1, 3*mm), Paragraph("<b>Projeção por cenário</b>",styles["ExecHeroV120"])])
+
+    scen=[["Cenário","Lojas","Situação","Item limitante","Itens c/ falta","Unid. faltantes","Compra estimada","Itens críticos"]]
     for c in dados["cenarios"]:
-        scen.append([c["nome"],str(c["lojas"]),c["situacao"],str(c["itens_com_falta"]),str(c["unidades_faltantes"]),_formatar_moeda_br(c["valor_faltante"]),Paragraph(c["criticos"],styles["ExecCellV120"])])
-    st=Table(scen,repeatRows=1,colWidths=[31*mm,15*mm,29*mm,22*mm,23*mm,27*mm,54*mm])
-    st.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,0),colors.HexColor("#2876BE")),("TEXTCOLOR",(0,0),(-1,0),colors.white),("FONTNAME",(0,0),(-1,0),"Helvetica-Bold"),("FONTSIZE",(0,0),(-1,0),7),("FONTSIZE",(0,1),(-1,-1),7),("GRID",(0,0),(-1,-1),0.35,colors.HexColor("#D9E0E7")),("ROWBACKGROUNDS",(0,1),(-1,-1),[colors.white,colors.HexColor("#F8FAFC")]),("ALIGN",(1,1),(5,-1),"CENTER"),("VALIGN",(0,0),(-1,-1),"MIDDLE"),("LEFTPADDING",(0,0),(-1,-1),3),("RIGHTPADDING",(0,0),(-1,-1),3),("TOPPADDING",(0,0),(-1,-1),4),("BOTTOMPADDING",(0,0),(-1,-1),4)]))
+        scen.append([c["nome"],str(c["lojas"]),c["situacao"],Paragraph(c.get("item_limitante") or "-",styles["ExecCellV120"]),str(c["itens_com_falta"]),str(c["unidades_faltantes"]),_formatar_moeda_br(c["valor_faltante"]),Paragraph(c["criticos"],styles["ExecCellV120"])])
+    st=Table(scen,repeatRows=1,colWidths=[23*mm,13*mm,25*mm,46*mm,17*mm,20*mm,24*mm,42*mm])
+    st_style=[("BACKGROUND",(0,0),(-1,0),colors.HexColor("#2876BE")),("TEXTCOLOR",(0,0),(-1,0),colors.white),("FONTNAME",(0,0),(-1,0),"Helvetica-Bold"),("FONTSIZE",(0,0),(-1,0),7),("FONTSIZE",(0,1),(-1,-1),6.8),("GRID",(0,0),(-1,-1),0.35,colors.HexColor("#D9E0E7")),("ROWBACKGROUNDS",(0,1),(-1,-1),[colors.white,colors.HexColor("#F8FAFC")]),("ALIGN",(1,1),(1,-1),"CENTER"),("ALIGN",(4,1),(6,-1),"CENTER"),("VALIGN",(0,0),(-1,-1),"MIDDLE"),("LEFTPADDING",(0,0),(-1,-1),3),("RIGHTPADDING",(0,0),(-1,-1),3),("TOPPADDING",(0,0),(-1,-1),4),("BOTTOMPADDING",(0,0),(-1,-1),4),("BACKGROUND",(3,1),(3,-1),colors.HexColor("#FFF4E5")),("TEXTCOLOR",(3,1),(3,-1),colors.HexColor("#B86A06")),("FONTNAME",(3,1),(3,-1),"Helvetica-Bold")]
+    st.setStyle(TableStyle(st_style))
     story.extend([st,Spacer(1,4*mm),Paragraph("<b>Ranking de gargalos</b> · os primeiros itens abaixo são os que reduzem primeiro a quantidade de lojas que podem ser abertas.",styles["ExecSubV120"])])
 
     garg=[["#","Código","Item","Estoque","Qtd./loja","Cobertura","Falta p/ próxima"]]
