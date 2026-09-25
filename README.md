@@ -196,3 +196,12 @@ No Cockpit de Implantação, a data de Entrada TI continua visível, mas o conta
 - PDF no mesmo padrão dark dos demais relatórios executivos.
 - Gráfico por cenário com criticidade, linha da meta e item limitante destacado.
 - Ranking visual dos 5 maiores gargalos no PDF e Excel.
+
+
+## v123 — Baixa rápida para filial
+- Novo fluxo por filial para lojas A inaugurar/Pendentes.
+- Mostra Kit previsto, já enviado, faltantes e saldo do Estoque de Expansão.
+- Seleção automática do que falta, leitura por patrimônio/série/imobilizado e revisão em lote.
+- NF, data e referência são informadas uma única vez para o lote.
+- Baixa em transação única com auditoria; ao completar o Kit real, a filial é promovida conforme a regra vigente.
+- A Baixa individual/avançada permanece disponível para exceções e lojas já ativas.

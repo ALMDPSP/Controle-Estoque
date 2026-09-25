@@ -1327,6 +1327,100 @@ def atualizar_item(item_id, novos_dados):
     return afetadas > 0
 
 
+def baixar_itens_para_filial_em_lote(lista_itens, filial_destino, nf_saida, data_saida, vd_loja, usuario):
+    """Baixa várias unidades do Estoque em uma única transação.
+
+    Cada item precisa existir, ainda possuir saldo e ter os três identificadores
+    físicos. A atualização e o histórico são confirmados juntos; qualquer falha
+    reverte o lote inteiro.
+    """
+    lista_itens = list(lista_itens or [])
+    if not lista_itens:
+        return {"atualizados": 0, "ids": []}
+
+    payload_por_id = {}
+    for item in lista_itens:
+        try:
+            item_id = int(item.get("id"))
+        except (TypeError, ValueError):
+            raise ValueError("Existe um equipamento inválido na seleção da baixa.")
+        if item_id in payload_por_id:
+            raise ValueError(f"O equipamento ID {item_id} foi selecionado mais de uma vez.")
+        payload_por_id[item_id] = dict(item)
+
+    ids = list(payload_por_id)
+    conn = get_conn()
+    cur = get_cursor(conn)
+    try:
+        placeholders = ", ".join(["?"] * len(ids))
+        sql = f"SELECT * FROM itens WHERE id IN ({placeholders})"
+        if IS_PG:
+            sql += " FOR UPDATE"
+        cur.execute(q(sql), ids)
+        encontrados = {int(dict(row)["id"]): dict(row) for row in cur.fetchall()}
+        ausentes = [str(i) for i in ids if i not in encontrados]
+        if ausentes:
+            raise ValueError("Equipamento(s) não encontrado(s): " + ", ".join(ausentes) + ".")
+
+        agora = datetime.now().strftime("%Y-%m-%d %H:%M")
+        atualizados = []
+        for item_id in ids:
+            atual = encontrados[item_id]
+            try:
+                saldo = float(atual.get("qtde") or 0)
+            except (TypeError, ValueError):
+                saldo = 0
+            if saldo <= 0 or str(atual.get("status") or "").strip().lower() == "enviado":
+                raise ValueError(f"O equipamento ID {item_id} não está mais disponível no estoque.")
+
+            enviado = payload_por_id[item_id]
+            nro_imobilizado = str(enviado.get("nro_imobilizado") or atual.get("nro_imobilizado") or "").strip()
+            nro_serie = str(enviado.get("nro_serie") or atual.get("nro_serie") or "").strip()
+            nro_patrimonio = str(enviado.get("nro_patrimonio") or atual.get("nro_patrimonio") or "").strip()
+            faltantes = []
+            if not nro_imobilizado: faltantes.append("Nº imobilizado")
+            if not nro_serie: faltantes.append("Nº série")
+            if not nro_patrimonio: faltantes.append("Nº patrimônio")
+            if faltantes:
+                raise ValueError(
+                    f"Equipamento ID {item_id}: preencha " + ", ".join(faltantes) + "."
+                )
+
+            cur.execute(q("""
+                UPDATE itens
+                   SET qtde = ?, status = ?, nf_saida = ?, data_saida = ?,
+                       filial_destino = ?, vd_loja = ?, nro_imobilizado = ?,
+                       nro_serie = ?, nro_patrimonio = ?, atualizado_por = ?, atualizado_em = ?
+                 WHERE id = ?
+            """), (
+                "0", "Enviado", str(nf_saida or "").strip(), str(data_saida or "").strip(),
+                str(filial_destino or "").strip(), str(vd_loja or "").strip(), nro_imobilizado,
+                nro_serie, nro_patrimonio, usuario, agora, item_id,
+            ))
+            if cur.rowcount != 1:
+                raise ValueError(f"Não foi possível atualizar o equipamento ID {item_id}.")
+
+            obs = (
+                f"Baixa rápida para filial {filial_destino} "
+                f"(NF {nf_saida}, imobilizado: {nro_imobilizado}, série: {nro_serie}, "
+                f"patrimônio: {nro_patrimonio})"
+            )
+            cur.execute(q(
+                "INSERT INTO movimentacoes (item_id, tipo, quantidade, usuario, data_hora, observacao, tabela) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?)"
+            ), (item_id, "saida", "1", usuario, agora, obs, "itens"))
+            atualizados.append(item_id)
+
+        conn.commit()
+        return {"atualizados": len(atualizados), "ids": atualizados}
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        cur.close()
+        conn.close()
+
+
 def excluir_item(item_id):
     conn = get_conn()
     cur = get_cursor(conn)

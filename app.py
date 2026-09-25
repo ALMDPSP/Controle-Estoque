@@ -69,7 +69,7 @@ import qrcode
 import db
 
 app = Flask(__name__)
-APP_BUILD = "2026-09-25-relatorio-executivo-padrao-v122"
+APP_BUILD = "2026-09-25-baixa-rapida-filial-v123"
 _DASHBOARD_CACHE = {"expira": 0.0, "dados": None}
 app.secret_key = os.environ.get("SECRET_KEY", "troque-esta-chave-em-producao")
 _RUNNING_HTTPS_HOSTED = bool(
@@ -1735,7 +1735,12 @@ def _equipamento_combina_kit(item, item_kit):
         return codigo_i == codigo_k
     desc_k = _normalizar_exec((item_kit or {}).get("descricao"))
     desc_i = _normalizar_exec((item or {}).get("descricao"))
-    return bool(desc_k and desc_i and (desc_k == desc_i or desc_k in desc_i or desc_i in desc_k))
+    if not desc_k or not desc_i:
+        return False
+    # Evita falsos positivos comuns quando o Kit antigo ainda está sem código.
+    if ("scanner com fio" in desc_k and "scanner sem fio" in desc_i) or ("scanner sem fio" in desc_k and "scanner com fio" in desc_i):
+        return False
+    return desc_k == desc_i or desc_k in desc_i or desc_i in desc_k
 
 
 def _qtd_registro_parque(item):
@@ -7742,6 +7747,229 @@ def exportar_relatorio_lojas_excel():
         download_name=nome_arquivo,
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
+
+
+# ---------------------------------------------------------------------
+# Baixa rápida por filial
+# ---------------------------------------------------------------------
+
+def _qtd_estoque_int(item):
+    try:
+        return max(0, int(float((item or {}).get("qtde") or 0)))
+    except (TypeError, ValueError):
+        return 0
+
+
+def _identificacao_item_completa(item):
+    return all(str((item or {}).get(campo) or "").strip() for campo in ("nro_imobilizado", "nro_serie", "nro_patrimonio"))
+
+
+def _dados_baixa_rapida_filial(codigo_filial):
+    codigo_filial = str(codigo_filial or "").strip()
+    filial = db.buscar_filial_por_codigo(codigo_filial)
+    if not filial:
+        return None, "Filial não encontrada."
+    status = _status_filial_normalizado(filial.get("ativo"))
+    kit = db.listar_kit_padrao_loja() or []
+    if not kit:
+        return None, "O Kit padrão está vazio. Cadastre o Kit antes de usar a baixa rápida."
+
+    itens = db.listar_itens() or []
+    enviados = [
+        x for x in itens
+        if str(x.get("filial_destino") or "").strip() == codigo_filial
+        and _normalizar_exec(x.get("status")) == "enviado"
+    ]
+    disponiveis = [
+        x for x in itens
+        if _qtd_estoque_int(x) > 0
+        and _normalizar_exec(x.get("status")) != "enviado"
+        and _normalizar_exec(x.get("tipo_estoque")) == "expansao"
+    ]
+
+    usados_enviados = set()
+    linhas = []
+    total_kit = total_enviado = total_falta = 0
+    for k in kit:
+        try:
+            necessario = max(1, int(float(k.get("quantidade") or 1)))
+        except (TypeError, ValueError):
+            necessario = 1
+        candidatos_enviados = [
+            x for x in enviados
+            if int(x.get("id") or 0) not in usados_enviados and _equipamento_combina_kit(x, k)
+        ]
+        candidatos_enviados.sort(key=lambda x: int(x.get("id") or 0))
+        ja_enviado = min(necessario, len(candidatos_enviados))
+        for x in candidatos_enviados[:necessario]:
+            usados_enviados.add(int(x.get("id") or 0))
+        falta = max(0, necessario - ja_enviado)
+
+        candidatos_disp = [x for x in disponiveis if _equipamento_combina_kit(x, k)]
+        candidatos_disp.sort(key=lambda x: (0 if _identificacao_item_completa(x) else 1, int(x.get("id") or 0)))
+        unidades = []
+        for x in candidatos_disp:
+            unidades.append({
+                "id": int(x.get("id") or 0),
+                "codigo": str(x.get("codigo") or "").strip(),
+                "descricao": str(x.get("descricao") or "").strip(),
+                "nro_imobilizado": str(x.get("nro_imobilizado") or "").strip(),
+                "nro_serie": str(x.get("nro_serie") or "").strip(),
+                "nro_patrimonio": str(x.get("nro_patrimonio") or "").strip(),
+                "local": str(x.get("local") or "").strip(),
+                "armazenagem": str(x.get("armazenagem") or "").strip(),
+                "tipo_estoque": str(x.get("tipo_estoque") or "").strip(),
+                "identificacao_completa": _identificacao_item_completa(x),
+            })
+
+        total_kit += necessario
+        total_enviado += ja_enviado
+        total_falta += falta
+        linhas.append({
+            "codigo": str(k.get("codigo") or "").strip(),
+            "descricao": str(k.get("descricao") or "Item sem descrição").strip(),
+            "necessario": necessario,
+            "ja_enviado": ja_enviado,
+            "faltam": falta,
+            "disponivel_expansao": len(unidades),
+            "unidades": unidades,
+        })
+
+    percentual = round((total_enviado / total_kit * 100), 1) if total_kit else 0
+    return {
+        "filial": filial,
+        "status": status,
+        "kit": linhas,
+        "resumo": {
+            "total_kit": total_kit,
+            "ja_enviado": total_enviado,
+            "faltam": total_falta,
+            "percentual": percentual,
+            "kit_completo": total_falta == 0,
+        },
+    }, None
+
+
+@app.route("/api/baixa-rapida/filial/<codigo_filial>", methods=["GET"])
+@edit_required
+def api_baixa_rapida_filial(codigo_filial):
+    dados, erro = _dados_baixa_rapida_filial(codigo_filial)
+    if erro:
+        return jsonify({"erro": erro}), 404 if "não encontrada" in erro.lower() else 400
+    return jsonify(dados)
+
+
+@app.route("/api/baixa-rapida/confirmar", methods=["POST"])
+@edit_required
+def api_baixa_rapida_confirmar():
+    payload = request.get_json(silent=True) or {}
+    codigo_filial = str(payload.get("filial_destino") or "").strip()
+    nf_saida = str(payload.get("nf_saida") or "").strip()
+    data_saida = str(payload.get("data_saida") or "").strip()
+    vd_loja = str(payload.get("vd_loja") or "").strip()
+    selecionados = list(payload.get("itens") or [])
+
+    faltantes_cabecalho = []
+    if not codigo_filial: faltantes_cabecalho.append("Filial / destino")
+    if not nf_saida: faltantes_cabecalho.append("NF de saída")
+    if not data_saida: faltantes_cabecalho.append("Data de saída")
+    if faltantes_cabecalho:
+        return jsonify({"erro": "Preencha: " + ", ".join(faltantes_cabecalho) + "."}), 400
+    if not selecionados:
+        return jsonify({"erro": "Selecione pelo menos um equipamento para a baixa."}), 400
+
+    filial = db.buscar_filial_por_codigo(codigo_filial)
+    if not filial:
+        return jsonify({"erro": "Filial não encontrada."}), 404
+    status_filial = _status_filial_normalizado(filial.get("ativo"))
+    if status_filial not in ("inaugurar", "pendente"):
+        return jsonify({
+            "erro": "A Baixa Rápida por Kit é destinada às lojas A inaugurar/Pendentes. Para loja ativa ou inativa, use a Baixa de estoque individual/avançada."
+        }), 400
+
+    ids = []
+    payload_por_id = {}
+    for obj in selecionados:
+        try:
+            item_id = int(obj.get("id"))
+        except (TypeError, ValueError):
+            return jsonify({"erro": "Existe um equipamento inválido na seleção."}), 400
+        if item_id in payload_por_id:
+            return jsonify({"erro": f"O equipamento ID {item_id} está duplicado na seleção."}), 400
+        ids.append(item_id)
+        payload_por_id[item_id] = obj
+
+    itens_atuais = {int(x.get("id") or 0): x for x in (db.listar_itens() or [])}
+    kit = db.listar_kit_padrao_loja() or []
+    faltas = _faltantes_kit_real_filial(codigo_filial, itens_estoque=list(itens_atuais.values()), kit=kit)
+    faltas_restantes = []
+    for falta in faltas:
+        faltas_restantes.append({"kit": falta, "restante": int(falta.get("faltam") or 0)})
+
+    para_baixar = []
+    for item_id in ids:
+        item = itens_atuais.get(item_id)
+        if not item:
+            return jsonify({"erro": f"Equipamento ID {item_id} não foi encontrado."}), 404
+        if _qtd_estoque_int(item) <= 0 or _normalizar_exec(item.get("status")) == "enviado":
+            return jsonify({"erro": f"O equipamento ID {item_id} não está mais disponível."}), 409
+        if _normalizar_exec(item.get("tipo_estoque")) != "expansao":
+            return jsonify({"erro": f"O equipamento ID {item_id} não pertence ao Estoque de Expansão."}), 400
+
+        encaixe = None
+        for entrada in faltas_restantes:
+            if entrada["restante"] <= 0:
+                continue
+            if _equipamento_combina_kit(item, entrada["kit"]):
+                encaixe = entrada
+                break
+        if not encaixe:
+            return jsonify({
+                "erro": f"O equipamento {item.get('codigo') or item_id} excede a necessidade atual do Kit desta filial ou não pertence ao Kit padrão."
+            }), 400
+        encaixe["restante"] -= 1
+
+        enviado = payload_por_id[item_id]
+        combinado = dict(item)
+        combinado.update(enviado)
+        faltam_ids = [rotulo for campo, rotulo in (
+            ("nro_imobilizado", "Nº imobilizado"), ("nro_serie", "Nº série"), ("nro_patrimonio", "Nº patrimônio")
+        ) if not str(combinado.get(campo) or "").strip()]
+        if faltam_ids:
+            return jsonify({
+                "erro": f"Equipamento {item.get('codigo') or item_id}: preencha " + ", ".join(faltam_ids) + "."
+            }), 400
+        para_baixar.append({
+            "id": item_id,
+            "nro_imobilizado": str(combinado.get("nro_imobilizado") or "").strip(),
+            "nro_serie": str(combinado.get("nro_serie") or "").strip(),
+            "nro_patrimonio": str(combinado.get("nro_patrimonio") or "").strip(),
+        })
+
+    try:
+        resultado = db.baixar_itens_para_filial_em_lote(
+            para_baixar, codigo_filial, nf_saida, data_saida, vd_loja,
+            session.get("username") or "sistema",
+        )
+    except ValueError as exc:
+        return jsonify({"erro": str(exc)}), 409
+    except Exception:
+        app.logger.exception("Falha na baixa rápida para filial %s", codigo_filial)
+        return jsonify({"erro": "Não foi possível concluir a baixa rápida. Nenhum item do lote foi confirmado."}), 500
+
+    ativacao = {"ativada": False}
+    try:
+        ativacao = _ativar_filial_se_kit_real_completo(codigo_filial, session.get("username"))
+    except Exception:
+        app.logger.exception("Falha ao verificar ativação da filial %s após baixa rápida", codigo_filial)
+
+    dados_depois, _ = _dados_baixa_rapida_filial(codigo_filial)
+    return jsonify({
+        "ok": True,
+        "atualizados": resultado.get("atualizados", 0),
+        "ativacao_filial": ativacao,
+        "resumo": (dados_depois or {}).get("resumo") or {},
+    })
 
 
 # ---------------------------------------------------------------------

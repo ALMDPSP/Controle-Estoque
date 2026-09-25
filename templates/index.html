@@ -496,6 +496,31 @@
     #tabela-itens .row-actions{flex-wrap:wrap;}
   }
   @media(max-width:700px){ #bulk-edit-form{grid-template-columns:1fr !important;} }
+
+  /* Baixa rápida por filial · v123 */
+  .br-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:12px 0 14px;}
+  .br-card{background:var(--panel-2);border:1px solid var(--line);border-radius:9px;padding:10px 12px;}
+  .br-card span{display:block;color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;}
+  .br-card strong{font-size:19px;color:var(--text);}
+  .br-card.ok strong{color:var(--ok);}.br-card.warn strong{color:var(--accent-2);}.br-card.info strong{color:var(--accent);}
+  .br-progress{height:8px;border-radius:999px;background:rgba(255,255,255,.07);overflow:hidden;margin:7px 0 5px;}
+  .br-progress>span{display:block;height:100%;background:var(--accent);width:0;transition:width .2s ease;}
+  .br-section-title{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:15px 0 8px;}
+  .br-section-title strong{font-size:13px;}.br-section-title small{color:var(--muted);}
+  .br-table-wrap{overflow:auto;border:1px solid var(--line);border-radius:9px;background:var(--panel-2);max-height:290px;}
+  .br-table{width:100%;border-collapse:collapse;min-width:760px;font-size:11px;}
+  .br-table th{position:sticky;top:0;background:var(--panel);z-index:1;color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.04em;padding:8px;border-bottom:1px solid var(--line);}
+  .br-table td{padding:8px;border-bottom:1px solid rgba(255,255,255,.055);vertical-align:middle;}
+  .br-table tr:last-child td{border-bottom:0;}.br-table .br-num{text-align:center;font-family:var(--mono);}
+  .br-table .br-falta{font-weight:700;color:var(--accent-2);}.br-table .br-ok{color:var(--ok);font-weight:700;}
+  .br-ident{width:118px;min-width:105px;padding:6px 7px!important;font-size:10px!important;}
+  .br-ident.missing{border-color:var(--danger)!important;background:rgba(255,107,107,.08)!important;}
+  .br-scan{display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;margin-top:10px;padding:10px;border:1px dashed var(--line);border-radius:8px;background:rgba(62,166,255,.04);}
+  .br-scan .field{margin:0;flex:1;min-width:250px;}
+  .br-alert{padding:9px 11px;border-radius:7px;background:rgba(255,182,72,.08);border:1px solid rgba(255,182,72,.22);color:var(--accent-2);font-size:11px;line-height:1.45;margin-top:9px;}
+  .br-alert.ok{background:rgba(76,215,146,.08);border-color:rgba(76,215,146,.22);color:var(--ok);}
+  .br-empty{padding:18px;text-align:center;color:var(--muted);font-size:12px;}
+  @media(max-width:760px){.br-grid{grid-template-columns:repeat(2,minmax(0,1fr));}.br-actions{display:grid!important;grid-template-columns:1fr!important}.br-actions>*{width:100%;justify-content:center}.br-dialog-grid{grid-template-columns:1fr!important}.br-dialog-grid .wide{grid-column:1!important}}
 </style>
 {% include '_mobile_head.html' %}
 </head>
@@ -531,6 +556,7 @@
   <button type="button" class="ui-btn ui-btn-excel" id="btn-baixar-relatorio-excel">▣ Relatório Excel</button>
   <a class="ui-btn ui-btn-pdf" href="{{ url_for('exportar_estoque_pdf') }}">▣ Relatório PDF</a>
   <button type="button" class="ui-btn ui-btn-import" id="abrir-importar">↑ Importar Excel</button>
+  <button type="button" class="ui-btn ui-btn-primary" id="abrir-baixa-rapida">⇩ Baixa rápida para filial</button>
   <a class="ui-btn ui-btn-secondary" href="{{ url_for('pagina_relatorios') }}">Central de Relatórios</a>
 </div>
 {% endif %}
@@ -910,6 +936,74 @@
     <div class="dlg-actions">
       <button type="button" class="btn-ghost" id="qtde-cancel">Cancelar</button>
       <button type="button" class="btn-primary" id="qtde-save">Confirmar retirada</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog id="baixa-rapida-dialog" style="width:min(1120px,96vw);max-width:1120px;">
+  <div class="dlg-body">
+    <h3>Baixa rápida para filial · Completar Kit</h3>
+    <p style="margin:-5px 0 13px;color:var(--muted);font-size:12px;line-height:1.5;">Selecione uma loja <strong>A inaugurar/Pendente</strong>. O sistema mostra somente o que falta do Kit, cruza com o Estoque de Expansão e permite baixar várias unidades em uma única confirmação.</p>
+
+    <div class="br-dialog-grid" style="display:grid;grid-template-columns:2fr 1fr 1fr 2fr;gap:10px 12px;">
+      <div class="field wide">
+        <label for="br-filial">Filial / destino *</label>
+        <select id="br-filial"><option value="">Selecione uma loja pendente...</option></select>
+      </div>
+      <div class="field">
+        <label for="br-nf">NF de saída *</label>
+        <input id="br-nf" placeholder="Nº nota fiscal">
+      </div>
+      <div class="field">
+        <label for="br-data">Data de saída *</label>
+        <input id="br-data" type="date">
+      </div>
+      <div class="field">
+        <label for="br-vd">VD / referência</label>
+        <input id="br-vd" placeholder="VD / responsável / observação">
+      </div>
+    </div>
+
+    <div id="br-sem-filial" class="br-empty">Selecione uma filial para carregar o Kit e o saldo disponível.</div>
+    <div id="br-conteudo" hidden>
+      <div class="br-grid">
+        <div class="br-card info"><span>Kit da filial</span><strong id="br-total-kit">0</strong><small>unidades previstas</small></div>
+        <div class="br-card ok"><span>Já baixado</span><strong id="br-ja-enviado">0</strong><small>unidades rastreadas</small></div>
+        <div class="br-card warn"><span>Ainda falta</span><strong id="br-total-falta">0</strong><small>unidades para completar</small></div>
+        <div class="br-card info"><span>Progresso do Kit</span><strong id="br-percentual">0%</strong><small id="br-status-kit">em preparação</small></div>
+      </div>
+      <div class="br-progress"><span id="br-progress-bar"></span></div>
+
+      <div class="br-section-title"><strong>O que falta para a loja</strong><small>Saldo automático considera somente Estoque de Expansão.</small></div>
+      <div class="br-table-wrap">
+        <table class="br-table">
+          <thead><tr><th>Código</th><th>Item</th><th>Kit</th><th>Já enviado</th><th>Falta</th><th>Disponível</th><th>Ação</th></tr></thead>
+          <tbody id="br-kit-body"></tbody>
+        </table>
+      </div>
+
+      <div class="br-scan">
+        <div class="field"><label for="br-scan-input">Leitor / busca rápida por patrimônio, série ou imobilizado</label><input id="br-scan-input" placeholder="Bipe o código e pressione Enter"></div>
+        <button type="button" class="ui-btn ui-btn-secondary" id="br-scan-add">Adicionar equipamento</button>
+        <small style="color:var(--muted);max-width:300px;line-height:1.35;">Útil para validar fisicamente as unidades durante a separação.</small>
+      </div>
+
+      <div class="br-section-title"><strong>Equipamentos selecionados para a baixa</strong><small id="br-selecao-resumo">0 selecionados</small></div>
+      <div class="br-table-wrap" style="max-height:330px;">
+        <table class="br-table">
+          <thead><tr><th>Código / item</th><th>ID estoque</th><th>Nº imobilizado *</th><th>Nº série *</th><th>Nº patrimônio *</th><th></th></tr></thead>
+          <tbody id="br-selecionados-body"></tbody>
+        </table>
+      </div>
+      <div id="br-validacao" class="br-alert">Use “Preencher Kit automaticamente” para selecionar as unidades necessárias.</div>
+    </div>
+
+    <div class="dlg-actions br-actions" style="position:sticky;bottom:-20px;padding:12px 0 0;background:var(--panel);margin-top:12px;">
+      <button type="button" class="ui-btn ui-btn-link" id="br-manual">Baixa manual / avançada</button>
+      <button type="button" class="ui-btn ui-btn-secondary" id="br-limpar">Limpar seleção</button>
+      <button type="button" class="ui-btn ui-btn-primary" id="br-auto">Preencher Kit automaticamente</button>
+      <button type="button" class="ui-btn ui-btn-primary" id="br-confirmar">Confirmar baixa</button>
+      <button type="button" class="ui-btn ui-btn-link" id="br-cancelar">Fechar</button>
     </div>
   </div>
 </dialog>
@@ -2620,6 +2714,164 @@ document.getElementById('item-form').addEventListener('submit', async (e) => {
 });
 
 buscaInput.addEventListener('input', () => { itensExibidos = PAGINA_TAMANHO; renderizar(); });
+
+
+// ------------------------------------------------------------------
+// Baixa rápida por filial · v123
+// ------------------------------------------------------------------
+const baixaRapidaDialog=document.getElementById('baixa-rapida-dialog');
+let baixaRapidaDados=null;
+let baixaRapidaSelecionados=new Map();
+
+function brNormalizar(v){return String(v||'').trim().toLowerCase();}
+function brFiliaisPendentes(){return (filiaisCache||[]).filter(f=>['inaugurar','pendente'].includes(String(f.ativo||'').toLowerCase()));}
+function brPreencherFiliais(){
+  const select=document.getElementById('br-filial'); if(!select)return;
+  const valor=select.value;
+  select.innerHTML='<option value="">Selecione uma loja pendente...</option>';
+  brFiliaisPendentes().sort((a,b)=>compararCodigosNaturais(a.codigo,b.codigo)).forEach(f=>{
+    const o=document.createElement('option');o.value=f.codigo;
+    o.textContent=`${f.codigo}${f.nome?' — '+f.nome:''}${f.cidade?' · '+f.cidade+(f.uf?'/'+f.uf:''):''} · ${f.ativo==='pendente'?'Pendente':'A inaugurar'}`;
+    select.appendChild(o);
+  });
+  select.value=valor;
+}
+function brKitLinhaPorCodigo(codigo,descricao){
+  return (baixaRapidaDados?.kit||[]).find(k=>String(k.codigo||'')===String(codigo||'') && String(k.descricao||'')===String(descricao||''));
+}
+function brSelecionadosPorKit(linha){
+  let n=0;
+  for(const it of baixaRapidaSelecionados.values()) if(String(it._kitCodigo||'')===String(linha.codigo||'') && String(it._kitDescricao||'')===String(linha.descricao||'')) n++;
+  return n;
+}
+function brAdicionarItem(item,linha){
+  if(!item||!item.id||!linha)return false;
+  if(baixaRapidaSelecionados.has(Number(item.id))) return false;
+  const limite=Number(linha.faltam||0);
+  if(brSelecionadosPorKit(linha)>=limite) return false;
+  baixaRapidaSelecionados.set(Number(item.id),{...item,_kitCodigo:linha.codigo||'',_kitDescricao:linha.descricao||''});
+  return true;
+}
+function brRemoverItem(id){baixaRapidaSelecionados.delete(Number(id));brRenderSelecionados();brRenderKit();}
+window.brRemoverItem=brRemoverItem;
+function brSelecionarLinha(indice){
+  const linha=(baixaRapidaDados?.kit||[])[Number(indice)];if(!linha)return;
+  const necessidade=Math.max(0,Number(linha.faltam||0)-brSelecionadosPorKit(linha));
+  let add=0;
+  for(const item of (linha.unidades||[])){
+    if(add>=necessidade)break;
+    if(brAdicionarItem(item,linha))add++;
+  }
+  brRenderSelecionados();brRenderKit();
+}
+window.brSelecionarLinha=brSelecionarLinha;
+function brRenderKit(){
+  const body=document.getElementById('br-kit-body');if(!body)return;
+  const linhas=baixaRapidaDados?.kit||[];
+  if(!linhas.length){body.innerHTML='<tr><td colspan="7" class="br-empty">Kit padrão sem itens.</td></tr>';return;}
+  body.innerHTML=linhas.map((k,i)=>{
+    const sel=brSelecionadosPorKit(k);const falta=Math.max(0,Number(k.faltam||0)-sel);const disp=Math.max(0,Number(k.disponivel_expansao||0)-sel);
+    return `<tr><td>${escapeHtml(k.codigo||'-')}</td><td>${escapeHtml(k.descricao||'-')}</td><td class="br-num">${k.necessario}</td><td class="br-num br-ok">${k.ja_enviado}</td><td class="br-num ${falta?'br-falta':'br-ok'}">${falta}</td><td class="br-num">${disp}</td><td>${falta?`<button type="button" class="ui-btn ui-btn-secondary" style="padding:5px 8px;font-size:10px" onclick="brSelecionarLinha(${i})">Selecionar ${Math.min(falta,disp)}</button>`:'<span class="br-ok">OK</span>'}</td></tr>`;
+  }).join('');
+}
+function brAtualizarItemSelecionado(id,campo,valor){const it=baixaRapidaSelecionados.get(Number(id));if(!it)return;it[campo]=valor;brAtualizarValidacao();}
+window.brAtualizarItemSelecionado=brAtualizarItemSelecionado;
+function brRenderSelecionados(){
+  const body=document.getElementById('br-selecionados-body');if(!body)return;
+  const itens=[...baixaRapidaSelecionados.values()].sort((a,b)=>compararCodigosNaturais(a.codigo,b.codigo)||Number(a.id)-Number(b.id));
+  if(!itens.length){body.innerHTML='<tr><td colspan="6" class="br-empty">Nenhum equipamento selecionado.</td></tr>';}
+  else body.innerHTML=itens.map(it=>{
+    const imob=escapeHtml(it.nro_imobilizado||''),serie=escapeHtml(it.nro_serie||''),pat=escapeHtml(it.nro_patrimonio||'');
+    return `<tr><td><strong>${escapeHtml(it.codigo||'-')}</strong><br><span style="color:var(--muted)">${escapeHtml(it.descricao||'-')}</span></td><td class="br-num">#${it.id}</td><td><input class="br-ident ${imob?'':'missing'}" value="${imob}" oninput="brAtualizarItemSelecionado(${it.id},'nro_imobilizado',this.value);this.classList.toggle('missing',!this.value.trim())"></td><td><input class="br-ident ${serie?'':'missing'}" value="${serie}" oninput="brAtualizarItemSelecionado(${it.id},'nro_serie',this.value);this.classList.toggle('missing',!this.value.trim())"></td><td><input class="br-ident ${pat?'':'missing'}" value="${pat}" oninput="brAtualizarItemSelecionado(${it.id},'nro_patrimonio',this.value);this.classList.toggle('missing',!this.value.trim())"></td><td><button type="button" class="ui-btn ui-btn-danger" style="padding:5px 7px;font-size:10px" onclick="brRemoverItem(${it.id})">Remover</button></td></tr>`;
+  }).join('');
+  document.getElementById('br-selecao-resumo').textContent=`${itens.length} selecionado(s)`;
+  brAtualizarValidacao();
+}
+function brAtualizarValidacao(){
+  const box=document.getElementById('br-validacao');const btn=document.getElementById('br-confirmar');
+  const itens=[...baixaRapidaSelecionados.values()];
+  const pend=itens.filter(it=>!String(it.nro_imobilizado||'').trim()||!String(it.nro_serie||'').trim()||!String(it.nro_patrimonio||'').trim());
+  const cabecalho=Boolean(document.getElementById('br-filial')?.value&&document.getElementById('br-nf')?.value.trim()&&document.getElementById('br-data')?.value);
+  const ok=itens.length>0&&pend.length===0&&cabecalho;
+  if(btn)btn.disabled=!ok;
+  if(!itens.length){box.className='br-alert';box.textContent='Selecione os equipamentos do Kit para continuar.';return;}
+  if(pend.length){box.className='br-alert';box.textContent=`Atenção: ${pend.length} equipamento(s) ainda estão sem imobilizado, série ou patrimônio. Complete os campos destacados em vermelho.`;return;}
+  if(!cabecalho){box.className='br-alert';box.textContent='Equipamentos prontos. Informe Filial, NF de saída e Data de saída para confirmar.';return;}
+  box.className='br-alert ok';box.textContent=`Pronto para baixar ${itens.length} equipamento(s) em uma única operação. O histórico será registrado automaticamente.`;
+}
+function brRenderResumo(){
+  const r=baixaRapidaDados?.resumo||{};
+  document.getElementById('br-total-kit').textContent=r.total_kit||0;
+  document.getElementById('br-ja-enviado').textContent=r.ja_enviado||0;
+  document.getElementById('br-total-falta').textContent=r.faltam||0;
+  document.getElementById('br-percentual').textContent=`${Number(r.percentual||0).toFixed(1)}%`;
+  document.getElementById('br-status-kit').textContent=r.kit_completo?'Kit completo':'em preparação';
+  document.getElementById('br-progress-bar').style.width=`${Math.max(0,Math.min(100,Number(r.percentual||0)))}%`;
+}
+async function brCarregarFilial(){
+  const codigo=document.getElementById('br-filial').value;
+  baixaRapidaSelecionados.clear();baixaRapidaDados=null;
+  document.getElementById('br-conteudo').hidden=true;document.getElementById('br-sem-filial').style.display='block';
+  if(!codigo){document.getElementById('br-sem-filial').textContent='Selecione uma filial para carregar o Kit e o saldo disponível.';return;}
+  document.getElementById('br-sem-filial').textContent='Carregando Kit e Estoque de Expansão...';
+  try{
+    const res=await fetch(`/api/baixa-rapida/filial/${encodeURIComponent(codigo)}`);const dados=await res.json().catch(()=>({}));
+    if(!res.ok)throw new Error(dados.erro||'Não foi possível carregar a filial.');
+    baixaRapidaDados=dados;document.getElementById('br-sem-filial').style.display='none';document.getElementById('br-conteudo').hidden=false;
+    brRenderResumo();brRenderKit();brRenderSelecionados();
+  }catch(err){document.getElementById('br-sem-filial').textContent=err.message||'Erro ao carregar a filial.';}
+}
+async function brAbrir(){
+  if(!filiaisCache.length)await carregarFiliais();
+  brPreencherFiliais();baixaRapidaSelecionados.clear();baixaRapidaDados=null;
+  document.getElementById('br-filial').value='';document.getElementById('br-nf').value='';document.getElementById('br-data').value=new Date().toISOString().slice(0,10);document.getElementById('br-vd').value='';
+  document.getElementById('br-sem-filial').style.display='block';document.getElementById('br-sem-filial').textContent='Selecione uma filial para carregar o Kit e o saldo disponível.';document.getElementById('br-conteudo').hidden=true;
+  baixaRapidaDialog.showModal();
+}
+function brAuto(){
+  if(!baixaRapidaDados){alert('Selecione uma filial primeiro.');return;}
+  baixaRapidaSelecionados.clear();
+  for(const linha of (baixaRapidaDados.kit||[])){
+    let precisa=Number(linha.faltam||0);
+    for(const item of (linha.unidades||[])){if(precisa<=0)break;if(brAdicionarItem(item,linha))precisa--;}
+  }
+  brRenderSelecionados();brRenderKit();
+  const total=[...baixaRapidaSelecionados.values()].length;
+  if(!total)mostrarToast('Nenhuma unidade disponível do Estoque de Expansão para completar o Kit desta filial.');
+}
+function brAdicionarScanner(){
+  const input=document.getElementById('br-scan-input');const termo=brNormalizar(input.value);if(!termo)return;
+  for(const linha of (baixaRapidaDados?.kit||[])){
+    if(brSelecionadosPorKit(linha)>=Number(linha.faltam||0))continue;
+    const item=(linha.unidades||[]).find(x=>[x.nro_patrimonio,x.nro_serie,x.nro_imobilizado].some(v=>brNormalizar(v)===termo));
+    if(item){const ok=brAdicionarItem(item,linha);input.value='';brRenderSelecionados();brRenderKit();mostrarToast(ok?`Equipamento ${item.codigo||item.id} adicionado à baixa.`:'Equipamento já selecionado.');return;}
+  }
+  mostrarToast('Equipamento não encontrado entre os itens de Expansão que ainda faltam para este Kit.');
+}
+async function brConfirmar(){
+  brAtualizarValidacao();const btn=document.getElementById('br-confirmar');if(btn.disabled)return;
+  const filial=document.getElementById('br-filial').value;const itens=[...baixaRapidaSelecionados.values()].map(it=>({id:it.id,nro_imobilizado:it.nro_imobilizado,nro_serie:it.nro_serie,nro_patrimonio:it.nro_patrimonio}));
+  if(!confirm(`Confirmar a baixa de ${itens.length} equipamento(s) para a filial ${formatarFilialDestino(filial)||filial}?\n\nEsta operação atualizará o Estoque, o histórico e o Kit vinculado à filial.`))return;
+  const txt=btn.textContent;btn.disabled=true;btn.textContent='Confirmando...';
+  try{
+    const res=await fetch('/api/baixa-rapida/confirmar',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({filial_destino:filial,nf_saida:document.getElementById('br-nf').value.trim(),data_saida:document.getElementById('br-data').value,vd_loja:document.getElementById('br-vd').value.trim(),itens})});
+    const dados=await res.json().catch(()=>({}));if(!res.ok)throw new Error(dados.erro||'Erro ao concluir a baixa rápida.');
+    baixaRapidaDialog.close();await carregarItens();await carregarFiliais();
+    const resto=Number(dados?.resumo?.faltam||0);const ativada=Boolean(dados?.ativacao_filial?.ativada);
+    mostrarToast(ativada?`Baixa concluída: ${dados.atualizados} equipamento(s). Kit completo e filial promovida para Ativa/Inaugurada.`:`Baixa concluída: ${dados.atualizados} equipamento(s). Ainda faltam ${resto} unidade(s) para completar o Kit.`);
+  }catch(err){alert(err.message||'Erro ao concluir a baixa rápida.');}
+  finally{btn.disabled=false;btn.textContent=txt;brAtualizarValidacao();}
+}
+document.getElementById('abrir-baixa-rapida')?.addEventListener('click',brAbrir);
+document.getElementById('br-filial')?.addEventListener('change',brCarregarFilial);
+document.getElementById('br-auto')?.addEventListener('click',brAuto);
+document.getElementById('br-limpar')?.addEventListener('click',()=>{baixaRapidaSelecionados.clear();brRenderSelecionados();brRenderKit();});
+document.getElementById('br-cancelar')?.addEventListener('click',()=>baixaRapidaDialog.close());
+document.getElementById('br-manual')?.addEventListener('click',()=>{baixaRapidaDialog.close();document.getElementById('tabela-itens')?.scrollIntoView({behavior:'smooth',block:'start'});mostrarToast('Use “Baixa de estoque” na linha da unidade desejada para o modo manual/avançado.');});
+document.getElementById('br-scan-add')?.addEventListener('click',brAdicionarScanner);
+document.getElementById('br-scan-input')?.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();brAdicionarScanner();}});
+document.getElementById('br-confirmar')?.addEventListener('click',brConfirmar);
+['br-nf','br-data','br-filial'].forEach(id=>document.getElementById(id)?.addEventListener('input',brAtualizarValidacao));
 
 const dialog = document.getElementById('edit-dialog');
 let qtdeAtualSaida = 0;
