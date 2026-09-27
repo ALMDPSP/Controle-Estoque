@@ -7,7 +7,7 @@ const STATIC = [
   '/static/mobile-icon-192.png?v=7',
   '/static/mobile-icon-512.png?v=7',
   '/static/manifest.webmanifest?v=7',
-  '/static/ui-premium-v134-fine.css?v=134'
+  '/static/ui-premium-v135-topfix.css?v=135'
 ];
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(STATIC)).catch(() => {}));
