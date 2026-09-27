@@ -21,7 +21,7 @@
   <a class="ui-btn ui-btn-pdf" href="{{ url_for('exportar_equipamentos_parque_pdf') }}">▤ Relatório PDF</a>{% endif %}
   <a class="ui-btn ui-btn-secondary" href="{{ url_for('pagina_filiais') }}">Voltar para Filiais</a>
 </div>
-<main>
+<main class="page-parque">
   <section class="summary-grid">
     <div class="summary-card total"><span>Total no parque</span><strong>{{ dados.total_unidades }}</strong></div>
     <div class="summary-card tipos"><span>Tipos de equipamento</span><strong>{{ dados.tipos_total }}</strong></div>

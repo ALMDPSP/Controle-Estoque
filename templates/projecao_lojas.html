@@ -36,7 +36,7 @@ main{padding:24px 32px 54px;max-width:1450px;margin:auto}.kpis{display:grid;grid
   <a class="ui-btn ui-btn-pdf" href="{{ url_for('exportar_projecao_lojas_pdf') }}">▣ Relatório PDF</a>{% endif %}
   <a class="ui-btn ui-btn-secondary" href="{{ url_for('pagina_filiais') }}">Gerenciar Filiais</a>
 </div>
-<main>
+<main class="page-projecao">
   <section class="kpis">
     <div class="kpi total"><span class="kpi-label">Total geral</span><strong id="k-total">0</strong><small>Ativas + inaugurar + pendentes</small></div>
     <div class="kpi active"><span class="kpi-label">Lojas ativas</span><strong id="k-ativa">0</strong><small>Em operação</small></div>

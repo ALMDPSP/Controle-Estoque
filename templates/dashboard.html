@@ -17,11 +17,11 @@
 <body class="app-standard">
 <header><div><span class="tag">Dashboard</span><h1>Visão geral do estoque</h1><p>Resumo executivo, alertas de expansão, meta de inauguração salva na simulação e movimentações recentes.</p></div><div class="head-actions">{% if role != 'consulta' %}<a class="ui-btn ui-btn-primary" href="{{ url_for('gerar_backup') }}" id="btn-backup-dashboard">Gerar backup agora</a><a class="ui-btn ui-btn-link" href="{{ url_for('pagina_relatorios') }}">Central de relatórios</a>{% endif %}<a class="ui-btn ui-btn-link" href="{{ url_for('index') }}">Abrir Estoque</a><div class="backup-status" id="backup-status"></div></div></header>
 {% include '_menu.html' %}
-<main>
+<main class="page-dashboard">
 <section class="dash-hero">
   <div class="hero-card">
-    <div class="hero-eyebrow">Centro de comando · build v132</div>
-    <h2 class="hero-title">Dashboard executivo orientado à operação.</h2>
+    <div class="hero-eyebrow">Centro de comando · build v133</div>
+    <h2 class="hero-title">Dashboard executivo orientado à operação e à decisão.</h2>
     <p class="hero-sub">Agora o painel abre como uma central de decisão com leitura rápida do pipeline de inauguração, risco operacional, capacidade do estoque e atalhos diretos para as principais ações do sistema.</p>
     <div class="hero-strip">
       <div class="hero-metric"><span>Capacidade atual</span><strong id="hero-capacidade">0</strong><small>Lojas completas suportadas pelo estoque de Expansão.</small></div>
