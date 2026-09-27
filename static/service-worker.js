@@ -1,4 +1,4 @@
-const CACHE = 'controle-estoque-mobile-v55';
+const CACHE = 'controle-estoque-mobile-v56';
 const STATIC = [
   '/static/favicon.ico?v=7',
   '/static/favicon-32.png?v=7',
@@ -7,7 +7,7 @@ const STATIC = [
   '/static/mobile-icon-192.png?v=7',
   '/static/mobile-icon-512.png?v=7',
   '/static/manifest.webmanifest?v=7',
-  '/static/ui-premium-v130-enterprise.css?v=130'
+  '/static/ui-premium-v131-premium.css?v=131'
 ];
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(STATIC)).catch(() => {}));
