@@ -31,6 +31,30 @@ dialog{border:1px solid var(--line);background:var(--panel);color:var(--text);bo
   <a class="ui-btn ui-btn-secondary" href="{{ url_for('pagina_projecao_lojas') }}">Projeção de Lojas</a>
 </div>
 <main class="page-filiais">
+<section class="branch-hero">
+  <div class="branch-copy">
+    <span class="hero-chip">Rede de filiais · visão executiva</span>
+    <h2>Gestão de filiais com leitura rápida da operação</h2>
+    <p>Acompanhe o tamanho da rede, o pipeline de inauguração e os principais focos da operação antes de entrar no cadastro e na grade detalhada.</p>
+    <div class="branch-kpis">
+      <div class="branch-mini"><span>Total da rede</span><strong id="hero-filial-total">0</strong><small>Lojas cadastradas no sistema.</small></div>
+      <div class="branch-mini"><span>Operando</span><strong id="hero-filial-ativa">0</strong><small>Filiais em operação.</small></div>
+      <div class="branch-mini"><span>Pipeline</span><strong id="hero-filial-pipeline">0</strong><small>A inaugurar + pendentes.</small></div>
+      <div class="branch-mini"><span>Estados ativos</span><strong id="hero-filial-ufs">0</strong><small>Cobertura geográfica atual.</small></div>
+    </div>
+  </div>
+  <div class="branch-side">
+    <div class="side-card">
+      <h3>Radar gerencial</h3>
+      <p id="hero-filial-texto">Os indicadores serão atualizados após o carregamento das filiais.</p>
+      <div class="side-list">
+        <div><span>Bandeira líder</span><strong id="hero-filial-bandeira">—</strong></div>
+        <div><span>Próximo foco</span><strong id="hero-filial-foco">—</strong></div>
+        <div><span>% em operação</span><strong id="hero-filial-percentual">0%</strong></div>
+      </div>
+    </div>
+  </div>
+</section>
 <section class="panel" id="cadastro-manual"><h2>Cadastro manual de loja</h2>
 <p style="margin:-6px 0 14px;color:var(--muted);font-size:11px">Inclua uma loja diretamente pela tela usando os mesmos campos já utilizados pelo cadastro de Filiais. Registros sincronizados pelo Acompanhamento de Expansão também podem ser complementados aqui com a cidade.</p>
 <form id="form-filial" class="form">
@@ -125,8 +149,12 @@ function statusInfo(v){v=String(v??'');if(v==='1')return ['Ativa','ativa'];if(v=
 function bandeiraInfo(v){v=String(v||'').toUpperCase();if(v==='DSP')return ['DSP','dsp'];if(v==='DPA')return ['DPA','dpa'];return ['Não definida','sem']}
 function atualizarResumo(){
   const cont={total:filiais.length,ativa:0,inaugurar:0,pendente:0,inativa:0};
-  filiais.forEach(f=>{const v=String(f.ativo??'0');if(v==='1')cont.ativa++;else if(v==='inaugurar')cont.inaugurar++;else if(v==='pendente')cont.pendente++;else cont.inativa++;});
+  const bandeiras={DSP:0,DPA:0,SEM:0};
+  const ufs=new Set();
+  filiais.forEach(f=>{const v=String(f.ativo??'0');if(v==='1')cont.ativa++;else if(v==='inaugurar')cont.inaugurar++;else if(v==='pendente')cont.pendente++;else cont.inativa++;const b=String(f.bandeira||'').toUpperCase();if(b==='DSP'||b==='DPA')bandeiras[b]++;else bandeiras.SEM++;if(String(f.uf||'').trim())ufs.add(String(f.uf).toUpperCase());});
   document.getElementById('sum-total').textContent=cont.total;document.getElementById('sum-ativa').textContent=cont.ativa;document.getElementById('sum-inaugurar').textContent=cont.inaugurar;document.getElementById('sum-pendente').textContent=cont.pendente;document.getElementById('sum-inativa').textContent=cont.inativa;
+  const pipeline=cont.inaugurar+cont.pendente;const percentual=cont.total?((cont.ativa/cont.total)*100):0;const lider=(bandeiras.DSP>=bandeiras.DPA && bandeiras.DSP>=bandeiras.SEM)?'DSP':(bandeiras.DPA>=bandeiras.SEM?'DPA':'Não definida');
+  document.getElementById('hero-filial-total').textContent=cont.total;document.getElementById('hero-filial-ativa').textContent=cont.ativa;document.getElementById('hero-filial-pipeline').textContent=pipeline;document.getElementById('hero-filial-ufs').textContent=ufs.size;document.getElementById('hero-filial-bandeira').textContent=lider;document.getElementById('hero-filial-foco').textContent=pipeline?`${pipeline} loja(s) em andamento`:'Rede estabilizada';document.getElementById('hero-filial-percentual').textContent=`${percentual.toFixed(percentual>=10?0:1)}%`;document.getElementById('hero-filial-texto').textContent=pipeline?`Atenção para ${cont.inaugurar} loja(s) a inaugurar e ${cont.pendente} pendente(s) que exigem acompanhamento.`:'Todas as filiais estão operando ou fora do pipeline no momento.';
 }
 function atualizarFiltroUf(){const sel=document.getElementById('filtro-uf'),atual=sel.value;const ufs=[...new Set(filiais.map(f=>String(f.uf||'').toUpperCase()).filter(Boolean))].sort();sel.innerHTML='<option value="">Todos os estados</option>'+ufs.map(uf=>`<option value="${esc(uf)}">${esc(uf)}</option>`).join('');if(ufs.includes(atual))sel.value=atual;}
 async function carregar(){const r=await fetch('/api/filiais?inativas=1');if(!r.ok){appToast('Não foi possível carregar as filiais.','erro');return;}filiais=await r.json();selecionadas.forEach(id=>{if(!filiais.some(f=>Number(f.id)===Number(id)))selecionadas.delete(id)});atualizarResumo();atualizarFiltroUf();render(true)}

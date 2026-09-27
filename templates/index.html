@@ -562,6 +562,34 @@
 {% endif %}
 
 <main class="page-estoque">
+  <section class="enterprise-hero">
+    <div class="hero-copy">
+      <span class="hero-chip">Dashboard operacional · Estoque</span>
+      <h2>Leitura executiva do estoque no topo da operação</h2>
+      <p>Veja rapidamente o volume ativo, a força do estoque de expansão e a capacidade potencial para abertura de lojas, antes de seguir para lançamentos, simulação e baixa.</p>
+      <div class="hero-kpis">
+        <div class="hero-mini"><span>Itens cadastrados</span><strong id="hero-estoque-total">0</strong><small>Total de registros no estoque.</small></div>
+        <div class="hero-mini"><span>Em estoque</span><strong id="hero-estoque-ativos">0</strong><small>Itens com saldo disponível.</small></div>
+        <div class="hero-mini"><span>Unidades expansão</span><strong id="hero-estoque-expansao">0</strong><small>Base para abertura de lojas.</small></div>
+        <div class="hero-mini"><span>Capacidade estimada</span><strong id="hero-estoque-lojas">0</strong><small>Lojas completas possíveis.</small></div>
+      </div>
+      <div class="hero-status-line">
+        <span class="hero-badge" id="hero-estoque-status">Carregando indicadores...</span>
+        <span class="hero-badge warn" id="hero-estoque-pipeline">Aguardando leitura do kit padrão</span>
+      </div>
+    </div>
+    <div class="hero-side">
+      <div class="side-card">
+        <h3>Painel executivo</h3>
+        <p id="hero-estoque-texto">Os indicadores serão atualizados quando o estoque e o kit padrão forem carregados.</p>
+        <div class="side-list">
+          <div><span>Códigos únicos</span><strong id="hero-estoque-codigos">0</strong></div>
+          <div><span>Tipos com saldo</span><strong id="hero-estoque-tipos">0</strong></div>
+          <div><span>Meta do lote</span><strong id="hero-estoque-meta">0</strong></div>
+        </div>
+      </div>
+    </div>
+  </section>
 
   <section class="panel">
     <h2>Registrar novo item (entrada)</h2>
@@ -1452,6 +1480,26 @@ function atualizarStats(){
     'graf-stat-ampliacao':'Ampliação','graf-stat-realocacao':'Realocação','graf-stat-reversa':'Reversa'
   };
   Object.entries(mapaGrafStats).forEach(([id,tipo])=>{const el=document.getElementById(id);if(el)el.textContent=somaPorTipo(tipo);});
+  const unicos=new Set(itensCache.map(it=>String(it.codigo||'').trim()).filter(Boolean)).size;
+  const tiposAtivos=['Expansão','Sustentação','Requalificação','Ampliação','Realocação','Reversa'].filter(tipo=>somaPorTipo(tipo)>0).length;
+  const resultado=(typeof calcularSimulacaoLojas==='function')?calcularSimulacaoLojas():{lojas:0};
+  const capacidade=Math.max(0,Number(resultado.lojas)||0);
+  const meta=Math.max(1,Number(META_LOJAS_EXPANSAO)||1);
+  const percentualMeta=Math.min(100,(capacidade/meta)*100);
+  document.getElementById('hero-estoque-total').textContent=total;
+  document.getElementById('hero-estoque-ativos').textContent=total-saiu;
+  document.getElementById('hero-estoque-expansao').textContent=somaPorTipo('Expansão');
+  document.getElementById('hero-estoque-lojas').textContent=capacidade;
+  document.getElementById('hero-estoque-codigos').textContent=unicos;
+  document.getElementById('hero-estoque-tipos').textContent=tiposAtivos;
+  document.getElementById('hero-estoque-meta').textContent=meta;
+  const badge=document.getElementById('hero-estoque-status');
+  const pipeline=document.getElementById('hero-estoque-pipeline');
+  if(capacidade>=meta){badge.textContent='Meta de lojas atendida';badge.className='hero-badge ok';}
+  else if(percentualMeta>=70){badge.textContent='Estoque próximo da meta';badge.className='hero-badge warn';}
+  else {badge.textContent='Estoque em construção';badge.className='hero-badge';}
+  pipeline.textContent=`Capacidade atual: ${capacidade}/${meta} loja(s)`;
+  document.getElementById('hero-estoque-texto').textContent=capacidade>=meta?'O estoque de expansão já suporta a meta de abertura configurada para o lote.':`O estoque atual suporta ${capacidade} loja(s) e ainda precisa evoluir para atingir a meta de ${meta}.`;
 }
 
 let graficoTipoEstoque = null;
