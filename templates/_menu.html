@@ -22,55 +22,55 @@ body{overflow-x:hidden}header{padding-left:16px!important;padding-right:16px!imp
 </style>
 <nav class="app-menu" id="app-menu">
   <button type="button" class="app-mobile-toggle" id="app-mobile-toggle" aria-expanded="false" aria-controls="app-menu-links"><span>☰</span><span class="mobile-label">Menu</span></button>
-  <div class="app-sidebar-brand"><div class="brand-mark">CE</div><div class="brand-copy"><strong>Controle de Estoque</strong><span>Ambiente premium para operação, expedição e implantação.</span><small>Enterprise suite · v131</small></div></div>
+  <div class="app-sidebar-brand"><div class="brand-mark">CE</div><div class="brand-copy"><strong>Controle de Estoque</strong><span>Ambiente premium para operação, expedição e implantação.</span><small>Premium refined · v132</small></div></div>
   <div class="app-menu-left" id="app-menu-links">
-    <a href="{{ url_for('dashboard') }}" class="{{ 'ativo' if request.endpoint == 'dashboard' else '' }}"><span class="nav-ico">⌂</span>Dashboard</a>
+    <a href="{{ url_for('dashboard') }}" class="{{ 'ativo' if request.endpoint == 'dashboard' else '' }}"><span class="nav-ico">◉</span>Dashboard</a>
     <a href="{{ url_for('pagina_agente_ia') }}" class="app-ai-link {{ 'ativo' if request.endpoint == 'pagina_agente_ia' else '' }}"><span class="nav-ico">✦</span>Agente IA</a>
-    <a href="{{ url_for('index') }}" class="{{ 'ativo' if request.endpoint == 'index' else '' }}"><span class="nav-ico">◫</span>Estoque</a>
+    <a href="{{ url_for('index') }}" class="{{ 'ativo' if request.endpoint == 'index' else '' }}"><span class="nav-ico">▦</span>Estoque</a>
     {% if role == 'consulta' %}
-    <a href="#" class="app-admin-locked" data-role-locked="Expedição" title="Expedição e baixa bloqueadas para o perfil Consulta"><span class="nav-ico">⇄</span>🔒 Expedição</a>
+    <a href="#" class="app-admin-locked" data-role-locked="Expedição" title="Expedição e baixa bloqueadas para o perfil Consulta"><span class="nav-ico">⇆</span>🔒 Expedição</a>
     {% else %}
-    <a href="{{ url_for('pagina_expedicao') }}" class="{{ 'ativo' if request.endpoint == 'pagina_expedicao' else '' }}"><span class="nav-ico">⇄</span>Expedição</a>
+    <a href="{{ url_for('pagina_expedicao') }}" class="{{ 'ativo' if request.endpoint == 'pagina_expedicao' else '' }}"><span class="nav-ico">⇆</span>Expedição</a>
     {% endif %}
-    <a href="{{ url_for('pagina_produtos') }}" class="{{ 'ativo' if request.endpoint == 'pagina_produtos' else '' }}"><span class="nav-ico">▣</span>Cadastro de Produtos</a>
+    <a href="{{ url_for('pagina_produtos') }}" class="{{ 'ativo' if request.endpoint == 'pagina_produtos' else '' }}"><span class="nav-ico">▦</span>Cadastro de Produtos</a>
     {% if role == 'consulta' %}
-    <a href="#" class="app-admin-locked" data-role-locked="Orçamento" title="Orçamento bloqueado para o perfil Consulta"><span class="nav-ico">◌</span>🔒 Orçamento</a>
+    <a href="#" class="app-admin-locked" data-role-locked="Orçamento" title="Orçamento bloqueado para o perfil Consulta"><span class="nav-ico">◔</span>🔒 Orçamento</a>
     {% else %}
-    <a href="{{ url_for('pagina_orcamento') }}" class="{{ 'ativo' if request.endpoint == 'pagina_orcamento' else '' }}"><span class="nav-ico">◌</span>Orçamento</a>
+    <a href="{{ url_for('pagina_orcamento') }}" class="{{ 'ativo' if request.endpoint == 'pagina_orcamento' else '' }}"><span class="nav-ico">◔</span>Orçamento</a>
     {% endif %}
-    <a href="{{ url_for('pagina_imobilizados') }}" class="{{ 'ativo' if request.endpoint == 'pagina_imobilizados' else '' }}"><span class="nav-ico">⬢</span>Imobilizados</a>
+    <a href="{{ url_for('pagina_imobilizados') }}" class="{{ 'ativo' if request.endpoint == 'pagina_imobilizados' else '' }}"><span class="nav-ico">⬡</span>Imobilizados</a>
     <a href="{{ url_for('pagina_filiais') }}" class="{{ 'ativo' if request.endpoint in ['pagina_filiais','pagina_filial_detalhe'] else '' }}"><span class="nav-ico">⌘</span>Filiais</a>
-    <a href="{{ url_for('pagina_equipamentos_parque') }}" class="{{ 'ativo' if request.endpoint == 'pagina_equipamentos_parque' else '' }}"><span class="nav-ico">◈</span>Equipamentos no Parque</a>
+    <a href="{{ url_for('pagina_equipamentos_parque') }}" class="{{ 'ativo' if request.endpoint == 'pagina_equipamentos_parque' else '' }}"><span class="nav-ico">◉</span>Equipamentos no Parque</a>
     <a href="{{ url_for('pagina_projecao_lojas') }}" class="{{ 'ativo' if request.endpoint == 'pagina_projecao_lojas' else '' }}"><span class="nav-ico">◍</span>Projeção de abertura e lojas</a>
-    <a href="{{ url_for('pagina_acompanhamento_expansao') }}" class="{{ 'ativo' if request.endpoint == 'pagina_acompanhamento_expansao' else '' }}"><span class="nav-ico">◎</span>Acompanhamento de Expansão</a>
-    <a href="{{ url_for('pagina_cockpit_implantacao') }}" class="{{ 'ativo' if request.endpoint == 'pagina_cockpit_implantacao' else '' }}"><span class="nav-ico">▤</span>Cockpit de Implantação</a>
+    <a href="{{ url_for('pagina_acompanhamento_expansao') }}" class="{{ 'ativo' if request.endpoint == 'pagina_acompanhamento_expansao' else '' }}"><span class="nav-ico">◔</span>Acompanhamento de Expansão</a>
+    <a href="{{ url_for('pagina_cockpit_implantacao') }}" class="{{ 'ativo' if request.endpoint == 'pagina_cockpit_implantacao' else '' }}"><span class="nav-ico">▦</span>Cockpit de Implantação</a>
     <a href="{{ url_for('pagina_leitor_codigo') }}" class="{{ 'ativo' if request.endpoint == 'pagina_leitor_codigo' else '' }}"><span class="nav-ico">⌁</span>Leitor</a>
-    <a href="{{ url_for('pagina_loja_virtual') }}" class="{{ 'ativo' if request.endpoint == 'pagina_loja_virtual' else '' }}"><span class="nav-ico">◧</span>Loja Virtual 3D</a>
-    <a href="{{ url_for('pagina_acesso_celular') }}" class="{{ 'ativo' if request.endpoint == 'pagina_acesso_celular' else '' }}"><span class="nav-ico">◫</span>Celular</a>
-    <a href="{{ url_for('pagina_historico') }}" class="{{ 'ativo' if request.endpoint == 'pagina_historico' else '' }}"><span class="nav-ico">◷</span>Histórico</a>
+    <a href="{{ url_for('pagina_loja_virtual') }}" class="{{ 'ativo' if request.endpoint == 'pagina_loja_virtual' else '' }}"><span class="nav-ico">◨</span>Loja Virtual 3D</a>
+    <a href="{{ url_for('pagina_acesso_celular') }}" class="{{ 'ativo' if request.endpoint == 'pagina_acesso_celular' else '' }}"><span class="nav-ico">▦</span>Celular</a>
+    <a href="{{ url_for('pagina_historico') }}" class="{{ 'ativo' if request.endpoint == 'pagina_historico' else '' }}"><span class="nav-ico">◴</span>Histórico</a>
     {% if role == 'consulta' %}
-    <a href="#" class="app-admin-locked" data-role-locked="Relatórios" title="Relatórios bloqueados para o perfil Consulta"><span class="nav-ico">▥</span>🔒 Relatórios</a>
+    <a href="#" class="app-admin-locked" data-role-locked="Relatórios" title="Relatórios bloqueados para o perfil Consulta"><span class="nav-ico">▦</span>🔒 Relatórios</a>
     {% else %}
-    <a href="{{ url_for('pagina_relatorios') }}" class="{{ 'ativo' if request.endpoint == 'pagina_relatorios' else '' }}"><span class="nav-ico">▥</span>Relatórios</a>
+    <a href="{{ url_for('pagina_relatorios') }}" class="{{ 'ativo' if request.endpoint == 'pagina_relatorios' else '' }}"><span class="nav-ico">▦</span>Relatórios</a>
     {% endif %}
     {% if is_admin %}
-    <a href="{{ url_for('pagina_gestao_dados') }}" class="{{ 'ativo' if request.endpoint == 'pagina_gestao_dados' else '' }}"><span class="nav-ico">◬</span>Gestão de Dados</a>
+    <a href="{{ url_for('pagina_gestao_dados') }}" class="{{ 'ativo' if request.endpoint == 'pagina_gestao_dados' else '' }}"><span class="nav-ico">◫</span>Gestão de Dados</a>
     {% elif role == 'consulta' %}
-    <a href="#" class="app-admin-locked" data-role-locked="Gestão de Dados" title="Gestão de Dados bloqueada para o perfil Consulta"><span class="nav-ico">◬</span>🔒 Gestão de Dados</a>
+    <a href="#" class="app-admin-locked" data-role-locked="Gestão de Dados" title="Gestão de Dados bloqueada para o perfil Consulta"><span class="nav-ico">◫</span>🔒 Gestão de Dados</a>
     {% else %}
-    <a href="#" class="app-admin-locked" data-admin-only="Gestão de Dados" title="Gestão de Dados disponível somente para Administrador"><span class="nav-ico">◬</span>🔒 Gestão de Dados</a>
+    <a href="#" class="app-admin-locked" data-admin-only="Gestão de Dados" title="Gestão de Dados disponível somente para Administrador"><span class="nav-ico">◫</span>🔒 Gestão de Dados</a>
     {% endif %}
-    {% if is_admin %}<a href="{{ url_for('pagina_usuarios') }}" class="{{ 'ativo' if request.endpoint == 'pagina_usuarios' else '' }}"><span class="nav-ico">◩</span>Gestão de Usuários</a>{% endif %}
+    {% if is_admin %}<a href="{{ url_for('pagina_usuarios') }}" class="{{ 'ativo' if request.endpoint == 'pagina_usuarios' else '' }}"><span class="nav-ico">◪</span>Gestão de Usuários</a>{% endif %}
   </div>
   <div class="app-menu-right">
     <div class="global-search-wrap">
-      <a class="app-scan-link" href="{{ url_for('pagina_leitor_codigo') }}" title="Ler código de barras pela câmera" aria-label="Abrir leitor de código de barras">▣</a>
+      <a class="app-scan-link" href="{{ url_for('pagina_leitor_codigo') }}" title="Ler código de barras pela câmera" aria-label="Abrir leitor de código de barras">▦</a>
       <input class="global-search" data-global-search placeholder="Pesquisar código, serial, patrimônio, filial..." autocomplete="off">
       <div class="global-search-results" data-global-results></div>
     </div>
     <span class="app-user">{{ username }} · {{ {'admin':'Administrador','gestor':'Gestor','operador':'Operador','consulta':'Consulta','user':'Operador'}.get(role or 'user','Operador') }}</span>{% if role == 'consulta' %}<span class="app-role-note">somente leitura</span>{% endif %}
     <a href="{{ url_for('pagina_seguranca') }}" class="{{ 'ativo' if request.endpoint == 'pagina_seguranca' else '' }}"><span class="nav-ico">◍</span>Segurança</a>
-    <a href="{{ url_for('logout') }}"><span class="nav-ico">↗</span>Sair</a>
+    <a href="{{ url_for('logout') }}"><span class="nav-ico">↦</span>Sair</a>
   </div>
 </nav>
 <div class="app-toasts" id="app-toasts"></div>
