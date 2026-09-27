@@ -1,6 +1,6 @@
 <style>
 .app-menu{padding:10px 32px;border-bottom:1px solid var(--line,#2b3444);display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;background:rgba(18,24,31,.96);position:relative;z-index:50}.app-mobile-toggle{display:none;border:1px solid var(--line,#2b3444);background:var(--panel-2,#212934);color:var(--text,#e7ebf1);border-radius:10px;padding:9px 12px;min-height:42px;font:inherit;font-size:12px;font-weight:700;cursor:pointer}.app-mobile-toggle span{font-size:17px;line-height:1;margin-right:6px}
-.app-menu-left,.app-menu-right{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.app-menu a{padding:7px 12px;border:1px solid var(--line,#2b3444);border-radius:20px;color:var(--muted,#8b96a8);text-decoration:none;font-size:12px}.app-menu a:hover{color:var(--text,#e7ebf1);border-color:#526079}.app-menu a.ativo{background:var(--accent,#3ea6ff);border-color:var(--accent,#3ea6ff);color:#08131f;font-weight:700}.app-menu a.app-ai-link{background:linear-gradient(135deg,rgba(124,92,255,.22),rgba(62,166,255,.14));border-color:rgba(139,116,255,.72);color:#d9d0ff;font-weight:700;box-shadow:0 0 0 1px rgba(124,92,255,.08) inset}.app-menu a.app-ai-link:hover{color:#fff;border-color:#a893ff;background:linear-gradient(135deg,rgba(124,92,255,.34),rgba(62,166,255,.22));box-shadow:0 0 18px rgba(124,92,255,.16)}.app-menu a.app-ai-link.ativo{background:linear-gradient(135deg,#7c5cff,#3ea6ff);border-color:#8f7cff;color:#fff;box-shadow:0 0 20px rgba(124,92,255,.28)}.app-menu a.app-admin-locked{border-color:rgba(255,182,72,.32);color:var(--accent-2,#ffb648);background:rgba(255,182,72,.05)}.app-menu a.app-admin-locked:hover{border-color:rgba(255,182,72,.62);color:#ffd18c}.app-user{font-size:12px;color:var(--muted,#8b96a8)}
+.app-menu-left,.app-menu-right{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.app-menu a{padding:8px 12px;border:1px solid var(--line,#2b3444);border-radius:12px;color:var(--muted,#8b96a8);text-decoration:none;font-size:12px;display:inline-flex;align-items:center;gap:0;font-weight:600}.nav-ico{width:18px;height:18px;display:inline-flex;align-items:center;justify-content:center;margin-right:6px;border-radius:6px;background:rgba(62,166,255,.08);color:#cfe9ff;font-size:11px;line-height:1;flex:0 0 18px}.app-menu a:hover{color:var(--text,#e7ebf1);border-color:#526079}.app-menu a.ativo{background:var(--accent,#3ea6ff);border-color:var(--accent,#3ea6ff);color:#08131f;font-weight:700}.app-menu a.app-ai-link{background:linear-gradient(135deg,rgba(124,92,255,.22),rgba(62,166,255,.14));border-color:rgba(139,116,255,.72);color:#d9d0ff;font-weight:700;box-shadow:0 0 0 1px rgba(124,92,255,.08) inset}.app-menu a.app-ai-link:hover{color:#fff;border-color:#a893ff;background:linear-gradient(135deg,rgba(124,92,255,.34),rgba(62,166,255,.22));box-shadow:0 0 18px rgba(124,92,255,.16)}.app-menu a.app-ai-link.ativo{background:linear-gradient(135deg,#7c5cff,#3ea6ff);border-color:#8f7cff;color:#fff;box-shadow:0 0 20px rgba(124,92,255,.28)}.app-menu a.app-admin-locked{border-color:rgba(255,182,72,.32);color:var(--accent-2,#ffb648);background:rgba(255,182,72,.05)}.app-menu a.app-admin-locked:hover{border-color:rgba(255,182,72,.62);color:#ffd18c}.app-user{font-size:12px;color:var(--muted,#8b96a8)}
 .global-search-wrap{position:relative;display:flex;align-items:center;gap:6px}.global-search{width:260px;max-width:42vw;background:var(--panel-2,#212934);border:1px solid var(--line,#2b3444);border-radius:20px;padding:8px 12px;color:var(--text,#e7ebf1);outline:none;font-size:12px}.global-search:focus{border-color:var(--accent,#3ea6ff);box-shadow:0 0 0 2px rgba(62,166,255,.08)}.app-scan-link{display:inline-flex!important;align-items:center;justify-content:center;width:38px;height:38px;padding:0!important;border-radius:50%!important;color:var(--accent,#3ea6ff)!important;background:rgba(62,166,255,.08);font-size:16px!important;flex:0 0 38px}.app-scan-link:hover{background:rgba(62,166,255,.15)}
 .global-search-results{display:none;position:absolute;right:0;top:42px;width:min(560px,88vw);max-height:390px;overflow:auto;background:var(--panel,#1a2029);border:1px solid var(--line,#2b3444);border-radius:12px;box-shadow:0 18px 46px rgba(0,0,0,.42);padding:8px;z-index:200}.global-search-results.ativo{display:block}.gs-item{display:block;padding:10px;border-radius:9px;border:1px solid transparent;text-decoration:none!important;color:var(--text,#e7ebf1)!important}.gs-item:hover{background:var(--panel-2,#212934);border-color:var(--line,#2b3444)}.gs-top{display:flex;justify-content:space-between;gap:10px}.gs-origin{font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:var(--accent,#3ea6ff)}.gs-code{font-family:Consolas,monospace;font-size:11px;color:var(--accent-2,#ffb648)}.gs-name{font-size:12px;font-weight:700;margin-top:3px}.gs-meta{font-size:10px;color:var(--muted,#8b96a8);margin-top:4px}.gs-empty{padding:18px;text-align:center;color:var(--muted,#8b96a8);font-size:12px}.app-role-note{font-size:10px;padding:5px 8px;border-radius:999px;border:1px solid rgba(255,182,72,.28);color:var(--accent-2,#ffb648);background:rgba(255,182,72,.07)}.app-toasts{position:fixed;right:18px;bottom:18px;z-index:9999;display:grid;gap:8px;max-width:min(430px,90vw)}.app-toast{background:var(--panel,#1a2029);border:1px solid var(--line,#2b3444);border-left:4px solid var(--accent,#3ea6ff);border-radius:10px;padding:11px 13px;box-shadow:0 15px 38px rgba(0,0,0,.38);font-size:12px;color:var(--text,#e7ebf1);animation:appToastIn .18s ease}.app-toast.erro{border-left-color:var(--danger,#ff6b6b)}.app-toast.ok{border-left-color:var(--ok,#4cd792)}@keyframes appToastIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 @media(max-width:850px){
@@ -21,43 +21,43 @@ body{overflow-x:hidden}header{padding-left:16px!important;padding-right:16px!imp
 <nav class="app-menu" id="app-menu">
   <button type="button" class="app-mobile-toggle" id="app-mobile-toggle" aria-expanded="false" aria-controls="app-menu-links"><span>☰</span><span class="mobile-label">Menu</span></button>
   <div class="app-menu-left" id="app-menu-links">
-    <a href="{{ url_for('dashboard') }}" class="{{ 'ativo' if request.endpoint == 'dashboard' else '' }}">Dashboard</a>
-    <a href="{{ url_for('pagina_agente_ia') }}" class="app-ai-link {{ 'ativo' if request.endpoint == 'pagina_agente_ia' else '' }}">✦ Agente IA</a>
-    <a href="{{ url_for('index') }}" class="{{ 'ativo' if request.endpoint == 'index' else '' }}">Estoque</a>
+    <a href="{{ url_for('dashboard') }}" class="{{ 'ativo' if request.endpoint == 'dashboard' else '' }}"><span class="nav-ico">⌂</span>Dashboard</a>
+    <a href="{{ url_for('pagina_agente_ia') }}" class="app-ai-link {{ 'ativo' if request.endpoint == 'pagina_agente_ia' else '' }}"><span class="nav-ico">✦</span>Agente IA</a>
+    <a href="{{ url_for('index') }}" class="{{ 'ativo' if request.endpoint == 'index' else '' }}"><span class="nav-ico">◫</span>Estoque</a>
     {% if role == 'consulta' %}
-    <a href="#" class="app-admin-locked" data-role-locked="Expedição" title="Expedição e baixa bloqueadas para o perfil Consulta">🔒 Expedição</a>
+    <a href="#" class="app-admin-locked" data-role-locked="Expedição" title="Expedição e baixa bloqueadas para o perfil Consulta"><span class="nav-ico">⇄</span>🔒 Expedição</a>
     {% else %}
-    <a href="{{ url_for('pagina_expedicao') }}" class="{{ 'ativo' if request.endpoint == 'pagina_expedicao' else '' }}">Expedição</a>
+    <a href="{{ url_for('pagina_expedicao') }}" class="{{ 'ativo' if request.endpoint == 'pagina_expedicao' else '' }}"><span class="nav-ico">⇄</span>Expedição</a>
     {% endif %}
-    <a href="{{ url_for('pagina_produtos') }}" class="{{ 'ativo' if request.endpoint == 'pagina_produtos' else '' }}">Cadastro de Produtos</a>
+    <a href="{{ url_for('pagina_produtos') }}" class="{{ 'ativo' if request.endpoint == 'pagina_produtos' else '' }}"><span class="nav-ico">▣</span>Cadastro de Produtos</a>
     {% if role == 'consulta' %}
-    <a href="#" class="app-admin-locked" data-role-locked="Orçamento" title="Orçamento bloqueado para o perfil Consulta">🔒 Orçamento</a>
+    <a href="#" class="app-admin-locked" data-role-locked="Orçamento" title="Orçamento bloqueado para o perfil Consulta"><span class="nav-ico">◌</span>🔒 Orçamento</a>
     {% else %}
-    <a href="{{ url_for('pagina_orcamento') }}" class="{{ 'ativo' if request.endpoint == 'pagina_orcamento' else '' }}">Orçamento</a>
+    <a href="{{ url_for('pagina_orcamento') }}" class="{{ 'ativo' if request.endpoint == 'pagina_orcamento' else '' }}"><span class="nav-ico">◌</span>Orçamento</a>
     {% endif %}
-    <a href="{{ url_for('pagina_imobilizados') }}" class="{{ 'ativo' if request.endpoint == 'pagina_imobilizados' else '' }}">Imobilizados</a>
-    <a href="{{ url_for('pagina_filiais') }}" class="{{ 'ativo' if request.endpoint in ['pagina_filiais','pagina_filial_detalhe'] else '' }}">Filiais</a>
-    <a href="{{ url_for('pagina_equipamentos_parque') }}" class="{{ 'ativo' if request.endpoint == 'pagina_equipamentos_parque' else '' }}">Equipamentos no Parque</a>
-    <a href="{{ url_for('pagina_projecao_lojas') }}" class="{{ 'ativo' if request.endpoint == 'pagina_projecao_lojas' else '' }}">Projeção de abertura e lojas</a>
-    <a href="{{ url_for('pagina_acompanhamento_expansao') }}" class="{{ 'ativo' if request.endpoint == 'pagina_acompanhamento_expansao' else '' }}">Acompanhamento de Expansão</a>
-    <a href="{{ url_for('pagina_cockpit_implantacao') }}" class="{{ 'ativo' if request.endpoint == 'pagina_cockpit_implantacao' else '' }}">Cockpit de Implantação</a>
-    <a href="{{ url_for('pagina_leitor_codigo') }}" class="{{ 'ativo' if request.endpoint == 'pagina_leitor_codigo' else '' }}">Leitor</a>
-    <a href="{{ url_for('pagina_loja_virtual') }}" class="{{ 'ativo' if request.endpoint == 'pagina_loja_virtual' else '' }}">Loja Virtual 3D</a>
-    <a href="{{ url_for('pagina_acesso_celular') }}" class="{{ 'ativo' if request.endpoint == 'pagina_acesso_celular' else '' }}">Celular</a>
-    <a href="{{ url_for('pagina_historico') }}" class="{{ 'ativo' if request.endpoint == 'pagina_historico' else '' }}">Histórico</a>
+    <a href="{{ url_for('pagina_imobilizados') }}" class="{{ 'ativo' if request.endpoint == 'pagina_imobilizados' else '' }}"><span class="nav-ico">⬢</span>Imobilizados</a>
+    <a href="{{ url_for('pagina_filiais') }}" class="{{ 'ativo' if request.endpoint in ['pagina_filiais','pagina_filial_detalhe'] else '' }}"><span class="nav-ico">⌘</span>Filiais</a>
+    <a href="{{ url_for('pagina_equipamentos_parque') }}" class="{{ 'ativo' if request.endpoint == 'pagina_equipamentos_parque' else '' }}"><span class="nav-ico">◈</span>Equipamentos no Parque</a>
+    <a href="{{ url_for('pagina_projecao_lojas') }}" class="{{ 'ativo' if request.endpoint == 'pagina_projecao_lojas' else '' }}"><span class="nav-ico">◍</span>Projeção de abertura e lojas</a>
+    <a href="{{ url_for('pagina_acompanhamento_expansao') }}" class="{{ 'ativo' if request.endpoint == 'pagina_acompanhamento_expansao' else '' }}"><span class="nav-ico">◎</span>Acompanhamento de Expansão</a>
+    <a href="{{ url_for('pagina_cockpit_implantacao') }}" class="{{ 'ativo' if request.endpoint == 'pagina_cockpit_implantacao' else '' }}"><span class="nav-ico">▤</span>Cockpit de Implantação</a>
+    <a href="{{ url_for('pagina_leitor_codigo') }}" class="{{ 'ativo' if request.endpoint == 'pagina_leitor_codigo' else '' }}"><span class="nav-ico">⌁</span>Leitor</a>
+    <a href="{{ url_for('pagina_loja_virtual') }}" class="{{ 'ativo' if request.endpoint == 'pagina_loja_virtual' else '' }}"><span class="nav-ico">◧</span>Loja Virtual 3D</a>
+    <a href="{{ url_for('pagina_acesso_celular') }}" class="{{ 'ativo' if request.endpoint == 'pagina_acesso_celular' else '' }}"><span class="nav-ico">◫</span>Celular</a>
+    <a href="{{ url_for('pagina_historico') }}" class="{{ 'ativo' if request.endpoint == 'pagina_historico' else '' }}"><span class="nav-ico">◷</span>Histórico</a>
     {% if role == 'consulta' %}
-    <a href="#" class="app-admin-locked" data-role-locked="Relatórios" title="Relatórios bloqueados para o perfil Consulta">🔒 Relatórios</a>
+    <a href="#" class="app-admin-locked" data-role-locked="Relatórios" title="Relatórios bloqueados para o perfil Consulta"><span class="nav-ico">▥</span>🔒 Relatórios</a>
     {% else %}
-    <a href="{{ url_for('pagina_relatorios') }}" class="{{ 'ativo' if request.endpoint == 'pagina_relatorios' else '' }}">Relatórios</a>
+    <a href="{{ url_for('pagina_relatorios') }}" class="{{ 'ativo' if request.endpoint == 'pagina_relatorios' else '' }}"><span class="nav-ico">▥</span>Relatórios</a>
     {% endif %}
     {% if is_admin %}
-    <a href="{{ url_for('pagina_gestao_dados') }}" class="{{ 'ativo' if request.endpoint == 'pagina_gestao_dados' else '' }}">Gestão de Dados</a>
+    <a href="{{ url_for('pagina_gestao_dados') }}" class="{{ 'ativo' if request.endpoint == 'pagina_gestao_dados' else '' }}"><span class="nav-ico">◬</span>Gestão de Dados</a>
     {% elif role == 'consulta' %}
-    <a href="#" class="app-admin-locked" data-role-locked="Gestão de Dados" title="Gestão de Dados bloqueada para o perfil Consulta">🔒 Gestão de Dados</a>
+    <a href="#" class="app-admin-locked" data-role-locked="Gestão de Dados" title="Gestão de Dados bloqueada para o perfil Consulta"><span class="nav-ico">◬</span>🔒 Gestão de Dados</a>
     {% else %}
-    <a href="#" class="app-admin-locked" data-admin-only="Gestão de Dados" title="Gestão de Dados disponível somente para Administrador">🔒 Gestão de Dados</a>
+    <a href="#" class="app-admin-locked" data-admin-only="Gestão de Dados" title="Gestão de Dados disponível somente para Administrador"><span class="nav-ico">◬</span>🔒 Gestão de Dados</a>
     {% endif %}
-    {% if is_admin %}<a href="{{ url_for('pagina_usuarios') }}" class="{{ 'ativo' if request.endpoint == 'pagina_usuarios' else '' }}">Gestão de Usuários</a>{% endif %}
+    {% if is_admin %}<a href="{{ url_for('pagina_usuarios') }}" class="{{ 'ativo' if request.endpoint == 'pagina_usuarios' else '' }}"><span class="nav-ico">◩</span>Gestão de Usuários</a>{% endif %}
   </div>
   <div class="app-menu-right">
     <div class="global-search-wrap">
@@ -66,8 +66,8 @@ body{overflow-x:hidden}header{padding-left:16px!important;padding-right:16px!imp
       <div class="global-search-results" data-global-results></div>
     </div>
     <span class="app-user">{{ username }} · {{ {'admin':'Administrador','gestor':'Gestor','operador':'Operador','consulta':'Consulta','user':'Operador'}.get(role or 'user','Operador') }}</span>{% if role == 'consulta' %}<span class="app-role-note">somente leitura</span>{% endif %}
-    <a href="{{ url_for('pagina_seguranca') }}" class="{{ 'ativo' if request.endpoint == 'pagina_seguranca' else '' }}">Segurança</a>
-    <a href="{{ url_for('logout') }}">Sair</a>
+    <a href="{{ url_for('pagina_seguranca') }}" class="{{ 'ativo' if request.endpoint == 'pagina_seguranca' else '' }}"><span class="nav-ico">◍</span>Segurança</a>
+    <a href="{{ url_for('logout') }}"><span class="nav-ico">↗</span>Sair</a>
   </div>
 </nav>
 <div class="app-toasts" id="app-toasts"></div>
