@@ -1,0 +1,143 @@
+/* v125 · Blue Tech Design System · identidade global */
+:root{
+  --bg:#06172b!important;
+  --panel:#0b223d!important;
+  --panel2:#102d4d!important;
+  --panel-2:#102d4d!important;
+  --line:#234d74!important;
+  --text:#f6fbff!important;
+  --muted:#9fbed8!important;
+  --accent:#55bdff!important;
+  --accent2:#93d9ff!important;
+  --accent-2:#93d9ff!important;
+  --blue:#55bdff!important;
+  --green:#67e5bd!important;
+  --ok:#67e5bd!important;
+  --warn:#8fd6ff!important;
+  --amber:#8fd6ff!important;
+  --danger:#ff778d!important;
+  --red:#ff778d!important;
+  --purple:#91a8ff!important;
+  --shadow:0 18px 55px rgba(0,8,22,.28);
+  --soft-shadow:0 8px 30px rgba(0,12,32,.20);
+}
+html{background:#06172b}
+body.app-standard{
+  min-height:100vh;
+  background:
+    radial-gradient(circle at 8% -8%,rgba(85,189,255,.16),transparent 30rem),
+    radial-gradient(circle at 92% 12%,rgba(147,217,255,.10),transparent 28rem),
+    linear-gradient(180deg,#071a30 0%,#06172b 42%,#071a30 100%)!important;
+  color:var(--text)!important;
+  font-family:"Segoe UI Variable","Segoe UI",Inter,system-ui,sans-serif!important;
+}
+body.app-standard::before{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:-1;opacity:.20;
+  background-image:linear-gradient(rgba(147,217,255,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(147,217,255,.035) 1px,transparent 1px);
+  background-size:42px 42px;mask-image:linear-gradient(to bottom,black,transparent 78%);
+}
+body.app-standard>header{
+  position:relative;overflow:hidden;
+  padding:34px 32px 24px!important;
+  background:linear-gradient(125deg,rgba(8,31,57,.96),rgba(14,52,87,.78))!important;
+  border-bottom:1px solid rgba(103,192,255,.28)!important;
+  box-shadow:0 14px 45px rgba(0,10,28,.20)!important;
+}
+body.app-standard>header::after{
+  content:"";position:absolute;width:360px;height:360px;right:-120px;top:-240px;border-radius:50%;
+  background:radial-gradient(circle,rgba(106,202,255,.20),transparent 68%);pointer-events:none;
+}
+body.app-standard>header .tag,body.app-standard>header .brand .tag{
+  border:1px solid rgba(147,217,255,.50)!important;background:rgba(85,189,255,.10)!important;color:#bce8ff!important;
+  border-radius:999px!important;padding:5px 10px!important;letter-spacing:.12em!important;
+}
+body.app-standard>header h1{font-size:clamp(22px,2vw,30px)!important;font-weight:760!important;letter-spacing:-.025em!important;color:#fff!important}
+body.app-standard>header p{color:#abc9df!important;max-width:980px!important}
+
+/* Navegação */
+.app-menu{
+  position:sticky!important;top:0!important;z-index:80!important;
+  padding:11px 32px!important;
+  background:rgba(5,21,39,.88)!important;
+  border-bottom:1px solid rgba(99,190,255,.24)!important;
+  box-shadow:0 12px 35px rgba(0,8,24,.20)!important;
+  backdrop-filter:blur(18px) saturate(140%);
+}
+.app-menu a{
+  border-color:rgba(120,192,240,.20)!important;color:#a9c7dc!important;background:rgba(255,255,255,.025)!important;
+  border-radius:9px!important;transition:.18s ease!important;
+}
+.app-menu a:hover{color:#fff!important;border-color:rgba(117,204,255,.46)!important;background:rgba(85,189,255,.10)!important;transform:translateY(-1px)}
+.app-menu a.ativo{background:linear-gradient(135deg,#4fb7fa,#8ed7ff)!important;border-color:#8dd8ff!important;color:#04213b!important;box-shadow:0 8px 22px rgba(62,166,255,.22)!important}
+.app-menu a.app-ai-link{background:linear-gradient(135deg,rgba(77,172,237,.16),rgba(145,168,255,.12))!important;border-color:rgba(119,198,255,.38)!important;color:#c9eaff!important}
+.app-menu a.app-ai-link.ativo{background:linear-gradient(135deg,#4fb7fa,#8aa8ff)!important;color:white!important}
+.app-mobile-toggle,.global-search{background:rgba(13,43,73,.82)!important;border-color:rgba(110,192,244,.26)!important}
+.global-search{border-radius:10px!important;padding:9px 13px!important;color:#fff!important}
+.global-search::placeholder{color:#7397b5!important}
+.global-search:focus{border-color:#69c7ff!important;box-shadow:0 0 0 3px rgba(85,189,255,.11)!important}
+.global-search-results{background:#09213b!important;border-color:#24567f!important;box-shadow:var(--shadow)!important}
+
+/* Estrutura */
+body.app-standard main{padding-top:24px!important;padding-bottom:70px!important}
+body.app-standard .panel,body.app-standard .card,
+body.app-standard .summary-card,body.app-standard .kpi,body.app-standard .tile{
+  background:linear-gradient(145deg,rgba(12,39,68,.96),rgba(9,31,55,.98))!important;
+  border:1px solid rgba(92,176,232,.22)!important;
+  border-radius:16px!important;
+  box-shadow:var(--soft-shadow)!important;
+}
+body.app-standard .panel,body.app-standard .card{position:relative}
+body.app-standard .panel::before,body.app-standard .card::before{
+  content:"";position:absolute;left:16px;right:16px;top:0;height:1px;background:linear-gradient(90deg,transparent,rgba(160,224,255,.32),transparent);pointer-events:none;
+}
+body.app-standard .panel:hover,body.app-standard .card:hover{border-color:rgba(101,196,255,.32)!important}
+
+/* Ações e botões */
+.app-action-strip{padding-top:14px!important;padding-bottom:14px!important;border-bottom:1px solid rgba(93,175,230,.15)!important}
+.ui-btn,body.app-standard button:not(.app-mobile-toggle):not(.hotspot),body.app-standard a.btn{
+  border-radius:10px!important;min-height:40px!important;padding:9px 14px!important;letter-spacing:.005em!important;transition:transform .16s ease,box-shadow .16s ease,border-color .16s ease,background .16s ease!important;
+}
+.ui-btn:hover,body.app-standard button:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 8px 22px rgba(0,14,36,.18)!important}
+.ui-btn-primary,body.app-standard .btn-primary,body.app-standard button.primary{
+  color:#052039!important;background:linear-gradient(135deg,#51baff,#8bd8ff)!important;border-color:#83d4ff!important;box-shadow:0 8px 22px rgba(64,176,244,.18)!important;
+}
+.ui-btn-secondary,.ui-btn-link{background:rgba(18,54,89,.78)!important;border-color:rgba(103,188,243,.25)!important;color:#d7efff!important}
+.ui-btn-excel{color:#a4f5da!important;border-color:rgba(103,229,189,.28)!important;background:rgba(103,229,189,.07)!important}
+.ui-btn-pdf,.ui-btn-danger{color:#ffafbd!important;border-color:rgba(255,119,141,.30)!important;background:rgba(255,119,141,.07)!important}
+.ui-btn-import{color:#bce9ff!important;border-color:rgba(143,214,255,.32)!important;background:rgba(85,189,255,.08)!important}
+
+/* Formulários */
+body.app-standard input:not([type="checkbox"]):not([type="radio"]),body.app-standard select,body.app-standard textarea{
+  min-height:42px!important;background:rgba(8,31,56,.88)!important;border:1px solid rgba(97,176,230,.27)!important;border-radius:10px!important;color:#f7fbff!important;
+}
+body.app-standard input::placeholder,body.app-standard textarea::placeholder{color:#708fac!important}
+body.app-standard input:focus,body.app-standard select:focus,body.app-standard textarea:focus{
+  border-color:#64c6ff!important;box-shadow:0 0 0 3px rgba(85,189,255,.10)!important;background:#0a2948!important;
+}
+body.app-standard label{color:#a8c9df!important;font-weight:650!important}
+
+/* Tabelas */
+body.app-standard .table-wrap,body.app-standard .tabela-scroll{border:1px solid rgba(87,169,225,.20)!important;border-radius:13px!important;background:rgba(4,20,37,.55)!important}
+body.app-standard table{border-collapse:separate!important;border-spacing:0!important}
+body.app-standard thead{background:#081f37!important}
+body.app-standard th{color:#8cb4d1!important;font-weight:700!important;letter-spacing:.06em!important;border-bottom-color:#245174!important}
+body.app-standard td{border-bottom-color:rgba(80,145,194,.16)!important}
+body.app-standard tbody tr{transition:background .14s ease}
+body.app-standard tbody tr:hover{background:rgba(83,180,242,.055)!important}
+body.app-standard .code{color:#74ccff!important}
+body.app-standard .pill{border-color:rgba(117,189,236,.22)!important;background:rgba(92,162,211,.07)!important;color:#a9c7dc!important}
+body.app-standard .pill.ok{border-color:rgba(103,229,189,.28)!important;background:rgba(103,229,189,.08)!important;color:#8feacb!important}
+body.app-standard .pill.warn{border-color:rgba(143,214,255,.30)!important;background:rgba(85,189,255,.08)!important;color:#aadaff!important}
+
+/* Scrollbars */
+body.app-standard *{scrollbar-width:thin;scrollbar-color:#326b96 #081b30}
+body.app-standard ::-webkit-scrollbar{width:9px;height:9px}body.app-standard ::-webkit-scrollbar-track{background:#081b30}body.app-standard ::-webkit-scrollbar-thumb{background:#326b96;border-radius:20px;border:2px solid #081b30}body.app-standard ::-webkit-scrollbar-thumb:hover{background:#4d90bd}
+
+/* Expedição */
+.expedition-hero{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:18px;align-items:center;margin-bottom:16px;padding:18px 20px;border:1px solid rgba(104,194,249,.25);border-radius:16px;background:linear-gradient(130deg,rgba(20,67,105,.70),rgba(10,38,66,.85));box-shadow:var(--soft-shadow)}
+.expedition-hero h2{margin:0 0 5px;font-size:16px;color:white}.expedition-hero p{margin:0;color:#9dbed5;font-size:11px;line-height:1.5}.expedition-hero .ui-btn{min-width:200px}
+.flow-steps{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:16px 0}.flow-step{display:flex;gap:9px;align-items:center;padding:10px;border-radius:11px;border:1px solid rgba(95,177,231,.18);background:rgba(7,29,52,.62);color:#7d9eb9}.flow-step b{display:grid;place-items:center;width:27px;height:27px;flex:0 0 27px;border-radius:9px;border:1px solid rgba(114,194,245,.26);font-size:11px}.flow-step span{font-size:10px;font-weight:700}.flow-step.active{border-color:rgba(85,189,255,.55);background:rgba(85,189,255,.10);color:#dff4ff}.flow-step.active b{background:#64c5ff;color:#05223c;border-color:#87d6ff}.flow-step.done{border-color:rgba(103,229,189,.34);background:rgba(103,229,189,.07);color:#9ae7cd}.flow-step.done b{background:rgba(103,229,189,.18);color:#9ae7cd;border-color:rgba(103,229,189,.35)}
+.operation-focus{border-color:rgba(87,192,255,.42)!important;box-shadow:0 20px 60px rgba(0,16,39,.34),0 0 0 1px rgba(79,183,250,.06) inset!important}
+
+@media(max-width:850px){.app-menu{padding:10px 12px!important}.expedition-hero{grid-template-columns:1fr}.expedition-hero .ui-btn{width:100%}.flow-steps{grid-template-columns:1fr 1fr}}
+@media(max-width:520px){.flow-steps{grid-template-columns:1fr}}
