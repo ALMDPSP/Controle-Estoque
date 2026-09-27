@@ -20,14 +20,14 @@
 <main class="page-dashboard">
 <section class="dash-hero">
   <div class="hero-card">
-    <div class="hero-eyebrow">Centro de comando · build v134</div>
+    <div class="hero-eyebrow">Centro de comando · v1.3.5</div>
     <h2 class="hero-title">Dashboard executivo orientado à operação.</h2>
     <p class="hero-sub">Visão executiva do pipeline de inauguração, riscos operacionais, capacidade de estoque e acessos rápidos para as principais ações do sistema.</p>
     <div class="hero-strip">
       <div class="hero-metric"><span>Capacidade atual</span><strong id="hero-capacidade">0</strong><small>Lojas completas suportadas pelo estoque de Expansão.</small></div>
       <div class="hero-metric"><span>Pipeline</span><strong id="hero-pipeline">0</strong><small>Lojas pendentes de inauguração em acompanhamento.</small></div>
       <div class="hero-metric"><span>Risco operacional</span><strong id="hero-risco">0</strong><small>Lojas que hoje estão acima da capacidade disponível.</small></div>
-      <div class="hero-metric"><span>Próxima prioridade</span><strong id="hero-proxima">—</strong><small>Prioriza a próxima Entrada TI programada; se não houver, usa a próxima inauguração.</small></div>
+      <div class="hero-metric"><span>Próxima prioridade</span><strong id="hero-proxima">—</strong><small>Seleciona a próxima loja pela data de inauguração programada.</small></div>
     </div>
     <div class="hero-status">
       <span class="hero-badge" id="hero-status">Leitura inicial do pipeline em andamento.</span>
@@ -83,19 +83,14 @@ function compararCodigos(a,b){return String(a||'').localeCompare(String(b||''),'
 const PALETA_EXPANSAO=['#3ea6ff','#4cd792','#ffb648','#a78bfa','#ff6b6b','#56cfe1','#f78c6b','#82aaff','#c3e88d','#f07178','#89ddff','#ffc777','#5bd1d7','#c792ea','#ff9cac','#7fdbca'];
 function parseBrDate(v){const m=String(v||'').trim().match(/^(\d{2})\/(\d{2})\/(\d{4})$/);if(!m)return null;const d=new Date(Number(m[3]),Number(m[2])-1,Number(m[1]));return Number.isNaN(d.getTime())?null:d;}
 function resumirProximaLoja(inauguracoes,entradas){
-  const entradasValidas=(Array.isArray(entradas)?entradas:[])
-    .map(x=>({tipo:'Entrada TI',data:parseBrDate(x.entrada_ti),rotulo:`${x.nome||'Loja'} · ${x.entrada_ti||''}`}))
+  const lista=(Array.isArray(inauguracoes)?inauguracoes:[])
+    .map(x=>({data:parseBrDate(x.inauguracao),rotulo:`${x.nome||'Loja'} · ${x.inauguracao||''}`}))
     .filter(x=>x.data);
-  entradasValidas.sort((a,b)=>a.data-b.data);
-  if(entradasValidas.length){
-    const prox=entradasValidas[0];
-    return `${prox.tipo}: ${prox.rotulo}`;
-  }
-  const inauguracoesValidas=(Array.isArray(inauguracoes)?inauguracoes:[])
-    .map(x=>({tipo:'Inauguração',data:parseBrDate(x.inauguracao),rotulo:`${x.nome||'Loja'} · ${x.inauguracao||''}`}))
-    .filter(x=>x.data);
-  inauguracoesValidas.sort((a,b)=>a.data-b.data);
-  return inauguracoesValidas[0]?`${inauguracoesValidas[0].tipo}: ${inauguracoesValidas[0].rotulo}`:'Sem agenda próxima';
+  lista.sort((a,b)=>a.data-b.data);
+  const hoje=new Date();hoje.setHours(0,0,0,0);
+  const futura=lista.find(x=>x.data>=hoje);
+  const prox=futura||lista[0];
+  return prox?`Inauguração: ${prox.rotulo}`:'Sem inauguração programada';
 }
 function descricaoPorCodigo(codigo,prods,itens){const p=(prods||[]).find(x=>String(x.codigo||'').trim()===String(codigo||'').trim());if(p&&p.descricao)return p.descricao;const i=(itens||[]).find(x=>String(x.codigo||'').trim()===String(codigo||'').trim()&&x.descricao);return i&&i.descricao?i.descricao:'Descrição não cadastrada';}
 function renderGraficoExpansao(itens,prods){

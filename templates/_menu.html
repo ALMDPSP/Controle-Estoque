@@ -22,7 +22,7 @@ body{overflow-x:hidden}header{padding-left:16px!important;padding-right:16px!imp
 </style>
 <nav class="app-menu" id="app-menu">
   <button type="button" class="app-mobile-toggle" id="app-mobile-toggle" aria-expanded="false" aria-controls="app-menu-links"><span>☰</span><span class="mobile-label">Menu</span></button>
-  <div class="app-sidebar-brand"><div class="brand-mark">CE</div><div class="brand-copy"><strong>Controle de Estoque</strong><span>Ambiente premium para operação, expedição e implantação.</span><small>Fine finish · v134</small></div></div>
+  <div class="app-sidebar-brand"><div class="brand-mark">CE</div><div class="brand-copy"><strong>Controle de Estoque</strong><span>Ambiente premium para operação, expedição e implantação.</span><small>Versão · v1.3.5</small></div></div>
   <div class="app-menu-left" id="app-menu-links">
     <a href="{{ url_for('dashboard') }}" class="{{ 'ativo' if request.endpoint == 'dashboard' else '' }}"><span class="nav-ico">◉</span>Dashboard</a>
     <a href="{{ url_for('pagina_agente_ia') }}" class="app-ai-link {{ 'ativo' if request.endpoint == 'pagina_agente_ia' else '' }}"><span class="nav-ico">✦</span>Agente IA</a>
