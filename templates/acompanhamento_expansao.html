@@ -170,6 +170,7 @@ main{padding:26px 32px 60px;max-width:1500px;margin:0 auto}.kpis{display:grid;gr
         <div><label for="edit-uf">UF</label><input id="edit-uf" maxlength="2" placeholder="SP"></div>
         <div><label for="edit-projeto">Projeto</label><select id="edit-projeto"><option value="">Selecione...</option><option>EXPANSÃO</option><option>AMPLIAÇÃO</option><option>REALOCAÇÃO</option></select></div>
         <div><label for="edit-status">Status filial</label><select id="edit-status"><option value="">Selecione...</option><option value="PENDENTE">Pendente</option><option value="EM ANDAMENTO">Em andamento</option><option value="OBRA NÃO PENDENTE">Obra não pendente</option><option value="INAUGURADA">Inaugurada</option></select></div>
+        <div><label for="edit-link-rede">Link/Rede</label><select id="edit-link-rede"><option value="">Selecione...</option><option value="Link 1">Link 1</option><option value="Link 2">Link 2</option><option value="TBnet">TBnet</option><option value="Sem Link">Sem Link</option></select></div>
         <div><label for="edit-enviada">Enviada</label><select id="edit-enviada"><option value="NAO">NÃO</option><option value="SIM">SIM</option></select></div>
         <div><label for="edit-separacao">Em Separação</label><select id="edit-separacao"><option value="NAO">NÃO</option><option value="SIM">SIM</option></select></div>
         <div><label for="edit-equip">Equip. separado</label><select id="edit-equip"><option value="NAO">NÃO</option><option value="SIM">SIM</option></select></div>
@@ -452,6 +453,7 @@ function abrirEdicao(id){
   document.getElementById('edit-uf').value=x.uf||'';
   const projeto=document.getElementById('edit-projeto'); garantirOpcao(projeto,x.projeto||''); projeto.value=x.projeto||'';
   const status=document.getElementById('edit-status'); garantirOpcao(status,x.status_filial||''); status.value=x.status_filial||'';
+  const linkRede=document.getElementById('edit-link-rede'); garantirOpcao(linkRede,x.link_rede||''); linkRede.value=x.link_rede||'';
   document.getElementById('edit-enviada').value=norm(x.enviada)==='sim'?'SIM':'NAO';
   document.getElementById('edit-separacao').value=norm(x.em_separacao)==='sim'?'SIM':'NAO';
   document.getElementById('edit-equip').value=norm(x.equip_separado)==='sim'?'SIM':'NAO';
@@ -467,7 +469,7 @@ editModal.addEventListener('click',e=>{ if(e.target===editModal) fecharEdicao();
 editForm.addEventListener('submit', async e=>{
   e.preventDefault();
   const id=Number(document.getElementById('edit-id').value); if(!id) return;
-  const payload={filial:document.getElementById('edit-filial').value.trim(), bandeira:document.getElementById('edit-bandeira').value.trim(), descricao_filial:document.getElementById('edit-descricao').value.trim(), uf:document.getElementById('edit-uf').value.trim(), projeto:document.getElementById('edit-projeto').value.trim(), status_filial:document.getElementById('edit-status').value.trim(), enviada:document.getElementById('edit-enviada').value, em_separacao:document.getElementById('edit-separacao').value, equip_separado:document.getElementById('edit-equip').value, term_obra:document.getElementById('edit-obra').value.trim(), entrada_ti:document.getElementById('edit-ti').value.trim(), inauguracao:document.getElementById('edit-inauguracao').value.trim(), observacao_ti:document.getElementById('edit-observacao').value.trim()};
+  const payload={filial:document.getElementById('edit-filial').value.trim(), bandeira:document.getElementById('edit-bandeira').value.trim(), descricao_filial:document.getElementById('edit-descricao').value.trim(), uf:document.getElementById('edit-uf').value.trim(), projeto:document.getElementById('edit-projeto').value.trim(), status_filial:document.getElementById('edit-status').value.trim(), link_rede:document.getElementById('edit-link-rede').value.trim(), enviada:document.getElementById('edit-enviada').value, em_separacao:document.getElementById('edit-separacao').value, equip_separado:document.getElementById('edit-equip').value, term_obra:document.getElementById('edit-obra').value.trim(), entrada_ti:document.getElementById('edit-ti').value.trim(), inauguracao:document.getElementById('edit-inauguracao').value.trim(), observacao_ti:document.getElementById('edit-observacao').value.trim()};
   if(!payload.filial){ editMsg.textContent='Informe a filial.'; editMsg.className='modal-status error'; return; }
   const save=document.getElementById('edit-save'); save.disabled=true; editForm.classList.add('saving'); editMsg.textContent='Salvando alterações...'; editMsg.className='modal-status';
   try{
