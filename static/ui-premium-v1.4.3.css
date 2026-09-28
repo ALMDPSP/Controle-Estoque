@@ -1,0 +1,2031 @@
+/* v126 · Dark Corporate Elegance · identidade global */
+:root{
+  --bg:#07111d!important;
+  --panel:#0c1625!important;
+  --panel2:#101d2f!important;
+  --panel-2:#101d2f!important;
+  --line:#24364b!important;
+  --text:#f3f8fd!important;
+  --muted:#9db0c4!important;
+  --accent:#6bbdff!important;
+  --accent2:#d8ecff!important;
+  --accent-2:#d8ecff!important;
+  --blue:#6bbdff!important;
+  --green:#67d9b3!important;
+  --ok:#67d9b3!important;
+  --warn:#9bd2ff!important;
+  --amber:#9bd2ff!important;
+  --danger:#ff879a!important;
+  --red:#ff879a!important;
+  --purple:#a3b7ff!important;
+  --shadow:0 20px 60px rgba(0,0,0,.34);
+  --soft-shadow:0 12px 36px rgba(0,0,0,.24);
+}
+html{background:#07111d}
+body.app-standard{
+  min-height:100vh;
+  background:
+    radial-gradient(circle at top left, rgba(71,145,214,.12), transparent 24rem),
+    radial-gradient(circle at 88% 0%, rgba(135,198,255,.08), transparent 20rem),
+    linear-gradient(180deg,#0a1422 0%,#07111d 48%,#091523 100%)!important;
+  color:var(--text)!important;
+  font-family:"Segoe UI Variable","Segoe UI",Inter,system-ui,sans-serif!important;
+}
+body.app-standard::before{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:-1;opacity:.12;
+  background-image:linear-gradient(rgba(156,201,255,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(156,201,255,.03) 1px,transparent 1px);
+  background-size:48px 48px;mask-image:linear-gradient(to bottom,black,transparent 80%);
+}
+body.app-standard>header{
+  position:relative;overflow:hidden;
+  padding:34px 32px 24px!important;
+  background:linear-gradient(135deg,rgba(13,23,36,.96),rgba(19,34,54,.92))!important;
+  border-bottom:1px solid rgba(129,178,226,.18)!important;
+  box-shadow:0 14px 44px rgba(0,0,0,.22)!important;
+}
+body.app-standard>header::after{
+  content:"";position:absolute;width:420px;height:420px;right:-180px;top:-300px;border-radius:50%;
+  background:radial-gradient(circle,rgba(96,176,245,.18),transparent 66%);pointer-events:none;
+}
+body.app-standard>header .tag,
+body.app-standard>header .brand .tag{
+  border:1px solid rgba(174,210,244,.28)!important;background:rgba(107,189,255,.08)!important;color:#dceeff!important;
+  border-radius:999px!important;padding:5px 10px!important;letter-spacing:.12em!important;
+}
+body.app-standard>header h1{font-size:clamp(22px,2vw,30px)!important;font-weight:760!important;letter-spacing:-.025em!important;color:#fff!important}
+body.app-standard>header p{color:#b7c9db!important;max-width:980px!important}
+
+/* Navegação */
+.app-menu{
+  position:sticky!important;top:0!important;z-index:80!important;
+  padding:11px 32px!important;
+  background:rgba(8,14,24,.86)!important;
+  border-bottom:1px solid rgba(126,173,219,.16)!important;
+  box-shadow:0 10px 26px rgba(0,0,0,.22)!important;
+  backdrop-filter:blur(18px) saturate(125%);
+}
+.app-menu a{
+  border-color:rgba(126,173,219,.14)!important;
+  color:#b2c4d6!important;
+  background:rgba(255,255,255,.02)!important;
+  border-radius:10px!important;
+  transition:.18s ease!important;
+}
+.app-menu a:hover{color:#ffffff!important;border-color:rgba(126,190,244,.34)!important;background:rgba(107,189,255,.08)!important;transform:translateY(-1px)}
+.app-menu a.ativo{background:linear-gradient(135deg,#1b3550,#274b6d)!important;border-color:#6dbfff!important;color:#eef7ff!important;box-shadow:0 8px 20px rgba(0,0,0,.18)!important}
+.app-menu a.app-ai-link{background:linear-gradient(135deg,rgba(65,116,170,.14),rgba(118,149,216,.10))!important;border-color:rgba(116,171,241,.26)!important;color:#d7e9ff!important}
+.app-menu a.app-ai-link.ativo{background:linear-gradient(135deg,#23486d,#355d8b)!important;color:#f4f9ff!important}
+.app-mobile-toggle,.global-search{background:rgba(14,24,38,.88)!important;border-color:rgba(126,173,219,.18)!important}
+.global-search{border-radius:12px!important;padding:9px 13px!important;color:#fff!important}
+.global-search::placeholder{color:#7f93a8!important}
+.global-search:focus{border-color:#7fcaff!important;box-shadow:0 0 0 3px rgba(107,189,255,.10)!important}
+.global-search-results{background:#0d1826!important;border-color:#23384f!important;box-shadow:var(--shadow)!important}
+
+/* Estrutura */
+body.app-standard main{padding-top:24px!important;padding-bottom:70px!important}
+body.app-standard .panel,body.app-standard .card,
+body.app-standard .summary-card,body.app-standard .kpi,body.app-standard .tile{
+  background:linear-gradient(180deg,rgba(15,25,39,.96),rgba(12,22,34,.99))!important;
+  border:1px solid rgba(125,168,209,.14)!important;
+  border-radius:16px!important;
+  box-shadow:var(--soft-shadow)!important;
+}
+body.app-standard .panel,body.app-standard .card{position:relative}
+body.app-standard .panel::before,body.app-standard .card::before{
+  content:"";position:absolute;left:18px;right:18px;top:0;height:1px;background:linear-gradient(90deg,transparent,rgba(205,229,255,.16),transparent);pointer-events:none;
+}
+body.app-standard .panel:hover,body.app-standard .card:hover{border-color:rgba(128,184,236,.22)!important}
+
+/* Ações e botões */
+.app-action-strip{padding-top:14px!important;padding-bottom:14px!important;border-bottom:1px solid rgba(125,168,209,.10)!important}
+.ui-btn,body.app-standard button:not(.app-mobile-toggle):not(.hotspot),body.app-standard a.btn{
+  border-radius:10px!important;min-height:40px!important;padding:9px 14px!important;letter-spacing:.005em!important;transition:transform .16s ease,box-shadow .16s ease,border-color .16s ease,background .16s ease!important;
+}
+.ui-btn:hover,body.app-standard button:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 8px 18px rgba(0,0,0,.18)!important}
+.ui-btn-primary,body.app-standard .btn-primary,body.app-standard button.primary{
+  color:#f3f8fd!important;background:linear-gradient(135deg,#215f90,#3d80b4)!important;border-color:#7fcaff!important;box-shadow:0 8px 18px rgba(24,88,136,.20)!important;
+}
+.ui-btn-secondary,.ui-btn-link{background:rgba(18,31,47,.84)!important;border-color:rgba(126,173,219,.18)!important;color:#e0edf7!important}
+.ui-btn-excel{color:#aef1d8!important;border-color:rgba(103,217,179,.24)!important;background:rgba(103,217,179,.07)!important}
+.ui-btn-pdf,.ui-btn-danger{color:#ffb6c2!important;border-color:rgba(255,135,154,.26)!important;background:rgba(255,135,154,.07)!important}
+.ui-btn-import{color:#d7ecff!important;border-color:rgba(123,193,246,.24)!important;background:rgba(107,189,255,.07)!important}
+
+/* Formulários */
+body.app-standard input:not([type="checkbox"]):not([type="radio"]),body.app-standard select,body.app-standard textarea{
+  min-height:42px!important;background:rgba(12,21,34,.90)!important;border:1px solid rgba(125,168,209,.18)!important;border-radius:10px!important;color:#f5f9fe!important;
+}
+body.app-standard input::placeholder,body.app-standard textarea::placeholder{color:#7f93a8!important}
+body.app-standard input:focus,body.app-standard select:focus,body.app-standard textarea:focus{
+  border-color:#7fcaff!important;box-shadow:0 0 0 3px rgba(107,189,255,.10)!important;background:#111f31!important;
+}
+body.app-standard label{color:#c1d3e4!important;font-weight:650!important}
+
+/* Tabelas */
+body.app-standard .table-wrap,body.app-standard .tabela-scroll{border:1px solid rgba(125,168,209,.12)!important;border-radius:13px!important;background:rgba(8,15,24,.56)!important}
+body.app-standard table{border-collapse:separate!important;border-spacing:0!important}
+body.app-standard thead{background:#0d1826!important}
+body.app-standard th{color:#9ab2c9!important;font-weight:700!important;letter-spacing:.06em!important;border-bottom-color:#22344a!important}
+body.app-standard td{border-bottom-color:rgba(93,126,157,.18)!important}
+body.app-standard tbody tr{transition:background .14s ease}
+body.app-standard tbody tr:hover{background:rgba(107,189,255,.045)!important}
+body.app-standard .code{color:#8dd1ff!important}
+body.app-standard .pill{border-color:rgba(126,173,219,.18)!important;background:rgba(107,189,255,.06)!important;color:#b8cadb!important}
+body.app-standard .pill.ok{border-color:rgba(103,217,179,.24)!important;background:rgba(103,217,179,.08)!important;color:#a8e8d1!important}
+body.app-standard .pill.warn{border-color:rgba(107,189,255,.24)!important;background:rgba(107,189,255,.08)!important;color:#cfe8ff!important}
+
+/* Scrollbars */
+body.app-standard *{scrollbar-width:thin;scrollbar-color:#2c4866 #0b1521}
+body.app-standard ::-webkit-scrollbar{width:9px;height:9px}body.app-standard ::-webkit-scrollbar-track{background:#0b1521}body.app-standard ::-webkit-scrollbar-thumb{background:#2c4866;border-radius:20px;border:2px solid #0b1521}body.app-standard ::-webkit-scrollbar-thumb:hover{background:#41668e}
+
+/* Expedição */
+.expedition-hero{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:18px;align-items:center;margin-bottom:16px;padding:18px 20px;border:1px solid rgba(126,173,219,.18);border-radius:16px;background:linear-gradient(135deg,rgba(22,36,54,.82),rgba(15,25,38,.92));box-shadow:var(--soft-shadow)}
+.expedition-hero h2{margin:0 0 5px;font-size:16px;color:#fff}.expedition-hero p{margin:0;color:#a9bdd0;font-size:11px;line-height:1.5}.expedition-hero .ui-btn{min-width:200px}
+.flow-steps{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:16px 0}.flow-step{display:flex;gap:9px;align-items:center;padding:10px;border-radius:11px;border:1px solid rgba(126,173,219,.16);background:rgba(14,24,38,.70);color:#8499ad}.flow-step b{display:grid;place-items:center;width:27px;height:27px;flex:0 0 27px;border-radius:9px;border:1px solid rgba(126,173,219,.24);font-size:11px}.flow-step span{font-size:10px;font-weight:700}.flow-step.active{border-color:rgba(107,189,255,.44);background:rgba(107,189,255,.09);color:#ecf6ff}.flow-step.active b{background:#24496f;color:#eef7ff;border-color:#7ec7ff}.flow-step.done{border-color:rgba(103,217,179,.30);background:rgba(103,217,179,.08);color:#b2ead7}.flow-step.done b{background:rgba(103,217,179,.16);color:#baf0dd;border-color:rgba(103,217,179,.32)}
+.operation-focus{border-color:rgba(107,189,255,.34)!important;box-shadow:0 20px 54px rgba(0,0,0,.28),0 0 0 1px rgba(107,189,255,.05) inset!important}
+
+/* Ajustes finos corporativos */
+body.app-standard .app-toast{background:#121d2b!important;border-color:#25394f!important;color:#eef5fb!important}
+body.app-standard .app-toast.ok{border-left-color:#67d9b3!important}
+body.app-standard .app-toast.erro{border-left-color:#ff879a!important}
+body.app-standard .selection-count,
+body.app-standard .contador,
+body.app-standard .table-count,
+body.app-standard .app-action-note,
+body.app-standard .empty,
+body.app-standard .muted,
+body.app-standard small{color:#92a7bb!important}
+body.app-standard hr{border:0;border-top:1px solid rgba(125,168,209,.12)!important}
+
+@media(max-width:850px){.app-menu{padding:10px 12px!important}.expedition-hero{grid-template-columns:1fr}.expedition-hero .ui-btn{width:100%}.flow-steps{grid-template-columns:1fr 1fr}}
+@media(max-width:520px){.flow-steps{grid-template-columns:1fr}}
+
+/* v127 · refinamentos */
+.app-menu .nav-ico{
+  width:18px;height:18px;display:inline-flex;align-items:center;justify-content:center;
+  margin-right:6px;border-radius:6px;background:rgba(107,189,255,.08);color:#dff2ff;font-size:11px;line-height:1;flex:0 0 18px;
+}
+.app-menu a.ativo .nav-ico{background:rgba(255,255,255,.12);color:#ffffff}
+.app-menu a{display:inline-flex!important;align-items:center!important;gap:0}
+.app-menu a.app-admin-locked .nav-ico{background:rgba(255,193,107,.10);color:#ffd79a}
+.app-menu a:hover .nav-ico{background:rgba(107,189,255,.15)}
+body.app-standard .panel-title-accent,
+body.app-standard .metric-accent{color:#eaf5ff!important}
+
+/* v128 · padronização visual total das abas */
+body.app-standard main{
+  display:block;
+}
+
+/* Superfície padrão para todos os blocos */
+body.app-standard .panel,
+body.app-standard .card,
+body.app-standard .box,
+body.app-standard .summary-card,
+body.app-standard .stat-box,
+body.app-standard .tipo-grafico-card,
+body.app-standard .pallet-box,
+body.app-standard .moving-box,
+body.app-standard .shelf,
+body.app-standard .health-item,
+body.app-standard .proxima-loja,
+body.app-standard .exec-card,
+body.app-standard .horizon,
+body.app-standard .flow-step,
+body.app-standard .alert,
+body.app-standard .mov,
+body.app-standard .tipo,
+body.app-standard .exp-item,
+body.app-standard .app,
+body.app-standard .msg,
+body.app-standard .status,
+body.app-standard .visual,
+body.app-standard .tile{
+  position:relative;
+  overflow:hidden;
+  background:linear-gradient(180deg,rgba(15,24,38,.98),rgba(11,20,31,.99))!important;
+  border:1px solid rgba(123,193,246,.14)!important;
+  border-radius:16px!important;
+  box-shadow:0 16px 40px rgba(0,0,0,.18)!important;
+}
+body.app-standard .panel::after,
+body.app-standard .card::after,
+body.app-standard .box::after,
+body.app-standard .summary-card::after,
+body.app-standard .stat-box::after,
+body.app-standard .tipo-grafico-card::after{
+  content:"";
+  position:absolute;
+  inset:auto -40px -70px auto;
+  width:160px;height:160px;border-radius:50%;
+  background:radial-gradient(circle,rgba(107,189,255,.08),transparent 70%);
+  pointer-events:none;
+}
+body.app-standard .panel:hover,
+body.app-standard .card:hover,
+body.app-standard .box:hover,
+body.app-standard .summary-card:hover,
+body.app-standard .stat-box:hover,
+body.app-standard .tipo-grafico-card:hover,
+body.app-standard .proxima-loja:hover,
+body.app-standard .exp-item:hover,
+body.app-standard .tipo:hover{
+  border-color:rgba(123,193,246,.24)!important;
+  box-shadow:0 18px 46px rgba(0,0,0,.22)!important;
+}
+
+/* Cabeçalhos de seções e painéis */
+body.app-standard .panel > h2:first-of-type,
+body.app-standard .card > h2:first-of-type,
+body.app-standard .box > h2:first-of-type,
+body.app-standard .summary-card > h2:first-of-type{
+  position:relative;
+  padding-left:16px;
+  margin-bottom:6px!important;
+  color:#f4f9fe!important;
+  letter-spacing:.01em;
+}
+body.app-standard .panel > h2:first-of-type::before,
+body.app-standard .card > h2:first-of-type::before,
+body.app-standard .box > h2:first-of-type::before,
+body.app-standard .summary-card > h2:first-of-type::before{
+  content:"";
+  position:absolute;
+  left:0;top:.18em;
+  width:6px;height:1.2em;border-radius:999px;
+  background:linear-gradient(180deg,#7fcaff,#66d8b8);
+  box-shadow:0 0 0 4px rgba(107,189,255,.08);
+}
+body.app-standard .panel-sub,
+body.app-standard .subtitle,
+body.app-standard .sub,
+body.app-standard .note,
+body.app-standard .hint,
+body.app-standard .muted,
+body.app-standard .label,
+body.app-standard .msg,
+body.app-standard p{
+  color:#9aafc4;
+}
+
+/* Barras de ação e filtros */
+body.app-standard .toolbar,
+body.app-standard .controls,
+body.app-standard .actions,
+body.app-standard .head-actions,
+body.app-standard .panel-head,
+body.app-standard .visual-header,
+body.app-standard .form-actions{
+  gap:10px!important;
+}
+body.app-standard .toolbar,
+body.app-standard .controls,
+body.app-standard .panel-head,
+body.app-standard .visual-header{
+  padding:12px 14px!important;
+  border:1px solid rgba(123,193,246,.12)!important;
+  border-radius:14px!important;
+  background:rgba(255,255,255,.02)!important;
+  margin-bottom:12px!important;
+}
+body.app-standard .field,
+body.app-standard .input-wrap{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+}
+body.app-standard .field label,
+body.app-standard label,
+body.app-standard .lbl{
+  color:#bfd1e3!important;
+  font-size:10px!important;
+  font-weight:700!important;
+  letter-spacing:.05em;
+  text-transform:uppercase;
+}
+body.app-standard .field input,
+body.app-standard .field select,
+body.app-standard .field textarea,
+body.app-standard .input-wrap input,
+body.app-standard .input-wrap select,
+body.app-standard .input-wrap textarea{
+  min-height:44px!important;
+}
+
+/* Tabelas */
+body.app-standard .table-wrap,
+body.app-standard .tabela-scroll{
+  border-radius:16px!important;
+  border:1px solid rgba(123,193,246,.12)!important;
+  background:rgba(8,15,24,.64)!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.02);
+}
+body.app-standard thead th{
+  position:sticky;top:0;z-index:1;
+  background:linear-gradient(180deg,#101d2e,#0c1826)!important;
+  color:#bdd0e2!important;
+  font-size:10px!important;
+  text-transform:uppercase;
+  letter-spacing:.08em;
+}
+body.app-standard tbody tr:nth-child(even){
+  background:rgba(255,255,255,.012);
+}
+body.app-standard tbody tr:hover{
+  background:rgba(107,189,255,.055)!important;
+}
+
+/* Badges e estados */
+body.app-standard .badge,
+body.app-standard .pill,
+body.app-standard .app-role-note,
+body.app-standard .fluxo-count,
+body.app-standard .ordem .uf{
+  border-radius:999px!important;
+  padding:5px 9px!important;
+  font:700 9px var(--mono)!important;
+  letter-spacing:.07em;
+  text-transform:uppercase;
+}
+body.app-standard .badge,
+body.app-standard .pill{
+  border:1px solid rgba(123,193,246,.18)!important;
+  background:rgba(107,189,255,.07)!important;
+  color:#dbeeff!important;
+}
+body.app-standard .badge.ok,
+body.app-standard .pill.ok,
+body.app-standard .msg.ok{
+  border-color:rgba(103,217,179,.26)!important;
+  background:rgba(103,217,179,.08)!important;
+  color:#c0efdd!important;
+}
+body.app-standard .badge.off,
+body.app-standard .warn,
+body.app-standard .pill.warn{
+  border-color:rgba(255,197,107,.22)!important;
+  background:rgba(255,197,107,.08)!important;
+  color:#ffe0ab!important;
+}
+body.app-standard .danger,
+body.app-standard .pill.danger,
+body.app-standard .msg.erro{
+  border-color:rgba(255,135,154,.22)!important;
+  background:rgba(255,135,154,.08)!important;
+  color:#ffd3db!important;
+}
+
+/* Abas e alternadores */
+body.app-standard .view-tab,
+body.app-standard .modelo-grafico-btn,
+body.app-standard .btn,
+body.app-standard .btn-ghost,
+body.app-standard .btn-copy,
+body.app-standard .primary,
+body.app-standard .ghost{
+  border-radius:12px!important;
+}
+body.app-standard .view-tab,
+body.app-standard .modelo-grafico-btn{
+  min-height:40px!important;
+  padding:9px 12px!important;
+  border:1px solid rgba(123,193,246,.16)!important;
+  background:rgba(18,31,47,.82)!important;
+  color:#dceeff!important;
+}
+body.app-standard .view-tab.ativo,
+body.app-standard .modelo-grafico-btn.ativo,
+body.app-standard .view-tab.active,
+body.app-standard .modelo-grafico-btn.active{
+  background:linear-gradient(135deg,#22476b,#315a84)!important;
+  border-color:#7fcaff!important;
+  color:#f5fbff!important;
+  box-shadow:0 8px 20px rgba(0,0,0,.14)!important;
+}
+
+/* Diálogos e modais */
+body.app-standard dialog{
+  border:1px solid rgba(123,193,246,.18)!important;
+  border-radius:18px!important;
+  background:linear-gradient(180deg,rgba(13,23,36,.99),rgba(10,18,29,.99))!important;
+  color:#eef6fd!important;
+  box-shadow:0 30px 70px rgba(0,0,0,.38)!important;
+}
+body.app-standard dialog::backdrop{
+  background:rgba(4,8,14,.70)!important;
+  backdrop-filter:blur(5px);
+}
+body.app-standard .dlg-body{
+  padding:20px!important;
+}
+body.app-standard .dlg-actions{
+  padding-top:12px!important;
+  border-top:1px solid rgba(123,193,246,.10)!important;
+}
+
+/* Estados vazios */
+body.app-standard .empty,
+body.app-standard .gs-empty,
+body.app-standard .chart-empty,
+body.app-standard .proximas-empty,
+body.app-standard .fluxo-empty{
+  border:1px dashed rgba(123,193,246,.20)!important;
+  border-radius:14px!important;
+  background:rgba(107,189,255,.03)!important;
+  color:#a9bdd0!important;
+  padding:18px!important;
+}
+
+/* Grids mais uniformes */
+body.app-standard .grid,
+body.app-standard .kpis,
+body.app-standard .exec-grid,
+body.app-standard .health-mini,
+body.app-standard .tipos,
+body.app-standard .expansao-itens,
+body.app-standard .proximas-list,
+body.app-standard .shortcut-grid{
+  gap:12px!important;
+}
+
+/* Footer */
+body.app-standard footer{
+  color:#91a5b9!important;
+}
+body.app-standard footer .credito{
+  border-top:1px solid rgba(123,193,246,.10)!important;
+}
+
+@media(max-width:850px){
+  body.app-standard .toolbar,
+  body.app-standard .controls,
+  body.app-standard .panel-head,
+  body.app-standard .visual-header{padding:10px!important}
+}
+
+
+/* v129 · assistido + microinterações + foco por aba */
+html{scroll-behavior:smooth}
+body.app-standard .app-action-strip{
+  position:sticky; top:58px; z-index:60;
+  backdrop-filter:blur(16px) saturate(125%);
+  background:rgba(8,14,24,.78)!important;
+  border-top:1px solid rgba(123,193,246,.10)!important;
+  border-bottom:1px solid rgba(123,193,246,.10)!important;
+}
+body.app-standard .app-action-strip .ui-btn{position:relative;overflow:hidden}
+body.app-standard .app-action-strip .ui-btn::after,
+body.app-standard .ui-btn-primary::after{
+  content:""; position:absolute; inset:-120% auto auto -130%; width:45%; height:300%;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.18),transparent);
+  transform:rotate(22deg); transition:transform .9s ease;
+}
+body.app-standard .app-action-strip .ui-btn:hover::after,
+body.app-standard .ui-btn-primary:hover::after{transform:translateX(360%) rotate(22deg)}
+body.app-standard .ui-btn,
+body.app-standard .panel,
+body.app-standard .card,
+body.app-standard .summary-card,
+body.app-standard .box,
+body.app-standard .shortcut-card,
+body.app-standard .badge,
+body.app-standard .pill,
+body.app-standard .tipo-grafico-card,
+body.app-standard .view-tab,
+body.app-standard .hero-card,
+body.app-standard .ctx,
+body.app-standard .kit-card,
+body.app-standard .pedido-kpi,
+body.app-standard .status-box,
+body.app-standard .expedition-hero,
+body.app-standard .flow-step,
+body.app-standard .hero-metric,
+body.app-standard .horizon,
+body.app-standard .exec-card{transition:transform .18s ease, box-shadow .18s ease, border-color .18s ease, background .18s ease}
+body.app-standard .summary-card:hover,
+body.app-standard .status-box:hover,
+body.app-standard .pedido-kpi:hover,
+body.app-standard .ctx:hover,
+body.app-standard .kit-card:hover,
+body.app-standard .hero-metric:hover,
+body.app-standard .expedition-hero:hover,
+body.app-standard .flow-step:hover{transform:translateY(-2px)}
+body.app-standard main > section,
+body.app-standard main > div,
+body.app-standard main > article{animation:appRise .42s ease both}
+body.app-standard main > :nth-child(2){animation-delay:.03s}
+body.app-standard main > :nth-child(3){animation-delay:.06s}
+body.app-standard main > :nth-child(4){animation-delay:.09s}
+body.app-standard main > :nth-child(5){animation-delay:.12s}
+@keyframes appRise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes softPulse{0%,100%{box-shadow:0 0 0 0 rgba(107,189,255,0)}50%{box-shadow:0 0 0 7px rgba(107,189,255,.08)}}
+body.app-standard .ui-btn-primary:focus-visible,
+body.app-standard input:focus-visible,
+body.app-standard select:focus-visible,
+body.app-standard textarea:focus-visible{animation:softPulse 1.1s ease}
+
+/* Expedição assistida */
+body.app-standard .page-expedicao .fila-recomendada{background:linear-gradient(90deg,rgba(103,217,179,.06),rgba(107,189,255,.03))!important}
+body.app-standard .page-expedicao .assist-grid{display:grid;grid-template-columns:1.15fr .85fr;gap:12px;margin:14px 0}
+body.app-standard .page-expedicao .assist-card{padding:14px 15px;border:1px solid rgba(123,193,246,.14);border-radius:15px;background:linear-gradient(180deg,rgba(18,31,47,.95),rgba(11,20,31,.99));box-shadow:0 12px 30px rgba(0,0,0,.16)}
+body.app-standard .page-expedicao .assist-card h3{margin:0 0 10px;font-size:12px;color:#f3f9ff;letter-spacing:.02em}
+body.app-standard .page-expedicao .assist-card p{margin:0;color:#9bb0c4;font-size:11px;line-height:1.55}
+body.app-standard .page-expedicao .assist-list{display:grid;gap:8px}
+body.app-standard .page-expedicao .assist-item{display:flex;align-items:flex-start;gap:10px;padding:10px 11px;border-radius:12px;border:1px solid rgba(123,193,246,.10);background:rgba(255,255,255,.02)}
+body.app-standard .page-expedicao .assist-item b{width:24px;height:24px;display:grid;place-items:center;border-radius:8px;background:rgba(107,189,255,.11);color:#eef8ff;font-size:11px;flex:0 0 24px}
+body.app-standard .page-expedicao .assist-item strong{display:block;font-size:11px;color:#eff7fe}
+body.app-standard .page-expedicao .assist-item span{display:block;margin-top:3px;font-size:10px;color:#92a7bb;line-height:1.45}
+body.app-standard .page-expedicao .assist-status{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+body.app-standard .page-expedicao .assist-stat{padding:11px;border-radius:12px;border:1px solid rgba(123,193,246,.10);background:rgba(255,255,255,.02)}
+body.app-standard .page-expedicao .assist-stat span{display:block;font-size:9px;letter-spacing:.07em;text-transform:uppercase;color:#95aac0}
+body.app-standard .page-expedicao .assist-stat strong{display:block;margin-top:6px;font:800 18px var(--mono);color:#f2f8ff}
+body.app-standard .page-expedicao .assist-stat small{display:block;margin-top:5px;font-size:9px;color:#8fa4b8}
+body.app-standard .page-expedicao .assist-banner{margin-top:10px;padding:10px 12px;border-radius:12px;border:1px solid rgba(123,193,246,.14);background:rgba(107,189,255,.05);color:#d9edff;font-size:11px;line-height:1.5}
+body.app-standard .page-expedicao .assist-banner.warn{border-color:rgba(255,197,107,.20);background:rgba(255,197,107,.07);color:#ffe0ab}
+body.app-standard .page-expedicao .assist-banner.ok{border-color:rgba(103,217,179,.20);background:rgba(103,217,179,.07);color:#c3f1df}
+body.app-standard .page-expedicao #confirmar{min-width:240px}
+
+/* Estoque: filtros e simulador com cara premium */
+body.app-standard .page-estoque .toolbar,
+body.app-standard .page-estoque .grafico-controles,
+body.app-standard .page-estoque .modelo-grafico-tabs{align-items:center}
+body.app-standard .page-estoque .tipo-grafico-card{border-radius:16px!important;padding:13px 12px!important;background:linear-gradient(180deg,rgba(18,31,47,.96),rgba(13,22,35,.98))!important}
+body.app-standard .page-estoque .tipo-grafico-card:hover{transform:translateY(-2px) scale(1.01)}
+body.app-standard .page-estoque .simulador-resumo{border:1px solid rgba(123,193,246,.12);border-radius:18px;padding:18px;background:linear-gradient(180deg,rgba(16,27,42,.90),rgba(10,18,29,.97))}
+body.app-standard .page-estoque .simulador-icone{box-shadow:0 0 0 10px rgba(107,189,255,.06)}
+body.app-standard .page-estoque .meta-lote-destaque{border-color:rgba(123,193,246,.22)!important;box-shadow:0 14px 36px rgba(0,0,0,.12)}
+body.app-standard .page-estoque .toolbar input[type=search],
+body.app-standard .page-estoque .filtro-select{min-height:44px!important}
+
+/* Filiais: tabela e cadastro refinados */
+body.app-standard .page-filiais #cadastro-manual{position:relative}
+body.app-standard .page-filiais .form{padding:6px 0}
+body.app-standard .page-filiais .summary-card{background:linear-gradient(180deg,rgba(18,31,47,.96),rgba(11,20,31,.98))!important}
+body.app-standard .page-filiais .data-grid{border-radius:16px!important;box-shadow:0 14px 34px rgba(0,0,0,.16)!important}
+body.app-standard .page-filiais tbody tr:hover{background:rgba(107,189,255,.06)!important}
+body.app-standard .page-filiais .grid-footer{background:rgba(13,22,34,.92)!important}
+body.app-standard .page-filiais .hint{border-radius:14px!important}
+
+/* Orçamento: KPIs e painel de compra */
+body.app-standard .page-orcamento .cards .card,
+body.app-standard .page-orcamento .pedido-kpi{background:linear-gradient(180deg,rgba(18,31,47,.96),rgba(11,20,31,.98))!important}
+body.app-standard .page-orcamento .status-box{border-radius:14px!important}
+body.app-standard .page-orcamento .pedido-panel{position:relative;overflow:hidden}
+body.app-standard .page-orcamento .pedido-panel::before{content:"";position:absolute;right:-70px;top:-70px;width:220px;height:220px;border-radius:50%;background:radial-gradient(circle,rgba(255,197,107,.10),transparent 70%);pointer-events:none}
+body.app-standard .page-orcamento .progress{height:12px!important}
+body.app-standard .page-orcamento .toolbar{padding:14px!important;border-radius:16px!important;background:rgba(255,255,255,.02)!important;border:1px solid rgba(123,193,246,.10)!important}
+
+@media(max-width:900px){
+  body.app-standard .page-expedicao .assist-grid{grid-template-columns:1fr}
+}
+
+
+/* v130 · enterprise premium + dashboards topo + expedição guiada */
+body.app-standard header{
+  position:relative;overflow:hidden;
+  background:linear-gradient(180deg,rgba(11,19,30,.96),rgba(8,14,23,.98));
+}
+body.app-standard header::after{
+  content:"";position:absolute;right:-120px;top:-120px;width:320px;height:320px;border-radius:50%;
+  background:radial-gradient(circle,rgba(107,189,255,.12),transparent 70%);pointer-events:none;
+}
+body.app-standard .enterprise-hero,
+body.app-standard .ops-hero,
+body.app-standard .branch-hero{
+  position:relative;overflow:hidden;display:grid;grid-template-columns:minmax(0,1.15fr) minmax(320px,.85fr);gap:14px;
+  margin:0 0 16px;padding:18px;border-radius:20px;border:1px solid rgba(123,193,246,.14);
+  background:linear-gradient(135deg,rgba(18,31,47,.98),rgba(11,20,31,.99));box-shadow:0 18px 44px rgba(0,0,0,.18);
+}
+body.app-standard .enterprise-hero::before,
+body.app-standard .ops-hero::before,
+body.app-standard .branch-hero::before{
+  content:"";position:absolute;left:auto;right:-60px;top:-70px;width:220px;height:220px;border-radius:50%;background:radial-gradient(circle,rgba(107,189,255,.13),transparent 70%);pointer-events:none;
+}
+body.app-standard .hero-copy h2,
+body.app-standard .ops-copy h2,
+body.app-standard .branch-copy h2{margin:10px 0 8px;font-size:28px;line-height:1.08;color:#fff}
+body.app-standard .hero-copy p,
+body.app-standard .ops-copy p,
+body.app-standard .branch-copy p{margin:0;color:#a8bdd1;font-size:12px;line-height:1.65;max-width:760px}
+body.app-standard .hero-kpis,
+body.app-standard .ops-kpis,
+body.app-standard .branch-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:16px}
+body.app-standard .hero-mini,
+body.app-standard .ops-mini,
+body.app-standard .branch-mini{padding:13px;border-radius:14px;border:1px solid rgba(123,193,246,.12);background:rgba(255,255,255,.02);min-width:0}
+body.app-standard .hero-mini span,
+body.app-standard .ops-mini span,
+body.app-standard .branch-mini span{display:block;font-size:9px;letter-spacing:.07em;text-transform:uppercase;color:#93a7bc}
+body.app-standard .hero-mini strong,
+body.app-standard .ops-mini strong,
+body.app-standard .branch-mini strong{display:block;margin-top:6px;font:800 21px var(--mono);color:#f5fbff}
+body.app-standard .hero-mini small,
+body.app-standard .ops-mini small,
+body.app-standard .branch-mini small{display:block;margin-top:5px;color:#8ca1b5;font-size:9px;line-height:1.45}
+body.app-standard .hero-side,
+body.app-standard .ops-side,
+body.app-standard .branch-side{display:grid;gap:10px;align-content:start}
+body.app-standard .side-card{padding:14px;border-radius:16px;border:1px solid rgba(123,193,246,.12);background:linear-gradient(180deg,rgba(15,26,40,.94),rgba(11,20,31,.98))}
+body.app-standard .side-card h3{margin:0 0 8px;font-size:12px;color:#eff8ff}
+body.app-standard .side-card p{margin:0;color:#95a9bd;font-size:11px;line-height:1.55}
+body.app-standard .side-list{display:grid;gap:8px;margin-top:10px}
+body.app-standard .side-list div{display:flex;justify-content:space-between;gap:8px;padding:8px 10px;border-radius:12px;background:rgba(255,255,255,.02);border:1px solid rgba(123,193,246,.08);font-size:10px;color:#b8cbde}
+body.app-standard .side-list strong{color:#fff}
+body.app-standard .hero-chip{display:inline-flex;align-items:center;gap:8px;padding:6px 10px;border-radius:999px;background:rgba(107,189,255,.08);border:1px solid rgba(123,193,246,.18);color:#d7ecff;font:700 10px var(--mono);letter-spacing:.08em;text-transform:uppercase}
+body.app-standard .hero-status-line{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+body.app-standard .hero-badge{display:inline-flex;align-items:center;gap:8px;padding:7px 10px;border-radius:999px;border:1px solid rgba(123,193,246,.16);background:rgba(107,189,255,.07);color:#d7ecff;font-size:10px}
+body.app-standard .hero-badge.ok{border-color:rgba(103,217,179,.22);background:rgba(103,217,179,.08);color:#c0efdd}
+body.app-standard .hero-badge.warn{border-color:rgba(255,197,107,.22);background:rgba(255,197,107,.08);color:#ffe0ab}
+
+body.app-standard .page-expedicao .checklist-grid{display:grid;grid-template-columns:1fr .8fr;gap:12px;margin:12px 0 14px}
+body.app-standard .page-expedicao .checklist-card{padding:14px 15px;border-radius:16px;border:1px solid rgba(123,193,246,.12);background:linear-gradient(180deg,rgba(15,26,40,.96),rgba(11,20,31,.99))}
+body.app-standard .page-expedicao .checklist-card h3{margin:0 0 10px;font-size:12px;color:#f1f8ff}
+body.app-standard .page-expedicao .check-items{display:grid;gap:8px}
+body.app-standard .page-expedicao .check-item{display:flex;align-items:flex-start;gap:10px;padding:10px 11px;border-radius:12px;border:1px solid rgba(123,193,246,.08);background:rgba(255,255,255,.02)}
+body.app-standard .page-expedicao .check-dot{width:24px;height:24px;display:grid;place-items:center;border-radius:8px;background:rgba(107,189,255,.08);color:#cfe8ff;font-weight:800;flex:0 0 24px}
+body.app-standard .page-expedicao .check-item.ok .check-dot{background:rgba(103,217,179,.12);color:#b8f1da}
+body.app-standard .page-expedicao .check-item.warn .check-dot{background:rgba(255,197,107,.12);color:#ffe0ab}
+body.app-standard .page-expedicao .check-item strong{display:block;color:#fff;font-size:11px}
+body.app-standard .page-expedicao .check-item span{display:block;margin-top:3px;color:#91a6ba;font-size:10px;line-height:1.45}
+body.app-standard .page-expedicao .confirm-card{display:grid;gap:8px}
+body.app-standard .page-expedicao .confirm-box{padding:11px;border-radius:12px;border:1px solid rgba(123,193,246,.10);background:rgba(255,255,255,.02)}
+body.app-standard .page-expedicao .confirm-box span{display:block;font-size:9px;text-transform:uppercase;letter-spacing:.07em;color:#93a7bc}
+body.app-standard .page-expedicao .confirm-box strong{display:block;margin-top:6px;font:800 18px var(--mono);color:#fff}
+body.app-standard .page-expedicao .confirm-note{padding:10px 12px;border-radius:12px;border:1px solid rgba(123,193,246,.12);background:rgba(107,189,255,.05);font-size:11px;color:#d9edff;line-height:1.5}
+
+@media(max-width:1000px){
+  body.app-standard .enterprise-hero,
+  body.app-standard .ops-hero,
+  body.app-standard .branch-hero,
+  body.app-standard .page-expedicao .checklist-grid{grid-template-columns:1fr}
+}
+@media(max-width:760px){
+  body.app-standard .hero-kpis,
+  body.app-standard .ops-kpis,
+  body.app-standard .branch-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:520px){
+  body.app-standard .hero-kpis,
+  body.app-standard .ops-kpis,
+  body.app-standard .branch-kpis{grid-template-columns:1fr}
+  body.app-standard .hero-copy h2,
+  body.app-standard .ops-copy h2,
+  body.app-standard .branch-copy h2{font-size:24px}
+}
+
+
+/* v131 · sidebar premium + dashboard executivo + central logística */
+body.app-standard .expedition-hero .hero-chip-log{display:inline-flex;align-items:center;gap:8px;padding:6px 10px;border-radius:999px;background:rgba(107,189,255,.08);border:1px solid rgba(123,193,246,.18);color:#d7ecff;font:700 10px var(--mono);letter-spacing:.08em;text-transform:uppercase;margin-bottom:10px}
+body.app-standard .expedition-hero h2{font-size:28px;line-height:1.08;margin:0 0 8px}
+body.app-standard .expedition-hero p{font-size:12px;line-height:1.65}
+body.app-standard .expedition-hero .hero-side-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:16px}
+body.app-standard .expedition-hero .hero-side-grid .mini{padding:12px;border-radius:14px;border:1px solid rgba(123,193,246,.12);background:rgba(255,255,255,.02)}
+body.app-standard .expedition-hero .hero-side-grid span{display:block;font-size:9px;letter-spacing:.07em;text-transform:uppercase;color:#93a7bc}
+body.app-standard .expedition-hero .hero-side-grid strong{display:block;margin-top:6px;font:800 20px var(--mono);color:#fff}
+body.app-standard .expedition-hero .hero-side-grid small{display:block;margin-top:5px;color:#8fa4b8;font-size:9px;line-height:1.45}
+@media(max-width:760px){body.app-standard .expedition-hero .hero-side-grid{grid-template-columns:1fr}}
+
+
+/* v132 · premium refinement */
+:root{
+  --bg:#0d1b2b!important;
+  --panel:#132336!important;
+  --panel2:#18304a!important;
+  --panel-2:#18304a!important;
+  --line:#31506e!important;
+  --text:#f4f9ff!important;
+  --muted:#adc2d8!important;
+  --accent:#7ec7ff!important;
+  --accent2:#dceeff!important;
+  --accent-2:#dceeff!important;
+}
+html{background:#0d1b2b}
+body.app-standard{
+  background:
+    radial-gradient(circle at top left, rgba(126,199,255,.14), transparent 24rem),
+    radial-gradient(circle at 100% 5%, rgba(110,206,189,.10), transparent 18rem),
+    linear-gradient(180deg,#102034 0%,#0d1b2b 46%,#11243a 100%)!important;
+}
+body.app-standard::before{opacity:.08}
+body.app-standard>header{
+  padding:24px 28px 16px!important;
+  background:linear-gradient(135deg,rgba(18,39,61,.97),rgba(13,28,44,.95))!important;
+  border-bottom:1px solid rgba(147,191,231,.16)!important;
+}
+body.app-standard>header h1{font-size:clamp(24px,2.1vw,31px)!important}
+body.app-standard>header p{color:#c7d9ea!important}
+body.app-standard>header .tag, .app-standard .hero-chip, .app-standard .hero-chip-log{
+  background:rgba(126,199,255,.10)!important;border-color:rgba(163,209,247,.24)!important;color:#e6f4ff!important
+}
+body.app-standard main{padding-top:18px!important;padding-bottom:54px!important}
+#sync-bar{background:rgba(22,43,67,.88)!important;color:#c7d9ea!important;border-bottom-color:rgba(147,191,231,.14)!important}
+body.app-standard .app-action-strip{background:rgba(14,28,44,.82)!important;border-bottom-color:rgba(147,191,231,.12)!important;padding-top:10px!important;padding-bottom:10px!important}
+body.app-standard .app-action-strip .ui-btn{min-height:38px!important}
+
+/* Premium icons */
+.app-menu a{font-weight:650!important;letter-spacing:.01em}
+.nav-ico{
+  background:linear-gradient(135deg,rgba(126,199,255,.26),rgba(110,206,189,.16))!important;
+  color:#f3f9ff!important;
+  border:1px solid rgba(164,212,249,.20)!important;
+  box-shadow:0 8px 18px rgba(0,0,0,.15);
+  width:23px!important;height:23px!important;flex-basis:23px!important;
+}
+.app-menu a.ativo .nav-ico{background:linear-gradient(135deg,#a6ddff,#7ec7ff)!important;color:#072033!important;box-shadow:0 10px 24px rgba(126,199,255,.24)}
+.app-menu a:hover .nav-ico{transform:translateY(-1px)}
+.app-menu a{transition:transform .16s ease,background .16s ease,border-color .16s ease,box-shadow .16s ease!important}
+.app-menu a:hover{transform:translateX(2px)}
+.app-sidebar-brand .brand-mark{background:linear-gradient(135deg,#a7ddff,#76d2c7)!important}
+
+/* Lighter, more filled dashboard bands */
+body.app-standard .stats .stat-box,
+body.app-standard .summary-card,
+body.app-standard .hero-mini,
+body.app-standard .ops-mini,
+body.app-standard .branch-mini,
+body.app-standard .hero-metric,
+body.app-standard .assist-stat,
+body.app-standard .ctx,
+body.app-standard .kpi,
+body.app-standard .capacidade-card,
+body.app-standard .kit-card,
+body.app-standard .side-card,
+body.app-standard .checklist-card,
+body.app-standard .assist-card{
+  background:linear-gradient(180deg,rgba(23,45,70,.92),rgba(17,31,48,.98))!important;
+  border-color:rgba(145,191,231,.16)!important;
+}
+body.app-standard .panel,
+body.app-standard .card,
+body.app-standard .box,
+body.app-standard .summary-card,
+body.app-standard .stat-box,
+body.app-standard .tipo-grafico-card,
+body.app-standard .pallet-box,
+body.app-standard .moving-box,
+body.app-standard .shelf,
+body.app-standard .health-item,
+body.app-standard .proxima-loja,
+body.app-standard .exec-card,
+body.app-standard .horizon,
+body.app-standard .flow-step,
+body.app-standard .alert,
+body.app-standard .mov,
+body.app-standard .tipo,
+body.app-standard .exp-item,
+body.app-standard .app,
+body.app-standard .msg,
+body.app-standard .status,
+body.app-standard .visual,
+body.app-standard .tile{
+  background:linear-gradient(180deg,rgba(20,37,58,.97),rgba(16,29,45,.99))!important;
+  border-color:rgba(145,191,231,.14)!important;
+}
+body.app-standard .enterprise-hero,
+body.app-standard .ops-hero,
+body.app-standard .branch-hero,
+body.app-standard .dash-hero,
+body.app-standard .expedition-hero{
+  background:linear-gradient(135deg,rgba(22,44,69,.98),rgba(15,30,47,.99))!important;
+  border-color:rgba(145,191,231,.16)!important;
+  box-shadow:0 20px 48px rgba(0,0,0,.16)!important;
+}
+body.app-standard .enterprise-hero,
+body.app-standard .ops-hero,
+body.app-standard .branch-hero{padding:16px!important;margin-bottom:12px!important;gap:12px!important}
+body.app-standard .dash-hero{margin-bottom:12px!important}
+body.app-standard .hero-copy h2,
+body.app-standard .ops-copy h2,
+body.app-standard .branch-copy h2,
+body.app-standard .hero-title,
+body.app-standard .expedition-hero h2{font-size:clamp(24px,2vw,30px)!important}
+body.app-standard .hero-copy p,
+body.app-standard .ops-copy p,
+body.app-standard .branch-copy p,
+body.app-standard .hero-sub,
+body.app-standard .expedition-hero p{color:#c6d9eb!important}
+
+/* Compact the stock page to avoid empty feel */
+.page-estoque .enterprise-hero{grid-template-columns:minmax(0,1.2fr) minmax(280px,.8fr)!important}
+.page-estoque .enterprise-hero .hero-kpis{grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:8px!important;margin-top:12px!important}
+.page-estoque .enterprise-hero .hero-status-line{margin-top:10px!important}
+.page-estoque .enterprise-hero .side-card{height:100%}
+.page-estoque .panel:first-of-type{margin-top:0!important}
+.page-estoque .panel{margin-bottom:14px!important}
+.page-estoque .field{gap:4px}
+.page-estoque .chart-wrap,.page-estoque .visual-body{min-height:auto!important}
+.page-estoque .graficos-duplos{gap:16px!important}
+.page-estoque .capacidade-abertura{margin-top:14px!important}
+.page-estoque .modelo-grafico-tabs,.page-estoque .toolbar{margin-bottom:10px!important}
+
+/* Dashboard stronger focus */
+.page-dashboard .dash-hero .hero-card,
+body.app-standard .dash-hero .hero-card{background:linear-gradient(135deg,rgba(25,49,76,.98),rgba(16,33,51,.99))!important;border-color:rgba(145,191,231,.16)!important}
+body.app-standard .dash-hero .shortcut-card{background:linear-gradient(180deg,rgba(24,45,69,.96),rgba(17,31,48,.99))!important}
+body.app-standard .kpis{gap:12px!important}
+body.app-standard .kpi strong{font-size:28px!important}
+body.app-standard .section-accent span{color:#d9ebfa!important}
+
+/* More readable tables/forms */
+body.app-standard input:not([type="checkbox"]):not([type="radio"]),
+body.app-standard select,
+body.app-standard textarea{background:rgba(14,27,42,.95)!important;border-color:rgba(145,191,231,.18)!important}
+body.app-standard .table-wrap,body.app-standard .tabela-scroll{background:rgba(15,27,42,.72)!important}
+body.app-standard thead{background:#162b42!important}
+body.app-standard tbody tr:nth-child(even){background:rgba(255,255,255,.015)!important}
+
+/* Responsiveness and spacing */
+@media(min-width:1180px){
+  body.app-standard{--sidebar-w:274px!important}
+  .app-menu{padding:14px 12px 12px!important}
+  body.app-standard header,body.app-standard .app-action-strip,body.app-standard main,body.app-standard footer{margin-left:calc(var(--sidebar-w) + 10px)!important}
+}
+@media(max-width:1100px){
+  .page-estoque .enterprise-hero{grid-template-columns:1fr!important}
+}
+@media(max-width:850px){
+  body.app-standard>header{padding:18px 14px 14px!important}
+  body.app-standard main{padding-top:14px!important}
+  .page-estoque .enterprise-hero .hero-kpis{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+}
+@media(max-width:520px){
+  .page-estoque .enterprise-hero .hero-kpis{grid-template-columns:1fr!important}
+}
+
+
+/* v133 · final polish */
+body.app-standard .stats{gap:12px!important}
+body.app-standard .stats .stat-box{
+  min-width:96px!important;
+  padding:10px 14px!important;
+  border-radius:14px!important;
+  background:linear-gradient(180deg,rgba(25,49,76,.95),rgba(16,31,48,.98))!important;
+  border:1px solid rgba(145,191,231,.15)!important;
+  box-shadow:0 12px 28px rgba(0,0,0,.14)!important;
+}
+body.app-standard .stats .num{font-size:24px!important}
+body.app-standard .stats .lbl{font-size:10px!important;color:#c8d9ea!important}
+
+/* Estoque ainda mais bonito */
+.page-estoque .enterprise-hero{padding:18px!important;border-radius:22px!important}
+.page-estoque .enterprise-hero .hero-mini strong{font-size:24px!important}
+.page-estoque .enterprise-hero .hero-side .side-card{display:flex;flex-direction:column;justify-content:space-between}
+.page-estoque .panel{
+  border-radius:18px!important;
+  box-shadow:0 16px 40px rgba(0,0,0,.16)!important;
+}
+.page-estoque .panel h2:first-of-type{font-size:15px!important}
+.page-estoque .field label{font-size:10px!important}
+.page-estoque .form-action,
+.page-estoque .ui-btn-primary{box-shadow:0 10px 24px rgba(0,0,0,.16)!important}
+.page-estoque .capacidade-abertura{border-radius:18px!important;padding:18px!important}
+.page-estoque .capacidade-card{border-radius:14px!important}
+.page-estoque .tipo-grafico-card .tipo-grafico-valor{font-size:22px!important}
+.page-estoque .modelo-grafico-tabs,.page-estoque .grafico-controles{padding:10px 12px!important;border-radius:14px!important}
+
+/* Dashboard premium final */
+.page-dashboard .dash-hero,.page-dashboard .kpis,.page-dashboard .dashboard-top-grid{margin-top:0!important}
+.page-dashboard .hero-card{padding:24px!important;border-radius:22px!important}
+.page-dashboard .hero-strip{gap:12px!important}
+.page-dashboard .hero-metric{border-radius:16px!important;padding:16px!important}
+.page-dashboard .hero-metric strong{font-size:24px!important}
+.page-dashboard .shortcut-card{border-radius:18px!important;padding:18px!important}
+.page-dashboard .kpi{border-radius:16px!important}
+.page-dashboard .panel{border-radius:18px!important}
+.page-dashboard .panel-sub{font-size:11px!important;line-height:1.55!important}
+.page-dashboard .alerts .alert{border-radius:14px!important}
+
+/* Revisão visual das páginas principais */
+.page-produtos .panel,
+.page-imobilizados .panel,
+.page-acompanhamento .panel,
+.page-projecao .panel,
+.page-cockpit .panel,
+.page-parque .panel,
+.page-relatorios .card,
+.page-filiais .panel,
+.page-orcamento .panel{
+  border-radius:18px!important;
+  box-shadow:0 16px 38px rgba(0,0,0,.15)!important;
+}
+.page-produtos .panel,
+.page-imobilizados .panel,
+.page-acompanhamento .panel,
+.page-projecao .panel,
+.page-cockpit .panel,
+.page-parque .panel,
+.page-filiais .panel,
+.page-orcamento .panel,
+.page-relatorios .card{padding:18px!important}
+.page-produtos .panel h2,
+.page-imobilizados .panel h2,
+.page-acompanhamento .panel h2,
+.page-projecao .panel h2,
+.page-cockpit .panel h2,
+.page-parque .panel h2,
+.page-filiais .panel h2,
+.page-orcamento .panel h2,
+.page-relatorios .card h2{font-size:15px!important}
+.page-produtos main,.page-imobilizados main,.page-acompanhamento main,.page-projecao main,.page-cockpit main,.page-parque main,.page-relatorios main{padding-top:18px!important}
+.page-relatorios .grid{gap:14px!important}
+.page-relatorios .card.executivo{background:linear-gradient(135deg,rgba(28,54,83,.98),rgba(18,33,51,.99))!important}
+.page-relatorios .exec-actions,.page-relatorios .periodo{gap:10px!important}
+.page-filiais .summary-grid,.page-orcamento .cards{gap:12px!important}
+.page-acompanhamento .table-wrap,.page-projecao .table-wrap,.page-cockpit .table-wrap,.page-parque .table-wrap,.page-imobilizados .table-wrap{border-radius:16px!important}
+.page-produtos .hint,.page-acompanhamento .hint,.page-parque .hint,.page-cockpit .hint{border-radius:14px!important}
+
+/* Global page class helpers */
+.page-dashboard .panel,
+.page-produtos .panel,
+.page-imobilizados .panel,
+.page-acompanhamento .panel,
+.page-projecao .panel,
+.page-cockpit .panel,
+.page-parque .panel,
+.page-relatorios .card,
+.page-estoque .panel,
+.page-filiais .panel,
+.page-orcamento .panel{
+  margin-bottom:14px!important;
+}
+.page-dashboard .grid,
+.page-produtos .grid,
+.page-imobilizados .grid,
+.page-acompanhamento .grid,
+.page-projecao .grid,
+.page-cockpit .grid,
+.page-parque .grid,
+.page-relatorios .grid,
+.page-estoque .grid,
+.page-filiais .grid,
+.page-orcamento .grid{gap:14px!important}
+
+@media(max-width:980px){
+  .page-dashboard .hero-strip{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  .page-estoque .enterprise-hero{padding:16px!important}
+}
+@media(max-width:640px){
+  .page-dashboard .hero-strip{grid-template-columns:1fr!important}
+  .page-relatorios .grid{grid-template-columns:1fr!important}
+}
+
+
+/* v134 · acabamento fino final */
+:root{
+  --radius-sm:10px;
+  --radius-md:14px;
+  --radius-lg:18px;
+  --radius-xl:22px;
+}
+body.app-standard{letter-spacing:.001em}
+body.app-standard h1,body.app-standard h2,body.app-standard h3{text-wrap:balance}
+body.app-standard p{line-height:1.6}
+body.app-standard small{line-height:1.45}
+
+/* Menu: legibilidade, densidade e hierarquia */
+.app-menu-left{scrollbar-width:thin;scrollbar-color:rgba(126,199,255,.25) transparent}
+.app-menu-left::-webkit-scrollbar{width:5px}.app-menu-left::-webkit-scrollbar-track{background:transparent}.app-menu-left::-webkit-scrollbar-thumb{background:rgba(126,199,255,.22);border-radius:999px}
+.app-menu a{min-height:42px!important;line-height:1.2!important}
+.app-menu a.ativo{background:linear-gradient(135deg,#2a567f,#34678f)!important;border-color:#8bd0ff!important;color:#fff!important}
+.app-menu a.app-ai-link{background:linear-gradient(135deg,rgba(94,123,206,.20),rgba(126,199,255,.12))!important;border-color:rgba(137,168,239,.38)!important;color:#e6edff!important}
+.app-menu a.app-ai-link.ativo{background:linear-gradient(135deg,#4b64a2,#3978a8)!important;border-color:#9fcfff!important}
+.app-user{padding:8px 10px;border-radius:12px;background:rgba(255,255,255,.025);border:1px solid rgba(145,191,231,.10);font-size:11px!important;color:#c8d9e8!important}
+.app-sidebar-brand{padding:12px!important}
+.app-sidebar-brand .brand-copy strong{font-size:15px!important}
+.app-sidebar-brand .brand-copy span{font-size:10.5px!important;color:#afc3d6!important}
+.app-sidebar-brand .brand-copy small{color:#d9ecff!important}
+.global-search{height:42px!important;padding:9px 12px!important}
+.app-scan-link{border:1px solid rgba(145,191,231,.16)!important}
+
+/* Botões: uma linguagem visual só */
+body.app-standard .ui-btn,
+body.app-standard button:not(.app-mobile-toggle):not(.hotspot),
+body.app-standard a.btn{
+  min-height:40px!important;
+  border-radius:12px!important;
+  font-weight:700!important;
+  font-size:11.5px!important;
+  letter-spacing:.01em!important;
+  padding:9px 13px!important;
+  display:inline-flex;align-items:center;justify-content:center;gap:7px;
+}
+body.app-standard .ui-btn-primary,body.app-standard .btn-primary,body.app-standard button.primary{
+  background:linear-gradient(135deg,#2c6997,#4b8fbd)!important;
+  border-color:#91d2ff!important;
+  color:#f7fbff!important;
+}
+body.app-standard .ui-btn-secondary,body.app-standard .ui-btn-link{
+  background:linear-gradient(180deg,rgba(25,48,73,.92),rgba(18,34,52,.98))!important;
+  border-color:rgba(145,191,231,.17)!important;
+  color:#dbeaf7!important;
+}
+body.app-standard .ui-btn-excel{background:rgba(103,217,179,.08)!important;color:#b9efdb!important}
+body.app-standard .ui-btn-pdf,body.app-standard .ui-btn-danger{background:rgba(255,135,154,.08)!important;color:#ffc1cc!important}
+body.app-standard .ui-btn-import{background:rgba(126,199,255,.08)!important;color:#d9ecff!important}
+body.app-standard button:disabled,body.app-standard .ui-btn:disabled{opacity:.45!important;filter:saturate(.55);cursor:not-allowed!important;transform:none!important;box-shadow:none!important}
+
+/* Cards, fields and content alignment */
+body.app-standard .panel-head,body.app-standard .detail-head,body.app-standard .visual-header{align-items:center!important}
+body.app-standard .panel h2,body.app-standard .card h2{line-height:1.3}
+body.app-standard .field{gap:6px!important}
+body.app-standard .field label{margin:0!important}
+body.app-standard input:not([type="checkbox"]):not([type="radio"]),body.app-standard select,body.app-standard textarea{
+  min-height:42px!important;border-radius:11px!important;padding:9px 11px!important;font-size:12.5px!important
+}
+body.app-standard textarea{min-height:88px!important}
+body.app-standard .table-wrap,body.app-standard .tabela-scroll{border-radius:15px!important}
+body.app-standard th{padding-top:11px!important;padding-bottom:11px!important}
+body.app-standard td{line-height:1.4}
+
+/* Header/action bar */
+body.app-standard>header{min-height:auto!important}
+body.app-standard .app-action-strip{gap:8px!important;flex-wrap:wrap!important}
+body.app-standard .app-action-strip::before{content:"Ações rápidas";font:700 9px var(--mono);text-transform:uppercase;letter-spacing:.08em;color:#8fa9bf;margin-right:2px}
+
+/* Estoque: acabamento fino */
+.page-estoque .enterprise-hero .hero-kpis{align-items:stretch}
+.page-estoque .hero-mini{display:flex;flex-direction:column;min-height:104px}
+.page-estoque .hero-mini strong{margin-top:auto!important;padding-top:7px}
+.page-estoque .stats .stat-box{min-width:92px!important}
+.page-estoque .stats{justify-content:flex-end!important}
+.page-estoque .panel form{align-items:end}
+.page-estoque .table-wrap table{min-width:1160px}
+.page-estoque .simulador-resumo{padding:20px!important}
+.page-estoque .simulador-numero{letter-spacing:-.05em}
+
+/* Dashboard: acabamento final */
+.page-dashboard .hero-card{display:flex;flex-direction:column;justify-content:center;min-height:100%}
+.page-dashboard .hero-status{margin-top:14px!important}
+.page-dashboard .shortcut-grid{align-content:stretch}
+.page-dashboard .shortcut-card{min-height:148px}
+.page-dashboard .shortcut-card h3{font-size:14px!important}
+.page-dashboard .shortcut-card p{font-size:10.5px!important}
+.page-dashboard .kpi{min-height:112px;display:flex;flex-direction:column}
+.page-dashboard .kpi strong{margin-top:auto!important;padding-top:8px}
+.page-dashboard .chart-wrap{min-height:300px!important}
+
+/* Filiais / orçamento / demais */
+.page-filiais .branch-mini,.page-orcamento .card{min-height:105px}
+.page-filiais .toolbar,.page-orcamento .toolbar{align-items:center!important}
+.page-relatorios .card{display:flex;flex-direction:column;min-height:220px}
+.page-relatorios .card p{flex:1}
+.page-relatorios .card .ui-btn{margin-top:5px}
+.page-produtos form,.page-imobilizados form{align-items:end}
+.page-cockpit .summary-grid,.page-parque .summary-grid,.page-projecao .summary-grid{gap:12px!important}
+
+/* Responsive refinements */
+@media(min-width:1180px){
+  .app-menu{width:268px!important}
+  body.app-standard{--sidebar-w:268px!important}
+  .app-menu-left{padding-bottom:8px}
+}
+@media(max-width:1179px) and (min-width:851px){
+  .app-menu{padding:10px 16px!important}
+  .app-menu-left{gap:6px!important}
+  .app-menu a{font-size:11px!important;padding:8px 10px!important}
+  .global-search{width:220px!important}
+}
+@media(max-width:850px){
+  body.app-standard .app-action-strip::before{width:100%;margin-bottom:2px}
+  body.app-standard .app-action-strip .ui-btn{flex:1 1 160px}
+  .app-menu-left a{font-size:10.5px!important}
+  .page-dashboard .shortcut-card{min-height:auto}
+  .page-dashboard .kpi{min-height:auto}
+}
+@media(max-width:620px){
+  body.app-standard .app-action-strip .ui-btn{flex:1 1 100%}
+  .page-estoque .stats{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));width:100%}
+  .page-estoque .stats .stat-box{min-width:0!important;width:100%}
+  .page-dashboard .kpis{grid-template-columns:1fr 1fr!important}
+}
+@media(max-width:430px){
+  .page-dashboard .kpis{grid-template-columns:1fr!important}
+  .app-menu-left{grid-template-columns:1fr!important}
+  .global-search-wrap{grid-template-columns:40px 1fr!important}
+}
+
+
+/* v135 · correção de topo + prioridade TI */
+/* Corrige o espaço excessivo no topo das abas */
+body.app-standard > header{
+  padding:14px 24px 10px!important;
+  min-height:auto!important;
+  align-items:center!important;
+  gap:10px!important;
+}
+body.app-standard > header h1{margin:4px 0 2px!important}
+body.app-standard > header .stats{margin-top:0!important;gap:8px!important}
+body.app-standard > header .stats .stat-box{padding:8px 12px!important;min-width:90px!important}
+body.app-standard > header .stats .num{font-size:22px!important}
+body.app-standard > header .stats .lbl{font-size:9px!important}
+#sync-bar{margin-top:0!important}
+body.app-standard .app-action-strip{
+  position:relative!important;
+  top:0!important;
+  z-index:20!important;
+  margin-top:0!important;
+  padding-top:8px!important;
+  padding-bottom:10px!important;
+}
+body.app-standard .app-action-strip::before{align-self:center}
+body.app-standard main{
+  padding-top:8px!important;
+}
+body.app-standard main > :first-child{margin-top:0!important}
+body.app-standard .enterprise-hero,
+body.app-standard .ops-hero,
+body.app-standard .branch-hero,
+body.app-standard .dash-hero,
+body.app-standard .expedition-hero{
+  margin-top:0!important;
+}
+/* mantém no mobile a leitura compacta */
+@media(max-width:850px){
+  body.app-standard > header{padding:12px 14px 8px!important}
+  body.app-standard main{padding-top:8px!important}
+}
+
+
+/* v1.3.5 · correção definitiva do layout lateral */
+@media(min-width:1180px){
+  body.app-standard .app-menu{
+    position:fixed!important;
+    left:0!important;
+    top:0!important;
+    bottom:0!important;
+    height:100vh!important;
+    max-height:100vh!important;
+    margin:0!important;
+    z-index:100!important;
+  }
+  body.app-standard > header,
+  body.app-standard > .app-action-strip,
+  body.app-standard > main,
+  body.app-standard > footer,
+  body.app-standard > #sync-bar{
+    margin-left:calc(var(--sidebar-w) + 10px)!important;
+    width:auto!important;
+  }
+  body.app-standard > main{
+    margin-top:0!important;
+    padding-top:8px!important;
+  }
+  body.app-standard > .app-action-strip{
+    position:relative!important;
+    top:auto!important;
+  }
+}
+
+
+/* v1.3.6 · sidebar fixed without overlap */
+@media(min-width:1180px){
+  body.app-standard{--sidebar-w:268px!important;overflow-x:hidden!important}
+  body.app-standard .app-menu{
+    position:fixed!important;
+    left:0!important;top:0!important;bottom:0!important;
+    width:var(--sidebar-w)!important;
+    height:100vh!important;max-height:100vh!important;
+    display:grid!important;
+    grid-template-rows:auto minmax(0,1fr) auto!important;
+    align-content:stretch!important;
+    gap:10px!important;
+    overflow:hidden!important;
+    padding:10px 14px 12px!important;
+    z-index:120!important;
+    box-sizing:border-box!important;
+  }
+  body.app-standard .app-sidebar-brand{flex-shrink:0!important}
+  body.app-standard .app-menu-left{
+    min-height:0!important;
+    height:auto!important;
+    overflow-y:auto!important;
+    overflow-x:hidden!important;
+    padding-right:3px!important;
+    padding-bottom:10px!important;
+    align-content:start!important;
+    scrollbar-width:thin;
+  }
+  body.app-standard .app-menu-right{
+    min-height:auto!important;
+    flex-shrink:0!important;
+    display:grid!important;
+    gap:8px!important;
+    align-content:end!important;
+    padding-top:8px!important;
+    border-top:1px solid rgba(126,199,255,.10)!important;
+    background:linear-gradient(180deg,rgba(9,17,28,0),rgba(9,17,28,.72))!important;
+  }
+  body.app-standard .global-search-wrap,
+  body.app-standard .app-menu-right > a,
+  body.app-standard .app-menu-right > div{width:100%!important;max-width:100%!important}
+  body.app-standard .global-search{width:100%!important;max-width:none!important}
+  body.app-standard .app-user{white-space:normal!important;line-height:1.4!important}
+  body.app-standard > header,
+  body.app-standard > #sync-bar,
+  body.app-standard > .app-action-strip,
+  body.app-standard > main,
+  body.app-standard > footer{
+    margin-left:calc(var(--sidebar-w) + 12px)!important;
+    width:calc(100% - var(--sidebar-w) - 12px)!important;
+    max-width:calc(100% - var(--sidebar-w) - 12px)!important;
+    box-sizing:border-box!important;
+  }
+  body.app-standard > header{padding-left:24px!important;padding-right:24px!important}
+  body.app-standard > main{padding-left:18px!important;padding-right:18px!important}
+  body.app-standard > footer{padding-left:18px!important;padding-right:18px!important}
+}
+
+
+/* v1.3.7 · auto escala desktop equivalente ao zoom visual de 67% */
+@media(min-width:1180px){
+  html{overflow-x:hidden!important}
+  body.app-standard{
+    zoom:.67!important;
+    min-height:149.253731vh!important;
+  }
+}
+@media(max-width:1179px){
+  body.app-standard{zoom:1!important}
+}
+
+
+/* v1.3.8 · 100% real + rolagem própria no menu lateral */
+@media(min-width:1180px){
+  html{overflow-x:hidden!important}
+  body.app-standard{
+    zoom:1!important;
+    min-height:100vh!important;
+    --sidebar-w:268px!important;
+  }
+  body.app-standard .app-menu{
+    position:fixed!important;
+    left:0!important;
+    top:0!important;
+    bottom:0!important;
+    width:var(--sidebar-w)!important;
+    height:100vh!important;
+    max-height:100vh!important;
+    display:grid!important;
+    grid-template-rows:auto minmax(0,1fr) auto!important;
+    gap:10px!important;
+    overflow:hidden!important;
+    padding:10px 12px 12px!important;
+    box-sizing:border-box!important;
+  }
+  body.app-standard .app-menu-left{
+    min-height:0!important;
+    overflow-y:auto!important;
+    overflow-x:hidden!important;
+    padding-right:6px!important;
+    padding-bottom:10px!important;
+    scrollbar-width:thin!important;
+    scrollbar-color:#4f7396 #0d1b2b!important;
+    scrollbar-gutter:stable!important;
+  }
+  body.app-standard .app-menu-left::-webkit-scrollbar{width:8px!important}
+  body.app-standard .app-menu-left::-webkit-scrollbar-track{
+    background:#0d1b2b!important;
+    border-radius:999px!important;
+  }
+  body.app-standard .app-menu-left::-webkit-scrollbar-thumb{
+    background:linear-gradient(180deg,#4f7396,#355673)!important;
+    border-radius:999px!important;
+    border:2px solid #0d1b2b!important;
+  }
+  body.app-standard .app-menu-left::-webkit-scrollbar-thumb:hover{
+    background:linear-gradient(180deg,#6d98bf,#4b7398)!important;
+  }
+  body.app-standard .app-menu-right{
+    min-height:auto!important;
+    flex-shrink:0!important;
+    padding-top:8px!important;
+    border-top:1px solid rgba(126,199,255,.10)!important;
+  }
+  body.app-standard > header,
+  body.app-standard > #sync-bar,
+  body.app-standard > .app-action-strip,
+  body.app-standard > main,
+  body.app-standard > footer{
+    margin-left:calc(var(--sidebar-w) + 12px)!important;
+    width:calc(100% - var(--sidebar-w) - 12px)!important;
+    max-width:calc(100% - var(--sidebar-w) - 12px)!important;
+    box-sizing:border-box!important;
+  }
+}
+@media(max-width:1179px){
+  body.app-standard{zoom:1!important;min-height:100vh!important}
+}
+
+
+/* v1.3.9 · sidebar inteira com rolagem única, sem sobreposição */
+@media(min-width:1180px){
+  body.app-standard{--sidebar-w:268px!important;overflow-x:hidden!important}
+  body.app-standard .app-menu{
+    position:fixed!important;
+    left:0!important;
+    top:0!important;
+    bottom:0!important;
+    width:var(--sidebar-w)!important;
+    height:100vh!important;
+    max-height:100vh!important;
+    display:flex!important;
+    flex-direction:column!important;
+    flex-wrap:nowrap!important;
+    align-items:stretch!important;
+    justify-content:flex-start!important;
+    gap:10px!important;
+    overflow-y:auto!important;
+    overflow-x:hidden!important;
+    padding:10px 12px 16px!important;
+    box-sizing:border-box!important;
+    scrollbar-width:thin!important;
+    scrollbar-color:#557da3 #0d1b2b!important;
+    scrollbar-gutter:stable!important;
+    overscroll-behavior:contain!important;
+  }
+  body.app-standard .app-menu::-webkit-scrollbar{width:8px!important}
+  body.app-standard .app-menu::-webkit-scrollbar-track{background:#0d1b2b!important;border-radius:999px!important}
+  body.app-standard .app-menu::-webkit-scrollbar-thumb{background:linear-gradient(180deg,#5c87ad,#3c617f)!important;border-radius:999px!important;border:2px solid #0d1b2b!important}
+  body.app-standard .app-menu::-webkit-scrollbar-thumb:hover{background:linear-gradient(180deg,#78a7ce,#527da2)!important}
+  body.app-standard .app-sidebar-brand{
+    flex:0 0 auto!important;
+    position:relative!important;
+    z-index:1!important;
+    margin:0!important;
+  }
+  body.app-standard .app-menu-left{
+    display:flex!important;
+    flex:0 0 auto!important;
+    flex-direction:column!important;
+    flex-wrap:nowrap!important;
+    align-items:stretch!important;
+    width:100%!important;
+    min-height:auto!important;
+    height:auto!important;
+    overflow:visible!important;
+    padding:0!important;
+    margin:0!important;
+    gap:8px!important;
+  }
+  body.app-standard .app-menu-right{
+    display:flex!important;
+    flex:0 0 auto!important;
+    flex-direction:column!important;
+    align-items:stretch!important;
+    width:100%!important;
+    min-height:auto!important;
+    height:auto!important;
+    overflow:visible!important;
+    gap:8px!important;
+    padding:10px 0 0!important;
+    margin:0!important;
+    border-top:1px solid rgba(126,199,255,.12)!important;
+    background:transparent!important;
+  }
+  body.app-standard .app-menu a{
+    flex:0 0 auto!important;
+    width:100%!important;
+    min-height:42px!important;
+    box-sizing:border-box!important;
+  }
+  body.app-standard .global-search-wrap,
+  body.app-standard .app-menu-right > *{
+    flex:0 0 auto!important;
+    width:100%!important;
+    max-width:100%!important;
+    position:relative!important;
+  }
+  body.app-standard .global-search{width:100%!important;max-width:none!important}
+  body.app-standard .app-user{display:block!important;white-space:normal!important;line-height:1.35!important;padding:4px 2px!important}
+  body.app-standard > header,
+  body.app-standard > #sync-bar,
+  body.app-standard > .app-action-strip,
+  body.app-standard > main,
+  body.app-standard > footer{
+    margin-left:calc(var(--sidebar-w) + 12px)!important;
+    width:calc(100% - var(--sidebar-w) - 12px)!important;
+    max-width:calc(100% - var(--sidebar-w) - 12px)!important;
+    box-sizing:border-box!important;
+  }
+}
+
+
+/* v1.4.0 · conteúdo mais claro, grids refinados e hover premium
+   OBS: não altera o menu lateral. */
+:root{
+  --bg:#12263b!important;
+  --panel:#18324d!important;
+  --panel2:#1d3a58!important;
+  --panel-2:#1d3a58!important;
+  --line:#3c5f80!important;
+  --text:#f6fbff!important;
+  --muted:#bdd0e2!important;
+  --accent:#8bd1ff!important;
+  --accent-2:#e1f1ff!important;
+}
+body.app-standard{
+  background:
+    radial-gradient(circle at 20% 0%,rgba(139,209,255,.13),transparent 28rem),
+    radial-gradient(circle at 88% 4%,rgba(108,220,194,.08),transparent 22rem),
+    linear-gradient(180deg,#17304a 0%,#12263b 44%,#142a41 100%)!important;
+}
+body.app-standard > header{
+  background:linear-gradient(135deg,rgba(26,54,82,.98),rgba(18,38,59,.97))!important;
+  border-bottom-color:rgba(164,205,240,.18)!important;
+}
+body.app-standard > header p{color:#cfdeeb!important}
+#sync-bar{background:rgba(27,55,84,.92)!important;color:#d4e3ef!important}
+
+/* painéis do conteúdo mais claros */
+body.app-standard main .panel,
+body.app-standard main .card,
+body.app-standard main .box,
+body.app-standard main .summary-card,
+body.app-standard main .stat-box,
+body.app-standard main .hero-card,
+body.app-standard main .enterprise-hero,
+body.app-standard main .branch-hero,
+body.app-standard main .ops-hero,
+body.app-standard main .expedition-hero,
+body.app-standard main .shortcut-card,
+body.app-standard main .kpi,
+body.app-standard main .ctx,
+body.app-standard main .side-card,
+body.app-standard main .assist-card,
+body.app-standard main .checklist-card{
+  background:linear-gradient(180deg,rgba(29,58,88,.96),rgba(22,44,68,.99))!important;
+  border-color:rgba(157,201,238,.17)!important;
+}
+body.app-standard main .panel:hover,
+body.app-standard main .card:hover,
+body.app-standard main .shortcut-card:hover,
+body.app-standard main .kpi:hover{
+  border-color:rgba(139,209,255,.34)!important;
+  box-shadow:0 18px 42px rgba(4,15,28,.18),0 0 0 1px rgba(139,209,255,.035) inset!important;
+}
+
+/* Hover premium no conteúdo - menu lateral intocado */
+body.app-standard main a:not(.gs-item),
+body.app-standard main button,
+body.app-standard .app-action-strip a,
+body.app-standard .app-action-strip button,
+body.app-standard main .tipo-grafico-card,
+body.app-standard main .view-tab,
+body.app-standard main .modelo-grafico-btn,
+body.app-standard main .loja-resumo-card,
+body.app-standard main .capacidade-card,
+body.app-standard main .exp-item{
+  transition:transform .18s ease,border-color .18s ease,background .18s ease,box-shadow .18s ease,color .18s ease!important;
+}
+body.app-standard main a:hover,
+body.app-standard main button:hover:not(:disabled),
+body.app-standard .app-action-strip a:hover,
+body.app-standard .app-action-strip button:hover:not(:disabled){
+  transform:translateY(-2px)!important;
+}
+body.app-standard main .tipo-grafico-card:hover,
+body.app-standard main .view-tab:hover,
+body.app-standard main .modelo-grafico-btn:hover,
+body.app-standard main .loja-resumo-card:hover,
+body.app-standard main .capacidade-card:hover,
+body.app-standard main .exp-item:hover{
+  transform:translateY(-3px)!important;
+  border-color:rgba(139,209,255,.40)!important;
+  box-shadow:0 12px 24px rgba(3,14,27,.18)!important;
+}
+body.app-standard main .tipo-grafico-card:active,
+body.app-standard main button:active:not(:disabled){transform:translateY(0) scale(.985)!important}
+
+/* Grid de itens lançados - Estoque e Imobilizados */
+.page-estoque .tabela-scroll,
+.page-imobilizados .tabela-scroll{
+  border:1px solid rgba(157,201,238,.20)!important;
+  border-radius:16px!important;
+  background:rgba(16,34,53,.80)!important;
+  box-shadow:0 14px 34px rgba(3,14,27,.16)!important;
+  scrollbar-gutter:stable;
+}
+.page-estoque #tabela-itens,
+.page-imobilizados #tabela-itens{
+  border-collapse:separate!important;
+  border-spacing:0 4px!important;
+  padding:0 5px 6px!important;
+  background:transparent!important;
+}
+.page-estoque #tabela-itens thead th,
+.page-imobilizados #tabela-itens thead th{
+  background:#21415f!important;
+  color:#d6e6f4!important;
+  font-size:9.5px!important;
+  font-weight:800!important;
+  letter-spacing:.075em!important;
+  padding:11px 10px!important;
+  border-bottom:1px solid rgba(157,201,238,.20)!important;
+}
+.page-estoque #tabela-itens tbody tr,
+.page-imobilizados #tabela-itens tbody tr{
+  background:rgba(31,61,91,.76)!important;
+  transition:background .16s ease,box-shadow .16s ease!important;
+}
+.page-estoque #tabela-itens tbody tr:nth-child(even),
+.page-imobilizados #tabela-itens tbody tr:nth-child(even){background:rgba(27,55,84,.82)!important}
+.page-estoque #tabela-itens tbody tr:hover,
+.page-imobilizados #tabela-itens tbody tr:hover{
+  background:rgba(47,86,123,.94)!important;
+  box-shadow:inset 3px 0 0 #8bd1ff,inset -1px 0 0 rgba(139,209,255,.18)!important;
+}
+.page-estoque #tabela-itens tbody td,
+.page-imobilizados #tabela-itens tbody td{
+  padding:9px 10px!important;
+  border-top:1px solid rgba(157,201,238,.08)!important;
+  border-bottom:1px solid rgba(157,201,238,.08)!important;
+  color:#e9f3fb!important;
+  vertical-align:middle!important;
+}
+.page-estoque #tabela-itens tbody td:first-child,
+.page-imobilizados #tabela-itens tbody td:first-child{border-left:1px solid rgba(157,201,238,.08)!important;border-radius:9px 0 0 9px!important}
+.page-estoque #tabela-itens tbody td:last-child,
+.page-imobilizados #tabela-itens tbody td:last-child{border-right:1px solid rgba(157,201,238,.08)!important;border-radius:0 9px 9px 0!important}
+.page-estoque #tabela-itens td.codigo,
+.page-imobilizados #tabela-itens td.codigo{color:#a9ddff!important;font-weight:800!important}
+.page-estoque #tabela-itens .row-actions,
+.page-imobilizados #tabela-itens .row-actions{gap:5px!important;flex-wrap:nowrap!important}
+.page-estoque #tabela-itens .row-actions button,
+.page-imobilizados #tabela-itens .row-actions button{min-height:32px!important;padding:6px 9px!important;border-radius:8px!important}
+
+/* Gráficos do Estoque - remover vazios e alinhar tudo */
+.page-estoque .graficos-duplos{
+  grid-template-columns:minmax(0,.92fr) minmax(0,1.08fr)!important;
+  gap:14px!important;
+  align-items:stretch!important;
+}
+.page-estoque .graficos-duplos > .grafico-tipo-coluna,
+.page-estoque .graficos-duplos > .grafico-card{
+  height:100%!important;
+  min-width:0!important;
+  padding:14px!important;
+  border:1px solid rgba(157,201,238,.16)!important;
+  border-radius:16px!important;
+  background:linear-gradient(180deg,rgba(28,55,83,.86),rgba(21,43,66,.94))!important;
+}
+.page-estoque .grafico-tipo-coluna{display:flex!important;flex-direction:column!important}
+.page-estoque .grafico-tipo-coluna > div[style*="max-width"]{
+  max-width:none!important;
+  width:100%!important;
+  margin:0!important;
+  min-height:275px!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+}
+.page-estoque .grafico-tipo-coluna > div[style*="max-width"] canvas{max-height:270px!important}
+.page-estoque .capacidade-abertura{margin-top:10px!important;flex:1!important}
+.page-estoque .grafico-card .grafico-head{margin-bottom:8px!important}
+.page-estoque .meta-lote-destaque{margin:8px 0 10px!important;padding:11px 12px!important}
+.page-estoque .tipo-grafico-grid{margin:0 0 10px!important;gap:7px!important}
+.page-estoque .tipo-grafico-card{padding:8px 7px!important}
+.page-estoque .grafico-series-legenda{margin:0 0 5px!important;min-height:16px!important}
+.page-estoque .grafico-area{height:300px!important;padding:10px!important}
+.page-estoque .faltantes-loja{margin-top:8px!important}
+
+/* botões, inputs e filtros mais claros */
+body.app-standard main input:not([type="checkbox"]):not([type="radio"]),
+body.app-standard main select,
+body.app-standard main textarea{
+  background:#162f48!important;
+  border-color:rgba(157,201,238,.22)!important;
+}
+body.app-standard main input:focus,
+body.app-standard main select:focus,
+body.app-standard main textarea:focus{
+  background:#1a3854!important;
+  border-color:#8bd1ff!important;
+  box-shadow:0 0 0 3px rgba(139,209,255,.11)!important;
+}
+
+@media(max-width:1100px){
+  .page-estoque .graficos-duplos{grid-template-columns:1fr!important}
+}
+
+
+/* v1.4.1 · conteúdo mais claro e refinamento da marca */
+:root{
+  --bg:#17334e!important;
+  --panel:#214462!important;
+  --panel2:#294f70!important;
+  --panel-2:#294f70!important;
+  --line:#537798!important;
+  --text:#f9fcff!important;
+  --muted:#c9d9e8!important;
+  --accent:#9bd8ff!important;
+  --accent-2:#e8f5ff!important;
+}
+body.app-standard{
+  background:
+    radial-gradient(circle at 18% 0%,rgba(155,216,255,.16),transparent 28rem),
+    radial-gradient(circle at 88% 4%,rgba(118,226,202,.10),transparent 22rem),
+    linear-gradient(180deg,#1c3b58 0%,#17334e 46%,#193752 100%)!important;
+}
+body.app-standard > header{
+  background:linear-gradient(135deg,rgba(35,71,106,.98),rgba(25,52,79,.98))!important;
+  border-bottom-color:rgba(180,218,247,.20)!important;
+}
+body.app-standard > header p{color:#d9e6f1!important}
+#sync-bar{background:rgba(39,78,116,.94)!important;color:#e0edf7!important}
+
+body.app-standard main .panel,
+body.app-standard main .card,
+body.app-standard main .box,
+body.app-standard main .summary-card,
+body.app-standard main .stat-box,
+body.app-standard main .hero-card,
+body.app-standard main .enterprise-hero,
+body.app-standard main .branch-hero,
+body.app-standard main .ops-hero,
+body.app-standard main .expedition-hero,
+body.app-standard main .shortcut-card,
+body.app-standard main .kpi,
+body.app-standard main .ctx,
+body.app-standard main .side-card,
+body.app-standard main .assist-card,
+body.app-standard main .checklist-card{
+  background:linear-gradient(180deg,rgba(40,78,114,.97),rgba(30,61,91,.99))!important;
+  border-color:rgba(177,216,247,.20)!important;
+}
+body.app-standard main .panel:hover,
+body.app-standard main .card:hover,
+body.app-standard main .shortcut-card:hover,
+body.app-standard main .kpi:hover{
+  border-color:rgba(155,216,255,.42)!important;
+  box-shadow:0 18px 42px rgba(6,20,34,.16),0 0 0 1px rgba(155,216,255,.04) inset!important;
+}
+body.app-standard main input:not([type="checkbox"]):not([type="radio"]),
+body.app-standard main select,
+body.app-standard main textarea{
+  background:#214463!important;
+  border-color:rgba(177,216,247,.24)!important;
+}
+body.app-standard main input:focus,
+body.app-standard main select:focus,
+body.app-standard main textarea:focus{
+  background:#28506f!important;
+  border-color:#9bd8ff!important;
+  box-shadow:0 0 0 3px rgba(155,216,255,.12)!important;
+}
+body.app-standard main .table-wrap,
+body.app-standard main .tabela-scroll{background:rgba(28,58,86,.86)!important}
+body.app-standard main thead,
+body.app-standard main thead th{background:#2a5273!important;color:#e5f1fa!important}
+body.app-standard main tbody tr:nth-child(even){background:rgba(255,255,255,.025)!important}
+body.app-standard main tbody tr:hover{background:rgba(155,216,255,.08)!important}
+
+
+/* v1.4.2 · seletor Claro / Escuro / Automático */
+html[data-theme="light"]{
+  color-scheme:light;
+  background:#eef5fb!important;
+}
+html[data-theme="dark"]{color-scheme:dark}
+html[data-theme="light"] body.app-standard{
+  --bg:#eef5fb!important;
+  --panel:#ffffff!important;
+  --panel2:#f5f9fd!important;
+  --panel-2:#f5f9fd!important;
+  --line:#c8d9e8!important;
+  --text:#17324a!important;
+  --muted:#617b91!important;
+  --accent:#176fae!important;
+  --accent2:#244e70!important;
+  --accent-2:#244e70!important;
+  --blue:#176fae!important;
+  --green:#19845f!important;
+  --ok:#19845f!important;
+  --warn:#a66613!important;
+  --amber:#a66613!important;
+  --danger:#c44255!important;
+  --red:#c44255!important;
+  --purple:#6553b8!important;
+  background:
+    radial-gradient(circle at top left,rgba(84,169,226,.10),transparent 25rem),
+    radial-gradient(circle at 96% 2%,rgba(76,190,167,.08),transparent 20rem),
+    linear-gradient(180deg,#f7fbff 0%,#eef5fb 48%,#e9f2f9 100%)!important;
+  color:#17324a!important;
+}
+html[data-theme="light"] body.app-standard::before{opacity:.035!important}
+html[data-theme="light"] body.app-standard>header{
+  background:linear-gradient(135deg,#ffffff,#edf6fd)!important;
+  border-bottom-color:#c5d9e9!important;
+  box-shadow:0 10px 28px rgba(37,77,111,.08)!important;
+}
+html[data-theme="light"] body.app-standard>header h1,
+html[data-theme="light"] body.app-standard h1,
+html[data-theme="light"] body.app-standard h2,
+html[data-theme="light"] body.app-standard h3{color:#17324a!important}
+html[data-theme="light"] body.app-standard>header p,
+html[data-theme="light"] body.app-standard p{color:#607a91!important}
+html[data-theme="light"] body.app-standard .app-menu{
+  background:linear-gradient(180deg,#f8fbfe,#edf5fb)!important;
+  border-color:#c8dbe9!important;
+  box-shadow:10px 0 30px rgba(31,70,102,.10)!important;
+}
+html[data-theme="light"] body.app-standard .app-sidebar-brand{
+  background:linear-gradient(180deg,#ffffff,#f2f8fd)!important;
+  border-color:#c8dbe9!important;
+  box-shadow:0 10px 26px rgba(31,70,102,.08)!important;
+}
+html[data-theme="light"] body.app-standard .app-sidebar-brand .brand-copy strong{color:#17324a!important}
+html[data-theme="light"] body.app-standard .app-sidebar-brand .brand-copy span{color:#617b91!important}
+html[data-theme="light"] body.app-standard .app-sidebar-brand .brand-copy small{
+  color:#315d80!important;background:#e8f3fb!important;border-color:#c4dcec!important;
+}
+html[data-theme="light"] body.app-standard .app-menu a{
+  color:#35546c!important;background:rgba(255,255,255,.60)!important;border-color:#cadce9!important;
+}
+html[data-theme="light"] body.app-standard .app-menu a:hover{
+  color:#153852!important;background:#e7f3fb!important;border-color:#91c7ea!important;
+}
+html[data-theme="light"] body.app-standard .app-menu a.ativo{
+  color:#ffffff!important;background:linear-gradient(135deg,#247caf,#3e91c4)!important;border-color:#4a99c9!important;
+}
+html[data-theme="light"] body.app-standard .app-menu a.app-ai-link{color:#415285!important;background:#edf0ff!important;border-color:#c6cef2!important}
+html[data-theme="light"] body.app-standard .app-menu a.app-ai-link.ativo{color:#fff!important;background:linear-gradient(135deg,#5469aa,#438fc0)!important}
+html[data-theme="light"] body.app-standard .nav-ico{background:#dfeef8!important;color:#285d80!important;border-color:#c5dce9!important;box-shadow:none!important}
+html[data-theme="light"] body.app-standard .app-menu a.ativo .nav-ico{background:rgba(255,255,255,.18)!important;color:#fff!important;border-color:rgba(255,255,255,.20)!important}
+html[data-theme="light"] body.app-standard .global-search,
+html[data-theme="light"] body.app-standard .theme-select{
+  background:#ffffff!important;color:#27465e!important;border-color:#c8dbe9!important;
+}
+html[data-theme="light"] body.app-standard .global-search::placeholder{color:#8299ac!important}
+html[data-theme="light"] body.app-standard .global-search-results{background:#fff!important;border-color:#c8dbe9!important;box-shadow:0 18px 46px rgba(31,70,102,.16)!important}
+html[data-theme="light"] body.app-standard .gs-item{color:#17324a!important}
+html[data-theme="light"] body.app-standard .gs-item:hover{background:#eef6fc!important;border-color:#c4dcec!important}
+html[data-theme="light"] body.app-standard .app-user{color:#48677f!important}
+html[data-theme="light"] body.app-standard .app-menu-right{border-top-color:#d2e2ee!important;background:transparent!important}
+html[data-theme="light"] body.app-standard #sync-bar{background:#e5f0f8!important;color:#4e6c83!important;border-color:#c9dce9!important}
+html[data-theme="light"] body.app-standard .app-action-strip{background:rgba(241,247,252,.92)!important;border-color:#cadde9!important}
+html[data-theme="light"] body.app-standard main .panel,
+html[data-theme="light"] body.app-standard main .card,
+html[data-theme="light"] body.app-standard main .box,
+html[data-theme="light"] body.app-standard main .summary-card,
+html[data-theme="light"] body.app-standard main .stat-box,
+html[data-theme="light"] body.app-standard main .tipo-grafico-card,
+html[data-theme="light"] body.app-standard main .pallet-box,
+html[data-theme="light"] body.app-standard main .moving-box,
+html[data-theme="light"] body.app-standard main .shelf,
+html[data-theme="light"] body.app-standard main .health-item,
+html[data-theme="light"] body.app-standard main .proxima-loja,
+html[data-theme="light"] body.app-standard main .exec-card,
+html[data-theme="light"] body.app-standard main .horizon,
+html[data-theme="light"] body.app-standard main .flow-step,
+html[data-theme="light"] body.app-standard main .alert,
+html[data-theme="light"] body.app-standard main .mov,
+html[data-theme="light"] body.app-standard main .tipo,
+html[data-theme="light"] body.app-standard main .exp-item,
+html[data-theme="light"] body.app-standard main .app,
+html[data-theme="light"] body.app-standard main .msg,
+html[data-theme="light"] body.app-standard main .status,
+html[data-theme="light"] body.app-standard main .visual,
+html[data-theme="light"] body.app-standard main .tile,
+html[data-theme="light"] body.app-standard main .hero-card,
+html[data-theme="light"] body.app-standard main .enterprise-hero,
+html[data-theme="light"] body.app-standard main .branch-hero,
+html[data-theme="light"] body.app-standard main .ops-hero,
+html[data-theme="light"] body.app-standard main .expedition-hero,
+html[data-theme="light"] body.app-standard main .shortcut-card,
+html[data-theme="light"] body.app-standard main .kpi,
+html[data-theme="light"] body.app-standard main .ctx,
+html[data-theme="light"] body.app-standard main .side-card,
+html[data-theme="light"] body.app-standard main .assist-card,
+html[data-theme="light"] body.app-standard main .checklist-card{
+  background:linear-gradient(180deg,#ffffff,#f7fbfe)!important;
+  border-color:#cbddea!important;
+  box-shadow:0 14px 34px rgba(40,79,109,.08)!important;
+  color:#17324a!important;
+}
+html[data-theme="light"] body.app-standard main .panel:hover,
+html[data-theme="light"] body.app-standard main .card:hover,
+html[data-theme="light"] body.app-standard main .shortcut-card:hover,
+html[data-theme="light"] body.app-standard main .kpi:hover{
+  border-color:#86c2e6!important;box-shadow:0 18px 38px rgba(31,91,132,.12)!important;
+}
+html[data-theme="light"] body.app-standard main input:not([type="checkbox"]):not([type="radio"]),
+html[data-theme="light"] body.app-standard main select,
+html[data-theme="light"] body.app-standard main textarea{
+  background:#ffffff!important;color:#17324a!important;border-color:#c6d9e7!important;
+}
+html[data-theme="light"] body.app-standard main input::placeholder,
+html[data-theme="light"] body.app-standard main textarea::placeholder{color:#8ba0b2!important}
+html[data-theme="light"] body.app-standard main input:focus,
+html[data-theme="light"] body.app-standard main select:focus,
+html[data-theme="light"] body.app-standard main textarea:focus{background:#fff!important;border-color:#6fb5df!important;box-shadow:0 0 0 3px rgba(58,145,199,.12)!important}
+html[data-theme="light"] body.app-standard main label{color:#45657d!important}
+html[data-theme="light"] body.app-standard main .table-wrap,
+html[data-theme="light"] body.app-standard main .tabela-scroll{background:#ffffff!important;border-color:#c9dce9!important}
+html[data-theme="light"] body.app-standard main thead,
+html[data-theme="light"] body.app-standard main thead th{background:#e5f1f9!important;color:#35566f!important;border-bottom-color:#c3d8e7!important}
+html[data-theme="light"] body.app-standard main tbody tr{background:#ffffff!important;color:#203e56!important}
+html[data-theme="light"] body.app-standard main tbody tr:nth-child(even){background:#f5f9fc!important}
+html[data-theme="light"] body.app-standard main tbody tr:hover{background:#e8f4fb!important}
+html[data-theme="light"] body.app-standard main td{border-bottom-color:#dbe7ef!important;color:#29485f!important}
+html[data-theme="light"] body.app-standard main .muted,
+html[data-theme="light"] body.app-standard main small,
+html[data-theme="light"] body.app-standard main .panel-sub{color:#688196!important}
+html[data-theme="light"] body.app-standard .ui-btn-secondary,
+html[data-theme="light"] body.app-standard .ui-btn-link{background:#ffffff!important;color:#31546e!important;border-color:#bfd7e7!important}
+html[data-theme="light"] body.app-standard .ui-btn-primary{background:linear-gradient(135deg,#227aae,#3a91c4)!important;color:#fff!important;border-color:#3f91bf!important}
+html[data-theme="light"] body.app-standard footer{color:#617b91!important}
+
+.theme-picker{display:grid;gap:5px;width:100%;padding:8px 0 2px}
+.theme-picker label{font-size:8px!important;letter-spacing:.08em;text-transform:uppercase;color:var(--muted,#8b96a8)!important;font-weight:800}
+.theme-select{width:100%;min-height:36px;padding:7px 9px;border-radius:10px;border:1px solid var(--line,#2b3444);background:var(--panel-2,#212934);color:var(--text,#e7ebf1);font:700 10px "Segoe UI",Inter,system-ui,sans-serif;outline:none;cursor:pointer}
+.theme-select:focus{border-color:var(--accent,#3ea6ff);box-shadow:0 0 0 3px rgba(62,166,255,.10)}
+@media(max-width:850px){.theme-picker{display:none}}
+
+
+/* v1.4.3 · contraste de tema refinado */
+html[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#06101b!important;
+  --panel:#091523!important;
+  --panel2:#0d1a2b!important;
+  --panel-2:#0d1a2b!important;
+  --line:#1c334a!important;
+  --text:#f4f8fd!important;
+  --muted:#9db1c7!important;
+  --accent:#7fcaff!important;
+  --accent2:#e1f1ff!important;
+  --accent-2:#e1f1ff!important;
+}
+html[data-theme="dark"] body.app-standard{
+  background:
+    radial-gradient(circle at top left, rgba(56,119,182,.12), transparent 26rem),
+    radial-gradient(circle at 88% 0%, rgba(96,176,245,.08), transparent 21rem),
+    linear-gradient(180deg,#08111d 0%,#06101b 48%,#071321 100%)!important;
+}
+html[data-theme="dark"] body.app-standard::before{opacity:.10!important}
+html[data-theme="dark"] body.app-standard>header{
+  background:linear-gradient(135deg,rgba(10,19,30,.98),rgba(15,28,44,.94))!important;
+  border-bottom-color:rgba(121,174,226,.16)!important;
+}
+html[data-theme="dark"] body.app-standard .app-menu{
+  background:rgba(6,12,21,.92)!important;
+  border-bottom-color:rgba(126,173,219,.13)!important;
+}
+html[data-theme="dark"] body.app-standard .panel,
+html[data-theme="dark"] body.app-standard .card,
+html[data-theme="dark"] body.app-standard .summary-card,
+html[data-theme="dark"] body.app-standard .kpi,
+html[data-theme="dark"] body.app-standard .tile,
+html[data-theme="dark"] body.app-standard .hero-card,
+html[data-theme="dark"] body.app-standard .enterprise-hero,
+html[data-theme="dark"] body.app-standard .branch-hero,
+html[data-theme="dark"] body.app-standard .ops-hero,
+html[data-theme="dark"] body.app-standard .shortcut-card,
+html[data-theme="dark"] body.app-standard .ctx,
+html[data-theme="dark"] body.app-standard .side-card,
+html[data-theme="dark"] body.app-standard .assist-card,
+html[data-theme="dark"] body.app-standard .checklist-card,
+html[data-theme="dark"] body.app-standard .stat-box,
+html[data-theme="dark"] body.app-standard .tipo-grafico-card{
+  background:linear-gradient(180deg,rgba(10,19,30,.98),rgba(8,16,27,.995))!important;
+  border-color:rgba(116,165,211,.15)!important;
+}
+html[data-theme="dark"] body.app-standard .ui-btn-secondary,
+html[data-theme="dark"] body.app-standard .ui-btn-link{
+  background:rgba(10,19,30,.92)!important;
+}
+html[data-theme="dark"] body.app-standard input:not([type="checkbox"]):not([type="radio"]),
+html[data-theme="dark"] body.app-standard select,
+html[data-theme="dark"] body.app-standard textarea{
+  background:rgba(8,16,27,.94)!important;
+  border-color:rgba(121,174,226,.18)!important;
+}
+html[data-theme="dark"] body.app-standard .table-wrap,
+html[data-theme="dark"] body.app-standard .tabela-scroll{background:rgba(7,15,25,.95)!important}
+html[data-theme="dark"] body.app-standard thead,
+html[data-theme="dark"] body.app-standard thead th{background:#0d1c2d!important}
+html[data-theme="dark"] body.app-standard tbody tr:nth-child(even){background:rgba(255,255,255,.018)!important}
+html[data-theme="dark"] body.app-standard tbody tr:hover{background:rgba(127,202,255,.08)!important}
+
+html[data-theme="light"]{
+  color-scheme:light;
+  --bg:#f6fbff!important;
+  --panel:#ffffff!important;
+  --panel2:#f4faff!important;
+  --panel-2:#f4faff!important;
+  --line:#c8dceb!important;
+  --text:#17324a!important;
+  --muted:#64819a!important;
+  --accent:#4fa6de!important;
+  --accent2:#0f3252!important;
+  --accent-2:#0f3252!important;
+}
+html[data-theme="light"] body.app-standard{
+  background:
+    radial-gradient(circle at top left, rgba(126,199,255,.18), transparent 24rem),
+    radial-gradient(circle at 96% 0%, rgba(140,211,255,.15), transparent 18rem),
+    linear-gradient(180deg,#f7fbff 0%,#eff7fe 44%,#f9fcff 100%)!important;
+}
+html[data-theme="light"] body.app-standard::before{opacity:.025!important;background-image:linear-gradient(rgba(85,145,190,.055) 1px,transparent 1px),linear-gradient(90deg,rgba(85,145,190,.045) 1px,transparent 1px)!important}
+html[data-theme="light"] body.app-standard>header{
+  background:linear-gradient(135deg,rgba(247,251,255,.98),rgba(237,247,255,.96))!important;
+  border-bottom-color:#d7e7f2!important;
+  box-shadow:0 14px 36px rgba(86,129,162,.10)!important;
+}
+html[data-theme="light"] body.app-standard>header::after{background:radial-gradient(circle,rgba(126,199,255,.20),transparent 68%)!important}
+html[data-theme="light"] body.app-standard>header .tag,
+html[data-theme="light"] body.app-standard>header .brand .tag{
+  background:#eef7ff!important;border-color:#d1e6f6!important;color:#35617f!important;
+}
+html[data-theme="light"] body.app-standard>header h1,
+html[data-theme="light"] body.app-standard h1,
+html[data-theme="light"] body.app-standard h2,
+html[data-theme="light"] body.app-standard h3{color:#17324a!important}
+html[data-theme="light"] body.app-standard>header p,
+html[data-theme="light"] body.app-standard p{color:#62819a!important}
+html[data-theme="light"] body.app-standard .app-menu{
+  background:linear-gradient(180deg,rgba(244,250,255,.98),rgba(239,247,254,.96))!important;
+  border-bottom-color:#d4e5f2!important;
+  box-shadow:0 10px 28px rgba(106,145,177,.12)!important;
+}
+html[data-theme="light"] body.app-standard .app-sidebar-brand{background:linear-gradient(180deg,#ffffff,#f5fbff)!important;border-color:#d2e4f0!important}
+html[data-theme="light"] body.app-standard .app-sidebar-brand .brand-copy strong{color:#17324a!important}
+html[data-theme="light"] body.app-standard .app-sidebar-brand .brand-copy span{color:#65839a!important}
+html[data-theme="light"] body.app-standard .app-sidebar-brand .brand-copy small{background:#eef7ff!important;border-color:#d3e6f5!important;color:#3a6483!important}
+html[data-theme="light"] body.app-standard .app-menu a{
+  background:#f7fbff!important;
+  border-color:#d5e6f2!important;
+  color:#35556f!important;
+}
+html[data-theme="light"] body.app-standard .app-menu a:hover{background:#eef7ff!important;border-color:#bad8ea!important;color:#204764!important}
+html[data-theme="light"] body.app-standard .app-menu a.ativo{background:linear-gradient(135deg,#65aee1,#4a8fc4)!important;border-color:#6ab4e8!important;color:#fff!important}
+html[data-theme="light"] body.app-standard .nav-ico{background:#e6f3fb!important;color:#2f678a!important;border-color:#c9deec!important}
+html[data-theme="light"] body.app-standard .global-search,
+html[data-theme="light"] body.app-standard .theme-select{background:#ffffff!important;border-color:#cfe2ef!important;color:#2a4c68!important}
+html[data-theme="light"] body.app-standard .global-search::placeholder{color:#88a0b4!important}
+html[data-theme="light"] body.app-standard .app-user{color:#506f88!important}
+html[data-theme="light"] body.app-standard .app-menu-right{border-top-color:#d6e6f2!important;background:transparent!important}
+html[data-theme="light"] body.app-standard #sync-bar{background:#eef6fc!important;color:#557188!important;border-color:#d4e4ef!important}
+html[data-theme="light"] body.app-standard .app-action-strip{background:rgba(249,252,255,.96)!important;border-color:#d6e6f2!important}
+html[data-theme="light"] body.app-standard main .panel,
+html[data-theme="light"] body.app-standard main .card,
+html[data-theme="light"] body.app-standard main .box,
+html[data-theme="light"] body.app-standard main .summary-card,
+html[data-theme="light"] body.app-standard main .stat-box,
+html[data-theme="light"] body.app-standard main .tipo-grafico-card,
+html[data-theme="light"] body.app-standard main .pallet-box,
+html[data-theme="light"] body.app-standard main .moving-box,
+html[data-theme="light"] body.app-standard main .shelf,
+html[data-theme="light"] body.app-standard main .health-item,
+html[data-theme="light"] body.app-standard main .proxima-loja,
+html[data-theme="light"] body.app-standard main .exec-card,
+html[data-theme="light"] body.app-standard main .horizon,
+html[data-theme="light"] body.app-standard main .flow-step,
+html[data-theme="light"] body.app-standard main .alert,
+html[data-theme="light"] body.app-standard main .mov,
+html[data-theme="light"] body.app-standard main .tipo,
+html[data-theme="light"] body.app-standard main .exp-item,
+html[data-theme="light"] body.app-standard main .app,
+html[data-theme="light"] body.app-standard main .msg,
+html[data-theme="light"] body.app-standard main .status,
+html[data-theme="light"] body.app-standard main .visual,
+html[data-theme="light"] body.app-standard main .tile,
+html[data-theme="light"] body.app-standard main .hero-card,
+html[data-theme="light"] body.app-standard main .enterprise-hero,
+html[data-theme="light"] body.app-standard main .branch-hero,
+html[data-theme="light"] body.app-standard main .ops-hero,
+html[data-theme="light"] body.app-standard main .expedition-hero,
+html[data-theme="light"] body.app-standard main .shortcut-card,
+html[data-theme="light"] body.app-standard main .kpi,
+html[data-theme="light"] body.app-standard main .ctx,
+html[data-theme="light"] body.app-standard main .side-card,
+html[data-theme="light"] body.app-standard main .assist-card,
+html[data-theme="light"] body.app-standard main .checklist-card{
+  background:linear-gradient(180deg,#ffffff,#f6fbff)!important;
+  border-color:#d7e7f2!important;
+  box-shadow:0 12px 30px rgba(90,133,168,.08)!important;
+}
+html[data-theme="light"] body.app-standard main .panel:hover,
+html[data-theme="light"] body.app-standard main .card:hover,
+html[data-theme="light"] body.app-standard main .shortcut-card:hover,
+html[data-theme="light"] body.app-standard main .kpi:hover{border-color:#bfddef!important;box-shadow:0 16px 36px rgba(79,135,176,.11)!important}
+html[data-theme="light"] body.app-standard main input:not([type="checkbox"]):not([type="radio"]),
+html[data-theme="light"] body.app-standard main select,
+html[data-theme="light"] body.app-standard main textarea{
+  background:#ffffff!important;border-color:#d0e2ef!important;color:#284762!important;
+}
+html[data-theme="light"] body.app-standard main input:focus,
+html[data-theme="light"] body.app-standard main select:focus,
+html[data-theme="light"] body.app-standard main textarea:focus{background:#ffffff!important;border-color:#6fb5df!important;box-shadow:0 0 0 3px rgba(58,145,199,.10)!important}
+html[data-theme="light"] body.app-standard main label{color:#4e6c83!important}
+html[data-theme="light"] body.app-standard main .table-wrap,
+html[data-theme="light"] body.app-standard main .tabela-scroll{background:#ffffff!important;border-color:#d4e4ef!important}
+html[data-theme="light"] body.app-standard main thead,
+html[data-theme="light"] body.app-standard main thead th{background:#edf7ff!important;color:#3b6180!important;border-bottom-color:#d5e6f2!important}
+html[data-theme="light"] body.app-standard main tbody tr{background:#ffffff!important;color:#284762!important}
+html[data-theme="light"] body.app-standard main tbody tr:nth-child(even){background:#f9fcff!important}
+html[data-theme="light"] body.app-standard main tbody tr:hover{background:#eef7ff!important}
+html[data-theme="light"] body.app-standard main td{border-bottom-color:#deebf4!important;color:#2b4b66!important}
+html[data-theme="light"] body.app-standard .ui-btn-secondary,
+html[data-theme="light"] body.app-standard .ui-btn-link{background:#ffffff!important;color:#35556f!important;border-color:#c9deec!important}
+html[data-theme="light"] body.app-standard .ui-btn-primary{background:linear-gradient(135deg,#2f8ec7,#58aee2)!important;color:#fff!important;border-color:#65b4e6!important}
+html[data-theme="light"] body.app-standard footer{color:#6a859a!important}
