@@ -69,7 +69,7 @@ import qrcode
 import db
 
 app = Flask(__name__)
-APP_BUILD = "2026-09-27-v1.4.3"
+APP_BUILD = "2026-09-28-v1.4.4"
 _DASHBOARD_CACHE = {"expira": 0.0, "dados": None}
 app.secret_key = os.environ.get("SECRET_KEY", "troque-esta-chave-em-producao")
 _RUNNING_HTTPS_HOSTED = bool(
@@ -3293,6 +3293,10 @@ def _acomp_valor_definido(valor):
     return True
 
 
+def _status_acompanhamento_aberto(valor):
+    return _normalizar_exec(valor) in {"pendente", "em andamento", "obra nao pendente"}
+
+
 def _dados_acompanhamento_expansao():
     linhas = db.listar_acompanhamento_expansao()
     total = len(linhas)
@@ -3320,7 +3324,7 @@ def _dados_acompanhamento_expansao():
         concluida = st == "INAUGURADA"
         if concluida:
             inauguradas += 1
-        if st == "PENDENTE":
+        if _status_acompanhamento_aberto(st):
             pendentes += 1
 
         obra_ok = concluida or _acomp_valor_definido(item.get("term_obra"))
@@ -3329,7 +3333,7 @@ def _dados_acompanhamento_expansao():
         obra_alcance += 1 if obra_ok else 0
         ti_alcance += 1 if ti_ok else 0
         inaug_alcance += 1 if inaug_ok else 0
-        if st == "PENDENTE" and _acomp_valor_definido(item.get("inauguracao")):
+        if _status_acompanhamento_aberto(st) and _acomp_valor_definido(item.get("inauguracao")):
             pendentes_com_data += 1
 
         if concluida:
@@ -5158,7 +5162,7 @@ def _dados_cockpit_implantacao(incluir_financeiro=True):
             return None
 
     linhas_acomp = db.listar_acompanhamento_expansao()
-    pendentes = [x for x in linhas_acomp if _normalizar_exec(x.get("status_filial")) == "pendente"]
+    pendentes = [x for x in linhas_acomp if _status_acompanhamento_aberto(x.get("status_filial"))]
     inauguradas = sum(1 for x in linhas_acomp if _normalizar_exec(x.get("status_filial")) == "inaugurada")
 
     produtos = db.listar_produtos()
@@ -5727,7 +5731,7 @@ def _lojas_pendentes_resumo_semanal():
     """Lojas PENDENTES do Acompanhamento, com os dois marcos solicitados."""
     lojas=[]
     for x in db.listar_acompanhamento_expansao():
-        if _normalizar_exec(x.get('status_filial')) != 'pendente':
+        if not _status_acompanhamento_aberto(x.get('status_filial')):
             continue
         lojas.append({
             'filial': str(x.get('filial') or '').strip() or '-',

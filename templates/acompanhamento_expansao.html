@@ -103,7 +103,7 @@ main{padding:26px 32px 60px;max-width:1500px;margin:0 auto}.kpis{display:grid;gr
             <div class="full"><label for="create-descricao">Descrição filial *</label><input id="create-descricao" required placeholder="Nome / identificação da loja"></div>
             <div><label for="create-uf">UF *</label><input id="create-uf" required maxlength="2" placeholder="SP"></div>
             <div><label for="create-projeto">Projeto *</label><select id="create-projeto" required><option value="">Selecione...</option><option>EXPANSÃO</option><option>AMPLIAÇÃO</option><option>REALOCAÇÃO</option></select></div>
-            <div><label for="create-status">Status filial *</label><select id="create-status" required><option value="PENDENTE">PENDENTE</option><option value="INAUGURADA">INAUGURADA</option></select></div>
+            <div><label for="create-status">Status filial *</label><select id="create-status" required><option value="PENDENTE">Pendente</option><option value="EM ANDAMENTO">Em andamento</option><option value="OBRA NÃO PENDENTE">Obra não pendente</option><option value="INAUGURADA">Inaugurada</option></select></div>
             <div><label for="create-enviada">Enviada</label><select id="create-enviada"><option value="NAO">NÃO</option><option value="SIM">SIM</option></select></div>
             <div><label for="create-separacao">Em Separação</label><select id="create-separacao"><option value="NAO">NÃO</option><option value="SIM">SIM</option></select></div>
             <div><label for="create-equip">Equip. separado</label><select id="create-equip"><option value="NAO">NÃO</option><option value="SIM">SIM</option></select></div>
@@ -169,7 +169,7 @@ main{padding:26px 32px 60px;max-width:1500px;margin:0 auto}.kpis{display:grid;gr
         <div class="full"><label for="edit-descricao">Descrição filial</label><input id="edit-descricao"></div>
         <div><label for="edit-uf">UF</label><input id="edit-uf" maxlength="2" placeholder="SP"></div>
         <div><label for="edit-projeto">Projeto</label><select id="edit-projeto"><option value="">Selecione...</option><option>EXPANSÃO</option><option>AMPLIAÇÃO</option><option>REALOCAÇÃO</option></select></div>
-        <div><label for="edit-status">Status filial</label><select id="edit-status"><option value="">Selecione...</option><option>INAUGURADA</option><option>PENDENTE</option></select></div>
+        <div><label for="edit-status">Status filial</label><select id="edit-status"><option value="">Selecione...</option><option value="PENDENTE">Pendente</option><option value="EM ANDAMENTO">Em andamento</option><option value="OBRA NÃO PENDENTE">Obra não pendente</option><option value="INAUGURADA">Inaugurada</option></select></div>
         <div><label for="edit-enviada">Enviada</label><select id="edit-enviada"><option value="NAO">NÃO</option><option value="SIM">SIM</option></select></div>
         <div><label for="edit-separacao">Em Separação</label><select id="edit-separacao"><option value="NAO">NÃO</option><option value="SIM">SIM</option></select></div>
         <div><label for="edit-equip">Equip. separado</label><select id="edit-equip"><option value="NAO">NÃO</option><option value="SIM">SIM</option></select></div>
@@ -214,7 +214,8 @@ let dados = [];
 let charts = [];
 const selecionadas = new Set();
 
-function badgeStatus(s){ const n = norm(s); return n === 'inaugurada' ? 'ok' : n === 'pendente' ? 'warn' : 'muted'; }
+function statusEmAcompanhamento(s){ return ['pendente','em andamento','obra nao pendente'].includes(norm(s)); }
+function badgeStatus(s){ const n=norm(s); return n==='inaugurada'?'ok':n==='em andamento'?'blue':n==='obra nao pendente'?'ok':n==='pendente'?'warn':'muted'; }
 function badgeCrono(s){ const n = norm(s); return n === 'entregue' ? 'ok' : n.includes('inauguracao') ? 'blue' : n.includes('definir') ? 'warn' : 'muted'; }
 function parseDataBR(v){
   const raw=String(v||'').trim();
@@ -227,7 +228,7 @@ function parseDataBR(v){
 }
 function dataDefinida(v){ return parseDataBR(v)!==null; }
 function renderMacroLista(campo){
-  const rows=dados.filter(x=>norm(x.status_filial)==='pendente').sort((a,b)=>{
+  const rows=dados.filter(x=>statusEmAcompanhamento(x.status_filial)).sort((a,b)=>{
     const da=parseDataBR(a[campo]), db=parseDataBR(b[campo]);
     if(da!==null && db!==null && da!==db) return da-db;
     if(da!==null) return -1;
@@ -238,12 +239,12 @@ function renderMacroLista(campo){
   return rows.map(x=>{
     const valor=String(x[campo]||'').trim();
     const definida=dataDefinida(valor);
-    const status=norm(x.status_filial)==='inaugurada' ? '<span class="macro-badge ok">INAUGURADA</span>' : '<span class="macro-badge warn">PENDENTE</span>';
+    const nst=norm(x.status_filial);const status=nst==='inaugurada'?'<span class="macro-badge ok">INAUGURADA</span>':`<span class="macro-badge ${nst==='obra nao pendente'?'ok':'warn'}">${esc(x.status_filial||'PENDENTE')}</span>`;
     return `<div class="macro-row"><div class="macro-filial">${esc(x.filial||'-')}</div><div class="macro-loja"><strong title="${esc(x.descricao_filial||'')}">${esc(x.descricao_filial||'-')}</strong><small>${esc(x.bandeira||'-')} ${status}</small></div><div class="macro-uf">${esc(x.uf||'-')}</div><div class="macro-date ${definida?'defined':'pending'}">${esc(valor||'A DEFINIR')}</div></div>`;
   }).join('');
 }
 function atualizarMacroCronograma(){
-  const base=dados.filter(x=>norm(x.status_filial)==='pendente');
+  const base=dados.filter(x=>statusEmAcompanhamento(x.status_filial));
   const tiDef=base.filter(x=>dataDefinida(x.entrada_ti)).length;
   const inDef=base.filter(x=>dataDefinida(x.inauguracao)).length;
   const total=base.length;
@@ -334,7 +335,7 @@ async function init(){
     document.getElementById('k-pend').textContent=s.pendentes||0;
     const pendProjeto={expansao:0,ampliacao:0,realocacao:0};
     dados.forEach(x=>{
-      if(norm(x.status_filial)!=='pendente') return;
+      if(!statusEmAcompanhamento(x.status_filial)) return;
       const p=norm(x.projeto);
       if(p==='expansao') pendProjeto.expansao++;
       else if(p==='ampliacao') pendProjeto.ampliacao++;

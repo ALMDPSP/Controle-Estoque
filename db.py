@@ -2268,7 +2268,7 @@ def listar_acompanhamento_expansao():
             SELECT id, filial, bandeira, descricao_filial, uf, projeto, status_filial,
                    enviada, em_separacao, equip_separado, term_obra, entrada_ti, inauguracao, observacao_ti, atualizado_por, atualizado_em
             FROM acompanhamento_expansao
-            ORDER BY CASE WHEN UPPER(COALESCE(status_filial,'')) = 'PENDENTE' THEN 0 ELSE 1 END,
+            ORDER BY CASE WHEN UPPER(COALESCE(status_filial,'')) IN ('PENDENTE','EM ANDAMENTO','OBRA NÃO PENDENTE') THEN 0 ELSE 1 END,
                      filial
         """)
         return [dict(r) for r in cur.fetchall()]
