@@ -69,7 +69,7 @@ import qrcode
 import db
 
 app = Flask(__name__)
-APP_BUILD = "2026-09-28-v1.4.5"
+APP_BUILD = "2026-09-28-v1.4.6"
 _DASHBOARD_CACHE = {"expira": 0.0, "dados": None}
 app.secret_key = os.environ.get("SECRET_KEY", "troque-esta-chave-em-producao")
 _RUNNING_HTTPS_HOSTED = bool(
@@ -3905,6 +3905,7 @@ def api_cadastrar_acompanhamento_expansao():
         "projeto": projeto,
         "status_filial": status_filial,
         "link_rede": str(dados.get("link_rede") or "").strip(),
+        "mobiliario": str(dados.get("mobiliario") or "").strip(),
         "enviada": "SIM" if str(dados.get("enviada") or "NAO").strip().upper() == "SIM" else "NAO",
         "em_separacao": "SIM" if str(dados.get("em_separacao") or "NAO").strip().upper() == "SIM" else "NAO",
         "equip_separado": "SIM" if str(dados.get("equip_separado") or "NAO").strip().upper() == "SIM" else "NAO",
@@ -3967,6 +3968,7 @@ def api_atualizar_acompanhamento_expansao(registro_id):
         "projeto": str(dados.get("projeto") or "").strip().upper(),
         "status_filial": str(dados.get("status_filial") or "").strip().upper(),
         "link_rede": str(dados.get("link_rede") or "").strip(),
+        "mobiliario": str(dados.get("mobiliario") or "").strip(),
         "enviada": "SIM" if str(dados.get("enviada") or "NAO").strip().upper() == "SIM" else "NAO",
         "em_separacao": "SIM" if str(dados.get("em_separacao") or "NAO").strip().upper() == "SIM" else "NAO",
         "equip_separado": "SIM" if str(dados.get("equip_separado") or "NAO").strip().upper() == "SIM" else "NAO",
@@ -4017,7 +4019,7 @@ def api_atualizar_acompanhamento_expansao(registro_id):
     baixa_inauguracao = {"consumidas": 0, "faltantes": 0, "itens_faltantes": []}
 
     alteracoes = []
-    for campo, rotulo in (("filial","Filial"),("bandeira","Bandeira"),("descricao_filial","Descrição"),("uf","UF"),("projeto","Projeto"),("status_filial","Status"),("enviada","Enviada"),("em_separacao","Em Separação"),("equip_separado","Equip. separado"),("term_obra","Término obra"),("entrada_ti","Entrada TI"),("inauguracao","Inauguração"),("observacao_ti","Observação TI")):
+    for campo, rotulo in (("filial","Filial"),("bandeira","Bandeira"),("descricao_filial","Descrição"),("uf","UF"),("projeto","Projeto"),("status_filial","Status"),("link_rede","Link/Rede"),("mobiliario","Mobiliário"),("enviada","Enviada"),("em_separacao","Em Separação"),("equip_separado","Equip. separado"),("term_obra","Término obra"),("entrada_ti","Entrada TI"),("inauguracao","Inauguração"),("observacao_ti","Observação TI")):
         antes = str(anterior.get(campo) or "").strip()
         depois = str(payload.get(campo) or "").strip()
         if antes != depois:

@@ -22,6 +22,7 @@ main{padding:26px 32px 60px;max-width:1500px;margin:0 auto}.kpis{display:grid;gr
 @media(max-width:760px){.macro-modal{width:100%;max-height:92vh}.macro-body{padding:14px}.macro-kpis{grid-template-columns:1fr 1fr}.macro-grid{grid-template-columns:1fr}.macro-list{max-height:360px}.macro-row{grid-template-columns:62px minmax(0,1fr) 38px 92px}.macro-head{padding:16px}}
 @media(max-width:430px){.kpis{grid-template-columns:1fr 1fr}.filter-grid{grid-template-columns:1fr}.filter-grid input{grid-column:auto}.reach-facts{grid-template-columns:1fr}.modal-actions{flex-direction:column}.modal-actions button{width:100%}.filters-toolbar{width:100%;justify-content:space-between}.table-danger{width:100%;text-align:center}}
 
+.link-checks{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;padding:8px;border:1px solid var(--line);border-radius:9px;background:#0e151d}.link-check{display:flex;align-items:center;gap:8px;padding:8px 9px;border:1px solid rgba(62,166,255,.14);border-radius:8px;background:rgba(62,166,255,.035);cursor:pointer;transition:.16s ease}.link-check:hover{border-color:rgba(62,166,255,.38);background:rgba(62,166,255,.08)}.link-check input{width:15px!important;height:15px!important;min-height:0!important;padding:0!important;accent-color:var(--accent);cursor:pointer}.link-check span{font-size:10px;color:var(--text)}@media(max-width:520px){.link-checks{grid-template-columns:1fr}}
 .edit-btn{border:1px solid rgba(62,166,255,.35);background:rgba(62,166,255,.07);color:#83cbff;padding:6px 9px;border-radius:7px;font:700 9px var(--mono);cursor:pointer;white-space:nowrap}.edit-btn:hover{background:rgba(62,166,255,.14);border-color:var(--accent)}
 .edit-modal{width:min(820px,100%)}.edit-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.edit-grid .full{grid-column:1/-1}.edit-grid label{margin:0 0 6px}.edit-grid input,.edit-grid select,.edit-grid textarea{width:100%;background:#0e151d;border:1px solid var(--line);border-radius:9px;padding:10px 11px;color:#fff;font:inherit;font-size:11px;outline:none}.edit-grid textarea{min-height:86px;resize:vertical}.edit-grid input:focus,.edit-grid select:focus,.edit-grid textarea:focus{border-color:var(--accent);box-shadow:0 0 0 2px rgba(62,166,255,.08)}.edit-hint{margin:0 0 14px;color:var(--muted);font-size:10px;line-height:1.5}.edit-hint b{color:#dbe8f5}.saving{opacity:.65;pointer-events:none}
 
@@ -170,7 +171,8 @@ main{padding:26px 32px 60px;max-width:1500px;margin:0 auto}.kpis{display:grid;gr
         <div><label for="edit-uf">UF</label><input id="edit-uf" maxlength="2" placeholder="SP"></div>
         <div><label for="edit-projeto">Projeto</label><select id="edit-projeto"><option value="">Selecione...</option><option>EXPANSÃO</option><option>AMPLIAÇÃO</option><option>REALOCAÇÃO</option></select></div>
         <div><label for="edit-status">Status filial</label><select id="edit-status"><option value="">Selecione...</option><option value="PENDENTE">Pendente</option><option value="EM ANDAMENTO">Em andamento</option><option value="OBRA NÃO PENDENTE">Obra não pendente</option><option value="INAUGURADA">Inaugurada</option></select></div>
-        <div><label for="edit-link-rede">Link/Rede</label><select id="edit-link-rede"><option value="">Selecione...</option><option value="Link 1">Link 1</option><option value="Link 2">Link 2</option><option value="TBnet">TBnet</option><option value="Sem Link">Sem Link</option></select></div>
+        <div class="full"><label>Link/Rede</label><div class="link-checks" id="edit-link-rede"><label class="link-check"><input type="checkbox" value="Link 1"><span>Link 1</span></label><label class="link-check"><input type="checkbox" value="Link 2"><span>Link 2</span></label><label class="link-check"><input type="checkbox" value="TBnet"><span>TBnet</span></label><label class="link-check"><input type="checkbox" value="Sem Link"><span>Sem Link</span></label></div></div>
+        <div><label for="edit-mobiliario">Mobiliário</label><input id="edit-mobiliario" type="date"></div>
         <div><label for="edit-enviada">Enviada</label><select id="edit-enviada"><option value="NAO">NÃO</option><option value="SIM">SIM</option></select></div>
         <div><label for="edit-separacao">Em Separação</label><select id="edit-separacao"><option value="NAO">NÃO</option><option value="SIM">SIM</option></select></div>
         <div><label for="edit-equip">Equip. separado</label><select id="edit-equip"><option value="NAO">NÃO</option><option value="SIM">SIM</option></select></div>
@@ -453,7 +455,9 @@ function abrirEdicao(id){
   document.getElementById('edit-uf').value=x.uf||'';
   const projeto=document.getElementById('edit-projeto'); garantirOpcao(projeto,x.projeto||''); projeto.value=x.projeto||'';
   const status=document.getElementById('edit-status'); garantirOpcao(status,x.status_filial||''); status.value=x.status_filial||'';
-  const linkRede=document.getElementById('edit-link-rede'); garantirOpcao(linkRede,x.link_rede||''); linkRede.value=x.link_rede||'';
+  const linkMarcados=new Set(String(x.link_rede||'').split(',').map(v=>v.trim()).filter(Boolean));
+  document.querySelectorAll('#edit-link-rede input[type="checkbox"]').forEach(cb=>{ cb.checked=linkMarcados.has(cb.value); });
+  document.getElementById('edit-mobiliario').value=x.mobiliario||'';
   document.getElementById('edit-enviada').value=norm(x.enviada)==='sim'?'SIM':'NAO';
   document.getElementById('edit-separacao').value=norm(x.em_separacao)==='sim'?'SIM':'NAO';
   document.getElementById('edit-equip').value=norm(x.equip_separado)==='sim'?'SIM':'NAO';
@@ -466,10 +470,15 @@ function abrirEdicao(id){
 function fecharEdicao(){ editModal.classList.remove('open'); }
 document.getElementById('edit-cancel').addEventListener('click',fecharEdicao);
 editModal.addEventListener('click',e=>{ if(e.target===editModal) fecharEdicao(); });
+document.querySelectorAll('#edit-link-rede input[type="checkbox"]').forEach(cb=>cb.addEventListener('change',()=>{
+  const todos=[...document.querySelectorAll('#edit-link-rede input[type="checkbox"]')];
+  if(cb.value==='Sem Link' && cb.checked){ todos.filter(x=>x!==cb).forEach(x=>x.checked=false); }
+  else if(cb.checked){ const sem=todos.find(x=>x.value==='Sem Link'); if(sem) sem.checked=false; }
+}));
 editForm.addEventListener('submit', async e=>{
   e.preventDefault();
   const id=Number(document.getElementById('edit-id').value); if(!id) return;
-  const payload={filial:document.getElementById('edit-filial').value.trim(), bandeira:document.getElementById('edit-bandeira').value.trim(), descricao_filial:document.getElementById('edit-descricao').value.trim(), uf:document.getElementById('edit-uf').value.trim(), projeto:document.getElementById('edit-projeto').value.trim(), status_filial:document.getElementById('edit-status').value.trim(), link_rede:document.getElementById('edit-link-rede').value.trim(), enviada:document.getElementById('edit-enviada').value, em_separacao:document.getElementById('edit-separacao').value, equip_separado:document.getElementById('edit-equip').value, term_obra:document.getElementById('edit-obra').value.trim(), entrada_ti:document.getElementById('edit-ti').value.trim(), inauguracao:document.getElementById('edit-inauguracao').value.trim(), observacao_ti:document.getElementById('edit-observacao').value.trim()};
+  const payload={filial:document.getElementById('edit-filial').value.trim(), bandeira:document.getElementById('edit-bandeira').value.trim(), descricao_filial:document.getElementById('edit-descricao').value.trim(), uf:document.getElementById('edit-uf').value.trim(), projeto:document.getElementById('edit-projeto').value.trim(), status_filial:document.getElementById('edit-status').value.trim(), link_rede:[...document.querySelectorAll('#edit-link-rede input[type="checkbox"]:checked')].map(cb=>cb.value).join(', '), mobiliario:document.getElementById('edit-mobiliario').value.trim(), enviada:document.getElementById('edit-enviada').value, em_separacao:document.getElementById('edit-separacao').value, equip_separado:document.getElementById('edit-equip').value, term_obra:document.getElementById('edit-obra').value.trim(), entrada_ti:document.getElementById('edit-ti').value.trim(), inauguracao:document.getElementById('edit-inauguracao').value.trim(), observacao_ti:document.getElementById('edit-observacao').value.trim()};
   if(!payload.filial){ editMsg.textContent='Informe a filial.'; editMsg.className='modal-status error'; return; }
   const save=document.getElementById('edit-save'); save.disabled=true; editForm.classList.add('saving'); editMsg.textContent='Salvando alterações...'; editMsg.className='modal-status';
   try{
