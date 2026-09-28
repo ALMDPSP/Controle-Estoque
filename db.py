@@ -398,6 +398,13 @@ def init_db():
     except Exception:
         conn.rollback()
 
+    # Migração v1.4.7: renomeia o status operacional antigo.
+    try:
+        cur.execute("UPDATE acompanhamento_expansao SET status_filial='OBRA NÃO INICIADA' WHERE UPPER(COALESCE(status_filial,''))='OBRA NÃO PENDENTE'")
+        conn.commit()
+    except Exception:
+        conn.rollback()
+
     # Índices leves para os filtros e gráficos do dashboard.
     for nome_indice, coluna in (
         ("idx_acomp_exp_status", "status_filial"),
@@ -2293,7 +2300,7 @@ def listar_acompanhamento_expansao():
             SELECT id, filial, bandeira, descricao_filial, uf, projeto, status_filial, link_rede, mobiliario,
                    enviada, em_separacao, equip_separado, term_obra, entrada_ti, inauguracao, observacao_ti, atualizado_por, atualizado_em
             FROM acompanhamento_expansao
-            ORDER BY CASE WHEN UPPER(COALESCE(status_filial,'')) IN ('PENDENTE','EM ANDAMENTO','OBRA NÃO PENDENTE') THEN 0 ELSE 1 END,
+            ORDER BY CASE WHEN UPPER(COALESCE(status_filial,'')) IN ('PENDENTE','EM ANDAMENTO','OBRA NÃO INICIADA') THEN 0 ELSE 1 END,
                      filial
         """)
         return [dict(r) for r in cur.fetchall()]

@@ -69,7 +69,7 @@ import qrcode
 import db
 
 app = Flask(__name__)
-APP_BUILD = "2026-09-28-v1.4.6"
+APP_BUILD = "2026-09-28-v1.4.7"
 _DASHBOARD_CACHE = {"expira": 0.0, "dados": None}
 app.secret_key = os.environ.get("SECRET_KEY", "troque-esta-chave-em-producao")
 _RUNNING_HTTPS_HOSTED = bool(
@@ -3294,7 +3294,7 @@ def _acomp_valor_definido(valor):
 
 
 def _status_acompanhamento_aberto(valor):
-    return _normalizar_exec(valor) in {"pendente", "em andamento", "obra nao pendente"}
+    return _normalizar_exec(valor) in {"pendente", "em andamento", "obra nao iniciada"}
 
 
 def _dados_acompanhamento_expansao():
@@ -3886,17 +3886,6 @@ def api_cadastrar_acompanhamento_expansao():
     if obrigatorios:
         return jsonify({"erro": "Preencha os campos obrigatórios: " + ", ".join(obrigatorios) + "."}), 400
 
-    if _normalizar_exec(status_filial) == "inaugurada":
-        filial_existente = db.buscar_filial_por_codigo(filial)
-        ja_ativa = bool(filial_existente and str(filial_existente.get("ativo") or "") == "1")
-        if not ja_ativa:
-            faltantes_kit = _faltantes_kit_real_filial(filial)
-            if faltantes_kit:
-                return jsonify({
-                    "erro": "A loja só pode ser marcada como Inaugurada/Ativa depois que o Kit padrão receber baixa real no Estoque.",
-                    "faltantes_kit": faltantes_kit,
-                }), 409
-
     payload = {
         "filial": filial,
         "bandeira": bandeira,
@@ -3978,17 +3967,6 @@ def api_atualizar_acompanhamento_expansao(registro_id):
         "observacao_ti": str(dados.get("observacao_ti") or "").strip(),
     }
 
-
-    if _normalizar_exec(payload.get("status_filial")) == "inaugurada":
-        filial_existente = db.buscar_filial_por_codigo(filial)
-        ja_ativa = bool(filial_existente and str(filial_existente.get("ativo") or "") == "1")
-        if not ja_ativa:
-            faltantes_kit = _faltantes_kit_real_filial(filial)
-            if faltantes_kit:
-                return jsonify({
-                    "erro": "A loja só pode ser marcada como Inaugurada/Ativa depois que o Kit padrão receber baixa real no Estoque.",
-                    "faltantes_kit": faltantes_kit,
-                }), 409
 
     # Evita duplicidade da chave FILIAL caso o código seja alterado manualmente.
     for existente in db.listar_acompanhamento_expansao():
