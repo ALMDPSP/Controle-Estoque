@@ -69,7 +69,7 @@ import qrcode
 import db
 
 app = Flask(__name__)
-APP_BUILD = "2026-09-28-v1.4.7"
+APP_BUILD = "2026-09-28-v1.4.8"
 _DASHBOARD_CACHE = {"expira": 0.0, "dados": None}
 app.secret_key = os.environ.get("SECRET_KEY", "troque-esta-chave-em-producao")
 _RUNNING_HTTPS_HOSTED = bool(
@@ -7947,6 +7947,124 @@ def api_baixa_rapida_filial(codigo_filial):
     if erro:
         return jsonify({"erro": erro}), 404 if "não encontrada" in erro.lower() else 400
     return jsonify(dados)
+
+
+@app.route("/api/baixa-rapida/modelo-preenchimento", methods=["GET"])
+@edit_required
+def api_baixa_rapida_modelo_preenchimento():
+    ids_raw = str(request.args.get("ids") or "")
+    ids = []
+    for parte in ids_raw.split(","):
+        try:
+            valor = int(str(parte).strip())
+        except (TypeError, ValueError):
+            continue
+        if valor > 0 and valor not in ids:
+            ids.append(valor)
+    if not ids:
+        return jsonify({"erro": "Selecione ao menos um equipamento para gerar o modelo."}), 400
+
+    itens = {int(x.get("id") or 0): x for x in (db.listar_itens() or [])}
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Preenchimento Expedição"
+    cabecalhos = ["ID estoque", "Código", "Descrição", "Nº imobilizado", "Nº série", "Nº patrimônio"]
+    ws.append(cabecalhos)
+    for cell in ws[1]:
+        cell.font = Font(bold=True, color="FFFFFF")
+        cell.fill = PatternFill("solid", fgColor="1F4E78")
+        cell.alignment = Alignment(horizontal="center")
+    for item_id in ids:
+        item = itens.get(item_id)
+        if not item:
+            continue
+        ws.append([
+            item_id,
+            str(item.get("codigo") or ""),
+            str(item.get("descricao") or ""),
+            str(item.get("nro_imobilizado") or ""),
+            str(item.get("nro_serie") or ""),
+            str(item.get("nro_patrimonio") or ""),
+        ])
+    larguras = [14, 18, 42, 22, 22, 22]
+    for i, largura in enumerate(larguras, 1):
+        ws.column_dimensions[get_column_letter(i)].width = largura
+    ws.freeze_panes = "A2"
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    return send_file(
+        buf,
+        as_attachment=True,
+        download_name=f"modelo_expedicao_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx",
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+
+
+@app.route("/api/baixa-rapida/importar-preenchimento", methods=["POST"])
+@edit_required
+def api_baixa_rapida_importar_preenchimento():
+    arquivo = request.files.get("arquivo")
+    if not arquivo or not arquivo.filename:
+        return jsonify({"erro": "Selecione um arquivo Excel (.xlsx)."}), 400
+    if not arquivo.filename.lower().endswith((".xlsx", ".xlsm")):
+        return jsonify({"erro": "Envie um arquivo Excel .xlsx ou .xlsm."}), 400
+    try:
+        wb = load_workbook(arquivo, data_only=True, read_only=True)
+        ws = wb.active
+    except Exception:
+        return jsonify({"erro": "Não foi possível abrir o Excel. Confirme se o arquivo é válido."}), 400
+
+    def norm_header(valor):
+        txt = unicodedata.normalize("NFD", str(valor or "")).encode("ascii", "ignore").decode("ascii")
+        return re.sub(r"[^a-z0-9]+", " ", txt.lower()).strip()
+
+    linhas = list(ws.iter_rows(values_only=True))
+    if not linhas:
+        return jsonify({"erro": "O arquivo está vazio."}), 400
+    headers = [norm_header(v) for v in linhas[0]]
+    aliases = {
+        "id_estoque": {"id estoque", "id", "id do estoque", "estoque id"},
+        "nro_imobilizado": {"n imobilizado", "no imobilizado", "numero imobilizado", "imobilizado"},
+        "nro_serie": {"n serie", "no serie", "numero serie", "serie"},
+        "nro_patrimonio": {"n patrimonio", "no patrimonio", "numero patrimonio", "patrimonio"},
+    }
+    indices = {}
+    for chave, nomes in aliases.items():
+        for idx, h in enumerate(headers):
+            if h in nomes:
+                indices[chave] = idx
+                break
+    if "id_estoque" not in indices:
+        return jsonify({"erro": "O Excel precisa ter a coluna 'ID estoque'. Use o modelo gerado pela Expedição."}), 400
+
+    saida = []
+    erros = []
+    for numero_linha, row in enumerate(linhas[1:], start=2):
+        valor_id = row[indices["id_estoque"]] if indices["id_estoque"] < len(row) else None
+        if valor_id in (None, ""):
+            continue
+        try:
+            item_id = int(float(valor_id))
+        except (TypeError, ValueError):
+            erros.append(f"Linha {numero_linha}: ID estoque inválido.")
+            continue
+        obj = {"id_estoque": item_id}
+        for chave in ("nro_imobilizado", "nro_serie", "nro_patrimonio"):
+            idx = indices.get(chave)
+            valor = row[idx] if idx is not None and idx < len(row) else ""
+            if valor is None:
+                valor = ""
+            if isinstance(valor, float) and valor.is_integer():
+                valor = str(int(valor))
+            else:
+                valor = str(valor).strip()
+            obj[chave] = valor
+        saida.append(obj)
+    if not saida:
+        detalhe = " " + " ".join(erros[:3]) if erros else ""
+        return jsonify({"erro": "Nenhuma linha válida foi encontrada no Excel." + detalhe}), 400
+    return jsonify({"ok": True, "linhas": saida, "avisos": erros[:20]})
 
 
 @app.route("/api/baixa-rapida/confirmar", methods=["POST"])
