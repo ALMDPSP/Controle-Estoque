@@ -22,7 +22,7 @@ body{overflow-x:hidden}header{padding-left:16px!important;padding-right:16px!imp
 </style>
 <nav class="app-menu" id="app-menu">
   <button type="button" class="app-mobile-toggle" id="app-mobile-toggle" aria-expanded="false" aria-controls="app-menu-links"><span>☰</span><span class="mobile-label">Menu</span></button>
-  <div class="app-sidebar-brand"><div class="brand-mark">DPSP</div><div class="brand-copy"><strong>Controle de Estoque</strong><span>Ambiente premium para operação, expedição e implantação.</span><small>Versão · v1.4.1</small></div></div>
+  <div class="app-sidebar-brand"><div class="brand-mark">DPSP</div><div class="brand-copy"><strong>Controle de Estoque</strong><span>Ambiente premium para operação, expedição e implantação.</span><small>Versão · v1.4.2</small></div></div>
   <div class="app-menu-left" id="app-menu-links">
     <a href="{{ url_for('dashboard') }}" class="{{ 'ativo' if request.endpoint == 'dashboard' else '' }}"><span class="nav-ico">◉</span>Dashboard</a>
     <a href="{{ url_for('pagina_agente_ia') }}" class="app-ai-link {{ 'ativo' if request.endpoint == 'pagina_agente_ia' else '' }}"><span class="nav-ico">✦</span>Agente IA</a>
@@ -69,6 +69,7 @@ body{overflow-x:hidden}header{padding-left:16px!important;padding-right:16px!imp
       <div class="global-search-results" data-global-results></div>
     </div>
     <span class="app-user">{{ username }} · {{ {'admin':'Administrador','gestor':'Gestor','operador':'Operador','consulta':'Consulta','user':'Operador'}.get(role or 'user','Operador') }}</span>{% if role == 'consulta' %}<span class="app-role-note">somente leitura</span>{% endif %}
+    <div class="theme-picker"><label for="app-theme-select">Tema</label><select class="theme-select" id="app-theme-select" aria-label="Escolher tema"><option value="auto">◐ Automático</option><option value="dark">🌙 Escuro</option><option value="light">☀ Claro</option></select></div>
     <a href="{{ url_for('pagina_seguranca') }}" class="{{ 'ativo' if request.endpoint == 'pagina_seguranca' else '' }}"><span class="nav-ico">◍</span>Segurança</a>
     <a href="{{ url_for('logout') }}"><span class="nav-ico">↦</span>Sair</a>
   </div>
@@ -76,6 +77,22 @@ body{overflow-x:hidden}header{padding-left:16px!important;padding-right:16px!imp
 <div class="app-toasts" id="app-toasts"></div>
 <script>
 (function(){
+  const THEME_KEY='controle-estoque-theme';
+  const themeSelect=document.getElementById('app-theme-select');
+  const media=window.matchMedia('(prefers-color-scheme: light)');
+  function aplicarTema(modo){
+    const permitido=['auto','dark','light'].includes(modo)?modo:'auto';
+    const resolvido=permitido==='auto'?(media.matches?'light':'dark'):permitido;
+    document.documentElement.dataset.theme=resolvido;
+    document.documentElement.dataset.themeMode=permitido;
+    if(themeSelect) themeSelect.value=permitido;
+    const meta=document.querySelector('meta[name="theme-color"]');
+    if(meta) meta.setAttribute('content',resolvido==='light'?'#eef5fb':'#07111d');
+  }
+  aplicarTema(localStorage.getItem(THEME_KEY)||'auto');
+  themeSelect?.addEventListener('change',()=>{localStorage.setItem(THEME_KEY,themeSelect.value);aplicarTema(themeSelect.value);window.appToast?.(`Tema ${themeSelect.options[themeSelect.selectedIndex].text.replace(/^[^A-Za-zÀ-ÿ]+/,'').trim()} selecionado.`,'ok');});
+  const onSystemChange=()=>{if((localStorage.getItem(THEME_KEY)||'auto')==='auto')aplicarTema('auto');};
+  if(media.addEventListener)media.addEventListener('change',onSystemChange);else media.addListener?.(onSystemChange);
   const menu=document.getElementById('app-menu'), toggle=document.getElementById('app-mobile-toggle');
   if(toggle&&menu){toggle.addEventListener('click',()=>{const aberto=menu.classList.toggle('mobile-open');toggle.setAttribute('aria-expanded',aberto?'true':'false');});document.addEventListener('click',e=>{if(window.innerWidth<=850&&menu.classList.contains('mobile-open')&&!e.target.closest('#app-menu')){menu.classList.remove('mobile-open');toggle.setAttribute('aria-expanded','false');}});}
   window.appToast=function(msg,tipo='info'){const wrap=document.getElementById('app-toasts');if(!wrap)return;const el=document.createElement('div');el.className='app-toast '+(tipo==='erro'?'erro':tipo==='ok'?'ok':'');el.textContent=String(msg);wrap.appendChild(el);setTimeout(()=>el.remove(),4200)};

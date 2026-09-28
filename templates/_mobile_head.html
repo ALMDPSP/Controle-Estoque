@@ -1,3 +1,12 @@
+<script>
+(function(){
+  const KEY='controle-estoque-theme';
+  const saved=localStorage.getItem(KEY)||'auto';
+  const resolved=saved==='auto'?(window.matchMedia('(prefers-color-scheme: light)').matches?'light':'dark'):saved;
+  document.documentElement.dataset.theme=resolved;
+  document.documentElement.dataset.themeMode=saved;
+})();
+</script>
 <meta name="theme-color" content="#07111d">
 <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}?v=4">
 <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='favicon-32.png') }}?v=4">
@@ -9,7 +18,7 @@
 <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}?v=4">
 <script>
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => navigator.serviceWorker.register('/service-worker.js?v=1.4.1').catch(() => {}));
+  window.addEventListener('load', () => navigator.serviceWorker.register('/service-worker.js?v=1.4.2').catch(() => {}));
 }
 </script>
 <style>
@@ -406,4 +415,4 @@ body.app-standard .table-count{font-size:10px!important;color:var(--muted,#8b96a
   document.addEventListener('DOMContentLoaded',()=>{const main=document.querySelector('body.app-standard main');if(main)obs.observe(main,{childList:true,subtree:true})});
 })();
 </script>
-<link rel="stylesheet" href="{{ url_for('static', filename='ui-premium-v1.4.1.css') }}?v=1.4.1">
+<link rel="stylesheet" href="{{ url_for('static', filename='ui-premium-v1.4.2.css') }}?v=1.4.2">
