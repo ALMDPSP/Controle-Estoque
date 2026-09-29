@@ -554,6 +554,7 @@
 {% if role != 'consulta' %}
 <div class="app-action-strip" aria-label="Ações da aba Estoque">
   <button type="button" class="ui-btn ui-btn-excel" id="btn-baixar-relatorio-excel">▣ Relatório Excel</button>
+  <a class="ui-btn ui-btn-secondary" href="{{ url_for('exportar_itens_enviados_excel') }}">⇩ Itens enviados</a>
   <a class="ui-btn ui-btn-pdf" href="{{ url_for('exportar_estoque_pdf') }}">▣ Relatório PDF</a>
   <button type="button" class="ui-btn ui-btn-import" id="abrir-importar">↑ Importar Excel</button>
   <a class="ui-btn ui-btn-primary" href="{{ url_for('pagina_expedicao') }}">⇩ Abrir Expedição</a>

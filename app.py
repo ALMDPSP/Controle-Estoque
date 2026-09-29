@@ -69,8 +69,13 @@ import qrcode
 import db
 
 app = Flask(__name__)
-APP_BUILD = "2026-09-29-v1.5.0"
+APP_BUILD = "2026-09-29-v1.5.2"
 _DASHBOARD_CACHE = {"expira": 0.0, "dados": None}
+_EXPEDICAO_CACHE = {"expira": 0.0, "dados": None}
+
+def _invalidar_cache_expedicao():
+    _EXPEDICAO_CACHE["expira"] = 0.0
+    _EXPEDICAO_CACHE["dados"] = None
 app.secret_key = os.environ.get("SECRET_KEY", "troque-esta-chave-em-producao")
 _RUNNING_HTTPS_HOSTED = bool(
     os.environ.get("KOYEB_PUBLIC_DOMAIN")
@@ -7932,10 +7937,24 @@ def _resumo_central_expedicao():
         _qtd_estoque_int(x) for x in itens
         if _normalizar_exec(x.get("tipo_estoque")) == "expansao" and _normalizar_exec(x.get("status")) != "enviado"
     )
-    try:
-        capacidade = int((_calcular_relatorio_executivo_estoque_kit() or {}).get("capacidade_lojas") or 0)
-    except Exception:
-        capacidade = 0
+    # Capacidade calculada com os dados já carregados nesta requisição.
+    # Evita executar novamente o relatório executivo completo (que relê banco,
+    # produtos, pipeline e Kit) apenas para obter um número.
+    capacidades = []
+    for k in kit:
+        try:
+            necessario = max(1, int(float(k.get("quantidade") or 1)))
+        except (TypeError, ValueError):
+            necessario = 1
+        disponivel = sum(
+            _qtd_estoque_int(x) for x in itens
+            if _qtd_estoque_int(x) > 0
+            and _normalizar_exec(x.get("status")) != "enviado"
+            and _normalizar_exec(x.get("tipo_estoque")) == "expansao"
+            and _equipamento_combina_kit(x, k)
+        )
+        capacidades.append(disponivel // necessario)
+    capacidade = min(capacidades) if capacidades else 0
 
     return {
         "gerado_em": datetime.now().strftime("%d/%m/%Y %H:%M"),
@@ -8002,6 +8021,7 @@ def api_expedicao_salvar_kit_filial(codigo_filial):
         salvos = db.salvar_kit_filial_personalizado(codigo_filial, itens, session.get("username") or "sistema")
         db.registrar_movimentacao(0, "kit_filial_personalizado", str(len(salvos)), session.get("username") or "sistema", f"Kit personalizado da filial {codigo_filial} atualizado na Expedição.", tabela="sistema")
         ativacao = _ativar_filial_se_kit_real_completo(codigo_filial, session.get("username") or "sistema")
+        _invalidar_cache_expedicao()
     except Exception:
         app.logger.exception("Falha ao salvar Kit personalizado da filial %s", codigo_filial)
         return jsonify({"erro": "Não foi possível salvar o Kit personalizado da filial."}), 500
@@ -8124,6 +8144,7 @@ def api_expedicao_importar_kit_filial(codigo_filial):
         salvos = db.salvar_kit_filial_personalizado(codigo_filial, itens, session.get("username") or "sistema")
         db.registrar_movimentacao(0, "kit_filial_upload", str(len(salvos)), session.get("username") or "sistema", f"Kit da filial {codigo_filial} atualizado por upload na Expedição.", tabela="sistema")
         ativacao = _ativar_filial_se_kit_real_completo(codigo_filial, session.get("username") or "sistema")
+        _invalidar_cache_expedicao()
     except Exception:
         app.logger.exception("Falha ao importar Kit da filial %s", codigo_filial)
         return jsonify({"erro": "Não foi possível salvar o Kit importado."}), 500
@@ -8138,6 +8159,7 @@ def api_expedicao_restaurar_kit_filial(codigo_filial):
     if not db.buscar_filial_por_codigo(codigo_filial):
         return jsonify({"erro": "Filial não encontrada."}), 404
     db.excluir_kit_filial_personalizado(codigo_filial)
+    _invalidar_cache_expedicao()
     dados, erro = _dados_baixa_rapida_filial(codigo_filial)
     return jsonify({"ok": True, "dados": dados, "erro": erro})
 
@@ -8145,7 +8167,18 @@ def api_expedicao_restaurar_kit_filial(codigo_filial):
 @app.route("/api/expedicao/resumo", methods=["GET"])
 @edit_required
 def api_expedicao_resumo():
-    return jsonify(_resumo_central_expedicao())
+    agora = time.monotonic()
+    force = request.args.get("force") == "1"
+    if not force and _EXPEDICAO_CACHE["dados"] is not None and agora < _EXPEDICAO_CACHE["expira"]:
+        resposta = jsonify(_EXPEDICAO_CACHE["dados"])
+        resposta.headers["X-Expedicao-Cache"] = "HIT"
+        return resposta
+    dados = _resumo_central_expedicao()
+    _EXPEDICAO_CACHE["dados"] = dados
+    _EXPEDICAO_CACHE["expira"] = agora + 10
+    resposta = jsonify(dados)
+    resposta.headers["X-Expedicao-Cache"] = "MISS"
+    return resposta
 
 
 @app.route("/api/baixa-rapida/filial/<codigo_filial>", methods=["GET"])
@@ -8379,6 +8412,7 @@ def api_baixa_rapida_confirmar():
     except Exception:
         app.logger.exception("Falha ao verificar ativação da filial %s após baixa rápida", codigo_filial)
 
+    _invalidar_cache_expedicao()
     dados_depois, _ = _dados_baixa_rapida_filial(codigo_filial)
     return jsonify({
         "ok": True,
@@ -8657,6 +8691,60 @@ def exportar_excel():
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
 
+
+
+@app.route("/export-enviados")
+@role_required("admin", "gestor", "operador")
+def exportar_itens_enviados_excel():
+    """Exporta somente itens que já foram enviados/baixados para uma filial."""
+    itens = [
+        it for it in db.listar_itens()
+        if _normalizar_exec(it.get("status")) == "enviado"
+        or str(it.get("data_saida") or "").strip()
+        or str(it.get("filial_destino") or "").strip()
+    ]
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Itens enviados"
+    cabecalho = [
+        "ID", "Código do item", "Descrição", "Qtde", "UF", "Tipo de estoque",
+        "NF entrada", "Data entrada", "NF saída", "Data saída", "Filial destino",
+        "VD / referência", "Nº Imobilizado", "Nº Série", "Nº Patrimônio",
+        "Status", "Local", "Armazenamento", "Criado por", "Última alteração por",
+        "Última alteração em"
+    ]
+    ws.append(cabecalho)
+    header_fill = PatternFill("solid", fgColor="173A59")
+    header_font = Font(color="FFFFFF", bold=True)
+    for cell in ws[1]:
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal="center", vertical="center")
+    for it in itens:
+        ws.append([
+            it.get("id"), it.get("codigo"), it.get("descricao"), it.get("qtde"), it.get("localizacao"),
+            it.get("tipo_estoque"), it.get("nf_entrada"), it.get("data_entrada"), it.get("nf_saida"),
+            it.get("data_saida"), it.get("filial_destino"), it.get("vd_loja"), it.get("nro_imobilizado"),
+            it.get("nro_serie"), it.get("nro_patrimonio"), it.get("status"), it.get("local"),
+            it.get("armazenagem"), it.get("criado_por"), it.get("atualizado_por"), it.get("atualizado_em")
+        ])
+    ws.freeze_panes = "A2"
+    ws.auto_filter.ref = ws.dimensions
+    larguras = [9,18,34,8,8,18,16,14,16,14,16,18,18,20,18,14,14,16,16,18,18]
+    for idx, largura in enumerate(larguras,1):
+        ws.column_dimensions[get_column_letter(idx)].width = largura
+    for row in ws.iter_rows(min_row=2):
+        for cell in row:
+            cell.alignment = Alignment(vertical="top")
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    return send_file(
+        buf,
+        as_attachment=True,
+        download_name=f"itens_enviados_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx",
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
 
 # ---------------------------------------------------------------------
 # Importação de planilha Excel
