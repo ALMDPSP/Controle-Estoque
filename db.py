@@ -237,6 +237,38 @@ def init_db():
         """)
     conn.commit()
 
+    # Kit personalizado por filial: quando existir, substitui o Kit padrão somente
+    # para a filial informada na operação de Expedição.
+    if IS_PG:
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS kit_filial_personalizado (
+                id SERIAL PRIMARY KEY,
+                filial TEXT NOT NULL,
+                codigo TEXT,
+                descricao TEXT NOT NULL,
+                quantidade INTEGER NOT NULL DEFAULT 1,
+                criado_por TEXT,
+                atualizado_em TEXT
+            )
+        """)
+    else:
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS kit_filial_personalizado (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                filial TEXT NOT NULL,
+                codigo TEXT,
+                descricao TEXT NOT NULL,
+                quantidade INTEGER NOT NULL DEFAULT 1,
+                criado_por TEXT,
+                atualizado_em TEXT
+            )
+        """)
+    try:
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_kit_filial_personalizado_filial ON kit_filial_personalizado (filial)")
+    except Exception:
+        pass
+    conn.commit()
+
     # Auditoria de autenticação: registra sucesso, falha, bloqueio e troca de senha.
     if IS_PG:
         cur.execute("""
@@ -1035,6 +1067,51 @@ def excluir_item_kit(item_id):
     conn = get_conn(); cur = get_cursor(conn)
     cur.execute(q("DELETE FROM kit_padrao_loja WHERE id = ?"), (item_id,))
     ok = cur.rowcount > 0; conn.commit(); cur.close(); conn.close(); return ok
+
+
+def listar_kit_filial_personalizado(codigo_filial):
+    codigo_filial = str(codigo_filial or "").strip()
+    if not codigo_filial:
+        return []
+    conn = get_conn(); cur = get_cursor(conn)
+    cur.execute(q("SELECT * FROM kit_filial_personalizado WHERE filial = ? ORDER BY id"), (codigo_filial,))
+    rows = [dict(r) for r in cur.fetchall()]
+    cur.close(); conn.close(); return rows
+
+def salvar_kit_filial_personalizado(codigo_filial, itens, usuario=None):
+    codigo_filial = str(codigo_filial or "").strip()
+    if not codigo_filial:
+        raise ValueError("Filial não informada.")
+    itens = list(itens or [])
+    conn = get_conn(); cur = get_cursor(conn)
+    agora = datetime.now().strftime("%Y-%m-%d %H:%M")
+    try:
+        cur.execute(q("DELETE FROM kit_filial_personalizado WHERE filial = ?"), (codigo_filial,))
+        for item in itens:
+            codigo = str((item or {}).get("codigo") or "").strip() or None
+            descricao = str((item or {}).get("descricao") or "").strip()
+            try:
+                quantidade = int(float((item or {}).get("quantidade") or 0))
+            except (TypeError, ValueError):
+                quantidade = 0
+            if not descricao or quantidade <= 0:
+                continue
+            cur.execute(q("INSERT INTO kit_filial_personalizado (filial, codigo, descricao, quantidade, criado_por, atualizado_em) VALUES (?, ?, ?, ?, ?, ?)"),
+                        (codigo_filial, codigo, descricao, quantidade, usuario, agora))
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        cur.close(); conn.close()
+    return listar_kit_filial_personalizado(codigo_filial)
+
+def excluir_kit_filial_personalizado(codigo_filial):
+    codigo_filial = str(codigo_filial or "").strip()
+    conn = get_conn(); cur = get_cursor(conn)
+    cur.execute(q("DELETE FROM kit_filial_personalizado WHERE filial = ?"), (codigo_filial,))
+    removidos = cur.rowcount
+    conn.commit(); cur.close(); conn.close(); return removidos
 
 
 def obter_dashboard_compacto(limite_movs=20):

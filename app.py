@@ -69,7 +69,7 @@ import qrcode
 import db
 
 app = Flask(__name__)
-APP_BUILD = "2026-09-28-v1.4.8"
+APP_BUILD = "2026-09-29-v1.5.0"
 _DASHBOARD_CACHE = {"expira": 0.0, "dados": None}
 app.secret_key = os.environ.get("SECRET_KEY", "troque-esta-chave-em-producao")
 _RUNNING_HTTPS_HOSTED = bool(
@@ -1754,6 +1754,19 @@ def _equipamento_combina_kit(item, item_kit):
     return desc_k == desc_i or desc_k in desc_i or desc_i in desc_k
 
 
+def _kit_efetivo_filial(codigo_filial, kit_padrao=None):
+    """Retorna o Kit efetivo da filial.
+
+    Quando existe personalização na Expedição, ela substitui o Kit padrão
+    somente para aquela filial. Sem personalização, herda o Kit padrão global.
+    """
+    codigo_filial = str(codigo_filial or "").strip()
+    personalizado = db.listar_kit_filial_personalizado(codigo_filial) if codigo_filial else []
+    if personalizado:
+        return personalizado, True
+    return (kit_padrao if kit_padrao is not None else (db.listar_kit_padrao_loja() or [])), False
+
+
 def _qtd_registro_parque(item):
     try:
         qtd = int(float((item or {}).get("qtde") or 0))
@@ -1876,7 +1889,8 @@ def _faltantes_kit_real_filial(codigo_filial, itens_estoque=None, kit=None):
     """Calcula o que ainda falta baixar REALMENTE do Estoque para completar o Kit."""
     codigo_filial = str(codigo_filial or "").strip()
     itens_estoque = itens_estoque if itens_estoque is not None else (db.listar_itens() or [])
-    kit = kit if kit is not None else (db.listar_kit_padrao_loja() or [])
+    if kit is None:
+        kit, _ = _kit_efetivo_filial(codigo_filial)
     enviados = [
         x for x in itens_estoque
         if str(x.get("filial_destino") or "").strip() == codigo_filial
@@ -1904,7 +1918,7 @@ def _faltantes_kit_real_filial(codigo_filial, itens_estoque=None, kit=None):
 
 
 def _kit_real_completo_filial(codigo_filial):
-    kit = db.listar_kit_padrao_loja() or []
+    kit, _ = _kit_efetivo_filial(codigo_filial)
     return bool(kit) and not _faltantes_kit_real_filial(codigo_filial, kit=kit)
 
 
@@ -1917,7 +1931,7 @@ def _kit_vinculado_filial(filial):
     """
     codigo_filial = str((filial or {}).get("codigo") or "").strip()
     ativa = str((filial or {}).get("ativo") or "").strip() == "1"
-    kit = db.listar_kit_padrao_loja() or []
+    kit, _ = _kit_efetivo_filial(codigo_filial)
     itens = db.listar_itens() or []
     enviados = [x for x in itens if str(x.get("filial_destino") or "").strip() == codigo_filial and _normalizar_exec(x.get("status")) == "enviado"]
     usados = set()
@@ -7767,9 +7781,10 @@ def _dados_baixa_rapida_filial(codigo_filial, filial_cache=None, itens_cache=Non
     if not filial:
         return None, "Filial não encontrada."
     status = _status_filial_normalizado(filial.get("ativo"))
-    kit = kit_cache if kit_cache is not None else (db.listar_kit_padrao_loja() or [])
+    kit_base = kit_cache if kit_cache is not None else (db.listar_kit_padrao_loja() or [])
+    kit, kit_personalizado = _kit_efetivo_filial(codigo_filial, kit_base)
     if not kit:
-        return None, "O Kit padrão está vazio. Cadastre o Kit antes de usar a baixa rápida."
+        return None, "O Kit da filial está vazio. Cadastre o Kit antes de usar a baixa rápida."
 
     itens = itens_cache if itens_cache is not None else (db.listar_itens() or [])
     enviados = [
@@ -7847,6 +7862,7 @@ def _dados_baixa_rapida_filial(codigo_filial, filial_cache=None, itens_cache=Non
         "status": status,
         "acompanhamento": acompanhamento or {},
         "kit": linhas,
+        "kit_personalizado": bool(kit_personalizado),
         "resumo": {
             "total_kit": total_kit,
             "ja_enviado": total_enviado,
@@ -7932,6 +7948,198 @@ def _resumo_central_expedicao():
             "unidades_expansao": expansao_disponivel,
         },
     }
+
+
+@app.route("/api/expedicao/kit-filial/<codigo_filial>", methods=["GET"])
+@edit_required
+def api_expedicao_kit_filial(codigo_filial):
+    codigo_filial = str(codigo_filial or "").strip()
+    filial = db.buscar_filial_por_codigo(codigo_filial)
+    if not filial:
+        return jsonify({"erro": "Filial não encontrada."}), 404
+    padrao = db.listar_kit_padrao_loja() or []
+    kit, personalizado = _kit_efetivo_filial(codigo_filial, padrao)
+    return jsonify({
+        "filial": codigo_filial,
+        "personalizado": personalizado,
+        "itens": kit,
+        "kit_padrao": padrao,
+    })
+
+
+@app.route("/api/expedicao/kit-filial/<codigo_filial>", methods=["PUT"])
+@edit_required
+def api_expedicao_salvar_kit_filial(codigo_filial):
+    codigo_filial = str(codigo_filial or "").strip()
+    if not db.buscar_filial_por_codigo(codigo_filial):
+        return jsonify({"erro": "Filial não encontrada."}), 404
+    payload = request.get_json(silent=True) or {}
+    itens_raw = list(payload.get("itens") or [])
+    itens = []
+    vistos = set()
+    for pos, obj in enumerate(itens_raw, 1):
+        codigo = str((obj or {}).get("codigo") or "").strip()
+        descricao = str((obj or {}).get("descricao") or "").strip()
+        try:
+            quantidade = int(float((obj or {}).get("quantidade") or 0))
+        except (TypeError, ValueError):
+            quantidade = 0
+        if quantidade <= 0:
+            continue
+        if not codigo and not descricao:
+            return jsonify({"erro": f"Linha {pos}: informe código ou descrição."}), 400
+        if not descricao:
+            prod = next((x for x in (db.listar_produtos() or []) if str(x.get("codigo") or "").strip() == codigo), None)
+            descricao = str((prod or {}).get("descricao") or codigo).strip()
+        chave = ("codigo", codigo.lower()) if codigo else ("descricao", _normalizar_exec(descricao))
+        if chave in vistos:
+            return jsonify({"erro": f"Item duplicado no Kit: {codigo or descricao}."}), 400
+        vistos.add(chave)
+        itens.append({"codigo": codigo, "descricao": descricao, "quantidade": quantidade})
+    if not itens:
+        return jsonify({"erro": "O Kit da filial precisa ter pelo menos um item. Para retirar itens, exclua somente as linhas que não se aplicam à loja."}), 400
+    try:
+        salvos = db.salvar_kit_filial_personalizado(codigo_filial, itens, session.get("username") or "sistema")
+        db.registrar_movimentacao(0, "kit_filial_personalizado", str(len(salvos)), session.get("username") or "sistema", f"Kit personalizado da filial {codigo_filial} atualizado na Expedição.", tabela="sistema")
+        ativacao = _ativar_filial_se_kit_real_completo(codigo_filial, session.get("username") or "sistema")
+    except Exception:
+        app.logger.exception("Falha ao salvar Kit personalizado da filial %s", codigo_filial)
+        return jsonify({"erro": "Não foi possível salvar o Kit personalizado da filial."}), 500
+    dados, erro = _dados_baixa_rapida_filial(codigo_filial)
+    return jsonify({"ok": True, "itens": salvos, "dados": dados, "erro": erro, "ativacao_filial": ativacao})
+
+
+@app.route("/api/expedicao/kit-filial/<codigo_filial>/modelo", methods=["GET"])
+@edit_required
+def api_expedicao_modelo_kit_filial(codigo_filial):
+    codigo_filial = str(codigo_filial or "").strip()
+    if not db.buscar_filial_por_codigo(codigo_filial):
+        return jsonify({"erro": "Filial não encontrada."}), 404
+    padrao = db.listar_kit_padrao_loja() or []
+    kit, personalizado = _kit_efetivo_filial(codigo_filial, padrao)
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Kit da Filial"
+    ws.append(["Código", "Descrição", "Quantidade"])
+    for cell in ws[1]:
+        cell.font = Font(bold=True, color="FFFFFF")
+        cell.fill = PatternFill("solid", fgColor="1F4E78")
+        cell.alignment = Alignment(horizontal="center")
+    for item in kit:
+        ws.append([
+            str(item.get("codigo") or ""),
+            str(item.get("descricao") or ""),
+            int(item.get("quantidade") or 0),
+        ])
+    ws.column_dimensions["A"].width = 18
+    ws.column_dimensions["B"].width = 46
+    ws.column_dimensions["C"].width = 14
+    ws.freeze_panes = "A2"
+    ws.sheet_properties.pageSetUpPr.fitToPage = True
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    return send_file(
+        buf,
+        as_attachment=True,
+        download_name=f"kit_expedicao_filial_{codigo_filial}_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx",
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+
+
+@app.route("/api/expedicao/kit-filial/<codigo_filial>/importar", methods=["POST"])
+@edit_required
+def api_expedicao_importar_kit_filial(codigo_filial):
+    codigo_filial = str(codigo_filial or "").strip()
+    if not db.buscar_filial_por_codigo(codigo_filial):
+        return jsonify({"erro": "Filial não encontrada."}), 404
+    arquivo = request.files.get("arquivo")
+    if not arquivo or not arquivo.filename:
+        return jsonify({"erro": "Selecione um arquivo Excel (.xlsx)."}), 400
+    if not arquivo.filename.lower().endswith((".xlsx", ".xlsm")):
+        return jsonify({"erro": "Envie um arquivo Excel .xlsx ou .xlsm."}), 400
+    try:
+        wb = load_workbook(arquivo, data_only=True, read_only=True)
+        ws = wb.active
+    except Exception:
+        return jsonify({"erro": "Não foi possível abrir o Excel. Confirme se o arquivo é válido."}), 400
+
+    def _h(valor):
+        txt = unicodedata.normalize("NFD", str(valor or "")).encode("ascii", "ignore").decode("ascii")
+        return re.sub(r"[^a-z0-9]+", " ", txt.lower()).strip()
+
+    linhas = list(ws.iter_rows(values_only=True))
+    if not linhas:
+        return jsonify({"erro": "O arquivo está vazio."}), 400
+    headers = [_h(v) for v in linhas[0]]
+    aliases = {
+        "codigo": {"codigo", "codigo item", "codigo do item"},
+        "descricao": {"descricao", "item", "equipamento"},
+        "quantidade": {"quantidade", "qtd", "qtde"},
+    }
+    idx = {}
+    for chave, nomes in aliases.items():
+        for pos, nome in enumerate(headers):
+            if nome in nomes:
+                idx[chave] = pos
+                break
+    if "quantidade" not in idx or ("codigo" not in idx and "descricao" not in idx):
+        return jsonify({"erro": "Use as colunas Código, Descrição e Quantidade. Baixe o modelo do Kit para garantir o formato."}), 400
+
+    produtos = db.listar_produtos() or []
+    itens = []
+    vistos = set()
+    erros = []
+    for numero_linha, row in enumerate(linhas[1:], start=2):
+        codigo = str(row[idx["codigo"]] if "codigo" in idx and idx["codigo"] < len(row) and row[idx["codigo"]] is not None else "").strip()
+        descricao = str(row[idx["descricao"]] if "descricao" in idx and idx["descricao"] < len(row) and row[idx["descricao"]] is not None else "").strip()
+        qtd_raw = row[idx["quantidade"]] if idx["quantidade"] < len(row) else None
+        if not codigo and not descricao and qtd_raw in (None, ""):
+            continue
+        try:
+            quantidade = int(float(qtd_raw or 0))
+        except (TypeError, ValueError):
+            erros.append(f"Linha {numero_linha}: quantidade inválida.")
+            continue
+        # Quantidade zero permite retirar o item do Kit importado.
+        if quantidade <= 0:
+            continue
+        if not codigo and not descricao:
+            erros.append(f"Linha {numero_linha}: informe Código ou Descrição.")
+            continue
+        if not descricao and codigo:
+            prod = next((x for x in produtos if str(x.get("codigo") or "").strip() == codigo), None)
+            descricao = str((prod or {}).get("descricao") or codigo).strip()
+        chave = ("codigo", codigo.lower()) if codigo else ("descricao", _normalizar_exec(descricao))
+        if chave in vistos:
+            erros.append(f"Linha {numero_linha}: item duplicado ({codigo or descricao}).")
+            continue
+        vistos.add(chave)
+        itens.append({"codigo": codigo, "descricao": descricao, "quantidade": quantidade})
+    if erros:
+        return jsonify({"erro": "Não foi possível importar o Kit.", "detalhes": erros[:20]}), 400
+    if not itens:
+        return jsonify({"erro": "O arquivo não possui itens válidos com quantidade maior que zero."}), 400
+    try:
+        salvos = db.salvar_kit_filial_personalizado(codigo_filial, itens, session.get("username") or "sistema")
+        db.registrar_movimentacao(0, "kit_filial_upload", str(len(salvos)), session.get("username") or "sistema", f"Kit da filial {codigo_filial} atualizado por upload na Expedição.", tabela="sistema")
+        ativacao = _ativar_filial_se_kit_real_completo(codigo_filial, session.get("username") or "sistema")
+    except Exception:
+        app.logger.exception("Falha ao importar Kit da filial %s", codigo_filial)
+        return jsonify({"erro": "Não foi possível salvar o Kit importado."}), 500
+    dados, erro = _dados_baixa_rapida_filial(codigo_filial)
+    return jsonify({"ok": True, "itens": salvos, "quantidade": len(salvos), "dados": dados, "erro": erro, "ativacao_filial": ativacao})
+
+
+@app.route("/api/expedicao/kit-filial/<codigo_filial>/restaurar", methods=["POST"])
+@edit_required
+def api_expedicao_restaurar_kit_filial(codigo_filial):
+    codigo_filial = str(codigo_filial or "").strip()
+    if not db.buscar_filial_por_codigo(codigo_filial):
+        return jsonify({"erro": "Filial não encontrada."}), 404
+    db.excluir_kit_filial_personalizado(codigo_filial)
+    dados, erro = _dados_baixa_rapida_filial(codigo_filial)
+    return jsonify({"ok": True, "dados": dados, "erro": erro})
 
 
 @app.route("/api/expedicao/resumo", methods=["GET"])
@@ -8108,7 +8316,7 @@ def api_baixa_rapida_confirmar():
         payload_por_id[item_id] = obj
 
     itens_atuais = {int(x.get("id") or 0): x for x in (db.listar_itens() or [])}
-    kit = db.listar_kit_padrao_loja() or []
+    kit, _ = _kit_efetivo_filial(codigo_filial)
     faltas = _faltantes_kit_real_filial(codigo_filial, itens_estoque=list(itens_atuais.values()), kit=kit)
     faltas_restantes = []
     for falta in faltas:
@@ -8133,7 +8341,7 @@ def api_baixa_rapida_confirmar():
                 break
         if not encaixe:
             return jsonify({
-                "erro": f"O equipamento {item.get('codigo') or item_id} excede a necessidade atual do Kit desta filial ou não pertence ao Kit padrão."
+                "erro": f"O equipamento {item.get('codigo') or item_id} excede a necessidade atual do Kit desta filial ou não pertence ao Kit configurado para ela."
             }), 400
         encaixe["restante"] -= 1
 
