@@ -1078,6 +1078,22 @@ def listar_kit_filial_personalizado(codigo_filial):
     rows = [dict(r) for r in cur.fetchall()]
     cur.close(); conn.close(); return rows
 
+def listar_todos_kits_filiais_personalizados():
+    """Carrega todas as personalizações de Kit em uma única consulta.
+
+    Usado pela Central de Expedição para evitar abrir uma conexão/consulta por
+    filial durante a montagem da fila.
+    """
+    conn = get_conn(); cur = get_cursor(conn)
+    cur.execute(q("SELECT * FROM kit_filial_personalizado ORDER BY filial, id"))
+    grupos = {}
+    for row in cur.fetchall():
+        item = dict(row)
+        filial = str(item.get("filial") or "").strip()
+        if filial:
+            grupos.setdefault(filial, []).append(item)
+    cur.close(); conn.close(); return grupos
+
 def salvar_kit_filial_personalizado(codigo_filial, itens, usuario=None):
     codigo_filial = str(codigo_filial or "").strip()
     if not codigo_filial:

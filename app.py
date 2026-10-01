@@ -69,7 +69,7 @@ import qrcode
 import db
 
 app = Flask(__name__)
-APP_BUILD = "2026-09-29-v1.5.2"
+APP_BUILD = "2026-10-01-v1.5.3"
 _DASHBOARD_CACHE = {"expira": 0.0, "dados": None}
 _EXPEDICAO_CACHE = {"expira": 0.0, "dados": None}
 
@@ -7880,34 +7880,113 @@ def _dados_baixa_rapida_filial(codigo_filial, filial_cache=None, itens_cache=Non
 
 
 def _resumo_central_expedicao():
-    """Consolida Filiais, Acompanhamento, Kit e Estoque numa fila operacional."""
-    filiais = db.listar_filiais(incluir_inativas=True) or []
-    filial_cache = {str(f.get("codigo") or "").strip(): f for f in filiais if str(f.get("codigo") or "").strip()}
-    itens = db.listar_itens() or []
-    kit = db.listar_kit_padrao_loja() or []
-    acompanhamento = db.listar_acompanhamento_expansao() or []
-    acomp_cache = {str(a.get("filial") or "").strip(): a for a in acompanhamento if str(a.get("filial") or "").strip()}
+    """Consolida a fila da Expedição com uma leitura leve e indexada.
 
+    Diferente da abertura detalhada de uma filial, aqui não montamos a lista de
+    unidades disponíveis de cada item. A fila precisa somente de totais, saldo e
+    percentual. Os detalhes completos ficam sob demanda em abrirOperacao().
+    """
+    filiais = db.listar_filiais(incluir_inativas=True) or []
+    itens = db.listar_itens() or []
+    kit_padrao = db.listar_kit_padrao_loja() or []
+    acompanhamento = db.listar_acompanhamento_expansao() or []
+    try:
+        kits_filiais = db.listar_todos_kits_filiais_personalizados() or {}
+    except Exception:
+        kits_filiais = {}
+
+    acomp_cache = {str(a.get("filial") or "").strip(): a for a in acompanhamento if str(a.get("filial") or "").strip()}
     pendentes = [f for f in filiais if _status_filial_normalizado(f.get("ativo")) in ("inaugurar", "pendente")]
+
+    # Índices de estoque preparados uma única vez.
+    disp_codigo = {}
+    disp_desc = {}
+    enviados_codigo = {}
+    enviados_desc = {}
+    expansao_disponivel = 0
+    for item in itens:
+        qtd = _qtd_estoque_int(item)
+        status_norm = _normalizar_exec(item.get("status"))
+        codigo = str(item.get("codigo") or "").strip()
+        desc = _normalizar_exec(item.get("descricao"))
+        filial_destino = str(item.get("filial_destino") or "").strip()
+        if status_norm == "enviado" and filial_destino:
+            if codigo:
+                enviados_codigo[(filial_destino, codigo)] = enviados_codigo.get((filial_destino, codigo), 0) + max(1, qtd or 1)
+            if desc:
+                enviados_desc[(filial_destino, desc)] = enviados_desc.get((filial_destino, desc), 0) + max(1, qtd or 1)
+            continue
+        if qtd <= 0 or _normalizar_exec(item.get("tipo_estoque")) != "expansao":
+            continue
+        expansao_disponivel += qtd
+        if codigo:
+            disp_codigo[codigo] = disp_codigo.get(codigo, 0) + qtd
+        if desc:
+            disp_desc[desc] = disp_desc.get(desc, 0) + qtd
+
+    def _quantidade_por_kit(item_kit, codigo_filial=None, enviados=False):
+        codigo = str((item_kit or {}).get("codigo") or "").strip()
+        desc = _normalizar_exec((item_kit or {}).get("descricao"))
+        if enviados:
+            if codigo:
+                return enviados_codigo.get((codigo_filial, codigo), 0)
+            if desc:
+                direto = enviados_desc.get((codigo_filial, desc), 0)
+                if direto:
+                    return direto
+                # fallback raro para Kits antigos sem código.
+                total = 0
+                for (filial, d), qtd in enviados_desc.items():
+                    if filial == codigo_filial and d and (desc in d or d in desc):
+                        total += qtd
+                return total
+            return 0
+        if codigo:
+            return disp_codigo.get(codigo, 0)
+        if desc:
+            direto = disp_desc.get(desc, 0)
+            if direto:
+                return direto
+            total = 0
+            for d, qtd in disp_desc.items():
+                if d and (desc in d or d in desc):
+                    # preserva a exceção scanner com/sem fio do matcher original.
+                    if ("scanner com fio" in desc and "scanner sem fio" in d) or ("scanner sem fio" in desc and "scanner com fio" in d):
+                        continue
+                    total += qtd
+            return total
+        return 0
+
     linhas = []
     prontos_saldo = 0
     kit_completo = 0
     for filial in pendentes:
-        codigo = str(filial.get("codigo") or "").strip()
-        dados, erro = _dados_baixa_rapida_filial(
-            codigo, filial_cache=filial_cache, itens_cache=itens, kit_cache=kit, acompanhamento_cache=acomp_cache
-        )
-        if erro or not dados:
-            continue
-        r = dados.get("resumo") or {}
-        a = dados.get("acompanhamento") or {}
-        saldo_ok = bool(r.get("saldo_cobre_faltantes"))
-        if saldo_ok and int(r.get("faltam") or 0) > 0:
+        codigo_filial = str(filial.get("codigo") or "").strip()
+        a = acomp_cache.get(codigo_filial) or {}
+        kit = kits_filiais.get(codigo_filial) or kit_padrao
+        total_kit = total_enviado = total_falta = 0
+        saldo_cobre = True
+        for k in kit:
+            try:
+                necessario = max(1, int(float(k.get("quantidade") or 1)))
+            except (TypeError, ValueError):
+                necessario = 1
+            enviados_qtd = min(necessario, _quantidade_por_kit(k, codigo_filial, enviados=True))
+            falta = max(0, necessario - enviados_qtd)
+            disponivel = _quantidade_por_kit(k)
+            total_kit += necessario
+            total_enviado += enviados_qtd
+            total_falta += falta
+            if disponivel < falta:
+                saldo_cobre = False
+        percentual = round((total_enviado / total_kit * 100), 1) if total_kit else 0
+        completo = total_falta == 0
+        if saldo_cobre and total_falta > 0:
             prontos_saldo += 1
-        if bool(r.get("kit_completo")):
+        if completo:
             kit_completo += 1
         linhas.append({
-            "codigo": codigo,
+            "codigo": codigo_filial,
             "nome": str(filial.get("nome") or a.get("descricao_filial") or "").strip(),
             "cidade": str(filial.get("cidade") or "").strip(),
             "uf": str(filial.get("uf") or a.get("uf") or "").strip().upper(),
@@ -7919,12 +7998,12 @@ def _resumo_central_expedicao():
             "enviada": str(a.get("enviada") or "").strip().upper(),
             "em_separacao": str(a.get("em_separacao") or "").strip().upper(),
             "equip_separado": str(a.get("equip_separado") or "").strip().upper(),
-            "total_kit": int(r.get("total_kit") or 0),
-            "ja_enviado": int(r.get("ja_enviado") or 0),
-            "faltam": int(r.get("faltam") or 0),
-            "percentual": float(r.get("percentual") or 0),
-            "saldo_cobre_faltantes": saldo_ok,
-            "kit_completo": bool(r.get("kit_completo")),
+            "total_kit": total_kit,
+            "ja_enviado": total_enviado,
+            "faltam": total_falta,
+            "percentual": percentual,
+            "saldo_cobre_faltantes": bool(saldo_cobre),
+            "kit_completo": bool(completo),
         })
 
     def data_sort(valor):
@@ -7933,27 +8012,15 @@ def _resumo_central_expedicao():
         return iso or "9999-99-99"
 
     linhas.sort(key=lambda x: (data_sort(x.get("inauguracao")), str(x.get("codigo") or "")))
-    expansao_disponivel = sum(
-        _qtd_estoque_int(x) for x in itens
-        if _normalizar_exec(x.get("tipo_estoque")) == "expansao" and _normalizar_exec(x.get("status")) != "enviado"
-    )
-    # Capacidade calculada com os dados já carregados nesta requisição.
-    # Evita executar novamente o relatório executivo completo (que relê banco,
-    # produtos, pipeline e Kit) apenas para obter um número.
+
+    # Capacidade do Kit padrão usando os mesmos índices em memória.
     capacidades = []
-    for k in kit:
+    for k in kit_padrao:
         try:
             necessario = max(1, int(float(k.get("quantidade") or 1)))
         except (TypeError, ValueError):
             necessario = 1
-        disponivel = sum(
-            _qtd_estoque_int(x) for x in itens
-            if _qtd_estoque_int(x) > 0
-            and _normalizar_exec(x.get("status")) != "enviado"
-            and _normalizar_exec(x.get("tipo_estoque")) == "expansao"
-            and _equipamento_combina_kit(x, k)
-        )
-        capacidades.append(disponivel // necessario)
+        capacidades.append(_quantidade_por_kit(k) // necessario)
     capacidade = min(capacidades) if capacidades else 0
 
     return {
@@ -8175,7 +8242,7 @@ def api_expedicao_resumo():
         return resposta
     dados = _resumo_central_expedicao()
     _EXPEDICAO_CACHE["dados"] = dados
-    _EXPEDICAO_CACHE["expira"] = agora + 10
+    _EXPEDICAO_CACHE["expira"] = agora + 30
     resposta = jsonify(dados)
     resposta.headers["X-Expedicao-Cache"] = "MISS"
     return resposta
