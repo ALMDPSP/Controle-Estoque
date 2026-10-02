@@ -69,7 +69,7 @@ import qrcode
 import db
 
 app = Flask(__name__)
-APP_BUILD = "2026-10-02-v1.6.0"
+APP_BUILD = "2026-10-02-v1.6.1"
 _DASHBOARD_CACHE = {}
 _EXPEDICAO_CACHE = {}
 
@@ -8304,8 +8304,10 @@ def api_expedicao_restaurar_kit_filial(codigo_filial):
 def api_expedicao_resumo():
     agora = time.monotonic()
     force = request.args.get("force") == "1"
-    if not force and _EXPEDICAO_CACHE["dados"] is not None and agora < _EXPEDICAO_CACHE["expira"]:
-        resposta = jsonify(_EXPEDICAO_CACHE["dados"])
+    cache_key = db.get_site_area()
+    cache = _EXPEDICAO_CACHE.get(cache_key)
+    if not force and cache and cache.get("dados") is not None and agora < cache.get("expira", 0):
+        resposta = jsonify(cache["dados"])
         resposta.headers["X-Expedicao-Cache"] = "HIT"
         return resposta
     dados = _resumo_central_expedicao()
