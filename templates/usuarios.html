@@ -117,14 +117,6 @@
           <option value="admin">Administrador — acesso total</option>
         </select>
       </div>
-      <div class="field">
-        <label for="ambiente_acesso">Ambiente de acesso</label>
-        <select id="ambiente_acesso">
-          <option value="expansao">Expansão</option>
-          <option value="estoque_cd">Estoque CD</option>
-        </select>
-        <small style="display:block;margin-top:5px;color:var(--muted);font-size:10px;">Administrador recebe acesso aos dois ambientes automaticamente.</small>
-      </div>
       <div class="field"><label for="email">E-mail</label><input id="email" type="email" placeholder="usuario@empresa.com"></div>
       <div class="field"><label for="whatsapp">WhatsApp</label><input id="whatsapp" placeholder="5511999999999"></div>
       <button type="submit" class="ui-btn ui-btn-primary btn-primary">Adicionar usuário</button>
@@ -135,14 +127,13 @@
     <h2>Gestão de Usuários · usuários cadastrados</h2>
     <table>
       <thead>
-        <tr><th>Usuário</th><th>Perfil</th><th>Ambiente</th><th>Contato</th><th>Acesso</th><th>MFA</th><th>Criado em</th><th>Último acesso</th><th></th></tr>
+        <tr><th>Usuário</th><th>Perfil</th><th>Contato</th><th>Acesso</th><th>MFA</th><th>Criado em</th><th>Último acesso</th><th></th></tr>
       </thead>
       <tbody id="tbody">
         {% for u in usuarios %}
         <tr id="row-{{ u.id }}">
           <td>{{ u.username }}</td>
           <td><span class="badge {{ u.role }}">{{ {'admin':'Administrador','gestor':'Gestor','operador':'Operador','consulta':'Consulta','user':'Operador'}.get(u.role,'Operador') }}</span></td>
-          <td><span class="badge" style="background:rgba(62,166,255,.10);color:var(--accent);border:1px solid rgba(62,166,255,.25);">{{ 'Expansão + CD' if u.role == 'admin' or u.ambiente_acesso == 'ambos' else ('Estoque CD' if u.ambiente_acesso == 'estoque_cd' else 'Expansão') }}</span></td>
           <td><div style="font-size:12px;white-space:nowrap;">{{ u.email or 'E-mail não informado' }}</div><div style="font-size:11px;color:var(--muted);white-space:nowrap;">{{ u.whatsapp or 'WhatsApp não informado' }}</div></td>
           <td>
             {% if u.precisa_trocar_senha == '1' %}
@@ -195,12 +186,6 @@ function mostrarMsg(texto, tipo){
   msg.style.display = 'block';
 }
 
-
-document.getElementById('role')?.addEventListener('change',()=>{
-  const admin=document.getElementById('role').value==='admin';
-  const sel=document.getElementById('ambiente_acesso');
-  if(sel){sel.disabled=admin;if(admin)sel.value='expansao';}
-});
 document.getElementById('user-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const dados = {
@@ -209,7 +194,6 @@ document.getElementById('user-form').addEventListener('submit', async (e) => {
     role: document.getElementById('role').value,
     email: document.getElementById('email').value,
     whatsapp: document.getElementById('whatsapp').value,
-    ambiente_acesso: document.getElementById('ambiente_acesso').value,
   };
   const res = await fetch('/api/usuarios', {
     method: 'POST',
@@ -228,7 +212,6 @@ document.getElementById('user-form').addEventListener('submit', async (e) => {
     document.getElementById('role').value='operador';
     document.getElementById('email').value='';
     document.getElementById('whatsapp').value='';
-    document.getElementById('ambiente_acesso').value='expansao';
   } else {
     mostrarMsg(corpo.erro || 'Erro ao criar usuário.', 'erro');
   }
