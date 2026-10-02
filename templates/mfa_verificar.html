@@ -2481,7 +2481,7 @@ button.loading .submit-spinner{display:inline-block;}
       <p class="subtitle">Informe o código atual do seu aplicativo autenticador para concluir o acesso.</p>
 
       <div class="mfa-badge"><span class="shield"></span> Site seguro · acesso protegido com dupla autenticação</div>
-      <div class="mfa-user">Usuário: <b>{{ username }}</b></div><div style="margin-top:8px;display:inline-flex;padding:6px 10px;border-radius:999px;border:1px solid rgba(62,166,255,.28);background:rgba(62,166,255,.08);color:#bfe3ff;font-size:11px;">Ambiente: <b style="margin-left:4px;">{{ ambiente_nome or "Expansão" }}</b></div>
+      <div class="mfa-user">Usuário: <b>{{ username }}</b></div>
       {% if erro %}<div class="mfa-erro">⚠ {{ erro }}</div>{% endif %}
 
       <form method="POST" id="mfa-form" autocomplete="off">

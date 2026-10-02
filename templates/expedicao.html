@@ -147,7 +147,7 @@
 {% include '_footer.html' %}
 <script>
 const state={resumo:null,dados:null,selecionados:new Map(),removidos:new Set(),resumoPromise:null};
-const EXP_CACHE_KEY='expedicao-resumo-v1.6.1';
+const EXP_CACHE_KEY='expedicao-resumo-v1.5.3';
 function salvarResumoLocal(d){try{sessionStorage.setItem(EXP_CACHE_KEY,JSON.stringify({ts:Date.now(),dados:d}));}catch(_){}}
 function carregarResumoLocal(){try{const raw=sessionStorage.getItem(EXP_CACHE_KEY);if(!raw)return null;const c=JSON.parse(raw);return c&&c.dados?c.dados:null;}catch(_){return null;}}
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
