@@ -14,15 +14,15 @@
 </style>
 {% include '_mobile_head.html' %}
 </head>
-<body class="app-standard">
-<header><div><span class="tag">Dashboard</span><h1>Visão geral do estoque</h1><p>Resumo executivo, alertas de expansão, meta de inauguração salva na simulação e movimentações recentes.</p></div><div class="head-actions">{% if role != 'consulta' %}<a class="ui-btn ui-btn-primary" href="{{ url_for('gerar_backup') }}" id="btn-backup-dashboard">Gerar backup agora</a><a class="ui-btn ui-btn-link" href="{{ url_for('pagina_relatorios') }}">Central de relatórios</a>{% endif %}<a class="ui-btn ui-btn-link" href="{{ url_for('index') }}">Abrir Estoque</a><div class="backup-status" id="backup-status"></div></div></header>
+<body class="app-standard site-{{ site_area }}">
+<header><div><span class="tag">Dashboard</span><h1>{{ "Visão geral do Estoque CD" if site_area == "estoque_cd" else "Visão geral do estoque" }}</h1><p>{{ "Resumo executivo do estoque do CD, ativos, produtos e movimentações deste ambiente." if site_area == "estoque_cd" else "Resumo executivo, alertas de expansão, meta de inauguração salva na simulação e movimentações recentes." }}</p></div><div class="head-actions">{% if role != 'consulta' %}<a class="ui-btn ui-btn-primary" href="{{ url_for('gerar_backup') }}" id="btn-backup-dashboard">Gerar backup agora</a><a class="ui-btn ui-btn-link" href="{{ url_for('pagina_relatorios') }}">Central de relatórios</a>{% endif %}<a class="ui-btn ui-btn-link" href="{{ url_for('index') }}">Abrir Estoque</a><div class="backup-status" id="backup-status"></div></div></header>
 {% include '_menu.html' %}
 <main class="page-dashboard">
 <section class="dash-hero">
   <div class="hero-card">
-    <div class="hero-eyebrow">Centro de comando · v1.5.3</div>
+    <div class="hero-eyebrow">Centro de comando · v1.6.2</div>
     <h2 class="hero-title">Dashboard executivo orientado à operação.</h2>
-    <p class="hero-sub">Visão executiva do pipeline de inauguração, riscos operacionais, capacidade de estoque e acessos rápidos para as principais ações do sistema.</p>
+    <p class="hero-sub">{{ "Visão executiva do Estoque CD, com leitura isolada de estoque, ativos, produtos e movimentações." if site_area == "estoque_cd" else "Visão executiva do pipeline de inauguração, riscos operacionais, capacidade de estoque e acessos rápidos para as principais ações do sistema." }}</p>
     <div class="hero-strip">
       <div class="hero-metric"><span>Capacidade atual</span><strong id="hero-capacidade">0</strong><small>Lojas completas suportadas pelo estoque de Expansão.</small></div>
       <div class="hero-metric"><span>Pipeline</span><strong id="hero-pipeline">0</strong><small>Lojas pendentes de inauguração em acompanhamento.</small></div>
@@ -42,6 +42,25 @@
   </div>
 </section>
 <section class="kpis"><div class="kpi accent"><div class="kpi-top"><span>Total em estoque</span><span class="kpi-icon">◫</span></div><strong id="k-total">0</strong><small class="kpi-meta">Saldo geral disponível no estoque.</small></div><div class="kpi"><div class="kpi-top"><span>Imobilizados</span><span class="kpi-icon">⬢</span></div><strong id="k-imob">0</strong><small class="kpi-meta">Itens já controlados como patrimônio.</small></div><div class="kpi" id="kpi-lojas-card"><div class="kpi-top"><span id="k-meta-label">Inauguradas / Pendentes</span><span class="kpi-icon">◎</span></div><strong id="k-lojas">0 / 0</strong><small class="kpi-meta">Leitura vinda do Acompanhamento de Expansão.</small></div><div class="kpi danger"><div class="kpi-top"><span>Itens em falta p/ meta</span><span class="kpi-icon">!</span></div><strong id="k-faltas">0</strong><small class="kpi-meta">Códigos que ainda impedem a meta salva.</small></div><div class="kpi warn"><div class="kpi-top"><span>Produtos cadastrados</span><span class="kpi-icon">▣</span></div><strong id="k-produtos">0</strong><small class="kpi-meta">Base de produtos disponível no sistema.</small></div><div class="kpi"><div class="kpi-top"><span>Movimentações recentes</span><span class="kpi-icon">◷</span></div><strong id="k-movs">0</strong><small class="kpi-meta">Últimos eventos registrados no ambiente.</small></div><div class="kpi accent"><div class="kpi-top"><span>Filiais ativas · geral</span><span class="kpi-icon">⌘</span></div><strong id="k-filiais">0</strong><small class="kpi-meta">Quantidade atual de filiais ativas.</small></div><div class="kpi warn"><div class="kpi-top"><span>Pendentes de inauguração</span><span class="kpi-icon">◍</span></div><strong id="k-pendentes-inauguracao">0</strong><small class="kpi-meta">Lojas em acompanhamento ainda não inauguradas.</small></div></section>
+<section class="panel cd-dashboard-panel">
+  <div class="section-accent"><span class="dot"></span><span>Centro de distribuição</span></div>
+  <h2>Visão operacional do Estoque CD</h2>
+  <p class="panel-sub">Indicadores isolados do ambiente Estoque CD. Cadastros realizados aqui não alteram os dados da Expansão.</p>
+  <div class="exec-grid">
+    <div class="exec-card accent"><span>Itens em estoque</span><strong id="cd-estoque">0</strong><small>Saldo disponível exclusivamente no CD.</small></div>
+    <div class="exec-card ok"><span>Ativos / imobilizados</span><strong id="cd-imob">0</strong><small>Patrimônio controlado no ambiente CD.</small></div>
+    <div class="exec-card"><span>Produtos cadastrados</span><strong id="cd-produtos">0</strong><small>Catálogo mestre exclusivo do CD.</small></div>
+    <div class="exec-card"><span>Movimentações</span><strong id="cd-movs">0</strong><small>Eventos recentes deste ambiente.</small></div>
+    <div class="exec-card accent"><span>Filiais disponíveis</span><strong id="cd-filiais">0</strong><small>Base de filiais compartilhada.</small></div>
+  </div>
+</section>
+<section class="panel cd-dashboard-panel">
+  <div class="section-accent"><span class="dot"></span><span>Rastro operacional</span></div>
+  <h2>Últimos movimentos do CD</h2>
+  <p class="panel-sub">Eventos registrados somente neste ambiente.</p>
+  <div class="movs" id="cd-movs-list"></div>
+</section>
+
 
 <section class="panel exec-panel"><div class="section-accent"><span class="dot"></span><span>Painel estratégico</span></div><h2>Visão Executiva de Inaugurações</h2><p class="panel-sub">Cruza o estoque de Expansão, Kit padrão e lojas PENDENTES no Acompanhamento de Expansão para indicar capacidade e risco operacional.</p>
 <div class="exec-grid">
@@ -151,6 +170,34 @@ async function gerarBackupDashboard(ev){
 async function init(){
  const dash=await fetch('/api/dashboard-resumo').then(r=>{if(!r.ok)throw new Error('Falha ao carregar Dashboard');return r.json();});
  const itens=dash.itens||[],kit=dash.kit||[],prods=dash.produtos||[],movs=dash.movimentacoes||[],status=dash.status||{},visao=dash.visao||{};
+ const IS_CD={{ (site_area == 'estoque_cd')|tojson }};
+ if(IS_CD){
+   document.getElementById('hero-capacidade').textContent=dash.estoque_total||0;
+   document.getElementById('hero-pipeline').textContent=dash.imobilizados_total||0;
+   document.getElementById('hero-risco').textContent=dash.produtos_total||0;
+   document.getElementById('hero-proxima').textContent='Estoque CD';
+   document.getElementById('hero-atendimento').textContent='Ambiente isolado';
+   document.getElementById('hero-status').textContent='Operação do CD separada da Expansão.';
+   document.getElementById('hero-status').classList.add('ok');
+   document.getElementById('k-total').textContent=dash.estoque_total||0;
+   document.getElementById('k-imob').textContent=dash.imobilizados_total||0;
+   document.getElementById('k-lojas').textContent='—';
+   document.getElementById('k-faltas').textContent='—';
+   document.getElementById('k-produtos').textContent=dash.produtos_total||prods.length;
+   document.getElementById('k-movs').textContent=movs.length;
+   document.getElementById('k-filiais').textContent=dash.filiais_ativas||0;
+   document.getElementById('k-pendentes-inauguracao').textContent='—';
+   document.getElementById('k-meta-label').textContent='Ambiente';
+   document.querySelector('#kpi-lojas-card .kpi-meta').textContent='Separado da Expansão.';
+   document.getElementById('cd-estoque').textContent=dash.estoque_total||0;
+   document.getElementById('cd-imob').textContent=dash.imobilizados_total||0;
+   document.getElementById('cd-produtos').textContent=dash.produtos_total||prods.length;
+   document.getElementById('cd-movs').textContent=movs.length;
+   document.getElementById('cd-filiais').textContent=dash.filiais_ativas||0;
+   const lista=document.getElementById('cd-movs-list');
+   lista.innerHTML=movs.length?movs.map(m=>`<div class="mov"><div class="mov-top"><b>${esc(m.tipo||'movimentação')} · ${esc(m.codigo||'item '+m.item_id)}</b><code>${m.tabela==='imobilizados'?'Ativo':'Estoque CD'}</code></div><small>${esc(m.descricao||m.observacao||'')}</small><small>${esc(m.data_hora||'')} · ${esc(m.usuario||'')}</small></div>`).join(''):'<div class="alert">Sem movimentações recentes no CD.</div>';
+   return;
+ }
  const metaSalva=parseInt(dash.meta_lojas,10);if(Number.isFinite(metaSalva)&&metaSalva>0)META_LOJAS_EXPANSAO=metaSalva;
  document.getElementById('k-meta-label').textContent='Inauguradas / Pendentes de inaugurar';
  const em=itens.filter(x=>(Number(x.qtde)||0)>0);document.getElementById('hero-capacidade').textContent=visao.capacidade_lojas||0;document.getElementById('hero-pipeline').textContent=visao.lojas_a_inaugurar||0;document.getElementById('hero-risco').textContent=visao.lojas_em_risco||0;document.getElementById('hero-proxima').textContent=resumirProximaLoja(visao.inauguracao_programada||[],visao.entrada_ti_programada||[]);document.getElementById('hero-atendimento').textContent=(visao.percentual_atendimento||0).toFixed(1)+'%';const heroStatus=document.getElementById('hero-status');heroStatus.textContent=(Number(visao.lojas_em_risco||0)>0||Number(visao.itens_criticos||0)>0)?'Atenção: existem riscos no pipeline atual.':'Operação estável: pipeline coberto pelo estoque atual.';heroStatus.classList.toggle('risk',Number(visao.lojas_em_risco||0)>0||Number(visao.itens_criticos||0)>0);heroStatus.classList.toggle('ok',!(Number(visao.lojas_em_risco||0)>0||Number(visao.itens_criticos||0)>0));

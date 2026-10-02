@@ -10,6 +10,7 @@ a aplicação publicada no Koyeb.
 import os
 import re
 import json
+import contextvars
 from datetime import datetime
 
 from werkzeug.security import generate_password_hash
@@ -39,6 +40,30 @@ else:
     import sqlite3
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
     SQLITE_PATH = os.path.join(BASE_DIR, "estoque.db")
+
+
+# Ambiente lógico isolado por usuário. A conexão com o Neon continua única,
+# mas cada consulta operacional é escopada por site_area. ContextVar mantém
+# o valor seguro entre requisições concorrentes do Flask.
+_SITE_AREA = contextvars.ContextVar("controle_estoque_site_area", default="expansao")
+VALID_SITE_AREAS = {"expansao", "estoque_cd"}
+
+def set_site_area(area):
+    area = str(area or "expansao").strip().lower()
+    if area not in VALID_SITE_AREAS:
+        area = "expansao"
+    _SITE_AREA.set(area)
+    return area
+
+def get_site_area():
+    area = _SITE_AREA.get()
+    return area if area in VALID_SITE_AREAS else "expansao"
+
+def _site_params(extra=None):
+    return tuple(extra or ()) + (get_site_area(),)
+
+def _site_filter(prefix=""):
+    return f"{prefix}site_area = ?"
 
 
 def get_conn():
@@ -97,7 +122,8 @@ def init_db():
                 data_entrada TEXT,
                 nf_saida TEXT,
                 data_saida TEXT,
-                vd_loja TEXT
+                vd_loja TEXT,
+                site_area TEXT NOT NULL DEFAULT 'expansao'
             )
         """)
         cur.execute("""
@@ -106,7 +132,8 @@ def init_db():
                 username TEXT UNIQUE NOT NULL,
                 password_hash TEXT NOT NULL,
                 role TEXT NOT NULL DEFAULT 'user',
-                criado_em TEXT
+                criado_em TEXT,
+                ambiente_acesso TEXT NOT NULL DEFAULT 'expansao'
             )
         """)
         cur.execute("""
@@ -117,7 +144,8 @@ def init_db():
                 quantidade TEXT,
                 usuario TEXT,
                 data_hora TEXT,
-                observacao TEXT
+                observacao TEXT,
+                site_area TEXT NOT NULL DEFAULT 'expansao'
             )
         """)
         cur.execute("""
@@ -131,7 +159,8 @@ def init_db():
                 data_entrada TEXT,
                 nf_saida TEXT,
                 data_saida TEXT,
-                vd_loja TEXT
+                vd_loja TEXT,
+                site_area TEXT NOT NULL DEFAULT 'expansao'
             )
         """)
     else:
@@ -146,7 +175,8 @@ def init_db():
                 data_entrada TEXT,
                 nf_saida TEXT,
                 data_saida TEXT,
-                vd_loja TEXT
+                vd_loja TEXT,
+                site_area TEXT NOT NULL DEFAULT 'expansao'
             )
         """)
         cur.execute("""
@@ -155,7 +185,8 @@ def init_db():
                 username TEXT UNIQUE NOT NULL,
                 password_hash TEXT NOT NULL,
                 role TEXT NOT NULL DEFAULT 'user',
-                criado_em TEXT
+                criado_em TEXT,
+                ambiente_acesso TEXT NOT NULL DEFAULT 'expansao'
             )
         """)
         cur.execute("""
@@ -166,7 +197,8 @@ def init_db():
                 quantidade TEXT,
                 usuario TEXT,
                 data_hora TEXT,
-                observacao TEXT
+                observacao TEXT,
+                site_area TEXT NOT NULL DEFAULT 'expansao'
             )
         """)
         cur.execute("""
@@ -180,7 +212,8 @@ def init_db():
                 data_entrada TEXT,
                 nf_saida TEXT,
                 data_saida TEXT,
-                vd_loja TEXT
+                vd_loja TEXT,
+                site_area TEXT NOT NULL DEFAULT 'expansao'
             )
         """)
 
@@ -194,7 +227,8 @@ def init_db():
                 qtde_por_loja INTEGER NOT NULL DEFAULT 1,
                 custo TEXT NOT NULL DEFAULT '0.00',
                 criado_por TEXT,
-                criado_em TEXT
+                criado_em TEXT,
+                site_area TEXT NOT NULL DEFAULT 'expansao'
             )
         """)
     else:
@@ -206,7 +240,8 @@ def init_db():
                 qtde_por_loja INTEGER NOT NULL DEFAULT 1,
                 custo TEXT NOT NULL DEFAULT '0.00',
                 criado_por TEXT,
-                criado_em TEXT
+                criado_em TEXT,
+                site_area TEXT NOT NULL DEFAULT 'expansao'
             )
         """)
 
@@ -221,7 +256,8 @@ def init_db():
                 descricao TEXT NOT NULL,
                 quantidade INTEGER NOT NULL DEFAULT 1,
                 criado_por TEXT,
-                criado_em TEXT
+                criado_em TEXT,
+                site_area TEXT NOT NULL DEFAULT 'expansao'
             )
         """)
     else:
@@ -232,10 +268,20 @@ def init_db():
                 descricao TEXT NOT NULL,
                 quantidade INTEGER NOT NULL DEFAULT 1,
                 criado_por TEXT,
-                criado_em TEXT
+                criado_em TEXT,
+                site_area TEXT NOT NULL DEFAULT 'expansao'
             )
         """)
     conn.commit()
+
+    try:
+        if IS_PG:
+            cur.execute("ALTER TABLE kit_padrao_loja ADD COLUMN IF NOT EXISTS site_area TEXT NOT NULL DEFAULT 'expansao'")
+        else:
+            cur.execute("ALTER TABLE kit_padrao_loja ADD COLUMN site_area TEXT NOT NULL DEFAULT 'expansao'")
+        conn.commit()
+    except Exception:
+        conn.rollback()
 
     # Kit personalizado por filial: quando existir, substitui o Kit padrão somente
     # para a filial informada na operação de Expedição.
@@ -716,8 +762,8 @@ def init_db():
         ]
         agora_kit = datetime.now().strftime("%Y-%m-%d %H:%M")
         cur.executemany(
-            q("INSERT INTO kit_padrao_loja (codigo, descricao, quantidade, criado_por, criado_em) VALUES (?, ?, ?, ?, ?)"),
-            [(codigo, descricao, quantidade, "sistema", agora_kit) for codigo, descricao, quantidade in kit_inicial],
+            q("INSERT INTO kit_padrao_loja (codigo, descricao, quantidade, criado_por, criado_em, site_area) VALUES (?, ?, ?, ?, ?, ?)"),
+            [(codigo, descricao, quantidade, "sistema", agora_kit, "expansao") for codigo, descricao, quantidade in kit_inicial],
         )
         conn.commit()
 
@@ -809,6 +855,19 @@ def init_db():
         except Exception:
             conn.rollback()
 
+    # Migração v1.6.0: ambiente de acesso do usuário. Usuários existentes
+    # permanecem na Expansão; administradores passam a ter acesso aos dois.
+    try:
+        if IS_PG:
+            cur.execute("ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS ambiente_acesso TEXT DEFAULT 'expansao'")
+            cur.execute("UPDATE usuarios SET ambiente_acesso='ambos' WHERE role='admin' AND COALESCE(ambiente_acesso,'expansao')='expansao'")
+        else:
+            cur.execute("ALTER TABLE usuarios ADD COLUMN ambiente_acesso TEXT DEFAULT 'expansao'")
+            cur.execute("UPDATE usuarios SET ambiente_acesso='ambos' WHERE role='admin' AND COALESCE(ambiente_acesso,'expansao')='expansao'")
+        conn.commit()
+    except Exception:
+        conn.rollback()
+
     # Migração v102: contatos utilizados pelos alertas automáticos de pendências.
     for coluna, tipo in (("email", "TEXT"), ("whatsapp", "TEXT")):
         try:
@@ -817,6 +876,52 @@ def init_db():
             else:
                 cur.execute(f"ALTER TABLE usuarios ADD COLUMN {coluna} {tipo}")
             conn.commit()
+        except Exception:
+            conn.rollback()
+
+    # Migração v1.6.0: isolamento lógico entre Expansão e Estoque CD.
+    for tabela in ("itens", "imobilizados", "produtos"):
+        try:
+            if IS_PG:
+                cur.execute(f"ALTER TABLE {tabela} ADD COLUMN IF NOT EXISTS site_area TEXT NOT NULL DEFAULT 'expansao'")
+            else:
+                cur.execute(f"ALTER TABLE {tabela} ADD COLUMN site_area TEXT NOT NULL DEFAULT 'expansao'")
+            conn.commit()
+        except Exception:
+            conn.rollback()
+
+    # O código do produto pode se repetir em ambientes diferentes.
+    if IS_PG:
+        try:
+            cur.execute("ALTER TABLE produtos DROP CONSTRAINT IF EXISTS produtos_codigo_key")
+            cur.execute("CREATE UNIQUE INDEX IF NOT EXISTS ux_produtos_site_codigo ON produtos(site_area, codigo)")
+            conn.commit()
+        except Exception:
+            conn.rollback()
+    else:
+        # SQLite: migra a UNIQUE global de codigo para UNIQUE (site_area, codigo),
+        # permitindo que Expansão e CD tenham catálogos independentes.
+        try:
+            indices_prod = cur.execute("PRAGMA index_list('produtos')").fetchall()
+            tem_unique_global = any((len(r) > 2 and int(r[2] or 0) == 1) for r in indices_prod)
+            if tem_unique_global:
+                cur.execute("ALTER TABLE produtos RENAME TO produtos_old_v160")
+                cur.execute("""CREATE TABLE produtos (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    codigo TEXT NOT NULL,
+                    descricao TEXT NOT NULL,
+                    qtde_por_loja INTEGER NOT NULL DEFAULT 1,
+                    custo TEXT NOT NULL DEFAULT '0.00',
+                    criado_por TEXT,
+                    criado_em TEXT,
+                    site_area TEXT NOT NULL DEFAULT 'expansao'
+                )""")
+                cur.execute("""INSERT INTO produtos (id,codigo,descricao,qtde_por_loja,custo,criado_por,criado_em,site_area)
+                               SELECT id,codigo,descricao,qtde_por_loja,custo,criado_por,criado_em,COALESCE(site_area,'expansao')
+                               FROM produtos_old_v160""")
+                cur.execute("DROP TABLE produtos_old_v160")
+                cur.execute("CREATE UNIQUE INDEX IF NOT EXISTS ux_produtos_site_codigo ON produtos(site_area, codigo)")
+                conn.commit()
         except Exception:
             conn.rollback()
 
@@ -834,6 +939,16 @@ def init_db():
             conn.commit()
         except Exception:
             conn.rollback()
+
+    # Migração v1.6.0: ambiente também na auditoria de movimentações.
+    try:
+        if IS_PG:
+            cur.execute("ALTER TABLE movimentacoes ADD COLUMN IF NOT EXISTS site_area TEXT NOT NULL DEFAULT 'expansao'")
+        else:
+            cur.execute("ALTER TABLE movimentacoes ADD COLUMN site_area TEXT NOT NULL DEFAULT 'expansao'")
+        conn.commit()
+    except Exception:
+        conn.rollback()
 
     # Migração: coluna que indica se a movimentação é do Estoque ou do Imobilizado.
     try:
@@ -868,7 +983,7 @@ def init_db():
                 cur.execute(f"INSERT INTO imobilizados ({colunas_str}) SELECT {colunas_str} FROM itens")
             cur.execute(q("UPDATE movimentacoes SET tabela = 'imobilizados' WHERE item_id IN "
                           f"(SELECT id FROM itens)"))
-            cur.execute("DELETE FROM itens")
+            cur.execute(q("DELETE FROM itens WHERE site_area = ?"), (get_site_area(),))
             conn.commit()
             print(f"[migração] {total_itens_existentes} registro(s) movido(s) de Estoque para Imobilizados "
                   f"(cadastro único, executado automaticamente).")
@@ -876,10 +991,15 @@ def init_db():
     # Índices para acelerar filtros, buscas e dashboards em bases maiores.
     indices = [
         "CREATE INDEX IF NOT EXISTS idx_itens_codigo ON itens(codigo)",
+        "CREATE INDEX IF NOT EXISTS idx_itens_site_codigo ON itens(site_area, codigo)",
         "CREATE INDEX IF NOT EXISTS idx_itens_tipo ON itens(tipo_estoque)",
         "CREATE INDEX IF NOT EXISTS idx_itens_filial ON itens(filial_destino)",
+        "CREATE INDEX IF NOT EXISTS idx_itens_site_filial ON itens(site_area, filial_destino)",
         "CREATE INDEX IF NOT EXISTS idx_imob_codigo ON imobilizados(codigo)",
+        "CREATE INDEX IF NOT EXISTS idx_imob_site_codigo ON imobilizados(site_area, codigo)",
         "CREATE INDEX IF NOT EXISTS idx_imob_filial ON imobilizados(filial_destino)",
+        "CREATE INDEX IF NOT EXISTS idx_imob_site_filial ON imobilizados(site_area, filial_destino)",
+        "CREATE INDEX IF NOT EXISTS idx_mov_site_data ON movimentacoes(site_area, data_hora)",
         "CREATE INDEX IF NOT EXISTS idx_filiais_status ON filiais(ativo)",
         "CREATE INDEX IF NOT EXISTS idx_filiais_uf ON filiais(uf)",
         "CREATE INDEX IF NOT EXISTS idx_filiais_previsao ON filiais(previsao_abertura)",
@@ -912,8 +1032,8 @@ def init_db():
         if not admin_pass:
             admin_pass = "admin123"  # somente ambiente local/SQLite
         cur.execute(
-            q("INSERT INTO usuarios (username, password_hash, role, criado_em) VALUES (?, ?, ?, ?)"),
-            (admin_user, generate_password_hash(admin_pass), "admin", datetime.now().isoformat()),
+            q("INSERT INTO usuarios (username, password_hash, role, criado_em, ambiente_acesso) VALUES (?, ?, ?, ?, ?)"),
+            (admin_user, generate_password_hash(admin_pass), "admin", datetime.now().isoformat(), "ambos"),
         )
         conn.commit()
         print(f"[setup] Usuário administrador criado: '{admin_user}'. "
@@ -934,14 +1054,14 @@ def _chave_codigo_natural(valor):
 
 def listar_produtos():
     conn = get_conn(); cur = get_cursor(conn)
-    cur.execute("SELECT * FROM produtos")
+    cur.execute(q("SELECT * FROM produtos WHERE site_area = ?"), (get_site_area(),))
     rows = cur.fetchall(); result = [dict(r) for r in rows]
     result.sort(key=lambda item: _chave_codigo_natural(item.get("codigo")))
     cur.close(); conn.close(); return result
 
 def buscar_produto_por_codigo(codigo):
     conn = get_conn(); cur = get_cursor(conn)
-    cur.execute(q("SELECT * FROM produtos WHERE codigo = ?"), (codigo,))
+    cur.execute(q("SELECT * FROM produtos WHERE codigo = ? AND site_area = ?"), (codigo, get_site_area()))
     row = cur.fetchone(); result = dict(row) if row else None
     cur.close(); conn.close(); return result
 
@@ -949,13 +1069,13 @@ def criar_produto(codigo, descricao, qtde_por_loja, custo, usuario):
     conn = get_conn(); cur = get_cursor(conn)
     agora = datetime.now().strftime("%Y-%m-%d %H:%M")
     try:
+        campos="codigo, descricao, qtde_por_loja, custo, criado_por, criado_em, site_area"
+        vals=(codigo, descricao, qtde_por_loja, custo, usuario, agora, get_site_area())
         if IS_PG:
-            cur.execute(q("INSERT INTO produtos (codigo, descricao, qtde_por_loja, custo, criado_por, criado_em) VALUES (?, ?, ?, ?, ?, ?) RETURNING id"),
-                        (codigo, descricao, qtde_por_loja, custo, usuario, agora))
+            cur.execute(q(f"INSERT INTO produtos ({campos}) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id"), vals)
             new_id = cur.fetchone()["id"]
         else:
-            cur.execute(q("INSERT INTO produtos (codigo, descricao, qtde_por_loja, custo, criado_por, criado_em) VALUES (?, ?, ?, ?, ?, ?)"),
-                        (codigo, descricao, qtde_por_loja, custo, usuario, agora))
+            cur.execute(q(f"INSERT INTO produtos ({campos}) VALUES (?, ?, ?, ?, ?, ?, ?)"), vals)
             new_id = cur.lastrowid
         conn.commit(); return new_id
     except Exception:
@@ -965,13 +1085,13 @@ def criar_produto(codigo, descricao, qtde_por_loja, custo, usuario):
 
 def atualizar_produto(produto_id, codigo, descricao, qtde_por_loja, custo):
     conn = get_conn(); cur = get_cursor(conn)
-    cur.execute(q("UPDATE produtos SET codigo = ?, descricao = ?, qtde_por_loja = ?, custo = ? WHERE id = ?"),
-                (codigo, descricao, qtde_por_loja, custo, produto_id))
+    cur.execute(q("UPDATE produtos SET codigo = ?, descricao = ?, qtde_por_loja = ?, custo = ? WHERE id = ? AND site_area = ?"),
+                (codigo, descricao, qtde_por_loja, custo, produto_id, get_site_area()))
     ok = cur.rowcount > 0; conn.commit(); cur.close(); conn.close(); return ok
 
 def excluir_produto(produto_id):
     conn = get_conn(); cur = get_cursor(conn)
-    cur.execute(q("DELETE FROM produtos WHERE id = ?"), (produto_id,))
+    cur.execute(q("DELETE FROM produtos WHERE id = ? AND site_area = ?"), (produto_id, get_site_area()))
     ok = cur.rowcount > 0; conn.commit(); cur.close(); conn.close(); return ok
 
 
@@ -1034,38 +1154,37 @@ def salvar_orcamento_pepi_consolidado(valor, usuario=None):
 
 def listar_kit_padrao_loja():
     conn = get_conn(); cur = get_cursor(conn)
-    cur.execute("SELECT * FROM kit_padrao_loja ORDER BY id")
+    cur.execute(q("SELECT * FROM kit_padrao_loja WHERE site_area = ? ORDER BY id"), (get_site_area(),))
     rows = [dict(r) for r in cur.fetchall()]
     cur.close(); conn.close(); return rows
 
 def buscar_item_kit(item_id):
     conn = get_conn(); cur = get_cursor(conn)
-    cur.execute(q("SELECT * FROM kit_padrao_loja WHERE id = ?"), (item_id,))
+    cur.execute(q("SELECT * FROM kit_padrao_loja WHERE id = ? AND site_area = ?"), (item_id, get_site_area()))
     row = cur.fetchone(); result = dict(row) if row else None
     cur.close(); conn.close(); return result
 
 def criar_item_kit(codigo, descricao, quantidade, usuario):
     conn = get_conn(); cur = get_cursor(conn)
     agora = datetime.now().strftime("%Y-%m-%d %H:%M")
+    vals=(codigo or None, descricao, quantidade, usuario, agora, get_site_area())
     if IS_PG:
-        cur.execute(q("INSERT INTO kit_padrao_loja (codigo, descricao, quantidade, criado_por, criado_em) VALUES (?, ?, ?, ?, ?) RETURNING id"),
-                    (codigo or None, descricao, quantidade, usuario, agora))
+        cur.execute(q("INSERT INTO kit_padrao_loja (codigo, descricao, quantidade, criado_por, criado_em, site_area) VALUES (?, ?, ?, ?, ?, ?) RETURNING id"), vals)
         novo_id = cur.fetchone()["id"]
     else:
-        cur.execute(q("INSERT INTO kit_padrao_loja (codigo, descricao, quantidade, criado_por, criado_em) VALUES (?, ?, ?, ?, ?)"),
-                    (codigo or None, descricao, quantidade, usuario, agora))
+        cur.execute(q("INSERT INTO kit_padrao_loja (codigo, descricao, quantidade, criado_por, criado_em, site_area) VALUES (?, ?, ?, ?, ?, ?)"), vals)
         novo_id = cur.lastrowid
     conn.commit(); cur.close(); conn.close(); return novo_id
 
 def atualizar_item_kit(item_id, codigo, descricao, quantidade):
     conn = get_conn(); cur = get_cursor(conn)
-    cur.execute(q("UPDATE kit_padrao_loja SET codigo = ?, descricao = ?, quantidade = ? WHERE id = ?"),
-                (codigo or None, descricao, quantidade, item_id))
+    cur.execute(q("UPDATE kit_padrao_loja SET codigo = ?, descricao = ?, quantidade = ? WHERE id = ? AND site_area = ?"),
+                (codigo or None, descricao, quantidade, item_id, get_site_area()))
     ok = cur.rowcount > 0; conn.commit(); cur.close(); conn.close(); return ok
 
 def excluir_item_kit(item_id):
     conn = get_conn(); cur = get_cursor(conn)
-    cur.execute(q("DELETE FROM kit_padrao_loja WHERE id = ?"), (item_id,))
+    cur.execute(q("DELETE FROM kit_padrao_loja WHERE id = ? AND site_area = ?"), (item_id, get_site_area()))
     ok = cur.rowcount > 0; conn.commit(); cur.close(); conn.close(); return ok
 
 
@@ -1153,9 +1272,10 @@ def obter_dashboard_compacto(limite_movs=20):
         else:
             qtd_sql = "CAST(COALESCE(NULLIF(TRIM(qtde),''),'0') AS NUMERIC)"
         cur.execute(
-            "SELECT codigo, descricao, tipo_estoque, "
-            f"SUM({qtd_sql}) AS qtde FROM itens "
-            "GROUP BY codigo, descricao, tipo_estoque"
+            q("SELECT codigo, descricao, tipo_estoque, "
+              f"SUM({qtd_sql}) AS qtde FROM itens WHERE site_area = ? "
+              "GROUP BY codigo, descricao, tipo_estoque"),
+            (get_site_area(),)
         )
         itens = []
         total_estoque = 0
@@ -1172,16 +1292,16 @@ def obter_dashboard_compacto(limite_movs=20):
                 total_estoque += qtd
 
         # Imobilizados: o Dashboard precisa somente do total de unidades.
-        cur.execute(f"SELECT SUM({qtd_sql}) AS total FROM imobilizados")
+        cur.execute(q(f"SELECT SUM({qtd_sql}) AS total FROM imobilizados WHERE site_area = ?"), (get_site_area(),))
         imobilizados_total = qtd_num(dict(cur.fetchone()).get("total"))
 
         # Produtos: somente código e descrição são usados nos tooltips/flyouts.
-        cur.execute("SELECT codigo, descricao FROM produtos ORDER BY id")
+        cur.execute(q("SELECT codigo, descricao FROM produtos WHERE site_area = ? ORDER BY id"), (get_site_area(),))
         produtos = [dict(r) for r in cur.fetchall()]
         produtos_total = len(produtos)
 
         # Kit padrão usado na simulação da meta.
-        cur.execute("SELECT id, codigo, descricao, quantidade FROM kit_padrao_loja ORDER BY id")
+        cur.execute(q("SELECT id, codigo, descricao, quantidade FROM kit_padrao_loja WHERE site_area = ? ORDER BY id"), (get_site_area(),))
         kit = [dict(r) for r in cur.fetchall()]
 
         # Para a visão executiva bastam as filiais que ainda serão inauguradas.
@@ -1208,7 +1328,7 @@ def obter_dashboard_compacto(limite_movs=20):
 
         # Últimas movimentações e referências somente dos IDs necessários.
         limite_movs = max(1, min(int(limite_movs or 20), 100))
-        cur.execute(q("SELECT * FROM movimentacoes ORDER BY id DESC LIMIT ?"), (limite_movs,))
+        cur.execute(q("SELECT * FROM movimentacoes WHERE site_area = ? ORDER BY id DESC LIMIT ?"), (get_site_area(), limite_movs))
         movs = [dict(r) for r in cur.fetchall()]
         ids_itens = sorted({int(m.get("item_id")) for m in movs if (m.get("tabela") or "itens") == "itens" and m.get("item_id") is not None})
         ids_imob = sorted({int(m.get("item_id")) for m in movs if m.get("tabela") == "imobilizados" and m.get("item_id") is not None})
@@ -1217,11 +1337,11 @@ def obter_dashboard_compacto(limite_movs=20):
         refs_imob = {}
         if ids_itens:
             ph = ",".join(["?"] * len(ids_itens))
-            cur.execute(q(f"SELECT id, codigo, descricao FROM itens WHERE id IN ({ph})"), ids_itens)
+            cur.execute(q(f"SELECT id, codigo, descricao FROM itens WHERE id IN ({ph}) AND site_area = ?"), tuple(ids_itens) + (get_site_area(),))
             refs_itens = {str(dict(r).get("id")): dict(r) for r in cur.fetchall()}
         if ids_imob:
             ph = ",".join(["?"] * len(ids_imob))
-            cur.execute(q(f"SELECT id, codigo, descricao FROM imobilizados WHERE id IN ({ph})"), ids_imob)
+            cur.execute(q(f"SELECT id, codigo, descricao FROM imobilizados WHERE id IN ({ph}) AND site_area = ?"), tuple(ids_imob) + (get_site_area(),))
             refs_imob = {str(dict(r).get("id")): dict(r) for r in cur.fetchall()}
 
         for m in movs:
@@ -1259,12 +1379,10 @@ def obter_dashboard_compacto(limite_movs=20):
 def listar_itens():
     conn = get_conn()
     cur = get_cursor(conn)
-    cur.execute("SELECT * FROM itens ORDER BY id")
+    cur.execute(q("SELECT * FROM itens WHERE site_area = ? ORDER BY id"), (get_site_area(),))
     linhas = cur.fetchall()
     itens = [dict(r) for r in linhas]
-    cur.close()
-    conn.close()
-    return itens
+    cur.close(); conn.close(); return itens
 
 
 def criar_item(dados):
@@ -1274,8 +1392,8 @@ def criar_item(dados):
               "data_entrada", "nf_saida", "data_saida", "vd_loja",
               "local", "armazenagem", "status", "nro_imobilizado",
               "nro_serie", "nro_patrimonio", "tipo_estoque", "criado_por",
-              "pedido", "val_aquis", "chamado", "filial_destino"]
-    valores = [dados.get(c, "") for c in campos]
+              "pedido", "val_aquis", "chamado", "filial_destino", "site_area"]
+    valores = [dados.get(c, "") for c in campos[:-1]] + [get_site_area()]
 
     if IS_PG:
         cur.execute(
@@ -1317,11 +1435,11 @@ def criar_itens_em_lote(lista_dados, usuario, observacao="Importado via planilha
               "data_entrada", "nf_saida", "data_saida", "vd_loja",
               "local", "armazenagem", "status", "nro_imobilizado",
               "nro_serie", "nro_patrimonio", "tipo_estoque", "criado_por",
-              "pedido", "val_aquis", "chamado", "filial_destino"]
+              "pedido", "val_aquis", "chamado", "filial_destino", "site_area"]
     conn = get_conn()
     cur = get_cursor(conn)
     try:
-        valores_lote = [[dados.get(c, "") for c in campos] for dados in lista_dados]
+        valores_lote = [[dados.get(c, "") for c in campos[:-1]] + [get_site_area()] for dados in lista_dados]
         ids_criados = []
         if IS_PG:
             retornos = psycopg2.extras.execute_values(
@@ -1341,20 +1459,20 @@ def criar_itens_em_lote(lista_dados, usuario, observacao="Importado via planilha
                 ids_criados.append(cur.lastrowid)
 
         agora = datetime.now().strftime("%Y-%m-%d %H:%M")
-        mov_valores = [(item_id, "entrada", str(lista_dados[i].get("qtde", "")), usuario, agora, observacao)
+        mov_valores = [(item_id, "entrada", str(lista_dados[i].get("qtde", "")), usuario, agora, observacao, get_site_area())
                        for i, item_id in enumerate(ids_criados)]
         if mov_valores:
             if IS_PG:
                 psycopg2.extras.execute_values(
                     cur,
-                    "INSERT INTO movimentacoes (item_id, tipo, quantidade, usuario, data_hora, observacao) VALUES %s",
+                    "INSERT INTO movimentacoes (item_id, tipo, quantidade, usuario, data_hora, observacao, site_area) VALUES %s",
                     mov_valores,
                     page_size=1000,
                 )
             else:
                 cur.executemany(
-                    q("INSERT INTO movimentacoes (item_id, tipo, quantidade, usuario, data_hora, observacao) "
-                      "VALUES (?, ?, ?, ?, ?, ?)"),
+                    q("INSERT INTO movimentacoes (item_id, tipo, quantidade, usuario, data_hora, observacao, site_area) "
+                      "VALUES (?, ?, ?, ?, ?, ?, ?, ?)"),
                     mov_valores,
                 )
         conn.commit()
@@ -1380,9 +1498,9 @@ def substituir_itens_em_lote(lista_dados, usuario, observacao="Substituição vi
     conn = get_conn()
     cur = get_cursor(conn)
     try:
-        cur.execute("SELECT COUNT(*) AS total FROM itens")
+        cur.execute(q("SELECT COUNT(*) AS total FROM itens WHERE site_area = ?"), (get_site_area(),))
         removidos = int(cur.fetchone()["total"] or 0)
-        cur.execute("DELETE FROM itens")
+        cur.execute(q("DELETE FROM itens WHERE site_area = ?"), (get_site_area(),))
 
         valores_lote = [[dados.get(c, "") for c in campos] for dados in lista_dados]
         ids_criados = []
@@ -1404,20 +1522,20 @@ def substituir_itens_em_lote(lista_dados, usuario, observacao="Substituição vi
                 ids_criados.append(cur.lastrowid)
 
         agora = datetime.now().strftime("%Y-%m-%d %H:%M")
-        mov_valores = [(item_id, "entrada", str(lista_dados[i].get("qtde", "")), usuario, agora, observacao)
+        mov_valores = [(item_id, "entrada", str(lista_dados[i].get("qtde", "")), usuario, agora, observacao, get_site_area())
                        for i, item_id in enumerate(ids_criados)]
         if mov_valores:
             if IS_PG:
                 psycopg2.extras.execute_values(
                     cur,
-                    "INSERT INTO movimentacoes (item_id, tipo, quantidade, usuario, data_hora, observacao) VALUES %s",
+                    "INSERT INTO movimentacoes (item_id, tipo, quantidade, usuario, data_hora, observacao, site_area) VALUES %s",
                     mov_valores,
                     page_size=1000,
                 )
             else:
                 cur.executemany(
-                    q("INSERT INTO movimentacoes (item_id, tipo, quantidade, usuario, data_hora, observacao) "
-                      "VALUES (?, ?, ?, ?, ?, ?)"),
+                    q("INSERT INTO movimentacoes (item_id, tipo, quantidade, usuario, data_hora, observacao, site_area) "
+                      "VALUES (?, ?, ?, ?, ?, ?, ?, ?)"),
                     mov_valores,
                 )
         conn.commit()
@@ -1435,7 +1553,7 @@ def atualizar_item(item_id, novos_dados):
                           "local", "armazenagem", "status", "nro_imobilizado",
                           "nro_serie", "nro_patrimonio", "tipo_estoque",
                           "atualizado_por", "atualizado_em",
-                          "pedido", "val_aquis", "chamado", "filial_destino"]
+                          "pedido", "val_aquis", "chamado", "filial_destino", "site_area"]
     sets = [c for c in campos_permitidos if c in novos_dados]
     if not sets:
         return False
@@ -1444,7 +1562,7 @@ def atualizar_item(item_id, novos_dados):
     cur = get_cursor(conn)
     set_clause = ", ".join(f"{c} = ?" for c in sets)
     valores = [novos_dados[c] for c in sets] + [item_id]
-    cur.execute(q(f"UPDATE itens SET {set_clause} WHERE id = ?"), valores)
+    cur.execute(q(f"UPDATE itens SET {set_clause} WHERE id = ? AND site_area = ?"), valores + [get_site_area()])
     afetadas = cur.rowcount
     conn.commit()
     cur.close()
@@ -1478,10 +1596,10 @@ def baixar_itens_para_filial_em_lote(lista_itens, filial_destino, nf_saida, data
     cur = get_cursor(conn)
     try:
         placeholders = ", ".join(["?"] * len(ids))
-        sql = f"SELECT * FROM itens WHERE id IN ({placeholders})"
+        sql = f"SELECT * FROM itens WHERE id IN ({placeholders}) AND site_area = ?"
         if IS_PG:
             sql += " FOR UPDATE"
-        cur.execute(q(sql), ids)
+        cur.execute(q(sql), tuple(ids) + (get_site_area(),))
         encontrados = {int(dict(row)["id"]): dict(row) for row in cur.fetchall()}
         ausentes = [str(i) for i in ids if i not in encontrados]
         if ausentes:
@@ -1516,11 +1634,11 @@ def baixar_itens_para_filial_em_lote(lista_itens, filial_destino, nf_saida, data
                    SET qtde = ?, status = ?, nf_saida = ?, data_saida = ?,
                        filial_destino = ?, vd_loja = ?, nro_imobilizado = ?,
                        nro_serie = ?, nro_patrimonio = ?, atualizado_por = ?, atualizado_em = ?
-                 WHERE id = ?
+                 WHERE id = ? AND site_area = ?
             """), (
                 "0", "Enviado", str(nf_saida or "").strip(), str(data_saida or "").strip(),
                 str(filial_destino or "").strip(), str(vd_loja or "").strip(), nro_imobilizado,
-                nro_serie, nro_patrimonio, usuario, agora, item_id,
+                nro_serie, nro_patrimonio, usuario, agora, item_id, get_site_area(),
             ))
             if cur.rowcount != 1:
                 raise ValueError(f"Não foi possível atualizar o equipamento ID {item_id}.")
@@ -1531,9 +1649,9 @@ def baixar_itens_para_filial_em_lote(lista_itens, filial_destino, nf_saida, data
                 f"patrimônio: {nro_patrimonio})"
             )
             cur.execute(q(
-                "INSERT INTO movimentacoes (item_id, tipo, quantidade, usuario, data_hora, observacao, tabela) "
+                "INSERT INTO movimentacoes (item_id, tipo, quantidade, usuario, data_hora, observacao, tabela, site_area) "
                 "VALUES (?, ?, ?, ?, ?, ?, ?)"
-            ), (item_id, "saida", "1", usuario, agora, obs, "itens"))
+            ), (item_id, "saida", "1", usuario, agora, obs, "itens", get_site_area()))
             atualizados.append(item_id)
 
         conn.commit()
@@ -1549,7 +1667,7 @@ def baixar_itens_para_filial_em_lote(lista_itens, filial_destino, nf_saida, data
 def excluir_item(item_id):
     conn = get_conn()
     cur = get_cursor(conn)
-    cur.execute(q("DELETE FROM itens WHERE id = ?"), (item_id,))
+    cur.execute(q("DELETE FROM itens WHERE id = ? AND site_area = ?"), (item_id, get_site_area()))
     afetadas = cur.rowcount
     conn.commit()
     cur.close()
@@ -1560,7 +1678,7 @@ def excluir_item(item_id):
 def buscar_item_por_id(item_id):
     conn = get_conn()
     cur = get_cursor(conn)
-    cur.execute(q("SELECT * FROM itens WHERE id = ?"), (item_id,))
+    cur.execute(q("SELECT * FROM itens WHERE id = ? AND site_area = ?"), (item_id, get_site_area()))
     row = cur.fetchone()
     item = dict(row) if row else None
     cur.close()
@@ -1577,8 +1695,8 @@ def recriar_item(dados):
               "local", "armazenagem", "status", "nro_imobilizado",
               "nro_serie", "nro_patrimonio", "tipo_estoque", "criado_por",
               "atualizado_por", "atualizado_em", "pedido", "val_aquis", "chamado",
-              "filial_destino"]
-    valores = [dados.get(c) for c in campos]
+              "filial_destino", "site_area"]
+    valores = [dados.get(c) for c in campos[:-1]] + [get_site_area()]
     cur.execute(
         q(f"INSERT INTO itens ({', '.join(campos)}) VALUES ({', '.join(['?'] * len(campos))})"),
         valores,
@@ -1596,8 +1714,8 @@ def registrar_movimentacao(item_id, tipo, quantidade=None, usuario=None, observa
     conn = get_conn()
     cur = get_cursor(conn)
     cur.execute(
-        q("INSERT INTO movimentacoes (item_id, tipo, quantidade, usuario, data_hora, observacao, tabela) "
-          "VALUES (?, ?, ?, ?, ?, ?, ?)"),
+        q("INSERT INTO movimentacoes (item_id, tipo, quantidade, usuario, data_hora, observacao, tabela, site_area) "
+          "VALUES (?, ?, ?, ?, ?, ?, ?, ?)"),
         (item_id, tipo, quantidade, usuario, datetime.now().strftime("%Y-%m-%d %H:%M"), observacao, tabela),
     )
     conn.commit()
@@ -1652,7 +1770,7 @@ def listar_movimentacoes_periodo(inicio=None, fim=None, limite=10000):
 def listar_todas_movimentacoes():
     conn = get_conn()
     cur = get_cursor(conn)
-    cur.execute("SELECT * FROM movimentacoes ORDER BY id DESC")
+    cur.execute(q("SELECT * FROM movimentacoes WHERE site_area = ? ORDER BY id DESC"), (get_site_area(),))
     linhas = [dict(r) for r in cur.fetchall()]
     cur.close()
     conn.close()
@@ -1715,7 +1833,7 @@ def excluir_itens_em_lote(ids):
     conn = get_conn()
     cur = get_cursor(conn)
     placeholders = ", ".join(["?"] * len(ids))
-    cur.execute(q(f"DELETE FROM itens WHERE id IN ({placeholders})"), ids)
+    cur.execute(q(f"DELETE FROM itens WHERE id IN ({placeholders}) AND site_area = ?"), tuple(ids) + (get_site_area(),))
     afetadas = cur.rowcount
     conn.commit()
     cur.close()
@@ -1743,7 +1861,7 @@ def excluir_itens_em_lote_auditado(ids, usuario):
     conn = get_conn(); cur = get_cursor(conn)
     try:
         placeholders = ", ".join(["?"] * len(ids_limpos))
-        cur.execute(q(f"SELECT id, codigo, qtde FROM itens WHERE id IN ({placeholders})"), tuple(ids_limpos))
+        cur.execute(q(f"SELECT id, codigo, qtde FROM itens WHERE id IN ({placeholders}) AND site_area = ?"), tuple(ids_limpos) + (get_site_area(),))
         encontrados = [dict(r) for r in cur.fetchall()]
         encontrados_ids = {int(r.get("id") or 0) for r in encontrados}
         nao_encontrados = [i for i in ids_limpos if i not in encontrados_ids]
@@ -1751,22 +1869,22 @@ def excluir_itens_em_lote_auditado(ids, usuario):
         agora = datetime.now().strftime("%Y-%m-%d %H:%M")
         movimentos = [
             (int(item.get("id")), "exclusao", str(item.get("qtde") or ""), usuario, agora,
-             f"Item {item.get('codigo') or ''} excluído (exclusão em massa)", "itens")
+             f"Item {item.get('codigo') or ''} excluído (exclusão em massa)", "itens", get_site_area())
             for item in encontrados
         ]
         if movimentos:
             if IS_PG:
                 psycopg2.extras.execute_values(
                     cur,
-                    "INSERT INTO movimentacoes (item_id,tipo,quantidade,usuario,data_hora,observacao,tabela) VALUES %s",
+                    "INSERT INTO movimentacoes (item_id,tipo,quantidade,usuario,data_hora,observacao,tabela,site_area) VALUES %s",
                     movimentos, page_size=1000,
                 )
             else:
                 cur.executemany(
-                    q("INSERT INTO movimentacoes (item_id,tipo,quantidade,usuario,data_hora,observacao,tabela) VALUES (?,?,?,?,?,?,?)"),
+                    q("INSERT INTO movimentacoes (item_id,tipo,quantidade,usuario,data_hora,observacao,tabela,site_area) VALUES (?,?,?,?,?,?,?,?)"),
                     movimentos,
                 )
-            cur.execute(q(f"DELETE FROM itens WHERE id IN ({placeholders})"), tuple(ids_limpos))
+            cur.execute(q(f"DELETE FROM itens WHERE id IN ({placeholders}) AND site_area = ?"), tuple(ids_limpos) + (get_site_area(),))
         conn.commit()
         return encontrados, nao_encontrados
     except Exception:
@@ -1809,13 +1927,13 @@ CAMPOS_IMOBILIZADO = ["codigo", "descricao", "qtde", "localizacao", "nf_entrada"
                        "data_entrada", "nf_saida", "data_saida", "vd_loja",
                        "local", "armazenagem", "status", "nro_imobilizado",
                        "nro_serie", "nro_patrimonio", "tipo_estoque", "criado_por",
-                       "pedido", "val_aquis", "chamado", "filial_destino"]
+                       "pedido", "val_aquis", "chamado", "filial_destino", "site_area"]
 
 
 def listar_imobilizados():
     conn = get_conn()
     cur = get_cursor(conn)
-    cur.execute("SELECT * FROM imobilizados ORDER BY id")
+    cur.execute(q("SELECT * FROM imobilizados WHERE site_area = ? ORDER BY id"), (get_site_area(),))
     linhas = cur.fetchall()
     itens = [dict(r) for r in linhas]
     cur.close()
@@ -1826,7 +1944,7 @@ def listar_imobilizados():
 def criar_imobilizado(dados):
     conn = get_conn()
     cur = get_cursor(conn)
-    valores = [dados.get(c, "") for c in CAMPOS_IMOBILIZADO]
+    valores = [dados.get(c, "") for c in CAMPOS_IMOBILIZADO[:-1]] + [get_site_area()]
     if IS_PG:
         cur.execute(
             q(f"INSERT INTO imobilizados ({', '.join(CAMPOS_IMOBILIZADO)}) "
@@ -1851,7 +1969,7 @@ def criar_imobilizados_em_lote(lista_dados, usuario, observacao="Importado via p
     conn = get_conn()
     cur = get_cursor(conn)
     try:
-        valores_lote = [[dados.get(c, "") for c in CAMPOS_IMOBILIZADO] for dados in lista_dados]
+        valores_lote = [[dados.get(c, "") for c in CAMPOS_IMOBILIZADO[:-1]] + [get_site_area()] for dados in lista_dados]
         ids_criados = []
         if IS_PG:
             retornos = psycopg2.extras.execute_values(
@@ -1872,20 +1990,20 @@ def criar_imobilizados_em_lote(lista_dados, usuario, observacao="Importado via p
                 ids_criados.append(cur.lastrowid)
 
         agora = datetime.now().strftime("%Y-%m-%d %H:%M")
-        mov_valores = [(item_id, "entrada", str(lista_dados[i].get("qtde", "")), usuario, agora, observacao, "imobilizados")
+        mov_valores = [(item_id, "entrada", str(lista_dados[i].get("qtde", "")), usuario, agora, observacao, "imobilizados", get_site_area())
                        for i, item_id in enumerate(ids_criados)]
         if mov_valores:
             if IS_PG:
                 psycopg2.extras.execute_values(
                     cur,
-                    "INSERT INTO movimentacoes (item_id, tipo, quantidade, usuario, data_hora, observacao, tabela) VALUES %s",
+                    "INSERT INTO movimentacoes (item_id, tipo, quantidade, usuario, data_hora, observacao, tabela, site_area) VALUES %s",
                     mov_valores,
                     page_size=1000,
                 )
             else:
                 cur.executemany(
-                    q("INSERT INTO movimentacoes (item_id, tipo, quantidade, usuario, data_hora, observacao, tabela) "
-                      "VALUES (?, ?, ?, ?, ?, ?, ?)"),
+                    q("INSERT INTO movimentacoes (item_id, tipo, quantidade, usuario, data_hora, observacao, tabela, site_area) "
+                      "VALUES (?, ?, ?, ?, ?, ?, ?, ?)"),
                     mov_valores,
                 )
         conn.commit()
@@ -1902,9 +2020,9 @@ def substituir_imobilizados_em_lote(lista_dados, usuario, observacao="Substitui�
     conn = get_conn()
     cur = get_cursor(conn)
     try:
-        cur.execute("SELECT COUNT(*) AS total FROM imobilizados")
+        cur.execute(q("SELECT COUNT(*) AS total FROM imobilizados WHERE site_area = ?"), (get_site_area(),))
         removidos = int(cur.fetchone()["total"] or 0)
-        cur.execute("DELETE FROM imobilizados")
+        cur.execute(q("DELETE FROM imobilizados WHERE site_area = ?"), (get_site_area(),))
 
         valores_lote = [[dados.get(c, "") for c in CAMPOS_IMOBILIZADO] for dados in lista_dados]
         ids_criados = []
@@ -1927,20 +2045,20 @@ def substituir_imobilizados_em_lote(lista_dados, usuario, observacao="Substitui�
                 ids_criados.append(cur.lastrowid)
 
         agora = datetime.now().strftime("%Y-%m-%d %H:%M")
-        mov_valores = [(item_id, "entrada", str(lista_dados[i].get("qtde", "")), usuario, agora, observacao, "imobilizados")
+        mov_valores = [(item_id, "entrada", str(lista_dados[i].get("qtde", "")), usuario, agora, observacao, "imobilizados", get_site_area())
                        for i, item_id in enumerate(ids_criados)]
         if mov_valores:
             if IS_PG:
                 psycopg2.extras.execute_values(
                     cur,
-                    "INSERT INTO movimentacoes (item_id, tipo, quantidade, usuario, data_hora, observacao, tabela) VALUES %s",
+                    "INSERT INTO movimentacoes (item_id, tipo, quantidade, usuario, data_hora, observacao, tabela, site_area) VALUES %s",
                     mov_valores,
                     page_size=1000,
                 )
             else:
                 cur.executemany(
-                    q("INSERT INTO movimentacoes (item_id, tipo, quantidade, usuario, data_hora, observacao, tabela) "
-                      "VALUES (?, ?, ?, ?, ?, ?, ?)"),
+                    q("INSERT INTO movimentacoes (item_id, tipo, quantidade, usuario, data_hora, observacao, tabela, site_area) "
+                      "VALUES (?, ?, ?, ?, ?, ?, ?, ?)"),
                     mov_valores,
                 )
         conn.commit()
@@ -1954,7 +2072,7 @@ def substituir_imobilizados_em_lote(lista_dados, usuario, observacao="Substitui�
 
 def atualizar_imobilizado(item_id, novos_dados):
     campos_permitidos = CAMPOS_IMOBILIZADO + ["atualizado_por", "atualizado_em",
-                                               "filial_destino", "enviado_estoque_por", "enviado_estoque_em"]
+                                               "filial_destino", "enviado_estoque_por", "enviado_estoque_em", "site_area"]
     sets = [c for c in campos_permitidos if c in novos_dados]
     if not sets:
         return False
@@ -1962,7 +2080,7 @@ def atualizar_imobilizado(item_id, novos_dados):
     cur = get_cursor(conn)
     set_clause = ", ".join(f"{c} = ?" for c in sets)
     valores = [novos_dados[c] for c in sets] + [item_id]
-    cur.execute(q(f"UPDATE imobilizados SET {set_clause} WHERE id = ?"), valores)
+    cur.execute(q(f"UPDATE imobilizados SET {set_clause} WHERE id = ? AND site_area = ?"), valores + [get_site_area()])
     afetadas = cur.rowcount
     conn.commit()
     cur.close()
@@ -1973,7 +2091,7 @@ def atualizar_imobilizado(item_id, novos_dados):
 def excluir_imobilizado(item_id):
     conn = get_conn()
     cur = get_cursor(conn)
-    cur.execute(q("DELETE FROM imobilizados WHERE id = ?"), (item_id,))
+    cur.execute(q("DELETE FROM imobilizados WHERE id = ? AND site_area = ?"), (item_id, get_site_area()))
     afetadas = cur.rowcount
     conn.commit()
     cur.close()
@@ -1987,7 +2105,7 @@ def excluir_imobilizados_em_lote(ids):
     conn = get_conn()
     cur = get_cursor(conn)
     placeholders = ", ".join(["?"] * len(ids))
-    cur.execute(q(f"DELETE FROM imobilizados WHERE id IN ({placeholders})"), ids)
+    cur.execute(q(f"DELETE FROM imobilizados WHERE id IN ({placeholders}) AND site_area = ?"), tuple(ids) + (get_site_area(),))
     afetadas = cur.rowcount
     conn.commit()
     cur.close()
@@ -2011,7 +2129,7 @@ def excluir_imobilizados_em_lote_auditado(ids, usuario):
     conn = get_conn(); cur = get_cursor(conn)
     try:
         placeholders = ", ".join(["?"] * len(ids_limpos))
-        cur.execute(q(f"SELECT id, codigo, qtde FROM imobilizados WHERE id IN ({placeholders})"), tuple(ids_limpos))
+        cur.execute(q(f"SELECT id, codigo, qtde FROM imobilizados WHERE id IN ({placeholders}) AND site_area = ?"), tuple(ids_limpos) + (get_site_area(),))
         encontrados = [dict(r) for r in cur.fetchall()]
         encontrados_ids = {int(r.get("id") or 0) for r in encontrados}
         nao_encontrados = [i for i in ids_limpos if i not in encontrados_ids]
@@ -2019,22 +2137,22 @@ def excluir_imobilizados_em_lote_auditado(ids, usuario):
         agora = datetime.now().strftime("%Y-%m-%d %H:%M")
         movimentos = [
             (int(item.get("id")), "exclusao", str(item.get("qtde") or ""), usuario, agora,
-             f"Imobilizado {item.get('codigo') or ''} excluído (exclusão em massa)", "imobilizados")
+             f"Imobilizado {item.get('codigo') or ''} excluído (exclusão em massa)", "imobilizados", get_site_area())
             for item in encontrados
         ]
         if movimentos:
             if IS_PG:
                 psycopg2.extras.execute_values(
                     cur,
-                    "INSERT INTO movimentacoes (item_id,tipo,quantidade,usuario,data_hora,observacao,tabela) VALUES %s",
+                    "INSERT INTO movimentacoes (item_id,tipo,quantidade,usuario,data_hora,observacao,tabela,site_area) VALUES %s",
                     movimentos, page_size=1000,
                 )
             else:
                 cur.executemany(
-                    q("INSERT INTO movimentacoes (item_id,tipo,quantidade,usuario,data_hora,observacao,tabela) VALUES (?,?,?,?,?,?,?)"),
+                    q("INSERT INTO movimentacoes (item_id,tipo,quantidade,usuario,data_hora,observacao,tabela,site_area) VALUES (?,?,?,?,?,?,?,?)"),
                     movimentos,
                 )
-            cur.execute(q(f"DELETE FROM imobilizados WHERE id IN ({placeholders})"), tuple(ids_limpos))
+            cur.execute(q(f"DELETE FROM imobilizados WHERE id IN ({placeholders}) AND site_area = ?"), tuple(ids_limpos) + (get_site_area(),))
         conn.commit()
         return encontrados, nao_encontrados
     except Exception:
@@ -2047,7 +2165,7 @@ def excluir_imobilizados_em_lote_auditado(ids, usuario):
 def buscar_imobilizado_por_id(item_id):
     conn = get_conn()
     cur = get_cursor(conn)
-    cur.execute(q("SELECT * FROM imobilizados WHERE id = ?"), (item_id,))
+    cur.execute(q("SELECT * FROM imobilizados WHERE id = ? AND site_area = ?"), (item_id, get_site_area()))
     row = cur.fetchone()
     item = dict(row) if row else None
     cur.close()
@@ -2064,8 +2182,8 @@ def recriar_imobilizado(dados):
               "local", "armazenagem", "status", "nro_imobilizado",
               "nro_serie", "nro_patrimonio", "tipo_estoque", "criado_por",
               "atualizado_por", "atualizado_em", "pedido", "val_aquis", "chamado",
-              "filial_destino", "enviado_estoque_por", "enviado_estoque_em"]
-    valores = [dados.get(c) for c in campos]
+              "filial_destino", "enviado_estoque_por", "enviado_estoque_em", "site_area"]
+    valores = [dados.get(c) for c in campos[:-1]] + [get_site_area()]
     cur.execute(
         q(f"INSERT INTO imobilizados ({', '.join(campos)}) VALUES ({', '.join(['?'] * len(campos))})"),
         valores,
@@ -2261,8 +2379,8 @@ def atualizar_filial(filial_id, codigo, nome, cidade, uf, ativo, bandeira=None, 
         cur.execute(q("UPDATE filiais SET codigo=?, nome=?, cidade=?, uf=?, bandeira=?, previsao_abertura=?, ativo=? WHERE id=?"),
                     (codigo,nome,cidade,uf,bandeira,previsao_abertura or "",ativo,filial_id))
         if str(codigo_antigo) != str(codigo):
-            cur.execute(q("UPDATE itens SET filial_destino = ? WHERE filial_destino = ?"), (codigo, codigo_antigo))
-            cur.execute(q("UPDATE imobilizados SET filial_destino = ? WHERE filial_destino = ?"), (codigo, codigo_antigo))
+            cur.execute(q("UPDATE itens SET filial_destino = ? WHERE filial_destino = ? AND site_area = ?"), (codigo, codigo_antigo, get_site_area()))
+            cur.execute(q("UPDATE imobilizados SET filial_destino = ? WHERE filial_destino = ? AND site_area = ?"), (codigo, codigo_antigo, get_site_area()))
         conn.commit(); return True
     except Exception:
         conn.rollback(); raise
@@ -2293,10 +2411,10 @@ def contar_referencias_filial(codigo):
     """Conta vínculos da filial de forma segura em SQLite e PostgreSQL."""
     conn = get_conn(); cur = get_cursor(conn)
     try:
-        cur.execute(q("SELECT COUNT(*) AS total FROM itens WHERE filial_destino = ?"), (codigo,))
+        cur.execute(q("SELECT COUNT(*) AS total FROM itens WHERE filial_destino = ? AND site_area = ?"), (codigo, get_site_area()))
         row_itens = cur.fetchone()
         a = int(_valor_escalar(row_itens, "total", 0) or 0)
-        cur.execute(q("SELECT COUNT(*) AS total FROM imobilizados WHERE filial_destino = ?"), (codigo,))
+        cur.execute(q("SELECT COUNT(*) AS total FROM imobilizados WHERE filial_destino = ? AND site_area = ?"), (codigo, get_site_area()))
         row_imob = cur.fetchone()
         b = int(_valor_escalar(row_imob, "total", 0) or 0)
         return a + b
@@ -2350,8 +2468,8 @@ def excluir_filiais_em_lote(ids, desvincular_equipamentos=True):
             if total_refs and not desvincular_equipamentos:
                 return [], nao_encontradas
             if desvincular_equipamentos:
-                cur.execute(q(f"UPDATE itens SET filial_destino = NULL WHERE filial_destino IN ({ph_cod})"), codigos_validos)
-                cur.execute(q(f"UPDATE imobilizados SET filial_destino = NULL WHERE filial_destino IN ({ph_cod})"), codigos_validos)
+                cur.execute(q(f"UPDATE itens SET filial_destino = NULL WHERE filial_destino IN ({ph_cod}) AND site_area = ?"), tuple(codigos_validos) + (get_site_area(),))
+                cur.execute(q(f"UPDATE imobilizados SET filial_destino = NULL WHERE filial_destino IN ({ph_cod}) AND site_area = ?"), tuple(codigos_validos) + (get_site_area(),))
 
         cur.execute(q(f"DELETE FROM filiais WHERE id IN ({ph_ids})"), ids_limpos)
         conn.commit()
@@ -2753,7 +2871,7 @@ def listar_usuarios():
     # Falhas, bloqueios e etapas pendentes de MFA não contam como login.
     cur.execute(
         "SELECT u.id, u.username, u.role, u.criado_em, u.precisa_trocar_senha, u.email, u.whatsapp, "
-        "COALESCE(u.mfa_enabled, '0') AS mfa_enabled, u.mfa_configurado_em, "
+        "COALESCE(u.mfa_enabled, '0') AS mfa_enabled, u.mfa_configurado_em, COALESCE(u.ambiente_acesso, 'expansao') AS ambiente_acesso, "
         "(SELECT MAX(le.data_hora) FROM login_eventos le "
         " WHERE LOWER(le.username) = LOWER(u.username) AND le.resultado = 'sucesso') AS ultimo_login "
         "FROM usuarios u ORDER BY u.id"
@@ -2787,13 +2905,17 @@ def buscar_usuario_por_id(user_id):
     return usuario
 
 
-def criar_usuario(username, password, role="user", email=None, whatsapp=None):
+def criar_usuario(username, password, role="user", email=None, whatsapp=None, ambiente_acesso="expansao"):
     conn = get_conn()
     cur = get_cursor(conn)
+    if role == "admin":
+        ambiente_acesso = "ambos"
+    elif ambiente_acesso not in ("expansao", "estoque_cd"):
+        ambiente_acesso = "expansao"
     cur.execute(
-        q("INSERT INTO usuarios (username, password_hash, role, criado_em, precisa_trocar_senha, email, whatsapp) "
-          "VALUES (?, ?, ?, ?, ?, ?, ?)"),
-        (username, generate_password_hash(password), role, datetime.now().isoformat(), "1", str(email or '').strip() or None, str(whatsapp or '').strip() or None),
+        q("INSERT INTO usuarios (username, password_hash, role, criado_em, precisa_trocar_senha, email, whatsapp, ambiente_acesso) "
+          "VALUES (?, ?, ?, ?, ?, ?, ?, ?)"),
+        (username, generate_password_hash(password), role, datetime.now().isoformat(), "1", str(email or '').strip() or None, str(whatsapp or '').strip() or None, ambiente_acesso),
     )
     conn.commit()
     cur.close()
