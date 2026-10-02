@@ -20,14 +20,14 @@
 <main class="page-dashboard">
 <section class="dash-hero">
   <div class="hero-card">
-    <div class="hero-eyebrow">Centro de comando · v1.6.2</div>
+    <div class="hero-eyebrow">Centro de comando · v1.6.3</div>
     <h2 class="hero-title">Dashboard executivo orientado à operação.</h2>
     <p class="hero-sub">{{ "Visão executiva do Estoque CD, com leitura isolada de estoque, ativos, produtos e movimentações." if site_area == "estoque_cd" else "Visão executiva do pipeline de inauguração, riscos operacionais, capacidade de estoque e acessos rápidos para as principais ações do sistema." }}</p>
     <div class="hero-strip">
-      <div class="hero-metric"><span>Capacidade atual</span><strong id="hero-capacidade">0</strong><small>Lojas completas suportadas pelo estoque de Expansão.</small></div>
-      <div class="hero-metric"><span>Pipeline</span><strong id="hero-pipeline">0</strong><small>Lojas pendentes de inauguração em acompanhamento.</small></div>
-      <div class="hero-metric"><span>Risco operacional</span><strong id="hero-risco">0</strong><small>Lojas que hoje estão acima da capacidade disponível.</small></div>
-      <div class="hero-metric"><span>Próxima prioridade</span><strong id="hero-proxima">—</strong><small>Seleciona a próxima loja pela data de inauguração programada.</small></div>
+      <div class="hero-metric"><span id="hero-capacidade-label">Capacidade atual</span><strong id="hero-capacidade">0</strong><small id="hero-capacidade-sub">Lojas completas suportadas pelo estoque de Expansão.</small></div>
+      <div class="hero-metric"><span id="hero-pipeline-label">Pipeline</span><strong id="hero-pipeline">0</strong><small id="hero-pipeline-sub">Lojas pendentes de inauguração em acompanhamento.</small></div>
+      <div class="hero-metric"><span id="hero-risco-label">Risco operacional</span><strong id="hero-risco">0</strong><small id="hero-risco-sub">Lojas que hoje estão acima da capacidade disponível.</small></div>
+      <div class="hero-metric"><span id="hero-proxima-label">Próxima prioridade</span><strong id="hero-proxima">—</strong><small id="hero-proxima-sub">Seleciona a próxima loja pela data de inauguração programada.</small></div>
     </div>
     <div class="hero-status">
       <span class="hero-badge" id="hero-status">Leitura inicial do pipeline em andamento.</span>
@@ -42,6 +42,7 @@
   </div>
 </section>
 <section class="kpis"><div class="kpi accent"><div class="kpi-top"><span>Total em estoque</span><span class="kpi-icon">◫</span></div><strong id="k-total">0</strong><small class="kpi-meta">Saldo geral disponível no estoque.</small></div><div class="kpi"><div class="kpi-top"><span>Imobilizados</span><span class="kpi-icon">⬢</span></div><strong id="k-imob">0</strong><small class="kpi-meta">Itens já controlados como patrimônio.</small></div><div class="kpi" id="kpi-lojas-card"><div class="kpi-top"><span id="k-meta-label">Inauguradas / Pendentes</span><span class="kpi-icon">◎</span></div><strong id="k-lojas">0 / 0</strong><small class="kpi-meta">Leitura vinda do Acompanhamento de Expansão.</small></div><div class="kpi danger"><div class="kpi-top"><span>Itens em falta p/ meta</span><span class="kpi-icon">!</span></div><strong id="k-faltas">0</strong><small class="kpi-meta">Códigos que ainda impedem a meta salva.</small></div><div class="kpi warn"><div class="kpi-top"><span>Produtos cadastrados</span><span class="kpi-icon">▣</span></div><strong id="k-produtos">0</strong><small class="kpi-meta">Base de produtos disponível no sistema.</small></div><div class="kpi"><div class="kpi-top"><span>Movimentações recentes</span><span class="kpi-icon">◷</span></div><strong id="k-movs">0</strong><small class="kpi-meta">Últimos eventos registrados no ambiente.</small></div><div class="kpi accent"><div class="kpi-top"><span>Filiais ativas · geral</span><span class="kpi-icon">⌘</span></div><strong id="k-filiais">0</strong><small class="kpi-meta">Quantidade atual de filiais ativas.</small></div><div class="kpi warn"><div class="kpi-top"><span>Pendentes de inauguração</span><span class="kpi-icon">◍</span></div><strong id="k-pendentes-inauguracao">0</strong><small class="kpi-meta">Lojas em acompanhamento ainda não inauguradas.</small></div></section>
+{% if site_area == "estoque_cd" %}
 <section class="panel cd-dashboard-panel">
   <div class="section-accent"><span class="dot"></span><span>Centro de distribuição</span></div>
   <h2>Visão operacional do Estoque CD</h2>
@@ -61,7 +62,9 @@
   <div class="movs" id="cd-movs-list"></div>
 </section>
 
+{% endif %}
 
+{% if site_area != "estoque_cd" %}
 <section class="panel exec-panel"><div class="section-accent"><span class="dot"></span><span>Painel estratégico</span></div><h2>Visão Executiva de Inaugurações</h2><p class="panel-sub">Cruza o estoque de Expansão, Kit padrão e lojas PENDENTES no Acompanhamento de Expansão para indicar capacidade e risco operacional.</p>
 <div class="exec-grid">
  <div class="exec-card accent"><span>Lojas a inaugurar</span><strong id="ex-planejadas">0</strong><small>Pipeline exclusivo do Acompanhamento de Expansão</small></div>
@@ -90,6 +93,7 @@
 <section class="grid dashboard-top-grid"><div class="panel"><div class="section-accent"><span class="dot"></span><span>Leitura analítica</span></div><h2>Distribuição do estoque por finalidade</h2><p class="panel-sub">Quantidade cadastrada em cada tipo de estoque.</p><div class="chart-wrap"><canvas id="chart"></canvas></div></div><div class="panel"><div class="section-accent"><span class="dot"></span><span>Inteligência operacional</span></div><h2>Alertas inteligentes</h2><p class="panel-sub">A meta de inauguração é carregada automaticamente da simulação de lojas.</p><div class="alerts" id="alerts"></div></div></section>
 <section class="panel expansao-panel"><div class="section-accent"><span class="dot"></span><span>Estoque de expansão</span></div><div class="expansao-head"><div><h2>Quantidade por código do item — Expansão</h2><p class="panel-sub" style="margin-bottom:0">As descrições ficam visíveis abaixo do gráfico, sem precisar passar o mouse. O hover continua disponível para detalhes adicionais.</p></div><div class="expansao-chips"><span class="expansao-chip">Códigos diferentes <strong id="exp-codigos">0</strong></span><span class="expansao-chip">Total em Expansão <strong id="exp-total">0</strong></span><span class="expansao-chip meta" id="exp-meta-chip">Meta salva <strong id="exp-meta-status">—</strong></span></div></div><div class="chart-exp-wrap"><canvas id="chart-expansao"></canvas><div class="chart-empty" id="chart-expansao-vazio">Nenhum item classificado como Expansão foi encontrado.</div></div><div class="expansao-itens" id="expansao-itens"></div></section>
 <section class="grid"><div class="panel"><div class="section-accent"><span class="dot"></span><span>Base consolidada</span></div><h2>Resumo por tipo</h2><p class="panel-sub">Passe o mouse sobre um tipo para visualizar todos os itens cadastrados. O grid possui barra de rolagem; no celular, toque no card.</p><div class="tipos" id="tipos"></div></div><div class="panel"><div class="section-accent"><span class="dot"></span><span>Rastro operacional</span></div><h2>Últimas movimentações</h2><p class="panel-sub">Entradas, edições, saídas, exclusões e restaurações.</p><div class="movs" id="movs"></div></div></section>
+{% endif %}
 </main>
 <div class="tipo-flyout" id="tipo-flyout" role="dialog" aria-hidden="true"></div>
 {% include '_footer.html' %}
@@ -168,10 +172,19 @@ async function gerarBackupDashboard(ev){
 }
 
 async function init(){
- const dash=await fetch('/api/dashboard-resumo').then(r=>{if(!r.ok)throw new Error('Falha ao carregar Dashboard');return r.json();});
+ const dash=await fetch('/api/dashboard-resumo?refresh=1').then(r=>{if(!r.ok)throw new Error('Falha ao carregar Dashboard');return r.json();});
  const itens=dash.itens||[],kit=dash.kit||[],prods=dash.produtos||[],movs=dash.movimentacoes||[],status=dash.status||{},visao=dash.visao||{};
  const IS_CD={{ (site_area == 'estoque_cd')|tojson }};
+ if(dash.site_area && dash.site_area !== (IS_CD ? 'estoque_cd' : 'expansao')){ window.location.reload(); return; }
  if(IS_CD){
+   document.getElementById('hero-capacidade-label').textContent='Itens em estoque';
+   document.getElementById('hero-capacidade-sub').textContent='Saldo disponível exclusivamente no ambiente Estoque CD.';
+   document.getElementById('hero-pipeline-label').textContent='Ativos / imobilizados';
+   document.getElementById('hero-pipeline-sub').textContent='Patrimônio controlado no ambiente Estoque CD.';
+   document.getElementById('hero-risco-label').textContent='Produtos cadastrados';
+   document.getElementById('hero-risco-sub').textContent='Catálogo mestre exclusivo do CD.';
+   document.getElementById('hero-proxima-label').textContent='Ambiente';
+   document.getElementById('hero-proxima-sub').textContent='Contexto operacional selecionado após o MFA.';
    document.getElementById('hero-capacidade').textContent=dash.estoque_total||0;
    document.getElementById('hero-pipeline').textContent=dash.imobilizados_total||0;
    document.getElementById('hero-risco').textContent=dash.produtos_total||0;

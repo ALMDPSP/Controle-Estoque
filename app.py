@@ -69,7 +69,7 @@ import qrcode
 import db
 
 app = Flask(__name__)
-APP_BUILD = "2026-10-02-v1.6.2"
+APP_BUILD = "2026-10-02-v1.6.3"
 _DASHBOARD_CACHE = {}
 _EXPEDICAO_CACHE = {}
 
@@ -796,6 +796,7 @@ def dashboard():
         username=session.get("username"),
         role=session.get("role") or "user",
         is_admin=session.get("role") == "admin",
+        site_area=db.get_site_area(),
     )
 
 
@@ -2418,6 +2419,7 @@ def api_dashboard_resumo():
         "movimentacoes":base.get("movimentacoes") or [],
         "status":status,
         "visao":visao,
+        "site_area":db.get_site_area(),
     }
     _DASHBOARD_CACHE[cache_key] = {"dados": dados, "expira": time.monotonic() + 15}
     resposta=jsonify(dados)
