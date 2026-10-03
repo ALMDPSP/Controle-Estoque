@@ -69,7 +69,7 @@ import qrcode
 import db
 
 app = Flask(__name__)
-APP_BUILD = "2026-10-03-v1.7.5"
+APP_BUILD = "2026-10-03-v1.8.0"
 _DASHBOARD_CACHE = {}
 _EXPEDICAO_CACHE = {}
 
@@ -112,7 +112,7 @@ CD_ALLOWED_PAGE_PATHS = {
     "/mfa/codigos-recuperacao", "/mfa/concluir", "/service-worker.js",
     "/health",
 }
-CD_ALLOWED_PAGE_PREFIXES = ("/filiais/",)
+CD_ALLOWED_PAGE_PREFIXES = ("/filiais/", "/relatorio-cd/")
 CD_ALLOWED_EXPORT_PATHS = {
     "/export", "/export-pdf", "/export-enviados", "/export-filiais",
     "/export-movimentacoes", "/export-produtos", "/export-consolidado-cd", "/backup",
@@ -272,7 +272,7 @@ def _evitar_html_antigo_em_cache(response):
     const brand=menu.querySelector('.brand-copy');
     if(brand){{
       const desc=brand.querySelector('span'); if(desc) desc.textContent='Operação e controle do estoque dos Centros de Distribuição.';
-      const versao=brand.querySelector('small'); if(versao) versao.textContent='Versão · v1.7.5';
+      const versao=brand.querySelector('small'); if(versao) versao.textContent='Versão · v1.8.0';
     }}
   }}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',limparMenuCD);else limparMenuCD();
@@ -1815,8 +1815,9 @@ def api_movimentacoes_recentes():
         limite=max(1,min(int(request.args.get("limite", 80)),50000 if (inicio or fim) else 500))
     except (TypeError,ValueError):
         limite=80
-    movs=(db.listar_movimentacoes_periodo(inicio, fim, limite)
-          if (inicio or fim) else db.listar_movimentacoes_recentes(limite))
+    cd_filtro = (request.args.get("cd") or "").strip() if db.get_site_area() == "estoque_cd" else ""
+    movs=(db.listar_movimentacoes_periodo(inicio, fim, limite, local=cd_filtro or None)
+          if (inicio or fim) else db.listar_movimentacoes_recentes(limite, local=cd_filtro or None))
     itens={str(x.get("id")):x for x in db.listar_itens()}
     imobs={str(x.get("id")):x for x in db.listar_imobilizados()}
     for m in movs:
@@ -1828,6 +1829,13 @@ def api_movimentacoes_recentes():
             ref=(imobs if tabela=="imobilizados" else itens).get(str(m.get("item_id")), {})
             m["codigo"]=ref.get("codigo","")
             m["descricao"]=ref.get("descricao","")
+            if db.get_site_area() == "estoque_cd":
+                m["local_item"]=ref.get("local","")
+                m["endereco"]=" / ".join(
+                    str(ref.get(c) or "").strip()
+                    for c in ("endereco_rua","endereco_corredor","endereco_prateleira","endereco_posicao")
+                    if str(ref.get(c) or "").strip()
+                )
     return jsonify(movs)
 
 
@@ -2528,12 +2536,29 @@ def _calcular_visao_executiva(itens=None, kit=None, filiais=None, meta=None):
         "planejadas":[{"id":f.get("id"),"codigo":f.get("codigo"),"nome":f.get("nome"),"uf":f.get("uf"),"previsao_abertura":f.get("previsao_abertura"),"situacao":"ATENDIDA" if i<capacidade else "RISCO"} for i,f in enumerate(planejadas)]
     }
 
+def _chaves_backup_ambiente():
+    """Mantém o histórico de backup separado entre Expansão e Estoque CD.
+
+    As chaves antigas continuam sendo usadas pela Expansão para preservar o
+    histórico existente. O Estoque CD usa chaves próprias e nunca herda a data
+    de um backup executado em outro ambiente.
+    """
+    if db.get_site_area() == "estoque_cd":
+        return (
+            "ultimo_backup_usuario_estoque_cd",
+            "ultimo_backup_datahora_estoque_cd",
+            "ultimo_backup_arquivo_estoque_cd",
+        )
+    return ("ultimo_backup_usuario", "ultimo_backup_datahora", "ultimo_backup_arquivo")
+
+
 def _obter_ultimo_backup_info():
-    """Retorna o último backup persistido no banco para todos os usuários."""
+    """Retorna somente o último backup do ambiente atualmente selecionado."""
     try:
-        usuario = db.obter_configuracao("ultimo_backup_usuario")
-        data_hora = db.obter_configuracao("ultimo_backup_datahora")
-        arquivo = db.obter_configuracao("ultimo_backup_arquivo")
+        chave_usuario, chave_data, chave_arquivo = _chaves_backup_ambiente()
+        usuario = db.obter_configuracao(chave_usuario)
+        data_hora = db.obter_configuracao(chave_data)
+        arquivo = db.obter_configuracao(chave_arquivo)
         if data_hora:
             return {"usuario": usuario or "-", "data_hora": data_hora, "arquivo": arquivo or ""}
     except Exception:
@@ -2663,7 +2688,8 @@ def api_status_expurgo_movimentacoes():
         "retencao_dias": dias,
         "data_limite": limite,
         "registros_elegiveis": len(antigos),
-        "ultimo_expurgo": db.obter_configuracao("ultimo_expurgo_movimentacoes", ""),
+        "ultimo_expurgo": db.obter_ultimo_expurgo_movimentacoes(),
+        "site_area": db.get_site_area(),
     })
 
 
@@ -2707,8 +2733,7 @@ def executar_expurgo_movimentacoes():
     excluidos = db.excluir_movimentacoes_por_ids(ids)
     agora = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
     usuario = session.get("username") or "Administrador"
-    db.salvar_configuracao(
-        "ultimo_expurgo_movimentacoes",
+    db.salvar_ultimo_expurgo_movimentacoes(
         f"{agora} · {usuario} · {excluidos} registro(s) · retenção {dias} dias",
         usuario,
     )
@@ -3450,11 +3475,11 @@ def exportar_projecao_lojas_pdf():
 def exportar_movimentacoes():
     inicio=(request.args.get("inicio") or "").strip()
     fim=(request.args.get("fim") or "").strip()
-    movs=db.listar_todas_movimentacoes()
-    if inicio:
-        movs=[m for m in movs if str(m.get("data_hora") or "")[:10] >= inicio]
-    if fim:
-        movs=[m for m in movs if str(m.get("data_hora") or "")[:10] <= fim]
+    cd=(request.args.get("cd") or "").strip() if db.get_site_area()=="estoque_cd" else ""
+    if cd and not _cd_local_valido(cd):
+        return jsonify({"erro":"Centro de Distribuição inválido."}), 400
+    movs=(db.listar_movimentacoes_periodo(inicio or None, fim or None, 50000, local=cd or None)
+          if (inicio or fim or cd) else db.listar_todas_movimentacoes())
     itens={str(x.get("id")):x for x in db.listar_itens()}
     imobs={str(x.get("id")):x for x in db.listar_imobilizados()}
     for m in movs:
@@ -3466,10 +3491,18 @@ def exportar_movimentacoes():
             ref=(imobs if tabela=="imobilizados" else itens).get(str(m.get("item_id")),{})
             m["codigo"]=ref.get("codigo","")
             m["descricao"]=ref.get("descricao","")
+            if db.get_site_area()=="estoque_cd":
+                m["local_item"]=ref.get("local","")
+                m["endereco"]=" / ".join(
+                    str(ref.get(c) or "").strip()
+                    for c in ("endereco_rua","endereco_corredor","endereco_prateleira","endereco_posicao")
+                    if str(ref.get(c) or "").strip()
+                )
     wb=Workbook(); ws=wb.active; ws.title="Movimentações"; _preencher_planilha_dict(ws,movs)
     buf=io.BytesIO(); wb.save(buf); buf.seek(0)
     faixa=f"_{inicio or 'inicio'}_{fim or 'hoje'}"
-    return send_file(buf,as_attachment=True,download_name=f"movimentacoes{faixa}.xlsx",mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    sufixo="_"+re.sub(r"[^A-Za-z0-9]+","_",cd).strip("_") if cd else ""
+    return send_file(buf,as_attachment=True,download_name=f"movimentacoes{faixa}{sufixo}.xlsx",mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 
 @app.route("/backup")
@@ -3478,10 +3511,11 @@ def gerar_backup():
     agora = datetime.now()
     usuario = session.get("username") or "Usuário"
     data_hora = agora.strftime("%d/%m/%Y %H:%M")
-    nome_arquivo = f"backup_controle_estoque_{agora.strftime('%Y%m%d_%H%M')}.zip"
+    em_cd = db.get_site_area() == "estoque_cd"
+    prefixo_backup = "backup_estoque_cd" if em_cd else "backup_controle_estoque"
+    nome_arquivo = f"{prefixo_backup}_{agora.strftime('%Y%m%d_%H%M')}.zip"
     mem=io.BytesIO()
     with zipfile.ZipFile(mem,"w",zipfile.ZIP_DEFLATED) as z:
-        em_cd = db.get_site_area() == "estoque_cd"
         wb = _workbook_consolidado_cd() if em_cd else _workbook_consolidado()
         x=io.BytesIO(); wb.save(x); x.seek(0)
         z.writestr("estoque_cd_backup.xlsx" if em_cd else "estoque_backup.xlsx",x.read())
@@ -3494,10 +3528,12 @@ def gerar_backup():
         )
         z.writestr("LEIA-ME.txt",f"Backup gerado em {data_hora} por {usuario}.\n{conteudo}\n")
 
-    # Registro persistente: permanece disponível após logout, novo login ou reinício da aplicação.
-    db.salvar_configuracao("ultimo_backup_usuario", usuario, usuario)
-    db.salvar_configuracao("ultimo_backup_datahora", data_hora, usuario)
-    db.salvar_configuracao("ultimo_backup_arquivo", nome_arquivo, usuario)
+    # Registro persistente e isolado por ambiente. A Expansão preserva as chaves
+    # históricas; o Estoque CD usa chaves próprias para não exibir backup alheio.
+    chave_usuario, chave_data, chave_arquivo = _chaves_backup_ambiente()
+    db.salvar_configuracao(chave_usuario, usuario, usuario)
+    db.salvar_configuracao(chave_data, data_hora, usuario)
+    db.salvar_configuracao(chave_arquivo, nome_arquivo, usuario)
     session["ultimo_backup"] = data_hora  # compatibilidade com versões anteriores
 
     mem.seek(0)
@@ -5290,6 +5326,11 @@ def api_criar_produto():
         custo = _moeda_canonica(dados.get("custo"), "0.00")
     except ValueError:
         return jsonify({"erro": "Informe um custo válido para o produto."}), 400
+    try:
+        estoque_minimo = max(0, int(float(dados.get("estoque_minimo") or 0)))
+    except (TypeError, ValueError):
+        return jsonify({"erro": "Informe um estoque mínimo válido."}), 400
+    codigo_barras = str(dados.get("codigo_barras") or "").strip()
     if not codigo or not descricao:
         return jsonify({"erro": "Código de cadastro e descrição são obrigatórios."}), 400
     if qtde_por_loja < 1:
@@ -5297,7 +5338,11 @@ def api_criar_produto():
     if _decimal_moeda(custo) < 0:
         return jsonify({"erro": "O custo do produto não pode ser negativo."}), 400
     try:
-        novo_id = db.criar_produto(codigo, descricao, qtde_por_loja, custo, session.get("username"))
+        novo_id = db.criar_produto(
+            codigo, descricao, qtde_por_loja, custo, session.get("username"),
+            estoque_minimo=estoque_minimo if db.get_site_area() == "estoque_cd" else 0,
+            codigo_barras=codigo_barras if db.get_site_area() == "estoque_cd" else "",
+        )
     except Exception:
         return jsonify({"erro": "Já existe um produto cadastrado com este código."}), 409
     return jsonify({"ok": True, "id": novo_id}), 201
@@ -5317,6 +5362,11 @@ def api_atualizar_produto(produto_id):
         custo = _moeda_canonica(dados.get("custo"), "0.00")
     except ValueError:
         return jsonify({"erro": "Informe um custo válido para o produto."}), 400
+    try:
+        estoque_minimo = max(0, int(float(dados.get("estoque_minimo") or 0)))
+    except (TypeError, ValueError):
+        return jsonify({"erro": "Informe um estoque mínimo válido."}), 400
+    codigo_barras = str(dados.get("codigo_barras") or "").strip()
     if not codigo or not descricao:
         return jsonify({"erro": "Código de cadastro e descrição são obrigatórios."}), 400
     if qtde_por_loja < 1:
@@ -5324,7 +5374,11 @@ def api_atualizar_produto(produto_id):
     if _decimal_moeda(custo) < 0:
         return jsonify({"erro": "O custo do produto não pode ser negativo."}), 400
     try:
-        ok = db.atualizar_produto(produto_id, codigo, descricao, qtde_por_loja, custo)
+        ok = db.atualizar_produto(
+            produto_id, codigo, descricao, qtde_por_loja, custo,
+            estoque_minimo=estoque_minimo if db.get_site_area() == "estoque_cd" else None,
+            codigo_barras=codigo_barras if db.get_site_area() == "estoque_cd" else None,
+        )
     except Exception:
         return jsonify({"erro": "Já existe outro produto com este código."}), 409
     return (jsonify({"ok": True}) if ok else (jsonify({"erro": "Produto não encontrado."}), 404))
@@ -7620,6 +7674,14 @@ def api_criar_imobilizado():
         "pedido": (dados.get("pedido") or "").strip(),
         "val_aquis": (dados.get("val_aquis") or "").strip(),
         "chamado": (dados.get("chamado") or "").strip(),
+        "endereco_rua": (dados.get("endereco_rua") or "").strip(),
+        "endereco_corredor": (dados.get("endereco_corredor") or "").strip(),
+        "endereco_prateleira": (dados.get("endereco_prateleira") or "").strip(),
+        "endereco_posicao": (dados.get("endereco_posicao") or "").strip(),
+        "fornecedor": (dados.get("fornecedor") or "").strip(),
+        "codigo_barras": (dados.get("codigo_barras") or "").strip(),
+        "lote_recebimento": (dados.get("lote_recebimento") or "").strip(),
+        "recebimento_responsavel": (dados.get("recebimento_responsavel") or "").strip(),
         "criado_por": session.get("username"),
     }
     try:
@@ -8894,6 +8956,390 @@ def api_baixa_rapida_confirmar():
     })
 
 
+
+# ---------------------------------------------------------------------
+# Estoque CD — operação de recebimento, transferência e inventário (v1.8.0)
+# ---------------------------------------------------------------------
+
+def _cd_local_valido(local):
+    return str(local or "").strip() in CDS_DPSP_UF
+
+
+def _cd_enriquecer_movimentacoes(movs):
+    itens = {str(x.get("id")): x for x in db.listar_itens()}
+    saida = []
+    for mov in movs or []:
+        m = dict(mov)
+        ref = itens.get(str(m.get("item_id")), {})
+        m["codigo"] = ref.get("codigo") or ""
+        m["descricao"] = ref.get("descricao") or ""
+        m["local_item"] = ref.get("local") or ""
+        m["endereco"] = " / ".join(
+            str(ref.get(c) or "").strip()
+            for c in ("endereco_rua", "endereco_corredor", "endereco_prateleira", "endereco_posicao")
+            if str(ref.get(c) or "").strip()
+        )
+        saida.append(m)
+    return saida
+
+
+@app.route("/api/cd/resumo")
+@login_required
+@site_required("estoque_cd")
+def api_cd_resumo():
+    cd = (request.args.get("cd") or "").strip()
+    if cd and not _cd_local_valido(cd):
+        return jsonify({"erro": "Centro de Distribuição inválido."}), 400
+    try:
+        dias = int(request.args.get("dias_parado") or 90)
+    except (TypeError, ValueError):
+        dias = 90
+    return jsonify(db.resumo_operacional_cd(cd or None, dias_parado=max(1, min(dias, 3650))))
+
+
+@app.route("/api/cd/estoque-agrupado")
+@login_required
+@site_required("estoque_cd")
+def api_cd_estoque_agrupado():
+    cd = (request.args.get("cd") or "").strip()
+    if cd and not _cd_local_valido(cd):
+        return jsonify({"erro": "Centro de Distribuição inválido."}), 400
+    return jsonify(db.listar_estoque_cd_agrupado(local=cd or None))
+
+
+@app.route("/api/cd/recebimento", methods=["POST"])
+@edit_required
+@site_required("estoque_cd")
+def api_cd_recebimento():
+    dados = request.get_json(silent=True) or {}
+    local = str(dados.get("local") or "").strip()
+    if not _cd_local_valido(local):
+        return jsonify({"erro": "Selecione um Centro de Distribuição válido."}), 400
+    dados["localizacao"] = CDS_DPSP_UF[local]
+    dados["descricao"] = str(dados.get("descricao") or "").strip()
+    if not dados["descricao"]:
+        produto = db.buscar_produto_por_codigo(str(dados.get("codigo") or "").strip())
+        if produto:
+            dados["descricao"] = produto.get("descricao") or ""
+            if not dados.get("codigo_barras"):
+                dados["codigo_barras"] = produto.get("codigo_barras") or ""
+    try:
+        resultado = db.receber_itens_cd(dados, session.get("username"))
+    except ValueError as exc:
+        return jsonify({"erro": str(exc)}), 400
+    except Exception:
+        app.logger.exception("Falha ao registrar recebimento do Estoque CD")
+        return jsonify({"erro": "Não foi possível registrar o recebimento. Nenhum item foi gravado."}), 500
+    _DASHBOARD_CACHE.pop("estoque_cd", None)
+    return jsonify({"ok": True, **resultado}), 201
+
+
+@app.route("/api/cd/movimentacao", methods=["POST"])
+@edit_required
+@site_required("estoque_cd")
+def api_cd_movimentacao():
+    dados = request.get_json(silent=True) or {}
+    origem = str(dados.get("local_origem") or "").strip()
+    if not _cd_local_valido(origem):
+        return jsonify({"erro": "Selecione um CD de origem válido."}), 400
+    tipo = str(dados.get("destino_tipo") or "").strip().lower()
+    destino = str(dados.get("destino") or "").strip()
+    uf_destino = ""
+    if tipo == "cd":
+        if not _cd_local_valido(destino):
+            return jsonify({"erro": "Selecione um CD de destino válido."}), 400
+        uf_destino = CDS_DPSP_UF[destino]
+    elif tipo == "filial":
+        if not destino:
+            return jsonify({"erro": "Selecione a filial de destino."}), 400
+    else:
+        return jsonify({"erro": "Informe se o destino é outro CD ou uma filial."}), 400
+
+    try:
+        resultado = db.movimentar_itens_cd(
+            codigo=dados.get("codigo"),
+            quantidade=dados.get("quantidade"),
+            local_origem=origem,
+            destino_tipo=tipo,
+            destino=destino,
+            usuario=session.get("username"),
+            nf_documento=dados.get("nf_documento"),
+            data_movimento=dados.get("data_movimento"),
+            responsavel=dados.get("responsavel"),
+            referencia=dados.get("referencia"),
+            endereco_destino={
+                "rua": dados.get("endereco_rua"),
+                "corredor": dados.get("endereco_corredor"),
+                "prateleira": dados.get("endereco_prateleira"),
+                "posicao": dados.get("endereco_posicao"),
+            },
+            uf_destino=uf_destino,
+        )
+    except ValueError as exc:
+        return jsonify({"erro": str(exc)}), 400
+    except Exception:
+        app.logger.exception("Falha na movimentação do Estoque CD")
+        return jsonify({"erro": "Não foi possível concluir a movimentação. Nenhum saldo foi alterado."}), 500
+    _DASHBOARD_CACHE.pop("estoque_cd", None)
+    return jsonify({"ok": True, **resultado})
+
+
+@app.route("/api/cd/inventario/preparar")
+@login_required
+@site_required("estoque_cd")
+def api_cd_inventario_preparar():
+    cd = (request.args.get("cd") or "").strip()
+    if not _cd_local_valido(cd):
+        return jsonify({"erro": "Selecione um Centro de Distribuição válido."}), 400
+    return jsonify(db.preparar_inventario_cd(cd))
+
+
+@app.route("/api/cd/inventarios", methods=["GET"])
+@login_required
+@site_required("estoque_cd")
+def api_cd_inventarios():
+    cd = (request.args.get("cd") or "").strip()
+    if cd and not _cd_local_valido(cd):
+        return jsonify({"erro": "Centro de Distribuição inválido."}), 400
+    return jsonify(db.listar_inventarios_cd(local=cd or None, limite=200))
+
+
+@app.route("/api/cd/inventarios/<int:inventario_id>", methods=["GET"])
+@login_required
+@site_required("estoque_cd")
+def api_cd_inventario_detalhe(inventario_id):
+    inventarios = [x for x in db.listar_inventarios_cd(limite=1000) if int(x.get("id") or 0) == inventario_id]
+    if not inventarios:
+        return jsonify({"erro": "Inventário não encontrado."}), 404
+    return jsonify({"inventario": inventarios[0], "itens": db.listar_itens_inventario_cd(inventario_id)})
+
+
+@app.route("/api/cd/inventario", methods=["POST"])
+@edit_required
+@site_required("estoque_cd")
+def api_cd_inventario_salvar():
+    dados = request.get_json(silent=True) or {}
+    cd = str(dados.get("local") or "").strip()
+    if not _cd_local_valido(cd):
+        return jsonify({"erro": "Selecione um Centro de Distribuição válido."}), 400
+    ajustar = bool(dados.get("ajustar"))
+    if ajustar and session.get("role") not in {"admin", "gestor"}:
+        return jsonify({"erro": "O ajuste automático do saldo após inventário é restrito a Administrador ou Gestor."}), 403
+    try:
+        resultado = db.salvar_inventario_cd(
+            local=cd,
+            contagens=dados.get("itens") or [],
+            usuario=session.get("username"),
+            ajustar=ajustar,
+            observacao=dados.get("observacao"),
+            uf=CDS_DPSP_UF[cd],
+        )
+    except ValueError as exc:
+        return jsonify({"erro": str(exc)}), 400
+    except Exception:
+        app.logger.exception("Falha ao concluir inventário do Estoque CD")
+        return jsonify({"erro": "Não foi possível concluir o inventário. Nenhuma alteração foi confirmada."}), 500
+    _DASHBOARD_CACHE.pop("estoque_cd", None)
+    return jsonify({"ok": True, **resultado}), 201
+
+
+def _dados_relatorio_cd(tipo, cd="", inicio="", fim="", usuario=""):
+    """Monta datasets operacionais exclusivos do Estoque CD."""
+    cd = str(cd or "").strip()
+    if cd and not _cd_local_valido(cd):
+        raise ValueError("Centro de Distribuição inválido.")
+    tipo = str(tipo or "").strip().lower()
+
+    if tipo == "saldo":
+        produtos = {str(p.get("codigo") or ""): p for p in db.listar_produtos()}
+        rows = []
+        for r in db.listar_estoque_cd_agrupado(local=cd or None):
+            prod = produtos.get(str(r.get("codigo") or ""), {})
+            rows.append({
+                "Centro de Distribuição": r.get("local") or "",
+                "UF": r.get("uf") or "",
+                "Código": r.get("codigo") or "",
+                "Descrição": r.get("descricao") or "",
+                "Saldo": r.get("qtde") or 0,
+                "Estoque mínimo": prod.get("estoque_minimo") or 0,
+                "Rua": r.get("endereco_rua") or "",
+                "Corredor": r.get("endereco_corredor") or "",
+                "Prateleira": r.get("endereco_prateleira") or "",
+                "Posição": r.get("endereco_posicao") or "",
+            })
+        return "Saldo por Centro de Distribuição", rows
+
+    if tipo in {"movimentacoes", "entradas-saidas", "transferencias", "movimentacoes-usuario"}:
+        movs = db.listar_movimentacoes_periodo(inicio or None, fim or None, 50000, local=cd or None)
+        movs = _cd_enriquecer_movimentacoes(movs)
+        if tipo == "entradas-saidas":
+            permitidos = {"recebimento", "entrada", "saida", "saida_filial", "transferencia_cd", "inventario_ajuste_entrada", "inventario_ajuste_saida"}
+            movs = [m for m in movs if str(m.get("tipo") or "") in permitidos]
+            titulo = "Entradas e saídas por período"
+        elif tipo == "transferencias":
+            movs = [m for m in movs if str(m.get("tipo") or "") in {"transferencia_cd", "saida_filial"}]
+            titulo = "Transferências e atendimentos"
+        elif tipo == "movimentacoes-usuario":
+            if usuario:
+                movs = [m for m in movs if str(m.get("usuario") or "").strip().lower() == usuario.strip().lower()]
+            titulo = "Movimentações por usuário"
+        else:
+            titulo = "Movimentações do Estoque CD"
+        rows = [{
+            "Data/hora": m.get("data_hora") or "",
+            "Tipo": m.get("tipo") or "",
+            "Código": m.get("codigo") or "",
+            "Descrição": m.get("descricao") or "",
+            "Quantidade": m.get("quantidade") or "",
+            "Origem": m.get("local_origem") or m.get("local_item") or "",
+            "Destino": m.get("local_destino") or "",
+            "NF / Documento": m.get("nf_documento") or "",
+            "Fornecedor": m.get("fornecedor") or "",
+            "Responsável": m.get("responsavel") or "",
+            "Usuário": m.get("usuario") or "",
+            "Referência": m.get("referencia") or "",
+            "Observação": m.get("observacao") or "",
+        } for m in movs]
+        return titulo, rows
+
+    if tipo in {"estoque-baixo", "parados"}:
+        resumo = db.resumo_operacional_cd(cd or None, dias_parado=90)
+        if tipo == "estoque-baixo":
+            rows = [{
+                "Centro de Distribuição": x.get("local") or "",
+                "Código": x.get("codigo") or "",
+                "Descrição": x.get("descricao") or "",
+                "Saldo atual": x.get("saldo") or 0,
+                "Estoque mínimo": x.get("minimo") or 0,
+                "Faltam": x.get("faltam") or 0,
+            } for x in resumo.get("baixos") or []]
+            return "Estoque abaixo do mínimo", rows
+        rows = [{
+            "Centro de Distribuição": x.get("local") or "",
+            "Código": x.get("codigo") or "",
+            "Descrição": x.get("descricao") or "",
+            "Quantidade": x.get("qtde") or 0,
+            "Data de entrada": x.get("data_entrada") or "",
+            "Última alteração": x.get("atualizado_em") or "",
+            "Rua": x.get("endereco_rua") or "",
+            "Corredor": x.get("endereco_corredor") or "",
+            "Prateleira": x.get("endereco_prateleira") or "",
+            "Posição": x.get("endereco_posicao") or "",
+        } for x in resumo.get("parados_detalhe") or []]
+        return "Estoque sem movimentação há 90+ dias", rows
+
+    if tipo == "inventarios":
+        rows = []
+        for inv in db.listar_inventarios_cd(local=cd or None, limite=1000):
+            itens = db.listar_itens_inventario_cd(inv.get("id"))
+            if not itens:
+                rows.append({
+                    "Inventário": inv.get("id"), "Centro de Distribuição": inv.get("local"),
+                    "Data": inv.get("concluido_em"), "Código": "", "Descrição": "",
+                    "Esperado": "", "Contado": "", "Diferença": "",
+                    "Resultado": "", "Ajustado": inv.get("ajustado"), "Responsável": inv.get("concluido_por"),
+                })
+                continue
+            for item in itens:
+                rows.append({
+                    "Inventário": inv.get("id"), "Centro de Distribuição": inv.get("local"),
+                    "Data": inv.get("concluido_em"), "Código": item.get("codigo"),
+                    "Descrição": item.get("descricao"), "Esperado": item.get("esperado"),
+                    "Contado": item.get("contado"), "Diferença": item.get("diferenca"),
+                    "Resultado": item.get("resultado"), "Ajustado": item.get("ajustado"),
+                    "Responsável": inv.get("concluido_por"),
+                })
+        return "Inventários do Estoque CD", rows
+
+    raise ValueError("Tipo de relatório do Estoque CD não reconhecido.")
+
+
+def _excel_relatorio_cd(titulo, dados):
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Relatório"[:31]
+    _preencher_planilha_dict(ws, dados, titulo=titulo)
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    return buf
+
+
+def _pdf_relatorio_cd(titulo, dados):
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buf, pagesize=landscape(A4), rightMargin=10*mm, leftMargin=10*mm,
+        topMargin=12*mm, bottomMargin=12*mm,
+    )
+    estilos = getSampleStyleSheet()
+    story = [
+        Paragraph(titulo, estilos["Title"]),
+        Paragraph(
+            f"Ambiente: Estoque CD · Gerado em {datetime.now().strftime('%d/%m/%Y %H:%M')} · Registros: {len(dados)}",
+            estilos["BodyText"],
+        ),
+        Spacer(1, 5*mm),
+    ]
+    if not dados:
+        story.append(Paragraph("Nenhum registro encontrado para os filtros informados.", estilos["BodyText"]))
+    else:
+        colunas = list(dados[0].keys())
+        max_cols = 11
+        # Relatórios muito largos permanecem legíveis priorizando as primeiras colunas.
+        if len(colunas) > max_cols:
+            colunas = colunas[:max_cols]
+        corpo = [[Paragraph(str(c), estilos["BodyText"]) for c in colunas]]
+        for row in dados[:5000]:
+            corpo.append([Paragraph(_texto_pdf(row.get(c)), estilos["BodyText"]) for c in colunas])
+        larg = (landscape(A4)[0] - 20*mm) / max(1, len(colunas))
+        tabela = Table(corpo, colWidths=[larg] * len(colunas), repeatRows=1)
+        tabela.setStyle(TableStyle([
+            ("BACKGROUND", (0,0), (-1,0), colors.HexColor("#183149")),
+            ("TEXTCOLOR", (0,0), (-1,0), colors.white),
+            ("FONTNAME", (0,0), (-1,0), "Helvetica-Bold"),
+            ("FONTSIZE", (0,0), (-1,-1), 6.5),
+            ("GRID", (0,0), (-1,-1), .25, colors.HexColor("#9aa8b8")),
+            ("VALIGN", (0,0), (-1,-1), "TOP"),
+            ("ROWBACKGROUNDS", (0,1), (-1,-1), [colors.white, colors.HexColor("#f2f6fa")]),
+            ("LEFTPADDING", (0,0), (-1,-1), 3),
+            ("RIGHTPADDING", (0,0), (-1,-1), 3),
+            ("TOPPADDING", (0,0), (-1,-1), 3),
+            ("BOTTOMPADDING", (0,0), (-1,-1), 3),
+        ]))
+        story.append(tabela)
+    doc.build(story)
+    buf.seek(0)
+    return buf
+
+
+@app.route("/relatorio-cd/<tipo>/<formato>")
+@role_required("admin", "gestor", "operador")
+@site_required("estoque_cd")
+def relatorio_cd(tipo, formato):
+    cd = (request.args.get("cd") or "").strip()
+    inicio = (request.args.get("inicio") or "").strip()
+    fim = (request.args.get("fim") or "").strip()
+    usuario = (request.args.get("usuario") or "").strip()
+    try:
+        titulo, dados = _dados_relatorio_cd(tipo, cd=cd, inicio=inicio, fim=fim, usuario=usuario)
+    except ValueError as exc:
+        return jsonify({"erro": str(exc)}), 400
+    stamp = datetime.now().strftime("%Y%m%d_%H%M")
+    slug = re.sub(r"[^a-z0-9]+", "_", unicodedata.normalize("NFKD", tipo).encode("ascii","ignore").decode("ascii").lower()).strip("_")
+    if formato.lower() == "xlsx":
+        return send_file(
+            _excel_relatorio_cd(titulo, dados), as_attachment=True,
+            download_name=f"{slug}_{stamp}.xlsx",
+            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+    if formato.lower() == "pdf":
+        return send_file(
+            _pdf_relatorio_cd(titulo, dados), as_attachment=True,
+            download_name=f"{slug}_{stamp}.pdf", mimetype="application/pdf",
+        )
+    return jsonify({"erro": "Formato inválido. Use xlsx ou pdf."}), 400
+
+
 # ---------------------------------------------------------------------
 # API - Itens
 # ---------------------------------------------------------------------
@@ -8940,6 +9386,14 @@ def api_criar():
         "pedido": (dados.get("pedido") or "").strip(),
         "val_aquis": (dados.get("val_aquis") or "").strip(),
         "chamado": (dados.get("chamado") or "").strip(),
+        "endereco_rua": (dados.get("endereco_rua") or "").strip(),
+        "endereco_corredor": (dados.get("endereco_corredor") or "").strip(),
+        "endereco_prateleira": (dados.get("endereco_prateleira") or "").strip(),
+        "endereco_posicao": (dados.get("endereco_posicao") or "").strip(),
+        "fornecedor": (dados.get("fornecedor") or "").strip(),
+        "codigo_barras": (dados.get("codigo_barras") or "").strip(),
+        "lote_recebimento": (dados.get("lote_recebimento") or "").strip(),
+        "recebimento_responsavel": (dados.get("recebimento_responsavel") or session.get("username") or "").strip(),
         "criado_por": session.get("username"),
     }
 
@@ -9117,12 +9571,17 @@ def api_movimentacoes(item_id):
 @app.route("/export-pdf")
 @role_required("admin", "gestor", "operador")
 def exportar_estoque_pdf():
-    buffer, nome = _gerar_pdf_equipamentos(
-        db.listar_itens(),
-        "Relatório de Estoque",
-        "Cadastro completo do estoque, com dados operacionais, rastreabilidade e auditoria.",
-        "estoque",
-    )
+    itens = db.listar_itens()
+    cd=(request.args.get("cd") or "").strip() if db.get_site_area()=="estoque_cd" else ""
+    if cd:
+        if not _cd_local_valido(cd):
+            return jsonify({"erro":"Centro de Distribuição inválido."}), 400
+        itens=[x for x in itens if str(x.get("local") or "").strip()==cd]
+    titulo = "Relatório de Estoque CD" if db.get_site_area()=="estoque_cd" else "Relatório de Estoque"
+    subtitulo = ("Cadastro físico do Estoque CD com rastreabilidade, endereçamento e dados operacionais."
+                 if db.get_site_area()=="estoque_cd"
+                 else "Cadastro completo do estoque, com dados operacionais, rastreabilidade e auditoria.")
+    buffer, nome = _gerar_pdf_equipamentos(itens, titulo, subtitulo, "estoque_cd" if db.get_site_area()=="estoque_cd" else "estoque")
     return send_file(buffer, as_attachment=True, download_name=nome, mimetype="application/pdf")
 
 
@@ -9130,9 +9589,15 @@ def exportar_estoque_pdf():
 @role_required("admin", "gestor", "operador")
 def exportar_excel():
     itens = db.listar_itens()
+    em_cd = db.get_site_area()=="estoque_cd"
+    cd=(request.args.get("cd") or "").strip() if em_cd else ""
+    if cd:
+        if not _cd_local_valido(cd):
+            return jsonify({"erro":"Centro de Distribuição inválido."}), 400
+        itens=[x for x in itens if str(x.get("local") or "").strip()==cd]
     wb = Workbook()
     ws = wb.active
-    ws.title = "Estoque"
+    ws.title = "Estoque CD" if em_cd else "Estoque"
     colunas = ["ID", "Codigo do item", "Descricao", "Qtde", "UF",
                "NF de entrada", "Data de entrada", "NF de saida",
                "Data de saida", "VD / referencia", "Filial destino", "Local",
@@ -9140,9 +9605,12 @@ def exportar_excel():
                "Nro Patrimonio", "Tipo de Estoque", "Criado por",
                "Ultima alteracao por", "Ultima alteracao em",
                "Pedido", "ValAquis.", "Chamado"]
+    if em_cd:
+        colunas += ["Rua", "Corredor", "Prateleira", "Posicao", "Fornecedor",
+                    "Codigo de barras / QR", "Lote de recebimento", "Responsavel pelo recebimento"]
     ws.append(colunas)
     for it in itens:
-        ws.append([
+        linha = [
             it["id"], it["codigo"], it["descricao"], it["qtde"], it["localizacao"],
             it["nf_entrada"], it["data_entrada"], it["nf_saida"],
             it["data_saida"], it["vd_loja"], it.get("filial_destino"), it.get("local"),
@@ -9150,15 +9618,26 @@ def exportar_excel():
             it.get("nro_serie"), it.get("nro_patrimonio"), it.get("tipo_estoque"),
             it.get("criado_por"), it.get("atualizado_por"), it.get("atualizado_em"),
             it.get("pedido"), it.get("val_aquis"), it.get("chamado"),
-        ])
-    larguras = [8, 18, 32, 8, 18, 18, 16, 18, 16, 18, 22, 12, 14, 12, 16, 16, 16, 18, 14, 16, 16, 14, 12, 14]
+        ]
+        if em_cd:
+            linha += [
+                it.get("endereco_rua"), it.get("endereco_corredor"), it.get("endereco_prateleira"),
+                it.get("endereco_posicao"), it.get("fornecedor"), it.get("codigo_barras"),
+                it.get("lote_recebimento"), it.get("recebimento_responsavel"),
+            ]
+        ws.append(linha)
+    larguras = [8, 18, 32, 8, 18, 18, 16, 18, 16, 18, 22, 25, 14, 12, 16, 16, 16, 18, 14, 16, 16, 14, 12, 14]
+    if em_cd:
+        larguras += [14,14,14,14,22,22,20,24]
     for i, largura in enumerate(larguras, start=1):
-        ws.column_dimensions[chr(64 + i)].width = largura
-
+        ws.column_dimensions[get_column_letter(i)].width = largura
+    ws.freeze_panes="A2"
+    ws.auto_filter.ref=ws.dimensions
     buffer = io.BytesIO()
     wb.save(buffer)
     buffer.seek(0)
-    nome_arquivo = f"estoque_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx"
+    sufixo="_"+re.sub(r"[^A-Za-z0-9]+","_",cd).strip("_") if cd else ""
+    nome_arquivo = f"{'estoque_cd' if em_cd else 'estoque'}{sufixo}_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx"
     return send_file(
         buffer,
         as_attachment=True,

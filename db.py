@@ -11,7 +11,7 @@ import os
 import re
 import json
 import contextvars
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from werkzeug.security import generate_password_hash
 
@@ -856,6 +856,15 @@ def init_db():
         ("val_aquis", "TEXT"),
         ("chamado", "TEXT"),
         ("filial_destino", "TEXT"),
+        # Estoque CD v1.8.0 — endereçamento e rastreabilidade operacional.
+        ("endereco_rua", "TEXT"),
+        ("endereco_corredor", "TEXT"),
+        ("endereco_prateleira", "TEXT"),
+        ("endereco_posicao", "TEXT"),
+        ("fornecedor", "TEXT"),
+        ("codigo_barras", "TEXT"),
+        ("lote_recebimento", "TEXT"),
+        ("recebimento_responsavel", "TEXT"),
     ]
     for coluna, tipo in novas_colunas:
         try:
@@ -1010,6 +1019,118 @@ def init_db():
     except Exception:
         conn.rollback()
 
+    # Migração v1.8.0 — metadados operacionais do Estoque CD.
+    # Produtos passam a permitir estoque mínimo e código de barras. Movimentações
+    # recebem origem/destino/documento para suportar recebimentos, transferências,
+    # inventário e relatórios sem depender de texto livre.
+    for coluna, tipo in (
+        ("estoque_minimo", "INTEGER NOT NULL DEFAULT 0"),
+        ("codigo_barras", "TEXT"),
+    ):
+        try:
+            if IS_PG:
+                cur.execute(f"ALTER TABLE produtos ADD COLUMN IF NOT EXISTS {coluna} {tipo}")
+            else:
+                cur.execute(f"ALTER TABLE produtos ADD COLUMN {coluna} {tipo}")
+            conn.commit()
+        except Exception:
+            conn.rollback()
+
+    for coluna, tipo in (
+        ("local_origem", "TEXT"),
+        ("local_destino", "TEXT"),
+        ("nf_documento", "TEXT"),
+        ("fornecedor", "TEXT"),
+        ("responsavel", "TEXT"),
+        ("referencia", "TEXT"),
+    ):
+        try:
+            if IS_PG:
+                cur.execute(f"ALTER TABLE movimentacoes ADD COLUMN IF NOT EXISTS {coluna} {tipo}")
+            else:
+                cur.execute(f"ALTER TABLE movimentacoes ADD COLUMN {coluna} {tipo}")
+            conn.commit()
+        except Exception:
+            conn.rollback()
+
+    # Inventários do CD ficam em tabelas próprias e sempre carregam site_area,
+    # preservando a separação lógica com a Expansão.
+    if IS_PG:
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS inventarios_cd (
+                id SERIAL PRIMARY KEY,
+                local TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'CONCLUIDO',
+                iniciado_por TEXT,
+                iniciado_em TEXT,
+                concluido_por TEXT,
+                concluido_em TEXT,
+                observacao TEXT,
+                divergencias INTEGER NOT NULL DEFAULT 0,
+                ajustado TEXT NOT NULL DEFAULT '0',
+                site_area TEXT NOT NULL DEFAULT 'estoque_cd'
+            )
+        """)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS inventario_itens_cd (
+                id SERIAL PRIMARY KEY,
+                inventario_id INTEGER NOT NULL,
+                codigo TEXT NOT NULL,
+                descricao TEXT,
+                esperado INTEGER NOT NULL DEFAULT 0,
+                contado INTEGER NOT NULL DEFAULT 0,
+                diferenca INTEGER NOT NULL DEFAULT 0,
+                resultado TEXT,
+                ajustado TEXT NOT NULL DEFAULT '0',
+                atualizado_por TEXT,
+                atualizado_em TEXT,
+                site_area TEXT NOT NULL DEFAULT 'estoque_cd'
+            )
+        """)
+    else:
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS inventarios_cd (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                local TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'CONCLUIDO',
+                iniciado_por TEXT,
+                iniciado_em TEXT,
+                concluido_por TEXT,
+                concluido_em TEXT,
+                observacao TEXT,
+                divergencias INTEGER NOT NULL DEFAULT 0,
+                ajustado TEXT NOT NULL DEFAULT '0',
+                site_area TEXT NOT NULL DEFAULT 'estoque_cd'
+            )
+        """)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS inventario_itens_cd (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                inventario_id INTEGER NOT NULL,
+                codigo TEXT NOT NULL,
+                descricao TEXT,
+                esperado INTEGER NOT NULL DEFAULT 0,
+                contado INTEGER NOT NULL DEFAULT 0,
+                diferenca INTEGER NOT NULL DEFAULT 0,
+                resultado TEXT,
+                ajustado TEXT NOT NULL DEFAULT '0',
+                atualizado_por TEXT,
+                atualizado_em TEXT,
+                site_area TEXT NOT NULL DEFAULT 'estoque_cd'
+            )
+        """)
+    conn.commit()
+    for sql_idx in (
+        "CREATE INDEX IF NOT EXISTS idx_itens_site_local_codigo ON itens(site_area, local, codigo)",
+        "CREATE INDEX IF NOT EXISTS idx_mov_site_data_tipo ON movimentacoes(site_area, data_hora, tipo)",
+        "CREATE INDEX IF NOT EXISTS idx_inv_cd_site_local ON inventarios_cd(site_area, local)",
+    ):
+        try:
+            cur.execute(sql_idx)
+            conn.commit()
+        except Exception:
+            conn.rollback()
+
     # Migração ÚNICA: na primeira vez que a tabela "imobilizados" é criada,
     # move para lá tudo o que já estava cadastrado em "itens" (Estoque) até
     # então — porque esses dados representam registros de Imobilizado, não
@@ -1115,17 +1236,17 @@ def buscar_produto_por_codigo(codigo):
     row = cur.fetchone(); result = dict(row) if row else None
     cur.close(); conn.close(); return result
 
-def criar_produto(codigo, descricao, qtde_por_loja, custo, usuario):
+def criar_produto(codigo, descricao, qtde_por_loja, custo, usuario, estoque_minimo=0, codigo_barras=""):
     conn = get_conn(); cur = get_cursor(conn)
     agora = datetime.now().strftime("%Y-%m-%d %H:%M")
     try:
-        campos="codigo, descricao, qtde_por_loja, custo, criado_por, criado_em, site_area"
-        vals=(codigo, descricao, qtde_por_loja, custo, usuario, agora, get_site_area())
+        campos="codigo, descricao, qtde_por_loja, custo, criado_por, criado_em, estoque_minimo, codigo_barras, site_area"
+        vals=(codigo, descricao, qtde_por_loja, custo, usuario, agora, int(estoque_minimo or 0), str(codigo_barras or "").strip(), get_site_area())
         if IS_PG:
-            cur.execute(q(f"INSERT INTO produtos ({campos}) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id"), vals)
+            cur.execute(q(f"INSERT INTO produtos ({campos}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id"), vals)
             new_id = cur.fetchone()["id"]
         else:
-            cur.execute(q(f"INSERT INTO produtos ({campos}) VALUES (?, ?, ?, ?, ?, ?, ?)"), vals)
+            cur.execute(q(f"INSERT INTO produtos ({campos}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"), vals)
             new_id = cur.lastrowid
         conn.commit(); return new_id
     except Exception:
@@ -1133,10 +1254,14 @@ def criar_produto(codigo, descricao, qtde_por_loja, custo, usuario):
     finally:
         cur.close(); conn.close()
 
-def atualizar_produto(produto_id, codigo, descricao, qtde_por_loja, custo):
+def atualizar_produto(produto_id, codigo, descricao, qtde_por_loja, custo, estoque_minimo=None, codigo_barras=None):
     conn = get_conn(); cur = get_cursor(conn)
-    cur.execute(q("UPDATE produtos SET codigo = ?, descricao = ?, qtde_por_loja = ?, custo = ? WHERE id = ? AND site_area = ?"),
-                (codigo, descricao, qtde_por_loja, custo, produto_id, get_site_area()))
+    if estoque_minimo is None and codigo_barras is None:
+        cur.execute(q("UPDATE produtos SET codigo = ?, descricao = ?, qtde_por_loja = ?, custo = ? WHERE id = ? AND site_area = ?"),
+                    (codigo, descricao, qtde_por_loja, custo, produto_id, get_site_area()))
+    else:
+        cur.execute(q("UPDATE produtos SET codigo = ?, descricao = ?, qtde_por_loja = ?, custo = ?, estoque_minimo = ?, codigo_barras = ? WHERE id = ? AND site_area = ?"),
+                    (codigo, descricao, qtde_por_loja, custo, int(estoque_minimo or 0), str(codigo_barras or "").strip(), produto_id, get_site_area()))
     ok = cur.rowcount > 0; conn.commit(); cur.close(); conn.close(); return ok
 
 def excluir_produto(produto_id):
@@ -1360,8 +1485,13 @@ def obter_dashboard_compacto(limite_movs=20):
         cur.execute("SELECT COUNT(*) AS total FROM filiais WHERE ativo = '1'")
         filiais_ativas = int(dict(cur.fetchone()).get("total") or 0)
 
-        # Meta persistida, reaproveitando a mesma conexão.
-        chaves = ("meta_lojas_expansao", "ultimo_backup_usuario", "ultimo_backup_datahora", "ultimo_backup_arquivo")
+        # Meta e último backup. A Expansão preserva as chaves históricas; o CD
+        # possui chaves próprias para não exibir backup de outro ambiente.
+        if get_site_area() == "estoque_cd":
+            backup_keys = ("ultimo_backup_usuario_estoque_cd", "ultimo_backup_datahora_estoque_cd", "ultimo_backup_arquivo_estoque_cd")
+        else:
+            backup_keys = ("ultimo_backup_usuario", "ultimo_backup_datahora", "ultimo_backup_arquivo")
+        chaves = ("meta_lojas_expansao",) + backup_keys
         cur.execute(q("SELECT chave, valor FROM configuracoes WHERE chave IN (?, ?, ?, ?)"), chaves)
         configs = {str(dict(r).get("chave")): dict(r).get("valor") for r in cur.fetchall()}
         try:
@@ -1369,11 +1499,11 @@ def obter_dashboard_compacto(limite_movs=20):
         except (TypeError, ValueError):
             meta_lojas = 10
         ultimo_backup = None
-        if configs.get("ultimo_backup_datahora"):
+        if configs.get(backup_keys[1]):
             ultimo_backup = {
-                "usuario": configs.get("ultimo_backup_usuario") or "-",
-                "data_hora": configs.get("ultimo_backup_datahora"),
-                "arquivo": configs.get("ultimo_backup_arquivo") or "",
+                "usuario": configs.get(backup_keys[0]) or "-",
+                "data_hora": configs.get(backup_keys[1]),
+                "arquivo": configs.get(backup_keys[2]) or "",
             }
 
         # Últimas movimentações e referências somente dos IDs necessários.
@@ -1442,7 +1572,10 @@ def criar_item(dados):
               "data_entrada", "nf_saida", "data_saida", "vd_loja",
               "local", "armazenagem", "status", "nro_imobilizado",
               "nro_serie", "nro_patrimonio", "tipo_estoque", "criado_por",
-              "pedido", "val_aquis", "chamado", "filial_destino", "site_area"]
+              "pedido", "val_aquis", "chamado", "filial_destino",
+              "endereco_rua", "endereco_corredor", "endereco_prateleira", "endereco_posicao",
+              "fornecedor", "codigo_barras", "lote_recebimento", "recebimento_responsavel",
+              "site_area"]
     valores = [dados.get(c, "") for c in campos[:-1]] + [get_site_area()]
 
     if IS_PG:
@@ -1485,7 +1618,10 @@ def criar_itens_em_lote(lista_dados, usuario, observacao="Importado via planilha
               "data_entrada", "nf_saida", "data_saida", "vd_loja",
               "local", "armazenagem", "status", "nro_imobilizado",
               "nro_serie", "nro_patrimonio", "tipo_estoque", "criado_por",
-              "pedido", "val_aquis", "chamado", "filial_destino", "site_area"]
+              "pedido", "val_aquis", "chamado", "filial_destino",
+              "endereco_rua", "endereco_corredor", "endereco_prateleira", "endereco_posicao",
+              "fornecedor", "codigo_barras", "lote_recebimento", "recebimento_responsavel",
+              "site_area"]
     conn = get_conn()
     cur = get_cursor(conn)
     try:
@@ -1509,20 +1645,29 @@ def criar_itens_em_lote(lista_dados, usuario, observacao="Importado via planilha
                 ids_criados.append(cur.lastrowid)
 
         agora = datetime.now().strftime("%Y-%m-%d %H:%M")
-        mov_valores = [(item_id, "entrada", str(lista_dados[i].get("qtde", "")), usuario, agora, observacao, get_site_area())
-                       for i, item_id in enumerate(ids_criados)]
+        mov_valores = []
+        for i, item_id in enumerate(ids_criados):
+            d = lista_dados[i]
+            mov_valores.append((
+                item_id, "entrada", str(d.get("qtde", "")), usuario, agora, observacao,
+                "itens", get_site_area(), None, d.get("local") or None,
+                d.get("nf_entrada") or None, d.get("fornecedor") or None,
+                d.get("recebimento_responsavel") or usuario, d.get("lote_recebimento") or None,
+            ))
         if mov_valores:
             if IS_PG:
                 psycopg2.extras.execute_values(
                     cur,
-                    "INSERT INTO movimentacoes (item_id, tipo, quantidade, usuario, data_hora, observacao, site_area) VALUES %s",
+                    "INSERT INTO movimentacoes (item_id,tipo,quantidade,usuario,data_hora,observacao,tabela,site_area,"
+                    "local_origem,local_destino,nf_documento,fornecedor,responsavel,referencia) VALUES %s",
                     mov_valores,
                     page_size=1000,
                 )
             else:
                 cur.executemany(
-                    q("INSERT INTO movimentacoes (item_id, tipo, quantidade, usuario, data_hora, observacao, site_area) "
-                      "VALUES (?, ?, ?, ?, ?, ?, ?, ?)"),
+                    q("INSERT INTO movimentacoes (item_id,tipo,quantidade,usuario,data_hora,observacao,tabela,site_area,"
+                      "local_origem,local_destino,nf_documento,fornecedor,responsavel,referencia) "
+                      "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"),
                     mov_valores,
                 )
         conn.commit()
@@ -1544,7 +1689,10 @@ def substituir_itens_em_lote(lista_dados, usuario, observacao="Substituição vi
               "data_entrada", "nf_saida", "data_saida", "vd_loja",
               "local", "armazenagem", "status", "nro_imobilizado",
               "nro_serie", "nro_patrimonio", "tipo_estoque", "criado_por",
-              "pedido", "val_aquis", "chamado", "filial_destino"]
+              "pedido", "val_aquis", "chamado", "filial_destino",
+              "endereco_rua", "endereco_corredor", "endereco_prateleira", "endereco_posicao",
+              "fornecedor", "codigo_barras", "lote_recebimento", "recebimento_responsavel",
+              "site_area"]
     conn = get_conn()
     cur = get_cursor(conn)
     try:
@@ -1552,7 +1700,7 @@ def substituir_itens_em_lote(lista_dados, usuario, observacao="Substituição vi
         removidos = int(cur.fetchone()["total"] or 0)
         cur.execute(q("DELETE FROM itens WHERE site_area = ?"), (get_site_area(),))
 
-        valores_lote = [[dados.get(c, "") for c in campos] for dados in lista_dados]
+        valores_lote = [[(get_site_area() if c == "site_area" else dados.get(c, "")) for c in campos] for dados in lista_dados]
         ids_criados = []
         if IS_PG:
             retornos = psycopg2.extras.execute_values(
@@ -1572,20 +1720,29 @@ def substituir_itens_em_lote(lista_dados, usuario, observacao="Substituição vi
                 ids_criados.append(cur.lastrowid)
 
         agora = datetime.now().strftime("%Y-%m-%d %H:%M")
-        mov_valores = [(item_id, "entrada", str(lista_dados[i].get("qtde", "")), usuario, agora, observacao, get_site_area())
-                       for i, item_id in enumerate(ids_criados)]
+        mov_valores = []
+        for i, item_id in enumerate(ids_criados):
+            d = lista_dados[i]
+            mov_valores.append((
+                item_id, "entrada", str(d.get("qtde", "")), usuario, agora, observacao,
+                "itens", get_site_area(), None, d.get("local") or None,
+                d.get("nf_entrada") or None, d.get("fornecedor") or None,
+                d.get("recebimento_responsavel") or usuario, d.get("lote_recebimento") or None,
+            ))
         if mov_valores:
             if IS_PG:
                 psycopg2.extras.execute_values(
                     cur,
-                    "INSERT INTO movimentacoes (item_id, tipo, quantidade, usuario, data_hora, observacao, site_area) VALUES %s",
+                    "INSERT INTO movimentacoes (item_id,tipo,quantidade,usuario,data_hora,observacao,tabela,site_area,"
+                    "local_origem,local_destino,nf_documento,fornecedor,responsavel,referencia) VALUES %s",
                     mov_valores,
                     page_size=1000,
                 )
             else:
                 cur.executemany(
-                    q("INSERT INTO movimentacoes (item_id, tipo, quantidade, usuario, data_hora, observacao, site_area) "
-                      "VALUES (?, ?, ?, ?, ?, ?, ?, ?)"),
+                    q("INSERT INTO movimentacoes (item_id,tipo,quantidade,usuario,data_hora,observacao,tabela,site_area,"
+                      "local_origem,local_destino,nf_documento,fornecedor,responsavel,referencia) "
+                      "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"),
                     mov_valores,
                 )
         conn.commit()
@@ -1603,7 +1760,10 @@ def atualizar_item(item_id, novos_dados):
                           "local", "armazenagem", "status", "nro_imobilizado",
                           "nro_serie", "nro_patrimonio", "tipo_estoque",
                           "atualizado_por", "atualizado_em",
-                          "pedido", "val_aquis", "chamado", "filial_destino", "site_area"]
+                          "pedido", "val_aquis", "chamado", "filial_destino",
+                          "endereco_rua", "endereco_corredor", "endereco_prateleira", "endereco_posicao",
+                          "fornecedor", "codigo_barras", "lote_recebimento", "recebimento_responsavel",
+                          "site_area"]
     sets = [c for c in campos_permitidos if c in novos_dados]
     if not sets:
         return False
@@ -1745,7 +1905,9 @@ def recriar_item(dados):
               "local", "armazenagem", "status", "nro_imobilizado",
               "nro_serie", "nro_patrimonio", "tipo_estoque", "criado_por",
               "atualizado_por", "atualizado_em", "pedido", "val_aquis", "chamado",
-              "filial_destino", "site_area"]
+              "filial_destino", "endereco_rua", "endereco_corredor", "endereco_prateleira",
+              "endereco_posicao", "fornecedor", "codigo_barras", "lote_recebimento",
+              "recebimento_responsavel", "site_area"]
     valores = [dados.get(c) for c in campos[:-1]] + [get_site_area()]
     cur.execute(
         q(f"INSERT INTO itens ({', '.join(campos)}) VALUES ({', '.join(['?'] * len(campos))})"),
@@ -1760,13 +1922,21 @@ def recriar_item(dados):
 # Movimentações (histórico)
 # ---------------------------------------------------------------------
 
-def registrar_movimentacao(item_id, tipo, quantidade=None, usuario=None, observacao=None, tabela="itens"):
+def registrar_movimentacao(item_id, tipo, quantidade=None, usuario=None, observacao=None, tabela="itens",
+                           local_origem=None, local_destino=None, nf_documento=None, fornecedor=None,
+                           responsavel=None, referencia=None):
+    """Registra auditoria operacional sempre isolada pelo ambiente ativo."""
     conn = get_conn()
     cur = get_cursor(conn)
     cur.execute(
-        q("INSERT INTO movimentacoes (item_id, tipo, quantidade, usuario, data_hora, observacao, tabela, site_area) "
-          "VALUES (?, ?, ?, ?, ?, ?, ?, ?)"),
-        (item_id, tipo, quantidade, usuario, datetime.now().strftime("%Y-%m-%d %H:%M"), observacao, tabela),
+        q("INSERT INTO movimentacoes (item_id, tipo, quantidade, usuario, data_hora, observacao, tabela, site_area, "
+          "local_origem, local_destino, nf_documento, fornecedor, responsavel, referencia) "
+          "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"),
+        (
+            item_id, tipo, quantidade, usuario, datetime.now().strftime("%Y-%m-%d %H:%M"),
+            observacao, tabela, get_site_area(), local_origem, local_destino,
+            nf_documento, fornecedor, responsavel, referencia,
+        ),
     )
     conn.commit()
     cur.close()
@@ -1776,8 +1946,10 @@ def registrar_movimentacao(item_id, tipo, quantidade=None, usuario=None, observa
 def listar_movimentacoes(item_id, tabela="itens"):
     conn = get_conn()
     cur = get_cursor(conn)
-    cur.execute(q("SELECT * FROM movimentacoes WHERE item_id = ? AND tabela = ? ORDER BY id DESC"),
-                (item_id, tabela))
+    cur.execute(
+        q("SELECT * FROM movimentacoes WHERE item_id = ? AND tabela = ? AND site_area = ? ORDER BY id DESC"),
+        (item_id, tabela, get_site_area())
+    )
     linhas = cur.fetchall()
     movs = [dict(r) for r in linhas]
     cur.close()
@@ -1785,28 +1957,37 @@ def listar_movimentacoes(item_id, tabela="itens"):
     return movs
 
 
-def listar_movimentacoes_recentes(limite=100):
+def listar_movimentacoes_recentes(limite=100, local=None):
     conn = get_conn()
     cur = get_cursor(conn)
-    cur.execute(q("SELECT * FROM movimentacoes ORDER BY id DESC LIMIT ?"), (int(limite),))
+    filtros = ["site_area = ?"]
+    params = [get_site_area()]
+    if local:
+        filtros.append("(local_origem = ? OR local_destino = ? OR item_id IN (SELECT id FROM itens WHERE site_area = ? AND local = ?))")
+        params.extend([local, local, get_site_area(), local])
+    params.append(int(limite))
+    cur.execute(q("SELECT * FROM movimentacoes WHERE " + " AND ".join(filtros) + " ORDER BY id DESC LIMIT ?"), tuple(params))
     linhas = [dict(r) for r in cur.fetchall()]
     cur.close()
     conn.close()
     return linhas
 
 
-def listar_movimentacoes_periodo(inicio=None, fim=None, limite=10000):
+def listar_movimentacoes_periodo(inicio=None, fim=None, limite=10000, local=None):
     """Consulta o histórico diretamente no banco pela faixa YYYY-MM-DD."""
     conn = get_conn()
     cur = get_cursor(conn)
-    filtros = ["data_hora IS NOT NULL", "LENGTH(data_hora) >= 10"]
-    parametros = []
+    filtros = ["site_area = ?", "data_hora IS NOT NULL", "LENGTH(data_hora) >= 10"]
+    parametros = [get_site_area()]
     if inicio:
         filtros.append("SUBSTR(data_hora, 1, 10) >= ?")
         parametros.append(str(inicio))
     if fim:
         filtros.append("SUBSTR(data_hora, 1, 10) <= ?")
         parametros.append(str(fim))
+    if local:
+        filtros.append("(local_origem = ? OR local_destino = ? OR item_id IN (SELECT id FROM itens WHERE site_area = ? AND local = ?))")
+        parametros.extend([local, local, get_site_area(), local])
     parametros.append(max(1, min(int(limite), 50000)))
     sql = "SELECT * FROM movimentacoes WHERE " + " AND ".join(filtros)
     sql += " ORDER BY id DESC LIMIT ?"
@@ -1827,10 +2008,20 @@ def listar_todas_movimentacoes():
     return linhas
 
 
+def _chave_retencao_movimentacoes():
+    # Preserva a configuração histórica da Expansão e cria política independente
+    # para o Estoque CD.
+    return "retencao_movimentacoes_dias_estoque_cd" if get_site_area() == "estoque_cd" else "retencao_movimentacoes_dias"
+
+
+def _chave_ultimo_expurgo_movimentacoes():
+    return "ultimo_expurgo_movimentacoes_estoque_cd" if get_site_area() == "estoque_cd" else "ultimo_expurgo_movimentacoes"
+
+
 def obter_retencao_movimentacoes():
-    """Quantidade de dias mantida no histórico online (padrão: 60)."""
+    """Quantidade de dias mantida no histórico online do ambiente atual."""
     try:
-        valor = int(obter_configuracao("retencao_movimentacoes_dias", "60") or 60)
+        valor = int(obter_configuracao(_chave_retencao_movimentacoes(), "60") or 60)
     except (TypeError, ValueError):
         valor = 60
     return max(30, min(valor, 3650))
@@ -1838,19 +2029,28 @@ def obter_retencao_movimentacoes():
 
 def salvar_retencao_movimentacoes(dias, usuario=None):
     dias = max(30, min(int(dias), 3650))
-    salvar_configuracao("retencao_movimentacoes_dias", dias, usuario)
+    salvar_configuracao(_chave_retencao_movimentacoes(), dias, usuario)
     return dias
 
 
+def obter_ultimo_expurgo_movimentacoes():
+    return str(obter_configuracao(_chave_ultimo_expurgo_movimentacoes(), "") or "")
+
+
+def salvar_ultimo_expurgo_movimentacoes(valor, usuario=None):
+    salvar_configuracao(_chave_ultimo_expurgo_movimentacoes(), valor, usuario)
+    return str(valor or "")
+
+
 def listar_movimentacoes_anteriores(data_limite):
-    """Lista registros com data ISO válida e anterior a YYYY-MM-DD."""
+    """Lista somente movimentações do ambiente atual anteriores a YYYY-MM-DD."""
     conn = get_conn()
     cur = get_cursor(conn)
     cur.execute(
         q("SELECT * FROM movimentacoes "
-          "WHERE data_hora IS NOT NULL AND LENGTH(data_hora) >= 10 "
+          "WHERE site_area = ? AND data_hora IS NOT NULL AND LENGTH(data_hora) >= 10 "
           "AND SUBSTR(data_hora, 1, 10) < ? ORDER BY id ASC"),
-        (str(data_limite),),
+        (get_site_area(), str(data_limite)),
     )
     linhas = [dict(r) for r in cur.fetchall()]
     cur.close()
@@ -1859,7 +2059,7 @@ def listar_movimentacoes_anteriores(data_limite):
 
 
 def excluir_movimentacoes_por_ids(ids):
-    """Exclui exatamente os IDs previamente incluídos no arquivo de auditoria."""
+    """Exclui os IDs auditados somente dentro do ambiente atualmente selecionado."""
     ids = [int(x) for x in ids]
     if not ids:
         return 0
@@ -1869,7 +2069,8 @@ def excluir_movimentacoes_por_ids(ids):
     for inicio in range(0, len(ids), 500):
         lote = ids[inicio:inicio + 500]
         placeholders = ", ".join(["?"] * len(lote))
-        cur.execute(q(f"DELETE FROM movimentacoes WHERE id IN ({placeholders})"), lote)
+        params = tuple(lote) + (get_site_area(),)
+        cur.execute(q(f"DELETE FROM movimentacoes WHERE id IN ({placeholders}) AND site_area = ?"), params)
         total += int(cur.rowcount or 0)
     conn.commit()
     cur.close()
@@ -2876,37 +3077,69 @@ def listar_importacoes_recentes(limite=20):
         cur.close(); conn.close()
 
 def obter_saude_sistema():
+    """Resumo de saúde e integridade respeitando o ambiente operacional atual."""
     conn=get_conn(); cur=get_cursor(conn)
     try:
+        site = get_site_area()
         cur.execute("SELECT 1 AS ok")
         _=cur.fetchone()
+
         contagens={}
-        for tabela in ("itens","imobilizados","produtos","filiais","movimentacoes"):
-            if tabela == "filiais":
-                cur.execute("SELECT COUNT(*) AS total FROM filiais")
-            else:
-                cur.execute(q(f"SELECT COUNT(*) AS total FROM {tabela} WHERE site_area = ?"), (get_site_area(),))
-            contagens[tabela]=int(_valor_escalar(cur.fetchone(),"total",0) or 0)
-        cur.execute("SELECT COUNT(*) AS total FROM filiais WHERE COALESCE(TRIM(uf),'') = ''")
-        filiais_sem_uf=int(_valor_escalar(cur.fetchone(),"total",0) or 0)
-        cur.execute("SELECT COUNT(*) AS total FROM filiais WHERE ativo IN ('1','inaugurar','pendente') AND COALESCE(TRIM(bandeira),'') = ''")
-        filiais_sem_bandeira=int(_valor_escalar(cur.fetchone(),"total",0) or 0)
-        cur.execute("SELECT COUNT(*) AS total FROM filiais WHERE ativo = 'inaugurar' AND COALESCE(TRIM(previsao_abertura),'') = ''")
-        inaug_sem_data=int(_valor_escalar(cur.fetchone(),"total",0) or 0)
-        cur.execute(q("SELECT data_hora FROM movimentacoes WHERE site_area = ? ORDER BY id DESC LIMIT 1"), (get_site_area(),))
+        # Filiais são uma base compartilhada; os demais domínios são isolados por site_area.
+        cur.execute(q("SELECT COUNT(*) AS total FROM itens WHERE site_area = ?"), (site,))
+        contagens["itens"] = int(_valor_escalar(cur.fetchone(), "total", 0) or 0)
+        cur.execute(q("SELECT COUNT(*) AS total FROM produtos WHERE site_area = ?"), (site,))
+        contagens["produtos"] = int(_valor_escalar(cur.fetchone(), "total", 0) or 0)
+        cur.execute(q("SELECT COUNT(*) AS total FROM movimentacoes WHERE site_area = ?"), (site,))
+        contagens["movimentacoes"] = int(_valor_escalar(cur.fetchone(), "total", 0) or 0)
+        cur.execute("SELECT COUNT(*) AS total FROM filiais")
+        contagens["filiais"] = int(_valor_escalar(cur.fetchone(), "total", 0) or 0)
+
+        if site == "estoque_cd":
+            # Imobilizados e inauguração não fazem parte do escopo atual do CD.
+            contagens["imobilizados"] = 0
+            cur.execute("SELECT COUNT(*) AS total FROM filiais WHERE COALESCE(TRIM(uf),'') = ''")
+            filiais_sem_uf = int(_valor_escalar(cur.fetchone(), "total", 0) or 0)
+            cur.execute("SELECT COUNT(*) AS total FROM filiais WHERE ativo IN ('1','inaugurar','pendente') AND COALESCE(TRIM(bandeira),'') = ''")
+            filiais_sem_bandeira = int(_valor_escalar(cur.fetchone(), "total", 0) or 0)
+            cur.execute(q("SELECT COUNT(*) AS total FROM itens WHERE site_area = ? AND COALESCE(TRIM(local),'') = ''"), (site,))
+            itens_sem_local = int(_valor_escalar(cur.fetchone(), "total", 0) or 0)
+            cur.execute(q("SELECT COUNT(*) AS total FROM itens WHERE site_area = ? AND (COALESCE(TRIM(armazenagem),'') = '' OR UPPER(TRIM(armazenagem)) <> 'CD')"), (site,))
+            armazenamento_invalido = int(_valor_escalar(cur.fetchone(), "total", 0) or 0)
+            inconsistencias = {
+                "filiais_sem_uf": filiais_sem_uf,
+                "filiais_sem_bandeira": filiais_sem_bandeira,
+                "inauguracoes_sem_data": 0,
+                "itens_sem_local": itens_sem_local,
+                "armazenamento_invalido": armazenamento_invalido,
+                "total": filiais_sem_uf + filiais_sem_bandeira + itens_sem_local + armazenamento_invalido,
+            }
+        else:
+            cur.execute(q("SELECT COUNT(*) AS total FROM imobilizados WHERE site_area = ?"), (site,))
+            contagens["imobilizados"] = int(_valor_escalar(cur.fetchone(), "total", 0) or 0)
+            cur.execute("SELECT COUNT(*) AS total FROM filiais WHERE COALESCE(TRIM(uf),'') = ''")
+            filiais_sem_uf = int(_valor_escalar(cur.fetchone(), "total", 0) or 0)
+            cur.execute("SELECT COUNT(*) AS total FROM filiais WHERE ativo IN ('1','inaugurar','pendente') AND COALESCE(TRIM(bandeira),'') = ''")
+            filiais_sem_bandeira = int(_valor_escalar(cur.fetchone(), "total", 0) or 0)
+            cur.execute("SELECT COUNT(*) AS total FROM filiais WHERE ativo = 'inaugurar' AND COALESCE(TRIM(previsao_abertura),'') = ''")
+            inaug_sem_data = int(_valor_escalar(cur.fetchone(), "total", 0) or 0)
+            inconsistencias = {
+                "filiais_sem_uf": filiais_sem_uf,
+                "filiais_sem_bandeira": filiais_sem_bandeira,
+                "inauguracoes_sem_data": inaug_sem_data,
+                "total": filiais_sem_uf + filiais_sem_bandeira + inaug_sem_data,
+            }
+
+        cur.execute(q("SELECT data_hora FROM movimentacoes WHERE site_area = ? ORDER BY id DESC LIMIT 1"), (site,))
         row=cur.fetchone(); ultima_mov=(dict(row).get('data_hora') if row and hasattr(row,'keys') else (row[0] if row else None))
-        cur.execute(q("SELECT data_hora, tipo, arquivo, status FROM importacoes WHERE site_area = ? ORDER BY id DESC LIMIT 1"), (get_site_area(),))
+        cur.execute(q("SELECT data_hora, tipo, arquivo, status FROM importacoes WHERE site_area = ? ORDER BY id DESC LIMIT 1"), (site,))
         row=cur.fetchone(); ultima_importacao=dict(row) if row else None
         return {
             "database":"PostgreSQL" if IS_PG else "SQLite",
             "database_ok":True,
+            "site_area":site,
             "contagens":contagens,
-            "inconsistencias":{
-                "filiais_sem_uf":filiais_sem_uf,
-                "filiais_sem_bandeira":filiais_sem_bandeira,
-                "inauguracoes_sem_data":inaug_sem_data,
-                "total":filiais_sem_uf+filiais_sem_bandeira+inaug_sem_data,
-            },
+            "inconsistencias":inconsistencias,
             "ultima_movimentacao":ultima_mov,
             "ultima_importacao":ultima_importacao,
         }
@@ -3214,3 +3447,548 @@ def listar_notificacoes_pendencias(limit=250, pendencia_id=None):
     else:
         cur.execute(q("SELECT * FROM pendencia_notificacoes WHERE pendencia_id=? ORDER BY id DESC LIMIT ?"),(int(pendencia_id),int(limit)))
     rows=[dict(r) for r in cur.fetchall()]; cur.close(); conn.close(); return rows
+
+
+# ---------------------------------------------------------------------
+# Estoque CD — operação, recebimento, transferências e inventário (v1.8.0)
+# ---------------------------------------------------------------------
+
+def _qtd_inteira(valor):
+    try:
+        return int(float(valor or 0))
+    except (TypeError, ValueError):
+        return 0
+
+
+def listar_estoque_cd_agrupado(local=None, somente_saldo=True):
+    """Consolida o estoque CD por Centro de Distribuição e código."""
+    if get_site_area() != "estoque_cd":
+        return []
+    itens = listar_itens()
+    grupos = {}
+    for item in itens:
+        if local and str(item.get("local") or "").strip() != str(local).strip():
+            continue
+        qtd = _qtd_inteira(item.get("qtde"))
+        if somente_saldo and qtd <= 0:
+            continue
+        chave = (str(item.get("local") or "").strip(), str(item.get("codigo") or "").strip())
+        if not chave[1]:
+            continue
+        g = grupos.setdefault(chave, {
+            "local": chave[0],
+            "codigo": chave[1],
+            "descricao": str(item.get("descricao") or "").strip(),
+            "qtde": 0,
+            "uf": str(item.get("localizacao") or "").strip(),
+            "endereco_rua": str(item.get("endereco_rua") or "").strip(),
+            "endereco_corredor": str(item.get("endereco_corredor") or "").strip(),
+            "endereco_prateleira": str(item.get("endereco_prateleira") or "").strip(),
+            "endereco_posicao": str(item.get("endereco_posicao") or "").strip(),
+        })
+        g["qtde"] += qtd
+        if not g["descricao"] and item.get("descricao"):
+            g["descricao"] = str(item.get("descricao") or "").strip()
+    return sorted(grupos.values(), key=lambda x: (x.get("local") or "", _chave_codigo_natural(x.get("codigo"))))
+
+
+def receber_itens_cd(dados, usuario):
+    """Registra um recebimento físico no CD e cria uma linha por unidade."""
+    if get_site_area() != "estoque_cd":
+        raise ValueError("Operação disponível apenas no ambiente Estoque CD.")
+    dados = dict(dados or {})
+    codigo = str(dados.get("codigo") or "").strip()
+    descricao = str(dados.get("descricao") or "").strip()
+    local = str(dados.get("local") or "").strip()
+    uf = str(dados.get("localizacao") or "").strip().upper()
+    nf = str(dados.get("nf_entrada") or "").strip()
+    fornecedor = str(dados.get("fornecedor") or "").strip()
+    responsavel = str(dados.get("responsavel") or usuario or "").strip()
+    data_entrada = str(dados.get("data_entrada") or datetime.now().strftime("%Y-%m-%d")).strip()
+    codigo_barras = str(dados.get("codigo_barras") or "").strip()
+    lote = str(dados.get("lote_recebimento") or datetime.now().strftime("REC-%Y%m%d%H%M%S")).strip()
+    try:
+        quantidade = max(1, int(float(dados.get("quantidade") or dados.get("qtde") or 1)))
+    except (TypeError, ValueError):
+        raise ValueError("Quantidade inválida para o recebimento.")
+    if not codigo or not local or not uf:
+        raise ValueError("Código, Centro de Distribuição e UF são obrigatórios.")
+
+    campos = [
+        "codigo", "descricao", "qtde", "localizacao", "nf_entrada", "data_entrada",
+        "nf_saida", "data_saida", "vd_loja", "local", "armazenagem", "status",
+        "nro_imobilizado", "nro_serie", "nro_patrimonio", "tipo_estoque", "criado_por",
+        "pedido", "val_aquis", "chamado", "filial_destino",
+        "endereco_rua", "endereco_corredor", "endereco_prateleira", "endereco_posicao",
+        "fornecedor", "codigo_barras", "lote_recebimento", "recebimento_responsavel",
+        "site_area",
+    ]
+    base = {
+        "codigo": codigo, "descricao": descricao, "qtde": "1", "localizacao": uf,
+        "nf_entrada": nf, "data_entrada": data_entrada, "nf_saida": "", "data_saida": "",
+        "vd_loja": "", "local": local, "armazenagem": "CD", "status": "Disponível",
+        "nro_imobilizado": "", "nro_serie": "", "nro_patrimonio": "",
+        "tipo_estoque": "Estoque CD", "criado_por": usuario,
+        "pedido": str(dados.get("pedido") or "").strip(),
+        "val_aquis": str(dados.get("val_aquis") or "").strip(),
+        "chamado": str(dados.get("chamado") or "").strip(),
+        "filial_destino": "",
+        "endereco_rua": str(dados.get("endereco_rua") or "").strip(),
+        "endereco_corredor": str(dados.get("endereco_corredor") or "").strip(),
+        "endereco_prateleira": str(dados.get("endereco_prateleira") or "").strip(),
+        "endereco_posicao": str(dados.get("endereco_posicao") or "").strip(),
+        "fornecedor": fornecedor, "codigo_barras": codigo_barras,
+        "lote_recebimento": lote, "recebimento_responsavel": responsavel,
+        "site_area": get_site_area(),
+    }
+
+    conn = get_conn()
+    cur = get_cursor(conn)
+    try:
+        valores = [[base.get(c, "") for c in campos] for _ in range(quantidade)]
+        if IS_PG:
+            retornos = psycopg2.extras.execute_values(
+                cur,
+                f"INSERT INTO itens ({', '.join(campos)}) VALUES %s RETURNING id",
+                valores, page_size=500, fetch=True,
+            )
+            ids = _ids_retornados_lote(retornos)
+        else:
+            ids = []
+            sql = q(f"INSERT INTO itens ({', '.join(campos)}) VALUES ({', '.join(['?'] * len(campos))})")
+            for valores_item in valores:
+                cur.execute(sql, valores_item)
+                ids.append(cur.lastrowid)
+
+        agora = datetime.now().strftime("%Y-%m-%d %H:%M")
+        obs = f"Recebimento no {local}" + (f" · NF {nf}" if nf else "") + (f" · fornecedor {fornecedor}" if fornecedor else "")
+        movs = [
+            (item_id, "recebimento", "1", usuario, agora, obs, "itens", get_site_area(),
+             None, local, nf, fornecedor, responsavel, lote)
+            for item_id in ids
+        ]
+        if movs:
+            if IS_PG:
+                psycopg2.extras.execute_values(
+                    cur,
+                    "INSERT INTO movimentacoes (item_id,tipo,quantidade,usuario,data_hora,observacao,tabela,site_area,"
+                    "local_origem,local_destino,nf_documento,fornecedor,responsavel,referencia) VALUES %s",
+                    movs, page_size=1000,
+                )
+            else:
+                cur.executemany(
+                    q("INSERT INTO movimentacoes (item_id,tipo,quantidade,usuario,data_hora,observacao,tabela,site_area,"
+                      "local_origem,local_destino,nf_documento,fornecedor,responsavel,referencia) "
+                      "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)"),
+                    movs,
+                )
+        conn.commit()
+        return {"criados": len(ids), "ids": ids, "lote": lote, "local": local, "codigo": codigo}
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        cur.close()
+        conn.close()
+
+
+def movimentar_itens_cd(codigo, quantidade, local_origem, destino_tipo, destino, usuario,
+                        nf_documento="", data_movimento=None, responsavel="", referencia="",
+                        endereco_destino=None, uf_destino=""):
+    """Movimenta unidades do CD para outro CD ou para uma filial."""
+    if get_site_area() != "estoque_cd":
+        raise ValueError("Operação disponível apenas no ambiente Estoque CD.")
+    codigo = str(codigo or "").strip()
+    local_origem = str(local_origem or "").strip()
+    destino_tipo = str(destino_tipo or "").strip().lower()
+    destino = str(destino or "").strip()
+    nf_documento = str(nf_documento or "").strip()
+    responsavel = str(responsavel or usuario or "").strip()
+    referencia = str(referencia or "").strip()
+    data_movimento = str(data_movimento or datetime.now().strftime("%Y-%m-%d")).strip()
+    try:
+        quantidade = int(quantidade)
+    except (TypeError, ValueError):
+        quantidade = 0
+    if quantidade <= 0:
+        raise ValueError("Informe uma quantidade maior que zero.")
+    if not codigo or not local_origem or not destino:
+        raise ValueError("Código, CD de origem e destino são obrigatórios.")
+    if destino_tipo not in {"cd", "filial"}:
+        raise ValueError("Tipo de destino inválido.")
+    if destino_tipo == "cd" and destino == local_origem:
+        raise ValueError("O CD de destino deve ser diferente do CD de origem.")
+
+    conn = get_conn()
+    cur = get_cursor(conn)
+    try:
+        sql = "SELECT * FROM itens WHERE site_area = ? AND local = ? AND codigo = ? ORDER BY id"
+        if IS_PG:
+            sql += " FOR UPDATE"
+        cur.execute(q(sql), (get_site_area(), local_origem, codigo))
+        disponiveis = []
+        for row in cur.fetchall():
+            item = dict(row)
+            if _qtd_inteira(item.get("qtde")) > 0 and str(item.get("status") or "").strip().lower() != "enviado":
+                disponiveis.append(item)
+            if len(disponiveis) >= quantidade:
+                break
+        if len(disponiveis) < quantidade:
+            raise ValueError(
+                f"Saldo insuficiente no CD de origem. Disponível: {len(disponiveis)} unidade(s); solicitado: {quantidade}."
+            )
+
+        agora = datetime.now().strftime("%Y-%m-%d %H:%M")
+        ids = []
+        for item in disponiveis[:quantidade]:
+            item_id = int(item["id"])
+            ids.append(item_id)
+            if destino_tipo == "cd":
+                end = dict(endereco_destino or {})
+                cur.execute(q("""
+                    UPDATE itens
+                       SET local=?, localizacao=?, status='Disponível', armazenagem='CD',
+                           endereco_rua=?, endereco_corredor=?, endereco_prateleira=?, endereco_posicao=?,
+                           atualizado_por=?, atualizado_em=?
+                     WHERE id=? AND site_area=?
+                """), (
+                    destino, str(uf_destino or "").strip().upper(),
+                    str(end.get("rua") or "").strip(), str(end.get("corredor") or "").strip(),
+                    str(end.get("prateleira") or "").strip(), str(end.get("posicao") or "").strip(),
+                    usuario, agora, item_id, get_site_area(),
+                ))
+                tipo = "transferencia_cd"
+                obs = f"Transferência de {local_origem} para {destino}"
+                local_destino = destino
+            else:
+                cur.execute(q("""
+                    UPDATE itens
+                       SET qtde='0', status='Enviado', nf_saida=?, data_saida=?, filial_destino=?,
+                           vd_loja=?, atualizado_por=?, atualizado_em=?
+                     WHERE id=? AND site_area=?
+                """), (
+                    nf_documento, data_movimento, destino, responsavel,
+                    usuario, agora, item_id, get_site_area(),
+                ))
+                tipo = "saida_filial"
+                obs = f"Saída do {local_origem} para filial {destino}"
+                local_destino = f"Filial {destino}"
+
+            cur.execute(q("""
+                INSERT INTO movimentacoes
+                    (item_id,tipo,quantidade,usuario,data_hora,observacao,tabela,site_area,
+                     local_origem,local_destino,nf_documento,fornecedor,responsavel,referencia)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+            """), (
+                item_id, tipo, "1", usuario, agora, obs, "itens", get_site_area(),
+                local_origem, local_destino, nf_documento, None, responsavel, referencia,
+            ))
+        conn.commit()
+        return {"movimentados": len(ids), "ids": ids, "destino_tipo": destino_tipo, "destino": destino}
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        cur.close()
+        conn.close()
+
+
+def preparar_inventario_cd(local):
+    if get_site_area() != "estoque_cd":
+        return []
+    return listar_estoque_cd_agrupado(local=local, somente_saldo=True)
+
+
+def salvar_inventario_cd(local, contagens, usuario, ajustar=False, observacao="", uf=""):
+    """Conclui um inventário e, opcionalmente, ajusta o saldo físico."""
+    if get_site_area() != "estoque_cd":
+        raise ValueError("Inventário disponível apenas no ambiente Estoque CD.")
+    local = str(local or "").strip()
+    if not local:
+        raise ValueError("Selecione o Centro de Distribuição.")
+    contagens = list(contagens or [])
+    esperado_rows = {x["codigo"]: x for x in preparar_inventario_cd(local)}
+    enviados = {}
+    for row in contagens:
+        codigo = str(row.get("codigo") or "").strip()
+        if not codigo:
+            continue
+        try:
+            contado = max(0, int(float(row.get("contado") or 0)))
+        except (TypeError, ValueError):
+            raise ValueError(f"Contagem inválida para o código {codigo}.")
+        enviados[codigo] = {
+            "codigo": codigo,
+            "descricao": str(row.get("descricao") or esperado_rows.get(codigo, {}).get("descricao") or "").strip(),
+            "contado": contado,
+        }
+    codigos = sorted(set(esperado_rows) | set(enviados), key=_chave_codigo_natural)
+    if not codigos:
+        raise ValueError("Não existem itens para inventariar neste CD.")
+
+    conn = get_conn()
+    cur = get_cursor(conn)
+    agora = datetime.now().strftime("%Y-%m-%d %H:%M")
+    try:
+        if IS_PG:
+            cur.execute(q("""
+                INSERT INTO inventarios_cd
+                    (local,status,iniciado_por,iniciado_em,concluido_por,concluido_em,observacao,divergencias,ajustado,site_area)
+                VALUES (?,?,?,?,?,?,?,?,?,?) RETURNING id
+            """), (local, "CONCLUIDO", usuario, agora, usuario, agora, str(observacao or "").strip(), 0, "1" if ajustar else "0", get_site_area()))
+            inventario_id = int(cur.fetchone()["id"])
+        else:
+            cur.execute(q("""
+                INSERT INTO inventarios_cd
+                    (local,status,iniciado_por,iniciado_em,concluido_por,concluido_em,observacao,divergencias,ajustado,site_area)
+                VALUES (?,?,?,?,?,?,?,?,?,?)
+            """), (local, "CONCLUIDO", usuario, agora, usuario, agora, str(observacao or "").strip(), 0, "1" if ajustar else "0", get_site_area()))
+            inventario_id = int(cur.lastrowid)
+
+        divergencias = 0
+        resultados = []
+        for codigo in codigos:
+            ref = esperado_rows.get(codigo, {})
+            esperado = int(ref.get("qtde") or 0)
+            contado = int(enviados.get(codigo, {}).get("contado", 0))
+            descricao = str(enviados.get(codigo, {}).get("descricao") or ref.get("descricao") or "").strip()
+            diferenca = contado - esperado
+            resultado = "OK" if diferenca == 0 else ("SOBRA" if diferenca > 0 else "FALTA")
+            if diferenca:
+                divergencias += 1
+
+            if ajustar and diferenca != 0:
+                if diferenca > 0:
+                    # Ajuste positivo: cria unidades físicas adicionais.
+                    campos = [
+                        "codigo","descricao","qtde","localizacao","nf_entrada","data_entrada","nf_saida","data_saida",
+                        "vd_loja","local","armazenagem","status","nro_imobilizado","nro_serie","nro_patrimonio",
+                        "tipo_estoque","criado_por","pedido","val_aquis","chamado","filial_destino",
+                        "endereco_rua","endereco_corredor","endereco_prateleira","endereco_posicao","fornecedor",
+                        "codigo_barras","lote_recebimento","recebimento_responsavel","site_area"
+                    ]
+                    base = {
+                        "codigo": codigo, "descricao": descricao, "qtde": "1", "localizacao": str(uf or ref.get("uf") or "").strip().upper(),
+                        "nf_entrada": "", "data_entrada": datetime.now().strftime("%Y-%m-%d"), "nf_saida": "", "data_saida": "",
+                        "vd_loja": "", "local": local, "armazenagem": "CD", "status": "Disponível",
+                        "nro_imobilizado": "", "nro_serie": "", "nro_patrimonio": "", "tipo_estoque": "Estoque CD",
+                        "criado_por": usuario, "pedido": "", "val_aquis": "", "chamado": "", "filial_destino": "",
+                        "endereco_rua": str(ref.get("endereco_rua") or ""), "endereco_corredor": str(ref.get("endereco_corredor") or ""),
+                        "endereco_prateleira": str(ref.get("endereco_prateleira") or ""), "endereco_posicao": str(ref.get("endereco_posicao") or ""),
+                        "fornecedor": "", "codigo_barras": "", "lote_recebimento": f"INV-{inventario_id}",
+                        "recebimento_responsavel": usuario, "site_area": get_site_area(),
+                    }
+                    for _ in range(diferenca):
+                        valores = [base.get(c, "") for c in campos]
+                        if IS_PG:
+                            cur.execute(q(f"INSERT INTO itens ({', '.join(campos)}) VALUES ({', '.join(['?'] * len(campos))}) RETURNING id"), valores)
+                            item_id = int(cur.fetchone()["id"])
+                        else:
+                            cur.execute(q(f"INSERT INTO itens ({', '.join(campos)}) VALUES ({', '.join(['?'] * len(campos))})"), valores)
+                            item_id = int(cur.lastrowid)
+                        cur.execute(q("""
+                            INSERT INTO movimentacoes
+                                (item_id,tipo,quantidade,usuario,data_hora,observacao,tabela,site_area,local_origem,local_destino,responsavel,referencia)
+                            VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+                        """), (item_id, "inventario_ajuste_entrada", "1", usuario, agora,
+                               f"Ajuste positivo do inventário #{inventario_id}", "itens", get_site_area(),
+                               None, local, usuario, f"Inventário #{inventario_id}"))
+                else:
+                    necessario = abs(diferenca)
+                    sql = "SELECT * FROM itens WHERE site_area=? AND local=? AND codigo=? ORDER BY id DESC"
+                    if IS_PG:
+                        sql += " FOR UPDATE"
+                    cur.execute(q(sql), (get_site_area(), local, codigo))
+                    disponiveis = [dict(r) for r in cur.fetchall() if _qtd_inteira(dict(r).get("qtde")) > 0]
+                    for item in disponiveis[:necessario]:
+                        cur.execute(q("UPDATE itens SET qtde='0', status='Ajuste inventário', atualizado_por=?, atualizado_em=? WHERE id=? AND site_area=?"),
+                                    (usuario, agora, int(item["id"]), get_site_area()))
+                        cur.execute(q("""
+                            INSERT INTO movimentacoes
+                                (item_id,tipo,quantidade,usuario,data_hora,observacao,tabela,site_area,local_origem,local_destino,responsavel,referencia)
+                            VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+                        """), (int(item["id"]), "inventario_ajuste_saida", "1", usuario, agora,
+                               f"Ajuste negativo do inventário #{inventario_id}", "itens", get_site_area(),
+                               local, None, usuario, f"Inventário #{inventario_id}"))
+
+            cur.execute(q("""
+                INSERT INTO inventario_itens_cd
+                    (inventario_id,codigo,descricao,esperado,contado,diferenca,resultado,ajustado,atualizado_por,atualizado_em,site_area)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?)
+            """), (
+                inventario_id, codigo, descricao, esperado, contado, diferenca, resultado,
+                "1" if ajustar and diferenca != 0 else "0", usuario, agora, get_site_area(),
+            ))
+            resultados.append({
+                "codigo": codigo, "descricao": descricao, "esperado": esperado,
+                "contado": contado, "diferenca": diferenca, "resultado": resultado,
+            })
+
+        cur.execute(q("UPDATE inventarios_cd SET divergencias=? WHERE id=? AND site_area=?"),
+                    (divergencias, inventario_id, get_site_area()))
+        conn.commit()
+        return {
+            "id": inventario_id, "local": local, "divergencias": divergencias,
+            "ajustado": bool(ajustar), "itens": resultados,
+        }
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        cur.close()
+        conn.close()
+
+
+def listar_inventarios_cd(local=None, limite=100):
+    if get_site_area() != "estoque_cd":
+        return []
+    conn = get_conn()
+    cur = get_cursor(conn)
+    filtros = ["site_area = ?"]
+    params = [get_site_area()]
+    if local:
+        filtros.append("local = ?")
+        params.append(str(local))
+    params.append(max(1, min(int(limite), 1000)))
+    cur.execute(q("SELECT * FROM inventarios_cd WHERE " + " AND ".join(filtros) + " ORDER BY id DESC LIMIT ?"), tuple(params))
+    out = [dict(r) for r in cur.fetchall()]
+    cur.close(); conn.close()
+    return out
+
+
+def listar_itens_inventario_cd(inventario_id):
+    conn = get_conn(); cur = get_cursor(conn)
+    cur.execute(q("SELECT * FROM inventario_itens_cd WHERE inventario_id=? AND site_area=? ORDER BY codigo"),
+                (int(inventario_id), get_site_area()))
+    out = [dict(r) for r in cur.fetchall()]
+    cur.close(); conn.close()
+    return out
+
+
+def resumo_operacional_cd(local=None, dias_parado=90):
+    """Resumo operacional usado pelo Dashboard do Estoque CD."""
+    if get_site_area() != "estoque_cd":
+        return {}
+    local = str(local or "").strip()
+    itens = listar_itens()
+    if local:
+        itens_scope = [i for i in itens if str(i.get("local") or "").strip() == local]
+    else:
+        itens_scope = list(itens)
+
+    saldo = [i for i in itens_scope if _qtd_inteira(i.get("qtde")) > 0]
+    total = sum(_qtd_inteira(i.get("qtde")) for i in saldo)
+    codigos = sorted({str(i.get("codigo") or "").strip() for i in saldo if str(i.get("codigo") or "").strip()}, key=_chave_codigo_natural)
+    produtos = {str(p.get("codigo") or "").strip(): p for p in listar_produtos()}
+
+    por_cd = {}
+    por_codigo_cd = {}
+    sem_cd = 0
+    for i in itens_scope:
+        qtd = max(0, _qtd_inteira(i.get("qtde")))
+        if qtd <= 0:
+            continue
+        cd = str(i.get("local") or "").strip()
+        codigo = str(i.get("codigo") or "").strip()
+        if not cd:
+            sem_cd += qtd
+        por_cd[cd or "Não informado"] = por_cd.get(cd or "Não informado", 0) + qtd
+        por_codigo_cd[(cd, codigo)] = por_codigo_cd.get((cd, codigo), 0) + qtd
+
+    # Estoque mínimo é considerado por CD. Quando há filtro, avalia apenas o CD
+    # selecionado; em "Todos", mostra cada combinação CD/código abaixo do mínimo.
+    cds_avaliados = [local] if local else sorted({cd for cd, _ in por_codigo_cd if cd})
+    baixos = []
+    for cd in cds_avaliados:
+        for codigo, prod in produtos.items():
+            minimo = max(0, _qtd_inteira(prod.get("estoque_minimo")))
+            if minimo <= 0:
+                continue
+            atual = por_codigo_cd.get((cd, codigo), 0)
+            if atual < minimo:
+                baixos.append({
+                    "local": cd, "codigo": codigo, "descricao": prod.get("descricao") or "",
+                    "saldo": atual, "minimo": minimo, "faltam": minimo - atual,
+                })
+    baixos.sort(key=lambda x: (-x["faltam"], x["local"], _chave_codigo_natural(x["codigo"])))
+
+    movimentos = listar_movimentacoes_recentes(5000, local=local or None)
+    hoje = datetime.now().strftime("%Y-%m-%d")
+    entradas_hoje = sum(_qtd_inteira(m.get("quantidade")) for m in movimentos
+                        if str(m.get("data_hora") or "")[:10] == hoje and str(m.get("tipo") or "") in {"recebimento", "entrada", "inventario_ajuste_entrada"})
+    saidas_hoje = sum(_qtd_inteira(m.get("quantidade")) for m in movimentos
+                      if str(m.get("data_hora") or "")[:10] == hoje and str(m.get("tipo") or "") in {"saida", "saida_filial", "transferencia_cd", "inventario_ajuste_saida"})
+
+    # Última movimentação por item para detectar estoque parado.
+    ultima_por_item = {}
+    for m in movimentos:
+        item_id = str(m.get("item_id") or "")
+        if item_id and item_id not in ultima_por_item:
+            ultima_por_item[item_id] = str(m.get("data_hora") or "")[:10]
+    limite_data = datetime.now() - timedelta(days=max(1, int(dias_parado)))
+    parados = []
+    for i in saldo:
+        data_txt = ultima_por_item.get(str(i.get("id") or "")) or str(i.get("atualizado_em") or "")[:10] or str(i.get("data_entrada") or "")[:10]
+        try:
+            dt = datetime.strptime(data_txt, "%Y-%m-%d")
+        except Exception:
+            continue
+        if dt <= limite_data:
+            parados.append(i)
+
+    sem_nf = sum(1 for m in movimentos if str(m.get("tipo") or "") in {"recebimento", "saida_filial", "transferencia_cd"}
+                 and not str(m.get("nf_documento") or "").strip())
+
+    inventarios = listar_inventarios_cd(local=local or None, limite=20)
+    divergencias_inv = sum(int(x.get("divergencias") or 0) for x in inventarios[:1]) if inventarios else 0
+
+    # Últimos recebimentos com dados do item atual quando possível.
+    mapa_itens = {str(i.get("id")): i for i in itens}
+    recebimentos = []
+    for m in movimentos:
+        if str(m.get("tipo") or "") not in {"recebimento", "entrada"}:
+            continue
+        ref = mapa_itens.get(str(m.get("item_id")), {})
+        recebimentos.append({
+            "data_hora": m.get("data_hora"), "codigo": ref.get("codigo") or "",
+            "descricao": ref.get("descricao") or "", "local": m.get("local_destino") or ref.get("local") or "",
+            "nf": m.get("nf_documento") or ref.get("nf_entrada") or "",
+            "fornecedor": m.get("fornecedor") or ref.get("fornecedor") or "",
+            "responsavel": m.get("responsavel") or m.get("usuario") or "",
+        })
+        if len(recebimentos) >= 12:
+            break
+
+    alertas = []
+    if baixos:
+        alertas.append({"tipo": "danger", "titulo": f"{len(baixos)} item(ns) abaixo do mínimo", "detalhe": "Revise reposição ou transferência entre CDs."})
+    if parados:
+        alertas.append({"tipo": "warn", "titulo": f"{len(parados)} unidade(s) sem movimentação há {dias_parado}+ dias", "detalhe": "Avalie reaproveitamento, redistribuição ou inventário físico."})
+    if sem_cd:
+        alertas.append({"tipo": "danger", "titulo": f"{sem_cd} unidade(s) sem Centro de Distribuição", "detalhe": "Corrija o campo Local para manter o saldo confiável."})
+    if sem_nf:
+        alertas.append({"tipo": "warn", "titulo": f"{sem_nf} movimentação(ões) sem NF/documento", "detalhe": "Complete a rastreabilidade documental."})
+    if divergencias_inv:
+        alertas.append({"tipo": "danger", "titulo": f"{divergencias_inv} divergência(s) no último inventário", "detalhe": "Abra o relatório de inventário para conferir as diferenças."})
+    if not alertas:
+        alertas.append({"tipo": "ok", "titulo": "Operação sem alertas críticos", "detalhe": "Os principais controles do CD estão dentro das regras cadastradas."})
+
+    return {
+        "local_filtro": local,
+        "estoque_total": total,
+        "codigos_com_saldo": len(codigos),
+        "produtos_total": len(produtos),
+        "entradas_hoje": entradas_hoje,
+        "saidas_hoje": saidas_hoje,
+        "estoque_baixo": len(baixos),
+        "itens_parados": len(parados),
+        "sem_cd": sem_cd,
+        "mov_sem_nf": sem_nf,
+        "divergencias_inventario": divergencias_inv,
+        "por_cd": [{"local": k, "qtde": v} for k, v in sorted(por_cd.items(), key=lambda kv: (-kv[1], kv[0]))],
+        "baixos": baixos,
+        "alertas": alertas,
+        "parados_detalhe": parados,
+        "ultimos_recebimentos": recebimentos,
+        "inventarios_recentes": inventarios[:8],
+    }

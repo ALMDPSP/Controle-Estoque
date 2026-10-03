@@ -592,6 +592,8 @@
     </div>
   </section>
 
+  {% if site_area == 'estoque_cd' %}{% include '_cd_operacao_panel.html' %}{% endif %}
+
   <section class="panel">
     <h2>Registrar novo item (entrada)</h2>
     <form id="item-form" novalidate>
@@ -675,10 +677,17 @@
           {% endif %}
         </select>
       </div>
+      {% if site_area == 'estoque_cd' %}
+      <div class="field"><label for="endereco_rua">Rua</label><input id="endereco_rua" name="endereco_rua" placeholder="Ex.: Rua 04"></div>
+      <div class="field"><label for="endereco_corredor">Corredor</label><input id="endereco_corredor" name="endereco_corredor" placeholder="Ex.: B"></div>
+      <div class="field"><label for="endereco_prateleira">Prateleira</label><input id="endereco_prateleira" name="endereco_prateleira" placeholder="Ex.: 03"></div>
+      <div class="field"><label for="endereco_posicao">Posição</label><input id="endereco_posicao" name="endereco_posicao" placeholder="Ex.: 02"></div>
+      {% endif %}
       <div class="field">
         <label for="status">Status *</label>
         <select id="status" name="status" required>
           <option value=""></option>
+          {% if site_area == 'estoque_cd' %}<option value="Disponível">Disponível</option>{% endif %}
           <option value="Reservado">Reservado</option>
           <option value="Separado">Separado</option>
         </select>
@@ -897,6 +906,7 @@
         {% endif %}
         <select id="filtro-status" class="filtro-select">
           <option value="">Todos os status</option>
+          {% if site_area == 'estoque_cd' %}<option value="Disponível">Disponível</option>{% endif %}
           <option value="Reservado">Reservado</option>
           <option value="Separado">Separado</option>
           <option value="Enviado">Enviado</option>
@@ -937,8 +947,9 @@
             <th>Filial / destino</th>
             <th>Local</th>
             <th>Armazenamento</th>
+            {% if site_area == 'estoque_cd' %}<th>Endereço</th>{% endif %}
             <th>Status</th>
-            <th>Tipo de estoque</th>
+            {% if site_area != 'estoque_cd' %}<th>Tipo de estoque</th>{% endif %}
             <th>Nº imob.</th>
             <th>Nº série</th>
             <th>Nº patrim.</th>
@@ -1087,10 +1098,17 @@
           {% endif %}
         </select>
       </div>
+      {% if site_area == 'estoque_cd' %}
+      <div class="field"><label for="fe-endereco_rua">Rua</label><input id="fe-endereco_rua"></div>
+      <div class="field"><label for="fe-endereco_corredor">Corredor</label><input id="fe-endereco_corredor"></div>
+      <div class="field"><label for="fe-endereco_prateleira">Prateleira</label><input id="fe-endereco_prateleira"></div>
+      <div class="field"><label for="fe-endereco_posicao">Posição</label><input id="fe-endereco_posicao"></div>
+      {% endif %}
       <div class="field">
         <label for="fe-status">Status</label>
         <select id="fe-status">
           <option value=""></option>
+          {% if site_area == 'estoque_cd' %}<option value="Disponível">Disponível</option>{% endif %}
           <option value="Reservado">Reservado</option>
           <option value="Separado">Separado</option>
           <option value="Enviado">Enviado</option>
@@ -1437,8 +1455,9 @@ function renderizar(){
       <td data-label="Filial / destino">${escapeHtml(formatarFilialDestino(it.filial_destino))}</td>
       <td data-label="Local">${escapeHtml(it.local || '')}</td>
       <td data-label="Armazenamento">${escapeHtml(it.armazenagem || '')}</td>
+      ${IS_CD ? `<td data-label="Endereço">${escapeHtml([it.endereco_rua,it.endereco_corredor,it.endereco_prateleira,it.endereco_posicao].filter(Boolean).join(' / '))}</td>` : ''}
       <td data-label="Status">${it.status ? `<span class="status-pill ${escapeHtml((it.status||'').toLowerCase())}">${escapeHtml(it.status)}</span>` : ''}</td>
-      <td data-label="Tipo de estoque">${escapeHtml(canonicalizarTipo(it.tipo_estoque) || 'Não informado')}</td>
+      ${IS_CD ? '' : `<td data-label="Tipo de estoque">${escapeHtml(canonicalizarTipo(it.tipo_estoque) || 'Não informado')}</td>`}
       <td data-label="Nº imob.">${escapeHtml(it.nro_imobilizado || '')}</td>
       <td data-label="Nº série">${escapeHtml(it.nro_serie || '')}</td>
       <td data-label="Nº patrim.">${escapeHtml(it.nro_patrimonio || '')}</td>
@@ -2736,6 +2755,10 @@ document.getElementById('item-form').addEventListener('submit', async (e) => {
     pedido: form.pedido.value,
     val_aquis: form.val_aquis.value,
     chamado: form.chamado.value,
+    endereco_rua: form.endereco_rua?.value || '',
+    endereco_corredor: form.endereco_corredor?.value || '',
+    endereco_prateleira: form.endereco_prateleira?.value || '',
+    endereco_posicao: form.endereco_posicao?.value || '',
   };
   const obrigatorios = [
     ['local','Local'], ['armazenagem','Armazenamento'], ['status','Status'],
@@ -3361,6 +3384,12 @@ function abrirEdicaoCompleta(id){
   document.getElementById('fe-localizacao').value = it.localizacao || '';
   document.getElementById('fe-local').value = it.local || '';
   document.getElementById('fe-armazenagem').value = IS_CD ? 'CD' : (it.armazenagem || '');
+  if(IS_CD){
+    document.getElementById('fe-endereco_rua').value = it.endereco_rua || '';
+    document.getElementById('fe-endereco_corredor').value = it.endereco_corredor || '';
+    document.getElementById('fe-endereco_prateleira').value = it.endereco_prateleira || '';
+    document.getElementById('fe-endereco_posicao').value = it.endereco_posicao || '';
+  }
   document.getElementById('fe-status').value = it.status || '';
   document.getElementById('fe-tipo_estoque').value = it.tipo_estoque || '';
   document.getElementById('fe-nf_entrada').value = it.nf_entrada || '';
@@ -3406,6 +3435,10 @@ document.getElementById('fe-save').addEventListener('click', async () => {
     pedido: document.getElementById('fe-pedido').value,
     val_aquis: document.getElementById('fe-val_aquis').value,
     chamado: document.getElementById('fe-chamado').value,
+    endereco_rua: IS_CD ? document.getElementById('fe-endereco_rua').value : '',
+    endereco_corredor: IS_CD ? document.getElementById('fe-endereco_corredor').value : '',
+    endereco_prateleira: IS_CD ? document.getElementById('fe-endereco_prateleira').value : '',
+    endereco_posicao: IS_CD ? document.getElementById('fe-endereco_posicao').value : '',
   };
   if(String(dados.status || '').toLowerCase() === 'enviado'){
     const obrigatoriosEnvio = [
@@ -3570,6 +3603,7 @@ if(IS_CD){
   });
 }
 </script>
+{% if site_area == 'estoque_cd' %}{% include '_cd_operacao_script.html' %}{% endif %}
 
 </body>
 </html>
