@@ -717,7 +717,8 @@ def init_db():
                 usuario TEXT,
                 status TEXT,
                 detalhes TEXT,
-                data_hora TEXT NOT NULL
+                data_hora TEXT NOT NULL,
+                site_area TEXT NOT NULL DEFAULT 'expansao'
             )
         """)
     else:
@@ -734,7 +735,8 @@ def init_db():
                 usuario TEXT,
                 status TEXT,
                 detalhes TEXT,
-                data_hora TEXT NOT NULL
+                data_hora TEXT NOT NULL,
+                site_area TEXT NOT NULL DEFAULT 'expansao'
             )
         """)
     conn.commit()
@@ -917,7 +919,7 @@ def init_db():
             conn.rollback()
 
     # Migração v1.6.0: isolamento lógico entre Expansão e Estoque CD.
-    for tabela in ("itens", "imobilizados", "produtos"):
+    for tabela in ("itens", "imobilizados", "produtos", "importacoes"):
         try:
             if IS_PG:
                 cur.execute(f"ALTER TABLE {tabela} ADD COLUMN IF NOT EXISTS site_area TEXT NOT NULL DEFAULT 'expansao'")
@@ -930,7 +932,7 @@ def init_db():
     # Normalização v1.6.5: todo o legado anterior à separação pertence à Expansão.
     # Também corrige grafias antigas/alternativas para impedir que dados válidos
     # desapareçam quando as consultas usam o identificador canônico "expansao".
-    for tabela in ("itens", "imobilizados", "produtos", "movimentacoes", "kit_padrao_loja"):
+    for tabela in ("itens", "imobilizados", "produtos", "movimentacoes", "kit_padrao_loja", "importacoes"):
         try:
             cur.execute(f"UPDATE {tabela} SET site_area='expansao' WHERE site_area IS NULL OR TRIM(site_area)='' OR LOWER(TRIM(site_area)) IN ('expansao','expansão','expansion')")
             cur.execute(f"UPDATE {tabela} SET site_area='estoque_cd' WHERE LOWER(TRIM(site_area)) IN ('estoque cd','estoque-cd','cd','estoque_cd')")
@@ -2857,8 +2859,8 @@ def excluir_acompanhamento_expansao_em_lote(ids):
 def registrar_importacao(tipo, arquivo, total_linhas=0, validas=0, criadas=0, atualizadas=0, ignoradas=0, usuario=None, status="concluida", detalhes=None):
     conn=get_conn(); cur=get_cursor(conn)
     try:
-        cur.execute(q("INSERT INTO importacoes (tipo,arquivo,total_linhas,validas,criadas,atualizadas,ignoradas,usuario,status,detalhes,data_hora) VALUES (?,?,?,?,?,?,?,?,?,?,?)"),
-                    (tipo,arquivo,int(total_linhas or 0),int(validas or 0),int(criadas or 0),int(atualizadas or 0),int(ignoradas or 0),usuario,status,detalhes,datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+        cur.execute(q("INSERT INTO importacoes (tipo,arquivo,total_linhas,validas,criadas,atualizadas,ignoradas,usuario,status,detalhes,data_hora,site_area) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)"),
+                    (tipo,arquivo,int(total_linhas or 0),int(validas or 0),int(criadas or 0),int(atualizadas or 0),int(ignoradas or 0),usuario,status,detalhes,datetime.now().strftime("%Y-%m-%d %H:%M:%S"),get_site_area()))
         conn.commit()
     except Exception:
         conn.rollback(); raise
@@ -2868,7 +2870,7 @@ def registrar_importacao(tipo, arquivo, total_linhas=0, validas=0, criadas=0, at
 def listar_importacoes_recentes(limite=20):
     conn=get_conn(); cur=get_cursor(conn)
     try:
-        cur.execute(q("SELECT * FROM importacoes ORDER BY id DESC LIMIT ?"), (int(limite or 20),))
+        cur.execute(q("SELECT * FROM importacoes WHERE site_area = ? ORDER BY id DESC LIMIT ?"), (get_site_area(), int(limite or 20)))
         return [dict(r) for r in cur.fetchall()]
     finally:
         cur.close(); conn.close()
@@ -2880,7 +2882,10 @@ def obter_saude_sistema():
         _=cur.fetchone()
         contagens={}
         for tabela in ("itens","imobilizados","produtos","filiais","movimentacoes"):
-            cur.execute(f"SELECT COUNT(*) AS total FROM {tabela}")
+            if tabela == "filiais":
+                cur.execute("SELECT COUNT(*) AS total FROM filiais")
+            else:
+                cur.execute(q(f"SELECT COUNT(*) AS total FROM {tabela} WHERE site_area = ?"), (get_site_area(),))
             contagens[tabela]=int(_valor_escalar(cur.fetchone(),"total",0) or 0)
         cur.execute("SELECT COUNT(*) AS total FROM filiais WHERE COALESCE(TRIM(uf),'') = ''")
         filiais_sem_uf=int(_valor_escalar(cur.fetchone(),"total",0) or 0)
@@ -2888,9 +2893,9 @@ def obter_saude_sistema():
         filiais_sem_bandeira=int(_valor_escalar(cur.fetchone(),"total",0) or 0)
         cur.execute("SELECT COUNT(*) AS total FROM filiais WHERE ativo = 'inaugurar' AND COALESCE(TRIM(previsao_abertura),'') = ''")
         inaug_sem_data=int(_valor_escalar(cur.fetchone(),"total",0) or 0)
-        cur.execute("SELECT data_hora FROM movimentacoes ORDER BY id DESC LIMIT 1")
+        cur.execute(q("SELECT data_hora FROM movimentacoes WHERE site_area = ? ORDER BY id DESC LIMIT 1"), (get_site_area(),))
         row=cur.fetchone(); ultima_mov=(dict(row).get('data_hora') if row and hasattr(row,'keys') else (row[0] if row else None))
-        cur.execute("SELECT data_hora, tipo, arquivo, status FROM importacoes ORDER BY id DESC LIMIT 1")
+        cur.execute(q("SELECT data_hora, tipo, arquivo, status FROM importacoes WHERE site_area = ? ORDER BY id DESC LIMIT 1"), (get_site_area(),))
         row=cur.fetchone(); ultima_importacao=dict(row) if row else None
         return {
             "database":"PostgreSQL" if IS_PG else "SQLite",

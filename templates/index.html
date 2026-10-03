@@ -532,18 +532,18 @@
       <span class="tag">Estoque</span>
     </div>
     <h1>Estoque</h1>
-    <p>Controle de entrada, saída, saldo operacional e capacidade de abertura de lojas.</p>
+    <p>{% if site_area == 'estoque_cd' %}Controle de entrada, saída e saldo operacional por Centro de Distribuição.{% else %}Controle de entrada, saída, saldo operacional e capacidade de abertura de lojas.{% endif %}</p>
   </div>
   <div class="stats">
     <div class="stat-box"><span class="num" id="stat-total">0</span><span class="lbl">Itens</span></div>
     <div class="stat-box"><span class="num" id="stat-estoque">0</span><span class="lbl">Em estoque</span></div>
     <div class="stat-box"><span class="num" id="stat-saiu">0</span><span class="lbl">Já saíram</span></div>
-    <div class="stat-box"><span class="num" id="stat-expansao" style="color:var(--accent);">0</span><span class="lbl">Expansão</span></div>
-    <div class="stat-box"><span class="num" id="stat-sustentacao" style="color:var(--accent-2);">0</span><span class="lbl">Sustentação</span></div>
-    <div class="stat-box"><span class="num" id="stat-requalificacao" style="color:var(--ok);">0</span><span class="lbl">Requalificação</span></div>
-    <div class="stat-box"><span class="num" id="stat-ampliacao" style="color:#a78bfa;">0</span><span class="lbl">Ampliação</span></div>
-    <div class="stat-box"><span class="num" id="stat-realocacao" style="color:#ff6b6b;">0</span><span class="lbl">Realocação</span></div>
-    <div class="stat-box"><span class="num" id="stat-reversa" style="color:#8b96a8;">0</span><span class="lbl">Reversa</span></div>
+    <div class="stat-box" {% if site_area == 'estoque_cd' %}style="display:none"{% endif %}><span class="num" id="stat-expansao" style="color:var(--accent);">0</span><span class="lbl">Expansão</span></div>
+    <div class="stat-box" {% if site_area == 'estoque_cd' %}style="display:none"{% endif %}><span class="num" id="stat-sustentacao" style="color:var(--accent-2);">0</span><span class="lbl">Sustentação</span></div>
+    <div class="stat-box" {% if site_area == 'estoque_cd' %}style="display:none"{% endif %}><span class="num" id="stat-requalificacao" style="color:var(--ok);">0</span><span class="lbl">Requalificação</span></div>
+    <div class="stat-box" {% if site_area == 'estoque_cd' %}style="display:none"{% endif %}><span class="num" id="stat-ampliacao" style="color:#a78bfa;">0</span><span class="lbl">Ampliação</span></div>
+    <div class="stat-box" {% if site_area == 'estoque_cd' %}style="display:none"{% endif %}><span class="num" id="stat-realocacao" style="color:#ff6b6b;">0</span><span class="lbl">Realocação</span></div>
+    <div class="stat-box" {% if site_area == 'estoque_cd' %}style="display:none"{% endif %}><span class="num" id="stat-reversa" style="color:#8b96a8;">0</span><span class="lbl">Reversa</span></div>
   </div>
 </header>
 {% include '_menu.html' %}
@@ -557,7 +557,7 @@
   <a class="ui-btn ui-btn-secondary" href="{{ url_for('exportar_itens_enviados_excel') }}">⇩ Itens enviados</a>
   <a class="ui-btn ui-btn-pdf" href="{{ url_for('exportar_estoque_pdf') }}">▣ Relatório PDF</a>
   <button type="button" class="ui-btn ui-btn-import" id="abrir-importar">↑ Importar Excel</button>
-  <a class="ui-btn ui-btn-primary" href="{{ url_for('pagina_expedicao') }}">⇩ Abrir Expedição</a>
+  {% if site_area != 'estoque_cd' %}<a class="ui-btn ui-btn-primary" href="{{ url_for('pagina_expedicao') }}">⇩ Abrir Expedição</a>{% endif %}
   <a class="ui-btn ui-btn-secondary" href="{{ url_for('pagina_relatorios') }}">Central de Relatórios</a>
 </div>
 {% endif %}
@@ -565,28 +565,28 @@
 <main class="page-estoque">
   <section class="enterprise-hero">
     <div class="hero-copy">
-      <span class="hero-chip">Dashboard operacional · Estoque</span>
-      <h2>Estoque com visão executiva e operação</h2>
-      <p>Acompanhe saldo, estoque de Expansão e capacidade potencial para abertura de lojas em uma visão única e objetiva.</p>
+      <span class="hero-chip">{% if site_area == 'estoque_cd' %}Operação · Estoque CD{% else %}Dashboard operacional · Estoque{% endif %}</span>
+      <h2>{% if site_area == 'estoque_cd' %}Estoque CD com visão operacional{% else %}Estoque com visão executiva e operação{% endif %}</h2>
+      <p>{% if site_area == 'estoque_cd' %}Acompanhe o saldo e a distribuição dos itens entre os Centros de Distribuição em uma visão única e objetiva.{% else %}Acompanhe saldo, estoque de Expansão e capacidade potencial para abertura de lojas em uma visão única e objetiva.{% endif %}</p>
       <div class="hero-kpis">
         <div class="hero-mini"><span>Itens cadastrados</span><strong id="hero-estoque-total">0</strong><small>Total de registros no estoque.</small></div>
         <div class="hero-mini"><span>Em estoque</span><strong id="hero-estoque-ativos">0</strong><small>Itens com saldo disponível.</small></div>
-        <div class="hero-mini"><span>Unidades expansão</span><strong id="hero-estoque-expansao">0</strong><small>Base para abertura de lojas.</small></div>
-        <div class="hero-mini"><span>Capacidade estimada</span><strong id="hero-estoque-lojas">0</strong><small>Lojas completas possíveis.</small></div>
+        <div class="hero-mini"><span>{% if site_area == 'estoque_cd' %}CDs com saldo{% else %}Unidades expansão{% endif %}</span><strong id="hero-estoque-expansao">0</strong><small>{% if site_area == 'estoque_cd' %}Centros com itens disponíveis.{% else %}Base para abertura de lojas.{% endif %}</small></div>
+        <div class="hero-mini"><span>{% if site_area == 'estoque_cd' %}Códigos únicos{% else %}Capacidade estimada{% endif %}</span><strong id="hero-estoque-lojas">0</strong><small>{% if site_area == 'estoque_cd' %}Produtos distintos com registro.{% else %}Lojas completas possíveis.{% endif %}</small></div>
       </div>
       <div class="hero-status-line">
         <span class="hero-badge" id="hero-estoque-status">Carregando indicadores...</span>
-        <span class="hero-badge warn" id="hero-estoque-pipeline">Aguardando leitura do kit padrão</span>
+        <span class="hero-badge warn" id="hero-estoque-pipeline">{% if site_area == 'estoque_cd' %}Carregando distribuição por CD...{% else %}Aguardando leitura do kit padrão{% endif %}</span>
       </div>
     </div>
     <div class="hero-side">
       <div class="side-card">
         <h3>Painel executivo</h3>
-        <p id="hero-estoque-texto">Os indicadores serão atualizados quando o estoque e o kit padrão forem carregados.</p>
+        <p id="hero-estoque-texto">{% if site_area == 'estoque_cd' %}Os indicadores serão atualizados quando os registros do Estoque CD forem carregados.{% else %}Os indicadores serão atualizados quando o estoque e o kit padrão forem carregados.{% endif %}</p>
         <div class="side-list">
           <div><span>Códigos únicos</span><strong id="hero-estoque-codigos">0</strong></div>
-          <div><span>Tipos com saldo</span><strong id="hero-estoque-tipos">0</strong></div>
-          <div><span>Meta do lote</span><strong id="hero-estoque-meta">0</strong></div>
+          <div><span>{% if site_area == 'estoque_cd' %}CDs com saldo{% else %}Tipos com saldo{% endif %}</span><strong id="hero-estoque-tipos">0</strong></div>
+          <div><span>{% if site_area == 'estoque_cd' %}Ambiente{% else %}Meta do lote{% endif %}</span><strong id="hero-estoque-meta">{% if site_area == 'estoque_cd' %}CD{% else %}0{% endif %}</strong></div>
         </div>
       </div>
     </div>
@@ -651,10 +651,14 @@
       <div class="field">
         <label for="local">Local *</label>
         <select id="local" name="local" required>
-          <option value=""></option>
+          <option value="">{% if site_area == 'estoque_cd' %}Selecione o CD...{% endif %}</option>
+          {% if site_area == 'estoque_cd' %}
+          {% for cd, uf in cds_dpsp %}<option value="{{ cd }}" data-uf="{{ uf }}">{{ cd }}</option>{% endfor %}
+          {% else %}
           <option value="CD">CD</option>
           <option value="Engemon">Engemon</option>
           <option value="Loja">Loja</option>
+          {% endif %}
         </select>
       </div>
       <div class="field">
@@ -675,6 +679,9 @@
           <option value="Separado">Separado</option>
         </select>
       </div>
+      {% if site_area == 'estoque_cd' %}
+      <input type="hidden" id="tipo_estoque" name="tipo_estoque" value="Estoque CD">
+      {% else %}
       <div class="field">
         <label for="tipo_estoque">Tipo de Estoque *</label>
         <select id="tipo_estoque" name="tipo_estoque" required>
@@ -687,6 +694,7 @@
           <option value="Reversa">Reversa</option>
         </select>
       </div>
+      {% endif %}
       <div class="field">
         <label for="nro_imobilizado">Nº imobilizado</label>
         <input id="nro_imobilizado" name="nro_imobilizado" placeholder="Nº imobilizado">
@@ -719,7 +727,7 @@
     </form>
   </section>
 
-  <section class="panel">
+  <section class="panel" {% if site_area == 'estoque_cd' %}style="display:none" aria-hidden="true"{% endif %}>
     <div class="graficos-duplos">
       <div class="grafico-tipo-coluna">
         <h2>Estoque por tipo</h2>
@@ -869,6 +877,9 @@
     <div class="toolbar">
       <h2 style="margin:0;">Itens cadastrados</h2>
       <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+        {% if site_area == 'estoque_cd' %}
+        <select id="filtro-tipo" class="filtro-select" style="display:none"><option value="">Todos os tipos</option></select>
+        {% else %}
         <select id="filtro-tipo" class="filtro-select">
           <option value="">Todos os tipos</option>
           <option value="Não informado">Não informado</option>
@@ -879,6 +890,7 @@
           <option value="Realocação">Realocação</option>
           <option value="Reversa">Reversa</option>
         </select>
+        {% endif %}
         <select id="filtro-status" class="filtro-select">
           <option value="">Todos os status</option>
           <option value="Reservado">Reservado</option>
@@ -887,9 +899,13 @@
         </select>
         <select id="filtro-local" class="filtro-select">
           <option value="">Todos os locais</option>
+          {% if site_area == 'estoque_cd' %}
+          {% for cd, uf in cds_dpsp %}<option value="{{ cd }}">{{ cd }}</option>{% endfor %}
+          {% else %}
           <option value="CD">CD</option>
           <option value="Engemon">Engemon</option>
           <option value="Loja">Loja</option>
+          {% endif %}
         </select>
         <select id="filtro-filial" class="filtro-select"><option value="">Todas as filiais</option></select>
         <input type="search" id="busca" placeholder="Buscar por código, descrição, filial, serial...">
@@ -1043,10 +1059,14 @@
       <div class="field">
         <label for="fe-local">Local</label>
         <select id="fe-local">
-          <option value=""></option>
+          <option value="">{% if site_area == 'estoque_cd' %}Selecione o CD...{% endif %}</option>
+          {% if site_area == 'estoque_cd' %}
+          {% for cd, uf in cds_dpsp %}<option value="{{ cd }}" data-uf="{{ uf }}">{{ cd }}</option>{% endfor %}
+          {% else %}
           <option value="CD">CD</option>
           <option value="Engemon">Engemon</option>
           <option value="Loja">Loja</option>
+          {% endif %}
         </select>
       </div>
       <div class="field">
@@ -1068,6 +1088,9 @@
           <option value="Enviado">Enviado</option>
         </select>
       </div>
+      {% if site_area == 'estoque_cd' %}
+      <input type="hidden" id="fe-tipo_estoque" value="Estoque CD">
+      {% else %}
       <div class="field">
         <label for="fe-tipo_estoque">Tipo de Estoque</label>
         <select id="fe-tipo_estoque">
@@ -1080,6 +1103,7 @@
           <option value="Reversa">Reversa</option>
         </select>
       </div>
+      {% endif %}
       <div class="field">
         <label for="fe-nf_entrada">NF de entrada</label>
         <input id="fe-nf_entrada">
@@ -1183,7 +1207,7 @@
       </div>
       <div class="field">
         <label><input type="checkbox" class="bulk-enable" data-field="local" data-target="bulk-local"> Alterar local</label>
-        <select id="bulk-local" disabled><option value=""></option><option value="CD">CD</option><option value="Engemon">Engemon</option><option value="Loja">Loja</option></select>
+        <select id="bulk-local" disabled><option value=""></option>{% if site_area == 'estoque_cd' %}{% for cd, uf in cds_dpsp %}<option value="{{ cd }}" data-uf="{{ uf }}">{{ cd }}</option>{% endfor %}{% else %}<option value="CD">CD</option><option value="Engemon">Engemon</option><option value="Loja">Loja</option>{% endif %}</select>
       </div>
       <div class="field">
         <label><input type="checkbox" class="bulk-enable" data-field="armazenagem" data-target="bulk-armazenagem"> Alterar armazenamento</label>
@@ -1193,10 +1217,12 @@
         <label><input type="checkbox" class="bulk-enable" data-field="status" data-target="bulk-status"> Alterar status</label>
         <select id="bulk-status" disabled><option value=""></option><option value="Reservado">Reservado</option><option value="Separado">Separado</option></select><small style="display:block;margin-top:5px;color:var(--muted);font-size:10px;">Envio é feito por unidade em “Baixa de estoque”.</small>
       </div>
+      {% if site_area != 'estoque_cd' %}
       <div class="field">
         <label><input type="checkbox" class="bulk-enable" data-field="tipo_estoque" data-target="bulk-tipo_estoque"> Alterar tipo de estoque</label>
         <select id="bulk-tipo_estoque" disabled><option value=""></option><option value="Expansão">Expansão</option><option value="Sustentação">Sustentação</option><option value="Requalificação">Requalificação</option><option value="Ampliação">Ampliação</option><option value="Realocação">Realocação</option><option value="Reversa">Reversa</option></select>
       </div>
+      {% endif %}
       <div class="field">
         <label><input type="checkbox" class="bulk-enable" data-field="nf_entrada" data-target="bulk-nf_entrada"> Alterar NF de entrada</label>
         <input id="bulk-nf_entrada" disabled>
@@ -1258,7 +1284,7 @@
     <h3>Importar planilha Excel</h3>
     <p style="margin:0 0 16px; font-size:13px; color:var(--muted); line-height:1.5;">
       A planilha deve ter uma linha de título com os nomes das colunas
-      (ex: "Código do item", "Descrição", "Qtde"...). O upload exige Local, Armazenamento, Status, Tipo de estoque, UF e Qtde preenchidos. Por segurança, confirme
+      (ex: "Código do item", "Descrição", "Qtde"...). O upload exige Local, Armazenamento, Status, {% if site_area != 'estoque_cd' %}Tipo de estoque, {% endif %}UF e Qtde preenchidos. Por segurança, confirme
       sua senha para continuar — o upload fica registrado no histórico de cada item.
     </p>
     <div id="importar-msg" style="display:none; margin-bottom:14px;"></div>
@@ -1311,13 +1337,15 @@
 
 <script>
 const PERFIL_USUARIO={{ (role or "user")|tojson }};
+const IS_CD={{ (site_area == 'estoque_cd')|tojson }};
+const CD_UF_MAP={{ cds_dpsp_uf|tojson }};
 const PODE_EDITAR=["admin","gestor","operador","user"].includes(PERFIL_USUARIO);
 const PODE_GERENCIAR=["admin","gestor","operador","user"].includes(PERFIL_USUARIO);
 function normalizarTexto(str){
   return (str || '').toString().trim().toLowerCase()
     .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 }
-const TIPOS_ESTOQUE_CANONICOS = ['Expansão','Sustentação','Requalificação','Ampliação','Realocação','Reversa'];
+const TIPOS_ESTOQUE_CANONICOS = ['Expansão','Sustentação','Requalificação','Ampliação','Realocação','Reversa','Estoque CD'];
 function canonicalizarTipo(valor){
   const norm = normalizarTexto(valor);
   if(!norm) return '';
@@ -1440,11 +1468,13 @@ function renderizar(){
   }
 
   atualizarStats();
-  atualizarGrafico();
-  renderizarCapacidadeAbertura();
-  if(modoSimuladorLojas) renderizarSimuladorLojas();
-  else if(modoKitPadrao) renderizarKitPadrao();
-  else atualizarGraficoCodigoItem();
+  if(!IS_CD){
+    atualizarGrafico();
+    renderizarCapacidadeAbertura();
+    if(modoSimuladorLojas) renderizarSimuladorLojas();
+    else if(modoKitPadrao) renderizarKitPadrao();
+    else atualizarGraficoCodigoItem();
+  }
   atualizarSelecionados();
 }
 
@@ -1481,6 +1511,25 @@ function atualizarStats(){
   Object.entries(mapaGrafStats).forEach(([id,tipo])=>{const el=document.getElementById(id);if(el)el.textContent=somaPorTipo(tipo);});
   const unicos=new Set(itensCache.map(it=>String(it.codigo||'').trim()).filter(Boolean)).size;
   const tiposAtivos=['Expansão','Sustentação','Requalificação','Ampliação','Realocação','Reversa'].filter(tipo=>somaPorTipo(tipo)>0).length;
+  if(IS_CD){
+    const comSaldo=itensCache.filter(it=>(Number(it.qtde)||0)>0);
+    const cdsComSaldo=new Set(comSaldo.map(it=>String(it.local||'').trim()).filter(Boolean)).size;
+    const unidadesDisponiveis=comSaldo.reduce((soma,it)=>soma+(Number(it.qtde)||0),0);
+    document.getElementById('hero-estoque-total').textContent=total;
+    document.getElementById('hero-estoque-ativos').textContent=unidadesDisponiveis;
+    document.getElementById('hero-estoque-expansao').textContent=cdsComSaldo;
+    document.getElementById('hero-estoque-lojas').textContent=unicos;
+    document.getElementById('hero-estoque-codigos').textContent=unicos;
+    document.getElementById('hero-estoque-tipos').textContent=cdsComSaldo;
+    document.getElementById('hero-estoque-meta').textContent='CD';
+    const badge=document.getElementById('hero-estoque-status');
+    const pipeline=document.getElementById('hero-estoque-pipeline');
+    badge.textContent=unidadesDisponiveis>0?'Estoque CD operacional':'Estoque CD sem saldo';
+    badge.className=unidadesDisponiveis>0?'hero-badge ok':'hero-badge';
+    pipeline.textContent=`${cdsComSaldo} CD(s) com saldo`;
+    document.getElementById('hero-estoque-texto').textContent=`${unidadesDisponiveis} unidade(s) disponível(is), distribuída(s) em ${cdsComSaldo} Centro(s) de Distribuição e ${unicos} código(s) único(s).`;
+    return;
+  }
   const resultado=(typeof calcularSimulacaoLojas==='function')?calcularSimulacaoLojas():{lojas:0};
   const capacidade=Math.max(0,Number(resultado.lojas)||0);
   const meta=Math.max(1,Number(META_LOJAS_EXPANSAO)||1);
@@ -2641,6 +2690,17 @@ function sincronizarDescricaoProduto(prefix=''){
 document.getElementById('codigo')?.addEventListener('change',()=>sincronizarDescricaoProduto(''));
 document.getElementById('fe-codigo')?.addEventListener('change',()=>sincronizarDescricaoProduto('fe-'));
 
+function sincronizarUfDoCd(localId, ufId){
+  if(!IS_CD) return;
+  const localEl=document.getElementById(localId), ufEl=document.getElementById(ufId);
+  if(!localEl || !ufEl) return;
+  const aplicar=()=>{const uf=CD_UF_MAP[String(localEl.value||'').trim()]||'';if(uf){ufEl.value=uf;ufEl.dispatchEvent(new Event('change',{bubbles:true}));}};
+  localEl.addEventListener('change',aplicar);
+  aplicar();
+}
+sincronizarUfDoCd('local','localizacao');
+sincronizarUfDoCd('fe-local','fe-localizacao');
+
 if(!PODE_EDITAR){const f=document.getElementById('item-form');if(f){f.querySelectorAll('input,select,button').forEach(el=>el.disabled=true);f.insertAdjacentHTML('beforebegin','<div class="hint" style="margin-bottom:12px">Seu perfil está em modo consulta. Cadastro e movimentação estão bloqueados.</div>');}document.getElementById('abrir-importar')?.remove();}
 if(!PODE_GERENCIAR){const kf=document.getElementById('kit-form');if(kf)kf.style.display='none';}
 
@@ -2671,7 +2731,7 @@ document.getElementById('item-form').addEventListener('submit', async (e) => {
   };
   const obrigatorios = [
     ['local','Local'], ['armazenagem','Armazenamento'], ['status','Status'],
-    ['tipo_estoque','Tipo de estoque'], ['localizacao','UF'], ['qtde','Qtde']
+    ...(IS_CD ? [] : [['tipo_estoque','Tipo de estoque']]), ['localizacao','UF'], ['qtde','Qtde']
   ];
   const faltantes = obrigatorios.filter(([campo]) => !String(dados[campo] ?? '').trim() || (campo === 'qtde' && Number(dados[campo]) <= 0)).map(([,rotulo]) => rotulo);
   if(faltantes.length){
@@ -3491,11 +3551,16 @@ document.getElementById('importar-enviar').addEventListener('click', async () =>
   }
 });
 
-carregarMetaLojasExpansao().finally(()=>{
+if(IS_CD){
   carregarFiliais().then(()=>carregarItens());
   carregarProdutos();
-  carregarKitPadrao();
-});
+}else{
+  carregarMetaLojasExpansao().finally(()=>{
+    carregarFiliais().then(()=>carregarItens());
+    carregarProdutos();
+    carregarKitPadrao();
+  });
+}
 </script>
 
 </body>

@@ -10,14 +10,14 @@
 {% include '_mobile_head.html' %}
 </head>
 <body class="app-standard">
-<header><span class="tag">AUDITORIA</span><h1>Histórico de movimentações</h1><p>Históricos separados por origem, com pesquisa e período.</p></header>
+<header><span class="tag">AUDITORIA</span><h1>Histórico de movimentações</h1><p>{% if site_area == 'estoque_cd' %}Histórico operacional do Estoque CD, com pesquisa e período.{% else %}Históricos separados por origem, com pesquisa e período.{% endif %}</p></header>
 {% include '_menu.html' %}
 <main>
 <section class="panel">
   <div class="tabs">
     <button class="tab active" data-origem="">Todos</button>
     <button class="tab" data-origem="itens">Estoque</button>
-    <button class="tab" data-origem="imobilizados">Imobilizados</button>
+    {% if site_area != 'estoque_cd' %}<button class="tab" data-origem="imobilizados">Imobilizados</button>{% endif %}
     <button class="tab" data-origem="sistema">Sistema</button>
   </div>
   <div class="tools">
@@ -46,6 +46,8 @@
 {% include '_footer.html' %}
 <script>
 let movs=[],origemAtiva=new URLSearchParams(location.search).get('origem')||'',timerData;
+const IS_CD={{ (site_area == 'estoque_cd')|tojson }};
+if(IS_CD && origemAtiva==='imobilizados') origemAtiva='';
 const isAdmin={{ 'true' if is_admin else 'false' }};
 const norm=s=>String(s||'').toLowerCase();
 const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
@@ -60,7 +62,7 @@ document.querySelectorAll('.tab').forEach(b=>{if(b.dataset.origem===origemAtiva)
 document.getElementById('limpar').addEventListener('click',()=>{document.getElementById('q').value='';document.getElementById('tipo').value='';document.getElementById('inicio').value='';document.getElementById('fim').value='';origemAtiva='';document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x.dataset.origem===''));carregar()});
 document.getElementById('imprimir').addEventListener('click',()=>window.print());
 async function baixarResposta(r,nomePadrao){const blob=await r.blob(),nome=(r.headers.get('Content-Disposition')||'').match(/filename="?([^";]+)"?/)?.[1]||nomePadrao,a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=nome;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
-if(isAdmin){document.getElementById('selecionar-todos').addEventListener('change',e=>{document.querySelectorAll('.mov-check').forEach(x=>x.checked=e.target.checked);atualizarSelecao()});document.getElementById('excluir-selecionados').addEventListener('click',async()=>{const ids=[...document.querySelectorAll('.mov-check:checked')].map(x=>Number(x.value));if(!ids.length){alert('Selecione ao menos uma movimentação.');return}if(!confirm(`Excluir definitivamente ${ids.length} movimentação(ões) selecionada(s)?\n\nEssa ação não altera os itens atuais do estoque ou imobilizados.`))return;const r=await fetch('/api/movimentacoes/excluir-lote',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ids})});const x=await r.json();if(!r.ok){alert(x.erro||'Não foi possível excluir.');return}alert(`${x.excluidas} movimentação(ões) excluída(s).`);await carregar()});document.getElementById('excluir-tudo').addEventListener('click',async()=>{const confirmacao=prompt('Esta ação apagará TODO o histórico de movimentações.\nOs itens atuais não serão apagados.\n\nPara confirmar, digite: APAGAR TUDO');if(confirmacao!=='APAGAR TUDO'){if(confirmacao!==null)alert('Confirmação incorreta. Nada foi apagado.');return}const r=await fetch('/api/movimentacoes/excluir-tudo',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({confirmacao})});if(!r.ok){const x=await r.json().catch(()=>({}));alert(x.erro||'Não foi possível apagar o histórico.');return}const total=r.headers.get('X-Registros-Excluidos')||'0';await baixarResposta(r,'backup_historico_completo.xlsx');await carregar();alert(`${total} movimentação(ões) apagada(s). Guarde o Excel baixado para auditoria.`)})}
+if(isAdmin){document.getElementById('selecionar-todos').addEventListener('change',e=>{document.querySelectorAll('.mov-check').forEach(x=>x.checked=e.target.checked);atualizarSelecao()});document.getElementById('excluir-selecionados').addEventListener('click',async()=>{const ids=[...document.querySelectorAll('.mov-check:checked')].map(x=>Number(x.value));if(!ids.length){alert('Selecione ao menos uma movimentação.');return}if(!confirm(`Excluir definitivamente ${ids.length} movimentação(ões) selecionada(s)?\n\nEssa ação não altera os itens atuais do estoque{% if site_area != 'estoque_cd' %} ou imobilizados{% endif %}.`))return;const r=await fetch('/api/movimentacoes/excluir-lote',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ids})});const x=await r.json();if(!r.ok){alert(x.erro||'Não foi possível excluir.');return}alert(`${x.excluidas} movimentação(ões) excluída(s).`);await carregar()});document.getElementById('excluir-tudo').addEventListener('click',async()=>{const confirmacao=prompt('Esta ação apagará TODO o histórico de movimentações.\nOs itens atuais não serão apagados.\n\nPara confirmar, digite: APAGAR TUDO');if(confirmacao!=='APAGAR TUDO'){if(confirmacao!==null)alert('Confirmação incorreta. Nada foi apagado.');return}const r=await fetch('/api/movimentacoes/excluir-tudo',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({confirmacao})});if(!r.ok){const x=await r.json().catch(()=>({}));alert(x.erro||'Não foi possível apagar o histórico.');return}const total=r.headers.get('X-Registros-Excluidos')||'0';await baixarResposta(r,'backup_historico_completo.xlsx');await carregar();alert(`${total} movimentação(ões) apagada(s). Guarde o Excel baixado para auditoria.`)})}
 carregar().catch(()=>document.getElementById('tb').innerHTML='<tr><td colspan="8" class="empty">Falha ao carregar o histórico.</td></tr>');
 {% if is_admin %}fetch('/api/auditoria-login?limite=200').then(r=>r.json()).then(eventos=>{document.getElementById('tb-login').innerHTML=eventos.map(e=>{const cls=e.resultado==='sucesso'||e.resultado==='senha_alterada'?'login-ok':e.resultado==='bloqueado'?'login-block':'login-fail';return `<tr><td>${esc(e.data_hora)}</td><td>${esc(e.username||'(não informado)')}</td><td><span class="badge ${cls}">${esc(e.resultado)}</span></td><td>${esc(e.motivo)}</td></tr>`}).join('')||'<tr><td colspan="4" class="empty">Nenhum evento de acesso registrado.</td></tr>'});{% endif %}
 </script>

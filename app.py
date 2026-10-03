@@ -69,7 +69,7 @@ import qrcode
 import db
 
 app = Flask(__name__)
-APP_BUILD = "2026-10-02-v1.6.7"
+APP_BUILD = "2026-10-02-v1.6.8"
 _DASHBOARD_CACHE = {}
 _EXPEDICAO_CACHE = {}
 
@@ -80,10 +80,30 @@ EXPANSION_ONLY_PREFIXES = (
     "/api/projecao-lojas", "/api/kit-padrao", "/export-acompanhamento-expansao",
     "/pdf-acompanhamento-expansao", "/export-projecao-lojas", "/export-projecao-lojas-pdf",
     "/export-equipamentos-parque", "/export-equipamentos-parque-pdf",
-    "/imobilizados", "/historico", "/relatorios", "/agente-ia", "/leitor-codigo",
-    "/acesso-celular", "/gestao-dados", "/central-pendencias", "/expurgo-movimentacoes",
-    "/api/imobilizados", "/api/pendencias",
+    "/imobilizados", "/agente-ia", "/leitor-codigo", "/acesso-celular",
+    "/central-pendencias", "/api/imobilizados", "/api/pendencias",
+    "/usuarios", "/api/usuarios", "/api/visao-executiva",
+    "/api/configuracao-expansao", "/api/agente-ia", "/api/orcamento",
+    "/api/baixa-rapida", "/export-cockpit-implantacao", "/pdf-cockpit-implantacao",
+    "/export-orcamento", "/pdf-orcamento", "/export-imobilizados",
+    "/export-imobilizados-pdf", "/export-consolidado",
+    "/relatorio-executivo-estoque-kit.pdf", "/relatorio-executivo-estoque-kit.xlsx",
 )
+
+# Centros de Distribuição disponíveis no ambiente Estoque CD. O cadastro é
+# separado por UF para permitir preenchimento automático e manter os dados
+# operacionais consistentes no estoque do CD.
+CDS_DPSP = (
+    ("CD São Paulo - Osasco", "SP"),
+    ("CD São Paulo - Nova Odessa", "SP"),
+    ("CD Rio de Janeiro - Pavuna", "RJ"),
+    ("CD Espírito Santo - Viana", "ES"),
+    ("CD Minas Gerais - Contagem", "MG"),
+    ("CD Bahia - Lauro de Freitas", "BA"),
+    ("CD Goiás - Hidrolândia", "GO"),
+    ("CD Pernambuco - Olinda", "PE"),
+)
+CDS_DPSP_UF = dict(CDS_DPSP)
 
 def _normalizar_ambiente_usuario(usuario):
     if not usuario:
@@ -210,7 +230,13 @@ def _csrf_ok():
 
 @app.context_processor
 def _inject_security_helpers():
-    return {"csrf_token": _csrf_token(), "site_area": db.get_site_area(), "ambiente_acesso": session.get("ambiente_acesso") or "expansao"}
+    return {
+        "csrf_token": _csrf_token(),
+        "site_area": db.get_site_area(),
+        "ambiente_acesso": session.get("ambiente_acesso") or "expansao",
+        "cds_dpsp": CDS_DPSP,
+        "cds_dpsp_uf": CDS_DPSP_UF,
+    }
 
 
 # ---------------------------------------------------------------------
@@ -1807,7 +1833,10 @@ def api_busca_global():
         alvo=unicodedata.normalize("NFD",alvo)
         alvo="".join(c for c in alvo if unicodedata.category(c)!="Mn")
         return termo in alvo
-    for nome,lista in (("Estoque",db.listar_itens()),("Imobilizados",db.listar_imobilizados())):
+    fontes_busca=[("Estoque", db.listar_itens())]
+    if db.get_site_area() != "estoque_cd":
+        fontes_busca.append(("Imobilizados", db.listar_imobilizados()))
+    for nome,lista in fontes_busca:
         for obj in lista:
             if combina(obj):
                 resultados.append({
@@ -2431,27 +2460,41 @@ def api_dashboard_resumo():
         resposta.headers["X-Dashboard-Cache"] = "HIT"
         return resposta
     base=db.obter_dashboard_compacto(20)
-    try:
-        visao=_calcular_visao_executiva(
-            itens=base.get("itens") or [],
-            kit=base.get("kit") or [],
-            filiais=base.get("filiais") or [],
-            meta=base.get("meta_lojas") or 10,
-        )
-    except Exception as exc:
-        # Não deixar uma inconsistência do pipeline zerar visualmente todo o Dashboard.
-        print(f"[dashboard] falha na visão executiva ({db.get_site_area()}): {type(exc).__name__}: {exc}")
+    if db.get_site_area() == "estoque_cd":
+        # O ambiente CD não consulta nem expõe indicadores do pipeline de Expansão.
+        # Mantemos a mesma estrutura JSON apenas para compatibilidade com o front-end.
         visao={
-            "meta_lojas": int(base.get("meta_lojas") or 10), "capacidade_lojas": 0,
+            "meta_lojas": 0, "capacidade_lojas": 0,
             "lojas_a_inaugurar": 0, "lojas_atendiveis": 0, "lojas_em_risco": 0,
             "percentual_atendimento": 0.0, "itens_criticos": 0, "estoque_expansao": 0,
             "horizontes": {"30":{"lojas":0,"atendiveis":0,"risco":0},"60":{"lojas":0,"atendiveis":0,"risco":0},"90":{"lojas":0,"atendiveis":0,"risco":0}},
             "sem_data": 0, "deficits": [], "inauguradas_acompanhamento": 0,
-            "pendentes_inauguracao": 0, "fonte_pipeline": "acompanhamento_expansao",
+            "pendentes_inauguracao": 0, "fonte_pipeline": "indisponivel_no_estoque_cd",
             "entrada_ti_programada": [], "inauguracao_programada": [],
             "entrada_ti_programada_total": 0, "inauguracao_programada_total": 0, "planejadas": [],
-            "erro_pipeline": str(exc),
         }
+    else:
+        try:
+            visao=_calcular_visao_executiva(
+                itens=base.get("itens") or [],
+                kit=base.get("kit") or [],
+                filiais=base.get("filiais") or [],
+                meta=base.get("meta_lojas") or 10,
+            )
+        except Exception as exc:
+            # Não deixar uma inconsistência do pipeline zerar visualmente todo o Dashboard.
+            print(f"[dashboard] falha na visão executiva ({db.get_site_area()}): {type(exc).__name__}: {exc}")
+            visao={
+                "meta_lojas": int(base.get("meta_lojas") or 10), "capacidade_lojas": 0,
+                "lojas_a_inaugurar": 0, "lojas_atendiveis": 0, "lojas_em_risco": 0,
+                "percentual_atendimento": 0.0, "itens_criticos": 0, "estoque_expansao": 0,
+                "horizontes": {"30":{"lojas":0,"atendiveis":0,"risco":0},"60":{"lojas":0,"atendiveis":0,"risco":0},"90":{"lojas":0,"atendiveis":0,"risco":0}},
+                "sem_data": 0, "deficits": [], "inauguradas_acompanhamento": 0,
+                "pendentes_inauguracao": 0, "fonte_pipeline": "acompanhamento_expansao",
+                "entrada_ti_programada": [], "inauguracao_programada": [],
+                "entrada_ti_programada_total": 0, "inauguracao_programada_total": 0, "planejadas": [],
+                "erro_pipeline": str(exc),
+            }
     status={
         "database":"PostgreSQL" if db.IS_PG else "SQLite",
         "database_ok":True,
@@ -7293,6 +7336,38 @@ CAMPOS_OBRIGATORIOS_CADASTRO = [
 ]
 
 
+def _campos_obrigatorios_cadastro():
+    """Retorna os campos obrigatórios de acordo com o ambiente ativo.
+
+    No Estoque CD o tipo de estoque é implícito, pois o isolamento já é feito
+    por ``site_area``. Assim, o usuário não precisa selecionar uma finalidade
+    como Expansão/Sustentação ao cadastrar um item do CD.
+    """
+    if db.get_site_area() == "estoque_cd":
+        return [item for item in CAMPOS_OBRIGATORIOS_CADASTRO if item[0] != "tipo_estoque"]
+    return list(CAMPOS_OBRIGATORIOS_CADASTRO)
+
+
+def _aplicar_regras_estoque_cd(dados):
+    """Padroniza os dados operacionais quando o ambiente ativo é Estoque CD."""
+    if db.get_site_area() != "estoque_cd":
+        return None
+    if dados is None:
+        return None
+
+    # O tipo deixa de ser um campo operacional no CD, mas mantemos um valor
+    # interno para compatibilidade com relatórios/estrutura de banco existentes.
+    dados["tipo_estoque"] = "Estoque CD"
+
+    local = str(dados.get("local") or "").strip()
+    if local:
+        if local not in CDS_DPSP_UF:
+            return "No ambiente Estoque CD, selecione um Centro de Distribuição válido no campo Local."
+        # O CD determina a UF e evita combinações inconsistentes (ex.: CD GO / SP).
+        dados["localizacao"] = CDS_DPSP_UF[local]
+    return None
+
+
 def _validar_campos_obrigatorios_cadastro(dados):
     """Valida os campos mínimos exigidos em novos cadastros/importações.
 
@@ -7300,8 +7375,11 @@ def _validar_campos_obrigatorios_cadastro(dados):
     preservar compatibilidade, mas na interface esse campo representa a UF.
     """
     dados = dados or {}
+    erro_cd = _aplicar_regras_estoque_cd(dados)
+    if erro_cd:
+        return erro_cd
     faltantes = []
-    for campo, rotulo in CAMPOS_OBRIGATORIOS_CADASTRO:
+    for campo, rotulo in _campos_obrigatorios_cadastro():
         valor = dados.get(campo)
         if valor is None or str(valor).strip() == "":
             faltantes.append(rotulo)
@@ -7416,6 +7494,9 @@ def api_editar_imobilizados_em_lote():
     codigo_alvo, campos, erro = _preparar_edicao_massa_por_codigo(payload)
     if erro:
         return jsonify({"erro": erro}), 400
+    erro_cd = _aplicar_regras_estoque_cd(campos)
+    if erro_cd:
+        return jsonify({"erro": erro_cd}), 400
     registros = [
         item for item in (db.listar_imobilizados() or [])
         if str(item.get("codigo") or "").strip() == codigo_alvo
@@ -8713,6 +8794,9 @@ def api_criar():
 @edit_required
 def api_atualizar(item_id):
     dados = request.get_json(force=True)
+    erro_cd = _aplicar_regras_estoque_cd(dados)
+    if erro_cd:
+        return jsonify({"erro": erro_cd}), 400
     item_antes = db.buscar_item_por_id(item_id)
     if not item_antes:
         return jsonify({"erro": "Item não encontrado."}), 404
@@ -8985,7 +9069,7 @@ def _normalizar(texto):
     return texto
 
 
-TIPOS_ESTOQUE_CANONICOS = ["Expansão", "Sustentação", "Requalificação", "Ampliação", "Realocação", "Reversa"]
+TIPOS_ESTOQUE_CANONICOS = ["Expansão", "Sustentação", "Requalificação", "Ampliação", "Realocação", "Reversa", "Estoque CD"]
 
 
 def _canonicalizar_tipo_estoque(valor):
@@ -9073,7 +9157,7 @@ def api_validar_importacao_itens():
 
         # O upload novo também precisa trazer todos os campos obrigatórios.
         campos_presentes = set(mapa.values())
-        colunas_faltantes = [rotulo for campo, rotulo in CAMPOS_OBRIGATORIOS_CADASTRO if campo not in campos_presentes]
+        colunas_faltantes = [rotulo for campo, rotulo in _campos_obrigatorios_cadastro() if campo not in campos_presentes]
         if colunas_faltantes:
             return jsonify({
                 "erro": "Falta informação para liberar o cadastro para ser salvo. "
@@ -9171,7 +9255,7 @@ def api_importar():
         if "codigo" not in mapa_colunas.values():
             return jsonify({"erro": "Não encontrei uma coluna de 'Código do item' na planilha."}), 400
         campos_presentes = set(mapa_colunas.values())
-        colunas_faltantes = [rotulo for campo, rotulo in CAMPOS_OBRIGATORIOS_CADASTRO if campo not in campos_presentes]
+        colunas_faltantes = [rotulo for campo, rotulo in _campos_obrigatorios_cadastro() if campo not in campos_presentes]
         if colunas_faltantes:
             return jsonify({
                 "erro": "Falta informação para liberar o cadastro para ser salvo. "
