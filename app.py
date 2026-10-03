@@ -69,7 +69,7 @@ import qrcode
 import db
 
 app = Flask(__name__)
-APP_BUILD = "2026-10-03-v1.7.3"
+APP_BUILD = "2026-10-03-v1.7.4"
 _DASHBOARD_CACHE = {}
 _EXPEDICAO_CACHE = {}
 
@@ -115,7 +115,7 @@ CD_ALLOWED_PAGE_PATHS = {
 CD_ALLOWED_PAGE_PREFIXES = ("/filiais/",)
 CD_ALLOWED_EXPORT_PATHS = {
     "/export", "/export-pdf", "/export-enviados", "/export-filiais",
-    "/export-movimentacoes",
+    "/export-movimentacoes", "/export-produtos", "/export-consolidado-cd", "/backup",
 }
 
 # Centros de Distribuição disponíveis no ambiente Estoque CD. O cadastro é
@@ -224,12 +224,71 @@ app.config.update(
 
 @app.after_request
 def _evitar_html_antigo_em_cache(response):
-    """Evita que telas autenticadas reapareçam com menu/layout de versão anterior."""
+    # Evita HTML antigo e aplica uma barreira visual adicional no Estoque CD.
+    # O backend continua sendo a autoridade; CSS/JS é uma segunda camada para
+    # esconder atalhos antigos mesmo em caso de cache/deploy parcial do menu.
     content_type = str(response.headers.get("Content-Type") or "").lower()
     if "text/html" in content_type or request.path == "/service-worker.js":
         response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
         response.headers["Pragma"] = "no-cache"
         response.headers["Expires"] = "0"
+
+    if (
+        "text/html" in content_type
+        and session.get("user_id")
+        and session.get("ambiente_selecionado")
+        and session.get("site_area") == "estoque_cd"
+        and not response.direct_passthrough
+    ):
+        try:
+            html = response.get_data(as_text=True)
+            bloqueados = (
+                "/agente-ia", "/expedicao", "/orcamento", "/imobilizados",
+                "/equipamentos-parque", "/projecao-lojas", "/acompanhamento-expansao",
+                "/cockpit-implantacao", "/leitor-codigo", "/loja-virtual",
+                "/acesso-celular", "/usuarios", "/seguranca", "/central-pendencias",
+            )
+            seletores = ",".join(
+                f'#app-menu .app-menu-left a[href^="{p}"]' for p in bloqueados
+            )
+            guard_css = (
+                '<style id="cd-menu-guard">' + seletores +
+                '{display:none!important}'
+                '#app-menu .app-ai-link,#app-menu .app-scan-link{display:none!important}'
+                '</style>'
+            )
+            permitido = ["/", "/dashboard", "/estoque", "/produtos", "/filiais", "/relatorios", "/historico"]
+            if session.get("role") == "admin":
+                permitido.append("/gestao-dados")
+            guard_js = f"""<script id="cd-menu-guard-js">
+(function(){{
+  const allowed=new Set({json.dumps(permitido, ensure_ascii=False)});
+  function limparMenuCD(){{
+    const menu=document.getElementById('app-menu'); if(!menu) return;
+    menu.dataset.siteArea='estoque_cd';
+    menu.querySelectorAll('.app-menu-left a').forEach(a=>{{
+      try{{let p=new URL(a.href,location.origin).pathname;if(p.length>1&&p.endsWith('/'))p=p.slice(0,-1);if(!allowed.has(p))a.remove();}}catch(e){{}}
+    }});
+    const brand=menu.querySelector('.brand-copy');
+    if(brand){{
+      const desc=brand.querySelector('span'); if(desc) desc.textContent='Operação e controle do estoque dos Centros de Distribuição.';
+      const versao=brand.querySelector('small'); if(versao) versao.textContent='Versão · v1.7.4';
+    }}
+  }}
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',limparMenuCD);else limparMenuCD();
+}})();
+</script>"""
+            if "</head>" in html:
+                html = html.replace("</head>", guard_css + "</head>", 1)
+            else:
+                html = guard_css + html
+            if "</body>" in html:
+                html = html.replace("</body>", guard_js + "</body>", 1)
+            else:
+                html += guard_js
+            response.set_data(html)
+        except Exception:
+            app.logger.exception("Falha ao aplicar proteção visual do menu do Estoque CD")
     return response
 
 # Proteções leves de autenticação. O limite é mantido em memória do processo
@@ -3274,6 +3333,52 @@ def _workbook_consolidado():
     return wb
 
 
+def _workbook_consolidado_cd():
+    # Consolidado exclusivo do Estoque CD, sem módulos da Expansão.
+    wb = Workbook()
+    wb.remove(wb.active)
+    fontes = [
+        ("Estoque CD", db.listar_itens()),
+        ("Produtos", db.listar_produtos()),
+        ("Filiais", db.listar_filiais(incluir_inativas=True)),
+        ("Movimentações", db.listar_todas_movimentacoes()),
+    ]
+    for nome, dados in fontes:
+        ws = wb.create_sheet(nome[:31])
+        _preencher_planilha_dict(ws, dados)
+    return wb
+
+
+@app.route("/export-produtos")
+@role_required("admin", "gestor", "operador")
+def exportar_produtos():
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Produtos"
+    _preencher_planilha_dict(ws, db.listar_produtos(), "Cadastro de produtos do ambiente selecionado")
+    buf = io.BytesIO(); wb.save(buf); buf.seek(0)
+    sufixo = "estoque_cd" if db.get_site_area() == "estoque_cd" else "expansao"
+    return send_file(
+        buf, as_attachment=True,
+        download_name=f"produtos_{sufixo}_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx",
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+
+
+@app.route("/export-consolidado-cd")
+@role_required("admin", "gestor", "operador")
+def exportar_consolidado_cd():
+    if db.get_site_area() != "estoque_cd":
+        return redirect(url_for("pagina_relatorios"))
+    wb = _workbook_consolidado_cd()
+    buf = io.BytesIO(); wb.save(buf); buf.seek(0)
+    return send_file(
+        buf, as_attachment=True,
+        download_name=f"relatorio_consolidado_cd_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx",
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+
+
 @app.route("/export-consolidado")
 @role_required("admin", "gestor", "operador")
 def exportar_consolidado():
@@ -3376,12 +3481,18 @@ def gerar_backup():
     nome_arquivo = f"backup_controle_estoque_{agora.strftime('%Y%m%d_%H%M')}.zip"
     mem=io.BytesIO()
     with zipfile.ZipFile(mem,"w",zipfile.ZIP_DEFLATED) as z:
-        wb=_workbook_consolidado()
+        em_cd = db.get_site_area() == "estoque_cd"
+        wb = _workbook_consolidado_cd() if em_cd else _workbook_consolidado()
         x=io.BytesIO(); wb.save(x); x.seek(0)
-        z.writestr("estoque_backup.xlsx",x.read())
+        z.writestr("estoque_cd_backup.xlsx" if em_cd else "estoque_backup.xlsx",x.read())
         if not db.IS_PG and os.path.exists(db.SQLITE_PATH):
             z.write(db.SQLITE_PATH,arcname="estoque.db")
-        z.writestr("LEIA-ME.txt",f"Backup gerado em {data_hora} por {usuario}.\nContém Estoque, Imobilizados, Produtos, Filiais, Projeção por UF, Kit padrão e Histórico de movimentações.\n")
+        conteudo = (
+            "Contém Estoque CD, Produtos, Filiais e Histórico de movimentações do ambiente Estoque CD."
+            if em_cd else
+            "Contém Estoque, Imobilizados, Produtos, Filiais, Projeção por UF, Kit padrão e Histórico de movimentações."
+        )
+        z.writestr("LEIA-ME.txt",f"Backup gerado em {data_hora} por {usuario}.\n{conteudo}\n")
 
     # Registro persistente: permanece disponível após logout, novo login ou reinício da aplicação.
     db.salvar_configuracao("ultimo_backup_usuario", usuario, usuario)
