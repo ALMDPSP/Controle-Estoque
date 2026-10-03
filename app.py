@@ -69,7 +69,7 @@ import qrcode
 import db
 
 app = Flask(__name__)
-APP_BUILD = "2026-10-02-v1.7.1"
+APP_BUILD = "2026-10-02-v1.7.2"
 _DASHBOARD_CACHE = {}
 _EXPEDICAO_CACHE = {}
 

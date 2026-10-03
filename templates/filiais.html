@@ -21,31 +21,31 @@ dialog{border:1px solid var(--line);background:var(--panel);color:var(--text);bo
 {% include '_mobile_head.html' %}
 </head>
 <body class="app-standard">
-<header><span class="tag">Destinos</span><h1>Cadastro de Filiais</h1><p>Cadastre, consulte, importe, filtre e gerencie as lojas que alimentam automaticamente a Projeção de abertura e lojas.</p></header>
+<header><span class="tag">Destinos</span><h1>Cadastro de Filiais</h1><p>{% if site_area == 'estoque_cd' %}Consulte e mantenha a base de filiais utilizada como referência de destinos na operação dos Centros de Distribuição.{% else %}Cadastre, consulte, importe, filtre e gerencie as lojas que alimentam automaticamente a Projeção de abertura e lojas.{% endif %}</p></header>
 {% include '_menu.html' %}
 <div class="app-action-strip" aria-label="Ações da aba Filiais">
-  {% if role in ['admin','gestor','operador','user'] %}<button type="button" class="ui-btn ui-btn-primary" id="btn-cadastro-manual">＋ Cadastrar loja</button>{% endif %}
+  {% if role in ['admin','gestor','operador','user'] %}<button type="button" class="ui-btn ui-btn-primary" id="btn-cadastro-manual">＋ {% if site_area == 'estoque_cd' %}Cadastrar filial{% else %}Cadastrar loja{% endif %}</button>{% endif %}
   {% if role != 'consulta' %}<a class="ui-btn ui-btn-excel" href="{{ url_for('exportar_filiais_excel') }}">▣ Relatório Excel</a>{% endif %}
   {% if role in ['admin','gestor','operador','user'] %}<button type="button" class="ui-btn ui-btn-import" id="btn-upload-filiais">↑ Importar Excel</button>{% endif %}
-  <a class="ui-btn ui-btn-secondary" href="{{ url_for('pagina_equipamentos_parque') }}">Equipamentos no Parque</a>
-  <a class="ui-btn ui-btn-secondary" href="{{ url_for('pagina_projecao_lojas') }}">Projeção de Lojas</a>
+  {% if site_area != 'estoque_cd' %}<a class="ui-btn ui-btn-secondary" href="{{ url_for('pagina_equipamentos_parque') }}">Equipamentos no Parque</a>
+  <a class="ui-btn ui-btn-secondary" href="{{ url_for('pagina_projecao_lojas') }}">Projeção de Lojas</a>{% endif %}
 </div>
 <main class="page-filiais">
 <section class="branch-hero">
   <div class="branch-copy">
-    <span class="hero-chip">Rede de filiais · visão executiva</span>
-    <h2>Gestão de filiais com visão executiva</h2>
-    <p>Acompanhe o tamanho da rede, o pipeline de inauguração e os principais focos da operação antes de entrar no cadastro e na grade detalhada.</p>
+    <span class="hero-chip">{% if site_area == 'estoque_cd' %}Destinos · operação dos CDs{% else %}Rede de filiais · visão executiva{% endif %}</span>
+    <h2>{% if site_area == 'estoque_cd' %}Base de filiais para atendimento dos CDs{% else %}Gestão de filiais com visão executiva{% endif %}</h2>
+    <p>{% if site_area == 'estoque_cd' %}Consulte a rede de lojas e os dados de destino utilizados na movimentação, conferência e rastreabilidade do estoque.{% else %}Acompanhe o tamanho da rede, o pipeline de inauguração e os principais focos da operação antes de entrar no cadastro e na grade detalhada.{% endif %}</p>
     <div class="branch-kpis">
       <div class="branch-mini"><span>Total da rede</span><strong id="hero-filial-total">0</strong><small>Lojas cadastradas no sistema.</small></div>
       <div class="branch-mini"><span>Operando</span><strong id="hero-filial-ativa">0</strong><small>Filiais em operação.</small></div>
-      <div class="branch-mini"><span>Pipeline</span><strong id="hero-filial-pipeline">0</strong><small>A inaugurar + pendentes.</small></div>
+      <div class="branch-mini"><span>{% if site_area == 'estoque_cd' %}Destinos em preparação{% else %}Pipeline{% endif %}</span><strong id="hero-filial-pipeline">0</strong><small>{% if site_area == 'estoque_cd' %}Filiais ainda não ativas.{% else %}A inaugurar + pendentes.{% endif %}</small></div>
       <div class="branch-mini"><span>Estados ativos</span><strong id="hero-filial-ufs">0</strong><small>Cobertura geográfica atual.</small></div>
     </div>
   </div>
   <div class="branch-side">
     <div class="side-card">
-      <h3>Radar gerencial</h3>
+      <h3>{% if site_area == 'estoque_cd' %}Resumo operacional{% else %}Radar gerencial{% endif %}</h3>
       <p id="hero-filial-texto">Os indicadores serão atualizados após o carregamento das filiais.</p>
       <div class="side-list">
         <div><span>Bandeira líder</span><strong id="hero-filial-bandeira">—</strong></div>
@@ -55,8 +55,8 @@ dialog{border:1px solid var(--line);background:var(--panel);color:var(--text);bo
     </div>
   </div>
 </section>
-<section class="panel" id="cadastro-manual"><h2>Cadastro manual de loja</h2>
-<p style="margin:-6px 0 14px;color:var(--muted);font-size:11px">Inclua uma loja diretamente pela tela usando os mesmos campos já utilizados pelo cadastro de Filiais. Registros sincronizados pelo Acompanhamento de Expansão também podem ser complementados aqui com a cidade.</p>
+<section class="panel" id="cadastro-manual"><h2>{% if site_area == 'estoque_cd' %}Cadastro manual de filial{% else %}Cadastro manual de loja{% endif %}</h2>
+<p style="margin:-6px 0 14px;color:var(--muted);font-size:11px">{% if site_area == 'estoque_cd' %}Inclua ou complemente uma filial para manter a base de destinos utilizada nas rotinas de estoque e movimentação dos Centros de Distribuição.{% else %}Inclua uma loja diretamente pela tela usando os mesmos campos já utilizados pelo cadastro de Filiais. Registros sincronizados pelo Acompanhamento de Expansão também podem ser complementados aqui com a cidade.{% endif %}</p>
 <form id="form-filial" class="form">
 <input type="hidden" id="filial-id">
 <div class="field"><label>Código da filial *</label><input id="filial-codigo" required placeholder="Ex.: 0123"></div>
@@ -68,11 +68,11 @@ dialog{border:1px solid var(--line);background:var(--panel);color:var(--text);bo
 <div class="field"><label>Status</label><select id="filial-ativo"><option value="1">Ativa</option><option value="inaugurar">Inaugurar</option><option value="pendente">Pendente</option><option value="0">Inativa</option></select></div>
 <button type="submit" class="primary" id="filial-salvar">Cadastrar</button><button type="button" id="filial-cancelar" style="display:none">Cancelar</button>
 </form>
-<div class="hint"><strong>Ativa</strong> = loja em operação. <strong>Inaugurar</strong> = abertura planejada. <strong>Pendente</strong> = loja ainda aguardando definição/regularização. <strong>Inativa</strong> = fora da projeção. A bandeira DSP/DPA e a previsão de abertura alimentam os indicadores de projeção e os cenários de 30/60/90 dias.</div>
+<div class="hint">{% if site_area == 'estoque_cd' %}<strong>Ativa</strong> = destino em operação. <strong>Inaugurar</strong> = destino em preparação. <strong>Pendente</strong> = cadastro ainda aguardando definição/regularização. <strong>Inativa</strong> = destino fora de operação. Código, cidade, UF e bandeira apoiam a identificação correta nas rotinas do CD.{% else %}<strong>Ativa</strong> = loja em operação. <strong>Inaugurar</strong> = abertura planejada. <strong>Pendente</strong> = loja ainda aguardando definição/regularização. <strong>Inativa</strong> = fora da projeção. A bandeira DSP/DPA e a previsão de abertura alimentam os indicadores de projeção e os cenários de 30/60/90 dias.{% endif %}</div>
 </section>
 
 <section class="panel">
-<h2>Lojas cadastradas</h2>
+<h2>{% if site_area == 'estoque_cd' %}Filiais cadastradas{% else %}Lojas cadastradas{% endif %}</h2>
 <div class="summary-grid">
   <div class="summary-card"><span>Total cadastradas</span><strong id="sum-total">0</strong></div>
   <div class="summary-card ativa"><span>Ativas</span><strong id="sum-ativa">0</strong></div>
@@ -145,7 +145,8 @@ let tamanhoPagina=50;
 const selecionadas=new Set();
 const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 function norm(s){return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase()}
-function statusInfo(v){v=String(v??'');if(v==='1')return ['Ativa','ativa'];if(v==='inaugurar')return ['Inaugurar','inaugurar'];if(v==='pendente')return ['Pendente','pendente'];return ['Inativa','inativa']}
+const IS_CD={{ (site_area == 'estoque_cd')|tojson }};
+function statusInfo(v){v=String(v??'');if(v==='1')return ['Ativa','ativa'];if(v==='inaugurar')return [IS_CD?'Em preparação':'Inaugurar','inaugurar'];if(v==='pendente')return ['Pendente','pendente'];return ['Inativa','inativa']}
 function bandeiraInfo(v){v=String(v||'').toUpperCase();if(v==='DSP')return ['DSP','dsp'];if(v==='DPA')return ['DPA','dpa'];return ['Não definida','sem']}
 function atualizarResumo(){
   const cont={total:filiais.length,ativa:0,inaugurar:0,pendente:0,inativa:0};
@@ -154,7 +155,7 @@ function atualizarResumo(){
   filiais.forEach(f=>{const v=String(f.ativo??'0');if(v==='1')cont.ativa++;else if(v==='inaugurar')cont.inaugurar++;else if(v==='pendente')cont.pendente++;else cont.inativa++;const b=String(f.bandeira||'').toUpperCase();if(b==='DSP'||b==='DPA')bandeiras[b]++;else bandeiras.SEM++;if(String(f.uf||'').trim())ufs.add(String(f.uf).toUpperCase());});
   document.getElementById('sum-total').textContent=cont.total;document.getElementById('sum-ativa').textContent=cont.ativa;document.getElementById('sum-inaugurar').textContent=cont.inaugurar;document.getElementById('sum-pendente').textContent=cont.pendente;document.getElementById('sum-inativa').textContent=cont.inativa;
   const pipeline=cont.inaugurar+cont.pendente;const percentual=cont.total?((cont.ativa/cont.total)*100):0;const lider=(bandeiras.DSP>=bandeiras.DPA && bandeiras.DSP>=bandeiras.SEM)?'DSP':(bandeiras.DPA>=bandeiras.SEM?'DPA':'Não definida');
-  document.getElementById('hero-filial-total').textContent=cont.total;document.getElementById('hero-filial-ativa').textContent=cont.ativa;document.getElementById('hero-filial-pipeline').textContent=pipeline;document.getElementById('hero-filial-ufs').textContent=ufs.size;document.getElementById('hero-filial-bandeira').textContent=lider;document.getElementById('hero-filial-foco').textContent=pipeline?`${pipeline} loja(s) em andamento`:'Rede estabilizada';document.getElementById('hero-filial-percentual').textContent=`${percentual.toFixed(percentual>=10?0:1)}%`;document.getElementById('hero-filial-texto').textContent=pipeline?`Atenção para ${cont.inaugurar} loja(s) a inaugurar e ${cont.pendente} pendente(s) que exigem acompanhamento.`:'Todas as filiais estão operando ou fora do pipeline no momento.';
+  document.getElementById('hero-filial-total').textContent=cont.total;document.getElementById('hero-filial-ativa').textContent=cont.ativa;document.getElementById('hero-filial-pipeline').textContent=pipeline;document.getElementById('hero-filial-ufs').textContent=ufs.size;document.getElementById('hero-filial-bandeira').textContent=lider;document.getElementById('hero-filial-foco').textContent=IS_CD?(pipeline?`${pipeline} destino(s) em preparação`:'Base operacional estável'):(pipeline?`${pipeline} loja(s) em andamento`:'Rede estabilizada');document.getElementById('hero-filial-percentual').textContent=`${percentual.toFixed(percentual>=10?0:1)}%`;document.getElementById('hero-filial-texto').textContent=IS_CD?(pipeline?`${cont.ativa} filial(is) ativa(s) para atendimento e ${pipeline} destino(s) ainda em preparação ou pendente(s).`:`${cont.ativa} filial(is) ativa(s) disponíveis para atendimento dos Centros de Distribuição.`):(pipeline?`Atenção para ${cont.inaugurar} loja(s) a inaugurar e ${cont.pendente} pendente(s) que exigem acompanhamento.`:'Todas as filiais estão operando ou fora do pipeline no momento.');
 }
 function atualizarFiltroUf(){const sel=document.getElementById('filtro-uf'),atual=sel.value;const ufs=[...new Set(filiais.map(f=>String(f.uf||'').toUpperCase()).filter(Boolean))].sort();sel.innerHTML='<option value="">Todos os estados</option>'+ufs.map(uf=>`<option value="${esc(uf)}">${esc(uf)}</option>`).join('');if(ufs.includes(atual))sel.value=atual;}
 async function carregar(){const r=await fetch('/api/filiais?inativas=1');if(!r.ok){appToast('Não foi possível carregar as filiais.','erro');return;}filiais=await r.json();selecionadas.forEach(id=>{if(!filiais.some(f=>Number(f.id)===Number(id)))selecionadas.delete(id)});atualizarResumo();atualizarFiltroUf();render(true)}

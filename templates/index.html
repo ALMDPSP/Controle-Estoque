@@ -532,7 +532,7 @@
       <span class="tag">Estoque</span>
     </div>
     <h1>Estoque</h1>
-    <p>{% if site_area == 'estoque_cd' %}Controle de entrada, saída e saldo operacional por Centro de Distribuição.{% else %}Controle de entrada, saída, saldo operacional e capacidade de abertura de lojas.{% endif %}</p>
+    <p>{% if site_area == 'estoque_cd' %}Controle de recebimento, armazenamento, saldo e movimentação por Centro de Distribuição.{% else %}Controle de entrada, saída, saldo operacional e capacidade de abertura de lojas.{% endif %}</p>
   </div>
   <div class="stats">
     <div class="stat-box"><span class="num" id="stat-total">0</span><span class="lbl">Itens</span></div>
@@ -565,9 +565,9 @@
 <main class="page-estoque">
   <section class="enterprise-hero">
     <div class="hero-copy">
-      <span class="hero-chip">{% if site_area == 'estoque_cd' %}Operação · Estoque CD{% else %}Dashboard operacional · Estoque{% endif %}</span>
-      <h2>{% if site_area == 'estoque_cd' %}Estoque CD com visão operacional{% else %}Estoque com visão executiva e operação{% endif %}</h2>
-      <p>{% if site_area == 'estoque_cd' %}Acompanhe o saldo e a distribuição dos itens entre os Centros de Distribuição em uma visão única e objetiva.{% else %}Acompanhe saldo, estoque de Expansão e capacidade potencial para abertura de lojas em uma visão única e objetiva.{% endif %}</p>
+      <span class="hero-chip">{% if site_area == 'estoque_cd' %}Operação de CD · Armazenamento{% else %}Dashboard operacional · Estoque{% endif %}</span>
+      <h2>{% if site_area == 'estoque_cd' %}Gestão operacional do Estoque CD{% else %}Estoque com visão executiva e operação{% endif %}</h2>
+      <p>{% if site_area == 'estoque_cd' %}Acompanhe recebimento, saldo, localização e disponibilidade dos itens nos Centros de Distribuição em uma visão única e objetiva.{% else %}Acompanhe saldo, estoque de Expansão e capacidade potencial para abertura de lojas em uma visão única e objetiva.{% endif %}</p>
       <div class="hero-kpis">
         <div class="hero-mini"><span>Itens cadastrados</span><strong id="hero-estoque-total">0</strong><small>Total de registros no estoque.</small></div>
         <div class="hero-mini"><span>Em estoque</span><strong id="hero-estoque-ativos">0</strong><small>Itens com saldo disponível.</small></div>
@@ -581,8 +581,8 @@
     </div>
     <div class="hero-side">
       <div class="side-card">
-        <h3>Painel executivo</h3>
-        <p id="hero-estoque-texto">{% if site_area == 'estoque_cd' %}Os indicadores serão atualizados quando os registros do Estoque CD forem carregados.{% else %}Os indicadores serão atualizados quando o estoque e o kit padrão forem carregados.{% endif %}</p>
+        <h3>{% if site_area == 'estoque_cd' %}Resumo do armazenamento{% else %}Painel executivo{% endif %}</h3>
+        <p id="hero-estoque-texto">{% if site_area == 'estoque_cd' %}Os indicadores consolidam os registros ativos do Estoque CD por Centro de Distribuição.{% else %}Os indicadores serão atualizados quando o estoque e o kit padrão forem carregados.{% endif %}</p>
         <div class="side-list">
           <div><span>Códigos únicos</span><strong id="hero-estoque-codigos">0</strong></div>
           <div><span>{% if site_area == 'estoque_cd' %}CDs com saldo{% else %}Tipos com saldo{% endif %}</span><strong id="hero-estoque-tipos">0</strong></div>
@@ -1532,10 +1532,10 @@ function atualizarStats(){
     document.getElementById('hero-estoque-meta').textContent='CD';
     const badge=document.getElementById('hero-estoque-status');
     const pipeline=document.getElementById('hero-estoque-pipeline');
-    badge.textContent=unidadesDisponiveis>0?'Estoque CD operacional':'Estoque CD sem saldo';
+    badge.textContent=unidadesDisponiveis>0?'Operação de armazenamento ativa':'Estoque CD sem saldo';
     badge.className=unidadesDisponiveis>0?'hero-badge ok':'hero-badge';
     pipeline.textContent=`${cdsComSaldo} CD(s) com saldo`;
-    document.getElementById('hero-estoque-texto').textContent=`${unidadesDisponiveis} unidade(s) disponível(is), distribuída(s) em ${cdsComSaldo} Centro(s) de Distribuição e ${unicos} código(s) único(s).`;
+    document.getElementById('hero-estoque-texto').textContent=`${unidadesDisponiveis} unidade(s) disponível(is), distribuída(s) em ${cdsComSaldo} Centro(s) de Distribuição e ${unicos} código(s) único(s), prontas para controle operacional.`;
     return;
   }
   const resultado=(typeof calcularSimulacaoLojas==='function')?calcularSimulacaoLojas():{lojas:0};
