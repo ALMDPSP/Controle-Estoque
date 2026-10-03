@@ -69,7 +69,7 @@ import qrcode
 import db
 
 app = Flask(__name__)
-APP_BUILD = "2026-10-02-v1.6.6"
+APP_BUILD = "2026-10-02-v1.6.5"
 _DASHBOARD_CACHE = {}
 _EXPEDICAO_CACHE = {}
 
@@ -392,13 +392,11 @@ def _finalize_login(usuario=None):
     # POST de /ambiente; não concedemos o ambiente automaticamente aqui.
     session["site_area"] = None
     session["ambiente_selecionado"] = False
-    session["ambiente_next"] = proximo
     session["precisa_trocar_senha"] = precisa_trocar
     db.registrar_evento_login(usuario["username"], _client_ip(), "sucesso", "login concluído com MFA" if usuario.get("mfa_enabled") == "1" else "login realizado")
     if precisa_trocar:
         return redirect(url_for("trocar_senha"))
-    # A seleção de ambiente é obrigatória para TODOS após o MFA.
-    return redirect(url_for("selecionar_ambiente"))
+    return redirect(proximo)
 
 
 # ---------------------------------------------------------------------
@@ -1649,10 +1647,7 @@ def selecionar_ambiente():
     # Nunca reutilizar dados calculados em outro contexto ao trocar/selecionar ambiente.
     _DASHBOARD_CACHE.clear()
     _invalidar_cache_expedicao()
-    proximo = session.pop("ambiente_next", None) or url_for("dashboard")
-    # Nunca permitir que um destino salvo pule para um ambiente diferente.
-    if not isinstance(proximo, str) or not proximo.startswith("/") or proximo.startswith("//"):
-        proximo = url_for("dashboard")
+    proximo = session.pop("pending_next", None) or url_for("dashboard")
     return jsonify({"ok": True, "site_area": area, "nome": "Estoque CD" if area == "estoque_cd" else "Expansão", "redirect": proximo})
 
 @app.route("/usuarios")
@@ -2270,8 +2265,7 @@ def _pipeline_acompanhamento_expansao():
         if status == "inaugurada":
             inauguradas += 1
             continue
-        # Estados operacionais atuais continuam no pipeline até a inauguração.
-        if status not in {"pendente", "em andamento", "obra nao iniciada", "obra não iniciada"}:
+        if status != "pendente":
             continue
         pendentes.append({
             "id": item.get("id"),
@@ -2431,27 +2425,12 @@ def api_dashboard_resumo():
         resposta.headers["X-Dashboard-Cache"] = "HIT"
         return resposta
     base=db.obter_dashboard_compacto(20)
-    try:
-        visao=_calcular_visao_executiva(
-            itens=base.get("itens") or [],
-            kit=base.get("kit") or [],
-            filiais=base.get("filiais") or [],
-            meta=base.get("meta_lojas") or 10,
-        )
-    except Exception as exc:
-        # Não deixar uma inconsistência do pipeline zerar visualmente todo o Dashboard.
-        print(f"[dashboard] falha na visão executiva ({db.get_site_area()}): {type(exc).__name__}: {exc}")
-        visao={
-            "meta_lojas": int(base.get("meta_lojas") or 10), "capacidade_lojas": 0,
-            "lojas_a_inaugurar": 0, "lojas_atendiveis": 0, "lojas_em_risco": 0,
-            "percentual_atendimento": 0.0, "itens_criticos": 0, "estoque_expansao": 0,
-            "horizontes": {"30":{"lojas":0,"atendiveis":0,"risco":0},"60":{"lojas":0,"atendiveis":0,"risco":0},"90":{"lojas":0,"atendiveis":0,"risco":0}},
-            "sem_data": 0, "deficits": [], "inauguradas_acompanhamento": 0,
-            "pendentes_inauguracao": 0, "fonte_pipeline": "acompanhamento_expansao",
-            "entrada_ti_programada": [], "inauguracao_programada": [],
-            "entrada_ti_programada_total": 0, "inauguracao_programada_total": 0, "planejadas": [],
-            "erro_pipeline": str(exc),
-        }
+    visao=_calcular_visao_executiva(
+        itens=base.get("itens") or [],
+        kit=base.get("kit") or [],
+        filiais=base.get("filiais") or [],
+        meta=base.get("meta_lojas") or 10,
+    )
     status={
         "database":"PostgreSQL" if db.IS_PG else "SQLite",
         "database_ok":True,
