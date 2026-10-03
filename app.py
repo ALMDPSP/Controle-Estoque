@@ -69,7 +69,7 @@ import qrcode
 import db
 
 app = Flask(__name__)
-APP_BUILD = "2026-10-02-v1.7.2"
+APP_BUILD = "2026-10-03-v1.7.3"
 _DASHBOARD_CACHE = {}
 _EXPEDICAO_CACHE = {}
 
@@ -100,6 +100,22 @@ CD_BLOCKED_PAGE_ENDPOINTS = {
     "pagina_cockpit_implantacao", "pagina_leitor_codigo",
     "pagina_loja_virtual", "pagina_acesso_celular",
     "pagina_usuarios", "pagina_seguranca", "pagina_central_pendencias",
+}
+
+# No Estoque CD adotamos uma política de navegação por lista permitida.
+# Assim, qualquer página operacional nova nasce bloqueada no CD até ser
+# explicitamente liberada, evitando mistura acidental com o ambiente Expansão.
+CD_ALLOWED_PAGE_PATHS = {
+    "/", "/dashboard", "/estoque", "/produtos", "/filiais",
+    "/relatorios", "/historico", "/gestao-dados", "/ambiente",
+    "/logout", "/trocar-senha", "/mfa/verificar", "/mfa/configurar",
+    "/mfa/codigos-recuperacao", "/mfa/concluir", "/service-worker.js",
+    "/health",
+}
+CD_ALLOWED_PAGE_PREFIXES = ("/filiais/",)
+CD_ALLOWED_EXPORT_PATHS = {
+    "/export", "/export-pdf", "/export-enviados", "/export-filiais",
+    "/export-movimentacoes",
 }
 
 # Centros de Distribuição disponíveis no ambiente Estoque CD. O cadastro é
@@ -175,8 +191,20 @@ def _aplicar_ambiente_requisicao():
         )
         if modulo_expansao:
             if request.path.startswith("/api/"):
-                return jsonify({"erro": "Acesso bloqueado. Este módulo pertence ao ambiente Expansão."}), 403
+                return jsonify({"erro": "Acesso bloqueado. Este módulo não está disponível no ambiente Estoque CD."}), 403
             return redirect(url_for("dashboard", acesso_ambiente="1"))
+
+        # Terceira barreira: páginas do CD trabalham com lista permitida. APIs
+        # compartilhadas continuam funcionando normalmente, mas uma tentativa de
+        # abrir diretamente qualquer página/módulo fora do escopo do CD é barrada.
+        if request.method in ("GET", "HEAD") and not request.path.startswith(("/api/", "/static/")):
+            pagina_permitida = (
+                request.path in CD_ALLOWED_PAGE_PATHS
+                or request.path in CD_ALLOWED_EXPORT_PATHS
+                or any(request.path.startswith(prefixo) for prefixo in CD_ALLOWED_PAGE_PREFIXES)
+            )
+            if not pagina_permitida:
+                return redirect(url_for("dashboard", acesso_ambiente="1"))
 
 def _invalidar_cache_expedicao():
     _EXPEDICAO_CACHE.clear()
