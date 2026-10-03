@@ -69,7 +69,7 @@ import qrcode
 import db
 
 app = Flask(__name__)
-APP_BUILD = "2026-10-02-v1.7.0"
+APP_BUILD = "2026-10-02-v1.7.1"
 _DASHBOARD_CACHE = {}
 _EXPEDICAO_CACHE = {}
 
@@ -89,6 +89,18 @@ EXPANSION_ONLY_PREFIXES = (
     "/export-imobilizados-pdf", "/export-consolidado",
     "/relatorio-executivo-estoque-kit.pdf", "/relatorio-executivo-estoque-kit.xlsx",
 )
+
+# Páginas que não pertencem ao ambiente Estoque CD. A lista por endpoint
+# complementa o bloqueio por URL e garante que novos links/atalhos não
+# consigam abrir módulos exclusivos da Expansão por acesso direto.
+CD_BLOCKED_PAGE_ENDPOINTS = {
+    "pagina_agente_ia", "pagina_expedicao", "pagina_orcamento",
+    "pagina_imobilizados", "pagina_equipamentos_parque",
+    "pagina_projecao_lojas", "pagina_acompanhamento_expansao",
+    "pagina_cockpit_implantacao", "pagina_leitor_codigo",
+    "pagina_loja_virtual", "pagina_acesso_celular",
+    "pagina_usuarios", "pagina_seguranca", "pagina_central_pendencias",
+}
 
 # Centros de Distribuição disponíveis no ambiente Estoque CD. O cadastro é
 # separado por UF para permitir preenchimento automático e manter os dados
@@ -157,9 +169,13 @@ def _aplicar_ambiente_requisicao():
     else:
         db.set_site_area(area)
     if session.get("user_id") and area == "estoque_cd":
-        if any(request.path == p or request.path.startswith(p + "/") for p in EXPANSION_ONLY_PREFIXES):
+        modulo_expansao = (
+            request.endpoint in CD_BLOCKED_PAGE_ENDPOINTS
+            or any(request.path == p or request.path.startswith(p + "/") for p in EXPANSION_ONLY_PREFIXES)
+        )
+        if modulo_expansao:
             if request.path.startswith("/api/"):
-                return jsonify({"erro": "Este módulo pertence ao ambiente Expansão. Troque o ambiente para continuar."}), 403
+                return jsonify({"erro": "Acesso bloqueado. Este módulo pertence ao ambiente Expansão."}), 403
             return redirect(url_for("dashboard", acesso_ambiente="1"))
 
 def _invalidar_cache_expedicao():
