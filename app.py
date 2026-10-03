@@ -69,7 +69,7 @@ import qrcode
 import db
 
 app = Flask(__name__)
-APP_BUILD = "2026-10-03-v1.8.2"
+APP_BUILD = "2026-10-03-v1.8.3"
 _DASHBOARD_CACHE = {}
 _EXPEDICAO_CACHE = {}
 
@@ -272,7 +272,7 @@ def _evitar_html_antigo_em_cache(response):
     const brand=menu.querySelector('.brand-copy');
     if(brand){{
       const desc=brand.querySelector('span'); if(desc) desc.textContent='Operação e controle do estoque dos Centros de Distribuição.';
-      const versao=brand.querySelector('small'); if(versao) versao.textContent='Versão · v1.8.2';
+      const versao=brand.querySelector('small'); if(versao){{versao.textContent='Versão · v1.8.3';versao.style.setProperty('font-size','5px','important');versao.style.setProperty('line-height','1','important');versao.style.setProperty('padding','2px 4px','important');versao.style.setProperty('min-height','0','important');}}
     }}
   }}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',limparMenuCD);else limparMenuCD();
@@ -8965,7 +8965,7 @@ def api_baixa_rapida_confirmar():
 
 
 # ---------------------------------------------------------------------
-# Estoque CD — operação de recebimento, transferência e inventário (v1.8.2)
+# Estoque CD — operação de recebimento, transferência e inventário (v1.8.3)
 # ---------------------------------------------------------------------
 
 def _cd_local_valido(local):
@@ -9292,49 +9292,385 @@ def _excel_relatorio_cd(titulo, dados):
     return buf
 
 
-def _pdf_relatorio_cd(titulo, dados):
+def _numero_pdf_cd(valor, padrao=0.0):
+    """Converte valores numéricos dos relatórios do CD sem quebrar o PDF."""
+    if valor is None or valor == "":
+        return padrao
+    if isinstance(valor, (int, float)):
+        return float(valor)
+    texto = str(valor).strip().replace(" ", "")
+    if not texto:
+        return padrao
+    # Aceita tanto 1.234,56 quanto 1234.56.
+    if "," in texto and "." in texto:
+        texto = texto.replace(".", "").replace(",", ".")
+    elif "," in texto:
+        texto = texto.replace(",", ".")
+    try:
+        return float(texto)
+    except (TypeError, ValueError):
+        return padrao
+
+
+def _sim_nao_pdf_cd(valor):
+    return str(valor or "").strip().lower() in {"1", "true", "sim", "s", "yes", "ok"}
+
+
+def _metricas_pdf_relatorio_cd(tipo, dados):
+    """KPIs executivos usados em todos os PDFs do ambiente Estoque CD."""
+    tipo = str(tipo or "").strip().lower()
+    dados = list(dados or [])
+    azul = "#63BAFF"
+    verde = "#5EE7D1"
+    amarelo = "#FFBE55"
+    vermelho = "#FF7E88"
+
+    def distintos(campo):
+        return len({str(r.get(campo) or "").strip() for r in dados if str(r.get(campo) or "").strip()})
+
+    if tipo == "saldo":
+        saldo = sum(_numero_pdf_cd(r.get("Saldo")) for r in dados)
+        abaixo = sum(1 for r in dados if _numero_pdf_cd(r.get("Saldo")) < _numero_pdf_cd(r.get("Estoque mínimo")))
+        return [
+            ("SALDO TOTAL", int(saldo), "Unidades disponíveis", azul),
+            ("SKUS", distintos("Código"), "Códigos com saldo", verde),
+            ("CENTROS DE DISTRIBUIÇÃO", distintos("Centro de Distribuição"), "CDs representados", azul),
+            ("ABAIXO DO MÍNIMO", abaixo, "Itens para atenção", vermelho if abaixo else verde),
+        ]
+
+    if tipo in {"entradas-saidas", "movimentacoes", "movimentacoes-usuario"}:
+        entradas = saidas = transferencias = 0.0
+        for r in dados:
+            t = str(r.get("Tipo") or "").strip().lower()
+            q = abs(_numero_pdf_cd(r.get("Quantidade")))
+            if t in {"recebimento", "entrada", "inventario_ajuste_entrada"}:
+                entradas += q
+            if t in {"saida", "saida_filial", "inventario_ajuste_saida"}:
+                saidas += q
+            if t == "transferencia_cd":
+                transferencias += q
+        return [
+            ("MOVIMENTAÇÕES", len(dados), "Eventos no período", azul),
+            ("ENTRADAS", int(entradas), "Unidades recebidas/ajustadas", verde),
+            ("SAÍDAS", int(saidas), "Unidades expedidas/ajustadas", amarelo),
+            ("TRANSFERÊNCIAS", int(transferencias), "Unidades entre CDs", azul),
+        ]
+
+    if tipo == "transferencias":
+        unidades = sum(abs(_numero_pdf_cd(r.get("Quantidade"))) for r in dados)
+        cd_cd = sum(1 for r in dados if str(r.get("Tipo") or "").strip().lower() == "transferencia_cd")
+        filial = sum(1 for r in dados if str(r.get("Tipo") or "").strip().lower() == "saida_filial")
+        docs = sum(1 for r in dados if str(r.get("NF / Documento") or "").strip())
+        return [
+            ("OPERAÇÕES", len(dados), "Transferências e atendimentos", azul),
+            ("UNIDADES", int(unidades), "Total movimentado", verde),
+            ("CD -> CD", cd_cd, "Transferências internas", azul),
+            ("CD -> FILIAL", filial, f"{docs} com documento", amarelo),
+        ]
+
+    if tipo == "inventarios":
+        inventarios = distintos("Inventário")
+        divergencias = sum(1 for r in dados if abs(_numero_pdf_cd(r.get("Diferença"))) > 0)
+        ajustados = sum(1 for r in dados if _sim_nao_pdf_cd(r.get("Ajustado")))
+        return [
+            ("INVENTÁRIOS", inventarios, "Ciclos registrados", azul),
+            ("ITENS CONTADOS", len(dados), "Linhas inventariadas", verde),
+            ("DIVERGÊNCIAS", divergencias, "Itens com diferença", vermelho if divergencias else verde),
+            ("AJUSTADOS", ajustados, "Ajustes confirmados", amarelo if ajustados else azul),
+        ]
+
+    if tipo == "estoque-baixo":
+        falta = sum(max(0, _numero_pdf_cd(r.get("Faltam"))) for r in dados)
+        zerados = sum(1 for r in dados if _numero_pdf_cd(r.get("Saldo atual")) <= 0)
+        return [
+            ("SKUS EM ALERTA", len(dados), "Abaixo do estoque mínimo", vermelho if dados else verde),
+            ("DÉFICIT", int(falta), "Unidades para recomposição", amarelo if falta else verde),
+            ("SALDO ZERO", zerados, "Itens sem disponibilidade", vermelho if zerados else verde),
+            ("CDs AFETADOS", distintos("Centro de Distribuição"), "Centros com alerta", azul),
+        ]
+
+    if tipo == "parados":
+        unidades = sum(_numero_pdf_cd(r.get("Quantidade")) for r in dados)
+        return [
+            ("REGISTROS", len(dados), "Sem movimentação há 90+ dias", amarelo if dados else verde),
+            ("UNIDADES", int(unidades), "Saldo potencialmente parado", azul),
+            ("SKUS", distintos("Código"), "Códigos envolvidos", verde),
+            ("CDs", distintos("Centro de Distribuição"), "Centros representados", azul),
+        ]
+
+    if tipo == "estoque-completo":
+        unidades = sum(_numero_pdf_cd(r.get("Qtd.")) for r in dados)
+        sem_endereco = sum(1 for r in dados if not any(str(r.get(c) or "").strip() for c in ("Rua", "Corredor", "Prateleira", "Posição")))
+        return [
+            ("REGISTROS", len(dados), "Unidades rastreadas", azul),
+            ("UNIDADES", int(unidades), "Saldo físico cadastrado", verde),
+            ("PRODUTOS", distintos("Código"), "Códigos distintos", azul),
+            ("SEM ENDEREÇO", sem_endereco, "Itens sem posição física", amarelo if sem_endereco else verde),
+        ]
+
+    return [
+        ("REGISTROS", len(dados), "Linhas do relatório", azul),
+        ("CÓDIGOS", distintos("Código"), "Itens distintos", verde),
+        ("CDs", distintos("Centro de Distribuição"), "Centros representados", azul),
+        ("USUÁRIOS", distintos("Usuário"), "Responsáveis identificados", amarelo),
+    ]
+
+
+def _leitura_executiva_pdf_cd(tipo, dados):
+    tipo = str(tipo or "").strip().lower()
+    n = len(dados or [])
+    if not n:
+        return "Nenhum registro foi encontrado para o escopo selecionado. O relatório permanece válido como evidência da consulta realizada."
+    if tipo == "saldo":
+        alertas = sum(1 for r in dados if _numero_pdf_cd(r.get("Saldo")) < _numero_pdf_cd(r.get("Estoque mínimo")))
+        return f"A posição atual contém {n} linha(s) de saldo consolidado. {alertas} item(ns) estão abaixo do estoque mínimo e devem ser priorizados na reposição."
+    if tipo == "estoque-baixo":
+        deficit = int(sum(max(0, _numero_pdf_cd(r.get("Faltam"))) for r in dados))
+        return f"Foram identificados {n} SKU(s) abaixo do estoque mínimo, com necessidade estimada de recomposição de {deficit} unidade(s)."
+    if tipo == "parados":
+        return f"Foram encontrados {n} registro(s) sem movimentação por 90 dias ou mais. Recomenda-se validar consumo, remanejamento e necessidade de permanência no estoque."
+    if tipo == "inventarios":
+        div = sum(1 for r in dados if abs(_numero_pdf_cd(r.get("Diferença"))) > 0)
+        return f"O histórico de inventário possui {n} linha(s) detalhada(s), sendo {div} com divergência entre o saldo esperado e a contagem física."
+    if tipo == "transferencias":
+        return f"O período selecionado possui {n} operação(ões) de transferência ou atendimento, permitindo rastrear origem, destino, documento e responsáveis."
+    if tipo in {"entradas-saidas", "movimentacoes", "movimentacoes-usuario"}:
+        return f"O período selecionado possui {n} movimentação(ões). A leitura consolidada permite acompanhar entradas, saídas, transferências e ajustes por usuário e documento."
+    if tipo == "estoque-completo":
+        return f"O cadastro físico possui {n} registro(s) no escopo selecionado, com rastreabilidade de localização, recebimento, identificação e endereçamento do Estoque CD."
+    return f"O relatório contém {n} registro(s) no escopo selecionado e foi organizado para leitura executiva e detalhamento operacional."
+
+
+def _secoes_pdf_relatorio_cd(tipo, dados):
+    """Divide relatórios largos em seções legíveis, sem descartar colunas."""
+    tipo = str(tipo or "").strip().lower()
+    if not dados:
+        return []
+    colunas = list(dados[0].keys())
+
+    if tipo in {"entradas-saidas", "transferencias", "movimentacoes", "movimentacoes-usuario"}:
+        return [
+            ("Fluxo operacional", ["Data/hora", "Tipo", "Código", "Descrição", "Quantidade", "Origem", "Destino"]),
+            ("Rastreabilidade e auditoria", ["Data/hora", "Código", "NF / Documento", "Fornecedor", "Responsável", "Usuário", "Referência", "Observação"]),
+        ]
+    if tipo == "inventarios":
+        return [
+            ("Resultado do inventário", ["Inventário", "Centro de Distribuição", "Data", "Código", "Descrição", "Esperado", "Contado", "Diferença", "Resultado"]),
+            ("Auditoria do inventário", ["Inventário", "Centro de Distribuição", "Data", "Código", "Ajustado", "Responsável"]),
+        ]
+    if tipo == "estoque-completo":
+        return [
+            ("Posição física e endereçamento", ["ID", "Centro de Distribuição", "UF", "Código", "Descrição", "Qtd.", "Status", "Armazenamento"]),
+            ("Endereçamento e identificação", ["ID", "Código", "Rua", "Corredor", "Prateleira", "Posição", "Nº série", "Patrimônio"]),
+            ("Recebimento e rastreabilidade", ["ID", "Código", "NF / Documento", "Data de entrada", "Fornecedor", "Lote", "Código barras / QR", "Responsável"]),
+        ]
+    if len(colunas) <= 10:
+        return [("Detalhamento operacional", colunas)]
+
+    # Fallback: preserva todas as colunas em blocos de até oito campos.
+    secoes = []
+    for idx in range(0, len(colunas), 8):
+        secoes.append((f"Detalhamento operacional - bloco {idx // 8 + 1}", colunas[idx:idx + 8]))
+    return secoes
+
+
+def _larguras_pdf_cd(colunas, dados, largura_disponivel):
+    pesos_especiais = {
+        "Descrição": 2.25, "Observação": 2.2, "Referência": 1.7,
+        "Centro de Distribuição": 1.8, "Fornecedor": 1.6, "Responsável": 1.55,
+        "NF / Documento": 1.45, "Data/hora": 1.35, "Data de entrada": 1.35,
+        "Código barras / QR": 1.7, "Prateleira": 1.15, "Armazenamento": 1.3,
+    }
+    pesos = []
+    amostra = list(dados or [])[:150]
+    for c in colunas:
+        max_len = max([len(str(c))] + [len(str(r.get(c) or "")) for r in amostra])
+        base = 0.8 + min(max_len, 40) / 28.0
+        pesos.append(max(base, pesos_especiais.get(c, 0.0)))
+    total = sum(pesos) or 1
+    return [largura_disponivel * (p / total) for p in pesos]
+
+
+def _pdf_relatorio_cd(titulo, dados, tipo="", filtros=None):
+    """PDF executivo padronizado para todos os relatórios do Estoque CD."""
+    dados = list(dados or [])
+    filtros = dict(filtros or {})
     buf = io.BytesIO()
+    page_w, page_h = landscape(A4)
+    margem = 12 * mm
+    area_w = page_w - (2 * margem)
+
     doc = SimpleDocTemplate(
-        buf, pagesize=landscape(A4), rightMargin=10*mm, leftMargin=10*mm,
-        topMargin=12*mm, bottomMargin=12*mm,
+        buf, pagesize=landscape(A4), rightMargin=margem, leftMargin=margem,
+        topMargin=25 * mm, bottomMargin=15 * mm, title=titulo,
+        author="ALM - TI | Estoque CD",
     )
     estilos = getSampleStyleSheet()
-    story = [
-        Paragraph(titulo, estilos["Title"]),
-        Paragraph(
-            f"Ambiente: Estoque CD · Gerado em {datetime.now().strftime('%d/%m/%Y %H:%M')} · Registros: {len(dados)}",
-            estilos["BodyText"],
-        ),
-        Spacer(1, 5*mm),
-    ]
-    if not dados:
-        story.append(Paragraph("Nenhum registro encontrado para os filtros informados.", estilos["BodyText"]))
+    titulo_style = ParagraphStyle(
+        "CDPdfTitulo", parent=estilos["Heading1"], fontName="Helvetica-Bold",
+        fontSize=18, leading=21, textColor=colors.white, spaceAfter=2 * mm,
+    )
+    meta_style = ParagraphStyle(
+        "CDPdfMeta", parent=estilos["BodyText"], fontName="Helvetica",
+        fontSize=7.8, leading=10, textColor=colors.HexColor("#9DB3C8"), spaceAfter=4 * mm,
+    )
+    secao_style = ParagraphStyle(
+        "CDPdfSecao", parent=estilos["Heading2"], fontName="Helvetica-Bold",
+        fontSize=10.5, leading=13, textColor=colors.white, spaceBefore=4 * mm, spaceAfter=2 * mm,
+    )
+    cel_style = ParagraphStyle(
+        "CDPdfCel", parent=estilos["BodyText"], fontName="Helvetica",
+        fontSize=6.1, leading=7.3, textColor=colors.HexColor("#DCE7F2"),
+    )
+    head_style = ParagraphStyle(
+        "CDPdfHead", parent=cel_style, fontName="Helvetica-Bold", fontSize=5.9,
+        leading=6.8, textColor=colors.white, alignment=TA_CENTER,
+    )
+    card_label = ParagraphStyle(
+        "CDPdfCardLabel", parent=estilos["BodyText"], fontName="Helvetica-Bold",
+        fontSize=6.3, leading=7, textColor=colors.HexColor("#91A7BD"),
+    )
+    card_value = ParagraphStyle(
+        "CDPdfCardValue", parent=estilos["Heading2"], fontName="Helvetica-Bold",
+        fontSize=15, leading=16, textColor=colors.white,
+    )
+    card_detail = ParagraphStyle(
+        "CDPdfCardDetail", parent=estilos["BodyText"], fontName="Helvetica",
+        fontSize=5.9, leading=7, textColor=colors.HexColor("#9DB3C8"),
+    )
+    insight_style = ParagraphStyle(
+        "CDPdfInsight", parent=estilos["BodyText"], fontName="Helvetica",
+        fontSize=7.5, leading=10, textColor=colors.HexColor("#D7E4F1"),
+    )
+
+    def _pagina(c, d):
+        c.saveState()
+        c.setFillColor(colors.HexColor("#0F1620"))
+        c.rect(0, 0, page_w, page_h, stroke=0, fill=1)
+        # Barra superior / identidade.
+        c.setFillColor(colors.HexColor("#132131"))
+        c.rect(0, page_h - 18 * mm, page_w, 18 * mm, stroke=0, fill=1)
+        c.setFillColor(colors.HexColor("#7FD7E7"))
+        c.roundRect(margem, page_h - 13.2 * mm, 18 * mm, 8.2 * mm, 3 * mm, stroke=0, fill=1)
+        c.setFillColor(colors.HexColor("#07131F"))
+        c.setFont("Helvetica-Bold", 7.8)
+        c.drawCentredString(margem + 9 * mm, page_h - 10.4 * mm, "DPSP")
+        c.setFillColor(colors.white)
+        c.setFont("Helvetica-Bold", 8.2)
+        c.drawString(margem + 22 * mm, page_h - 9 * mm, "CONTROLE DE ESTOQUE | ESTOQUE CD")
+        c.setFillColor(colors.HexColor("#83A0BA"))
+        c.setFont("Helvetica", 6.5)
+        c.drawString(margem + 22 * mm, page_h - 12.2 * mm, "Relatório operacional e executivo dos Centros de Distribuição")
+        c.setFillColor(colors.HexColor("#5EE7D1"))
+        c.setFont("Helvetica-Bold", 6.5)
+        c.drawRightString(page_w - margem, page_h - 10.5 * mm, "USO INTERNO")
+        # Rodapé.
+        c.setStrokeColor(colors.HexColor("#263748"))
+        c.setLineWidth(0.45)
+        c.line(margem, 10 * mm, page_w - margem, 10 * mm)
+        c.setFillColor(colors.HexColor("#7F95AA"))
+        c.setFont("Helvetica", 6.2)
+        c.drawString(margem, 6.3 * mm, "ALM - TI | Estoque CD | Documento gerado automaticamente")
+        c.drawRightString(page_w - margem, 6.3 * mm, f"Página {d.page}")
+        c.restoreState()
+
+    scope = []
+    if filtros.get("cd"):
+        scope.append(f"CD: {filtros['cd']}")
     else:
-        colunas = list(dados[0].keys())
-        max_cols = 11
-        # Relatórios muito largos permanecem legíveis priorizando as primeiras colunas.
-        if len(colunas) > max_cols:
-            colunas = colunas[:max_cols]
-        corpo = [[Paragraph(str(c), estilos["BodyText"]) for c in colunas]]
-        for row in dados[:5000]:
-            corpo.append([Paragraph(_texto_pdf(row.get(c)), estilos["BodyText"]) for c in colunas])
-        larg = (landscape(A4)[0] - 20*mm) / max(1, len(colunas))
-        tabela = Table(corpo, colWidths=[larg] * len(colunas), repeatRows=1)
-        tabela.setStyle(TableStyle([
-            ("BACKGROUND", (0,0), (-1,0), colors.HexColor("#183149")),
-            ("TEXTCOLOR", (0,0), (-1,0), colors.white),
-            ("FONTNAME", (0,0), (-1,0), "Helvetica-Bold"),
-            ("FONTSIZE", (0,0), (-1,-1), 6.5),
-            ("GRID", (0,0), (-1,-1), .25, colors.HexColor("#9aa8b8")),
-            ("VALIGN", (0,0), (-1,-1), "TOP"),
-            ("ROWBACKGROUNDS", (0,1), (-1,-1), [colors.white, colors.HexColor("#f2f6fa")]),
-            ("LEFTPADDING", (0,0), (-1,-1), 3),
-            ("RIGHTPADDING", (0,0), (-1,-1), 3),
-            ("TOPPADDING", (0,0), (-1,-1), 3),
-            ("BOTTOMPADDING", (0,0), (-1,-1), 3),
+        scope.append("CD: Todos")
+    if filtros.get("inicio") or filtros.get("fim"):
+        scope.append(f"Período: {filtros.get('inicio') or 'início'} a {filtros.get('fim') or 'hoje'}")
+    if filtros.get("usuario"):
+        scope.append(f"Usuário: {filtros['usuario']}")
+    scope.append(f"Registros: {len(dados)}")
+    scope.append(datetime.now().strftime("Gerado em %d/%m/%Y %H:%M"))
+
+    story = [
+        Paragraph("RELATÓRIO EXECUTIVO", ParagraphStyle(
+            "CDPdfEyebrow", parent=meta_style, fontName="Helvetica-Bold", fontSize=6.5,
+            textColor=colors.HexColor("#5EE7D1"), spaceAfter=1.2 * mm,
+        )),
+        Paragraph(_texto_pdf(titulo), titulo_style),
+        Paragraph(_texto_pdf(" | ".join(scope)), meta_style),
+    ]
+
+    kpis = _metricas_pdf_relatorio_cd(tipo, dados)
+    cards = []
+    for label, valor, detalhe, cor in kpis[:4]:
+        cards.append([
+            Paragraph(_texto_pdf(label), card_label),
+            Spacer(1, 1.2 * mm),
+            Paragraph(f'<font color="{cor}">{_texto_pdf(valor)}</font>', card_value),
+            Spacer(1, .6 * mm),
+            Paragraph(_texto_pdf(detalhe), card_detail),
+        ])
+    while len(cards) < 4:
+        cards.append([Paragraph("-", card_label)])
+    t_cards = Table([cards], colWidths=[(area_w - 9 * mm) / 4] * 4, hAlign="LEFT")
+    t_cards.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#182230")),
+        ("BOX", (0, 0), (-1, -1), .45, colors.HexColor("#31465B")),
+        ("INNERGRID", (0, 0), (-1, -1), .35, colors.HexColor("#26394C")),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 8),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+        ("TOPPADDING", (0, 0), (-1, -1), 7),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 7),
+    ]))
+    story.extend([t_cards, Spacer(1, 3.5 * mm)])
+
+    leitura = Table([[
+        Paragraph("<b>Leitura executiva</b><br/>" + _texto_pdf(_leitura_executiva_pdf_cd(tipo, dados)), insight_style)
+    ]], colWidths=[area_w])
+    leitura.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#14283A")),
+        ("BOX", (0, 0), (-1, -1), .55, colors.HexColor("#2F5977")),
+        ("LEFTPADDING", (0, 0), (-1, -1), 10),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 10),
+        ("TOPPADDING", (0, 0), (-1, -1), 7),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 7),
+    ]))
+    story.extend([leitura, Spacer(1, 2 * mm)])
+
+    if not dados:
+        vazio = Table([[Paragraph("Nenhum registro encontrado para os filtros informados.", insight_style)]], colWidths=[area_w])
+        vazio.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#182230")),
+            ("BOX", (0, 0), (-1, -1), .45, colors.HexColor("#31465B")),
+            ("LEFTPADDING", (0, 0), (-1, -1), 12),
+            ("TOPPADDING", (0, 0), (-1, -1), 12),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 12),
         ]))
-        story.append(tabela)
-    doc.build(story)
+        story.append(vazio)
+    else:
+        for secao_idx, (nome_secao, colunas) in enumerate(_secoes_pdf_relatorio_cd(tipo, dados)):
+            colunas = [c for c in colunas if c in dados[0]]
+            if not colunas:
+                continue
+            if secao_idx:
+                story.append(PageBreak())
+            story.append(Paragraph(_texto_pdf(nome_secao), secao_style))
+            corpo = [[Paragraph(_texto_pdf(c), head_style) for c in colunas]]
+            for row in dados[:5000]:
+                corpo.append([Paragraph(_texto_pdf(row.get(c)), cel_style) for c in colunas])
+            larguras = _larguras_pdf_cd(colunas, dados, area_w)
+            tabela = Table(corpo, colWidths=larguras, repeatRows=1, hAlign="LEFT", splitByRow=1)
+            tabela.setStyle(TableStyle([
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#234C74")),
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.HexColor("#151E29"), colors.HexColor("#192431")]),
+                ("GRID", (0, 0), (-1, -1), .24, colors.HexColor("#2B4054")),
+                ("LEFTPADDING", (0, 0), (-1, -1), 3.2),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 3.2),
+                ("TOPPADDING", (0, 0), (-1, -1), 3.5),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 3.5),
+            ]))
+            story.append(tabela)
+
+    doc.build(story, onFirstPage=_pagina, onLaterPages=_pagina)
     buf.seek(0)
     return buf
 
@@ -9361,7 +9697,10 @@ def relatorio_cd(tipo, formato):
         )
     if formato.lower() == "pdf":
         return send_file(
-            _pdf_relatorio_cd(titulo, dados), as_attachment=True,
+            _pdf_relatorio_cd(
+                titulo, dados, tipo=tipo,
+                filtros={"cd": cd, "inicio": inicio, "fim": fim, "usuario": usuario},
+            ), as_attachment=True,
             download_name=f"{slug}_{stamp}.pdf", mimetype="application/pdf",
         )
     return jsonify({"erro": "Formato inválido. Use xlsx ou pdf."}), 400
@@ -9599,16 +9938,53 @@ def api_movimentacoes(item_id):
 @role_required("admin", "gestor", "operador")
 def exportar_estoque_pdf():
     itens = db.listar_itens()
-    cd=(request.args.get("cd") or "").strip() if db.get_site_area()=="estoque_cd" else ""
+    em_cd = db.get_site_area() == "estoque_cd"
+    cd = (request.args.get("cd") or "").strip() if em_cd else ""
     if cd:
         if not _cd_local_valido(cd):
-            return jsonify({"erro":"Centro de Distribuição inválido."}), 400
-        itens=[x for x in itens if str(x.get("local") or "").strip()==cd]
-    titulo = "Relatório de Estoque CD" if db.get_site_area()=="estoque_cd" else "Relatório de Estoque"
-    subtitulo = ("Cadastro físico do Estoque CD com rastreabilidade, endereçamento e dados operacionais."
-                 if db.get_site_area()=="estoque_cd"
-                 else "Cadastro completo do estoque, com dados operacionais, rastreabilidade e auditoria.")
-    buffer, nome = _gerar_pdf_equipamentos(itens, titulo, subtitulo, "estoque_cd" if db.get_site_area()=="estoque_cd" else "estoque")
+            return jsonify({"erro": "Centro de Distribuição inválido."}), 400
+        itens = [x for x in itens if str(x.get("local") or "").strip() == cd]
+
+    if em_cd:
+        # PDF próprio do CD: executivo, com endereçamento, recebimento e rastreabilidade.
+        dados = []
+        for it in itens:
+            dados.append({
+                "ID": it.get("id") or "",
+                "Centro de Distribuição": it.get("local") or "",
+                "UF": it.get("localizacao") or "",
+                "Código": it.get("codigo") or "",
+                "Descrição": it.get("descricao") or "",
+                "Qtd.": it.get("qtde") or 0,
+                "Status": it.get("status") or "",
+                "Armazenamento": it.get("armazenagem") or "CD",
+                "Rua": it.get("endereco_rua") or "",
+                "Corredor": it.get("endereco_corredor") or "",
+                "Prateleira": it.get("endereco_prateleira") or "",
+                "Posição": it.get("endereco_posicao") or "",
+                "Nº série": it.get("nro_serie") or "",
+                "Patrimônio": it.get("nro_patrimonio") or "",
+                "NF / Documento": it.get("nf_entrada") or "",
+                "Data de entrada": it.get("data_entrada") or "",
+                "Fornecedor": it.get("fornecedor") or "",
+                "Lote": it.get("lote_recebimento") or "",
+                "Código barras / QR": it.get("codigo_barras") or "",
+                "Responsável": it.get("recebimento_responsavel") or it.get("criado_por") or "",
+            })
+        buffer = _pdf_relatorio_cd(
+            "Estoque completo - Centros de Distribuição",
+            dados,
+            tipo="estoque-completo",
+            filtros={"cd": cd},
+        )
+        sufixo = "_" + re.sub(r"[^A-Za-z0-9]+", "_", cd).strip("_") if cd else ""
+        nome = f"estoque_cd_executivo{sufixo}_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf"
+        return send_file(buffer, as_attachment=True, download_name=nome, mimetype="application/pdf")
+
+    # Expansão permanece com o relatório já existente, sem alteração de layout/regra.
+    titulo = "Relatório de Estoque"
+    subtitulo = "Cadastro completo do estoque, com dados operacionais, rastreabilidade e auditoria."
+    buffer, nome = _gerar_pdf_equipamentos(itens, titulo, subtitulo, "estoque")
     return send_file(buffer, as_attachment=True, download_name=nome, mimetype="application/pdf")
 
 
