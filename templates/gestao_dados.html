@@ -30,9 +30,35 @@
 </main>{% include '_footer.html' %}
 <script>
 const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-async function init(){const [st,imps]=await Promise.all([fetch('/api/status-sistema').then(r=>r.json()),fetch('/api/importacoes-recentes').then(r=>r.json())]);const c=st.contagens||{},i=st.inconsistencias||{};const db=document.getElementById('db-status');db.textContent=st.database_ok?`${st.database} · OK`:'Falha';db.className=st.database_ok?'ok':'danger';document.getElementById('cnt-itens').textContent=c.itens||0;document.getElementById('cnt-imob').textContent=c.imobilizados||0;document.getElementById('cnt-filiais').textContent=c.filiais||0;const inc=document.getElementById('cnt-inc');inc.textContent=i.total||0;inc.className=(i.total||0)?'warn':'ok';document.getElementById('inc-uf').textContent=i.filiais_sem_uf||0;document.getElementById('inc-band').textContent=i.filiais_sem_bandeira||0;document.getElementById('inc-data').textContent=i.inauguracoes_sem_data||0;document.getElementById('build').textContent=st.build||'-';document.getElementById('backup').textContent=st.ultimo_backup?.data_hora?`${st.ultimo_backup.usuario||'-'} · ${st.ultimo_backup.data_hora}`:'Ainda não gerado';document.getElementById('mov').textContent=st.ultima_movimentacao||'-';document.getElementById('imp').textContent=st.ultima_importacao?.data_hora?`${st.ultima_importacao.data_hora} · ${st.ultima_importacao.tipo}`:'-';document.getElementById('tb-import').innerHTML=imps.length?imps.map(x=>`<tr><td>${esc(x.data_hora)}</td><td>${esc(x.tipo)}</td><td>${esc(x.arquivo||'-')}</td><td>${x.total_linhas||0}</td><td>${x.criadas||0}</td><td>${x.atualizadas||0}</td><td>${x.ignoradas||0}</td><td>${esc(x.usuario||'-')}</td></tr>`).join(''):'<tr><td colspan="8" class="empty">Nenhuma importação registrada ainda.</td></tr>'}
+const el=id=>document.getElementById(id);
+const setText=(id,value)=>{const n=el(id);if(n)n.textContent=value};
+async function init(){
+  const dbStatus=el('db-status');
+  try{
+    const [stResp, impResp]=await Promise.all([fetch('/api/status-sistema',{cache:'no-store'}),fetch('/api/importacoes-recentes',{cache:'no-store'})]);
+    if(!stResp.ok) throw new Error(`Status do sistema HTTP ${stResp.status}`);
+    const st=await stResp.json();
+    const imps=impResp.ok?await impResp.json():[];
+    const c=st.contagens||{},i=st.inconsistencias||{};
+    dbStatus.textContent=st.database_ok?`${st.database} · OK`:'Falha';
+    dbStatus.className=st.database_ok?'ok':'danger';
+    setText('cnt-itens',c.itens||0);setText('cnt-imob',c.imobilizados||0);setText('cnt-filiais',c.filiais||0);
+    const inc=el('cnt-inc');if(inc){inc.textContent=i.total||0;inc.className=(i.total||0)?'warn':'ok'}
+    setText('inc-uf',i.filiais_sem_uf||0);setText('inc-band',i.filiais_sem_bandeira||0);
+    // No Estoque CD o card de inaugurações não existe; não tente escrever em elemento ausente.
+    setText('inc-data',i.inauguracoes_sem_data||0);
+    setText('build',st.build||'-');
+    setText('backup',st.ultimo_backup?.data_hora?`${st.ultimo_backup.usuario||'-'} · ${st.ultimo_backup.data_hora}`:'Ainda não gerado');
+    setText('mov',st.ultima_movimentacao||'-');
+    setText('imp',st.ultima_importacao?.data_hora?`${st.ultima_importacao.data_hora} · ${st.ultima_importacao.tipo}`:'-');
+    const tb=el('tb-import');if(tb)tb.innerHTML=Array.isArray(imps)&&imps.length?imps.map(x=>`<tr><td>${esc(x.data_hora)}</td><td>${esc(x.tipo)}</td><td>${esc(x.arquivo||'-')}</td><td>${x.total_linhas||0}</td><td>${x.criadas||0}</td><td>${x.atualizadas||0}</td><td>${x.ignoradas||0}</td><td>${esc(x.usuario||'-')}</td></tr>`).join(''):'<tr><td colspan="8" class="empty">Nenhuma importação registrada ainda.</td></tr>';
+  }catch(err){
+    console.error('Falha ao consultar saúde do sistema:',err);
+    dbStatus.textContent='Falha ao consultar';dbStatus.className='danger';
+  }
+}
 async function carregarExpurgo(){const x=await fetch('/api/expurgo-movimentacoes/status').then(r=>r.json());document.getElementById('retencao-dias').value=x.retencao_dias;document.getElementById('expurgo-status').textContent=`Data limite: ${x.data_limite} · ${x.registros_elegiveis} registro(s) elegível(is). ${x.ultimo_expurgo?'Último: '+x.ultimo_expurgo:''}`}
 async function salvarRetencao(){const dias=Number(document.getElementById('retencao-dias').value);const r=await fetch('/api/expurgo-movimentacoes/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({dias})});const x=await r.json();if(!r.ok){alert(x.erro||'Não foi possível salvar.');return}await carregarExpurgo();alert(`Retenção definida para ${x.retencao_dias} dias.`)}
 async function executarExpurgo(){const dias=document.getElementById('retencao-dias').value;const texto=document.getElementById('expurgo-status').textContent;if(!confirm(`Confirma o expurgo das movimentações anteriores a ${dias} dias?\n\n${texto}\n\nO arquivo Excel será baixado automaticamente.`))return;const r=await fetch('/expurgo-movimentacoes',{method:'POST'});if(!r.ok){const x=await r.json().catch(()=>({}));alert(x.erro||'Não foi possível executar o expurgo.');return}const blob=await r.blob();const nome=(r.headers.get('Content-Disposition')||'').match(/filename="?([^";]+)"?/)?.[1]||'movimentacoes_expurgadas.xlsx';const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=nome;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(a.href);await carregarExpurgo();alert('Expurgo concluído. Guarde o arquivo Excel baixado para auditoria.')}
-Promise.all([init(),carregarExpurgo()]).catch(()=>{document.getElementById('db-status').textContent='Falha ao consultar';});
+init();carregarExpurgo().catch(err=>{console.error('Falha ao consultar retenção:',err);const n=el('expurgo-status');if(n)n.textContent='Não foi possível consultar a política de retenção.';});
 </script></body></html>

@@ -69,7 +69,7 @@ import qrcode
 import db
 
 app = Flask(__name__)
-APP_BUILD = "2026-10-03-v1.7.4"
+APP_BUILD = "2026-10-03-v1.7.5"
 _DASHBOARD_CACHE = {}
 _EXPEDICAO_CACHE = {}
 
@@ -82,7 +82,7 @@ EXPANSION_ONLY_PREFIXES = (
     "/export-equipamentos-parque", "/export-equipamentos-parque-pdf",
     "/imobilizados", "/agente-ia", "/leitor-codigo", "/acesso-celular", "/seguranca",
     "/central-pendencias", "/api/imobilizados", "/api/pendencias",
-    "/usuarios", "/api/usuarios", "/api/visao-executiva",
+    "/api/visao-executiva",
     "/api/configuracao-expansao", "/api/agente-ia", "/api/orcamento",
     "/api/baixa-rapida", "/export-cockpit-implantacao", "/pdf-cockpit-implantacao",
     "/export-orcamento", "/pdf-orcamento", "/export-imobilizados",
@@ -99,7 +99,7 @@ CD_BLOCKED_PAGE_ENDPOINTS = {
     "pagina_projecao_lojas", "pagina_acompanhamento_expansao",
     "pagina_cockpit_implantacao", "pagina_leitor_codigo",
     "pagina_loja_virtual", "pagina_acesso_celular",
-    "pagina_usuarios", "pagina_seguranca", "pagina_central_pendencias",
+    "pagina_seguranca", "pagina_central_pendencias",
 }
 
 # No Estoque CD adotamos uma política de navegação por lista permitida.
@@ -107,7 +107,7 @@ CD_BLOCKED_PAGE_ENDPOINTS = {
 # explicitamente liberada, evitando mistura acidental com o ambiente Expansão.
 CD_ALLOWED_PAGE_PATHS = {
     "/", "/dashboard", "/estoque", "/produtos", "/filiais",
-    "/relatorios", "/historico", "/gestao-dados", "/ambiente",
+    "/relatorios", "/historico", "/gestao-dados", "/usuarios", "/ambiente",
     "/logout", "/trocar-senha", "/mfa/verificar", "/mfa/configurar",
     "/mfa/codigos-recuperacao", "/mfa/concluir", "/service-worker.js",
     "/health",
@@ -246,7 +246,7 @@ def _evitar_html_antigo_em_cache(response):
                 "/agente-ia", "/expedicao", "/orcamento", "/imobilizados",
                 "/equipamentos-parque", "/projecao-lojas", "/acompanhamento-expansao",
                 "/cockpit-implantacao", "/leitor-codigo", "/loja-virtual",
-                "/acesso-celular", "/usuarios", "/seguranca", "/central-pendencias",
+                "/acesso-celular", "/seguranca", "/central-pendencias",
             )
             seletores = ",".join(
                 f'#app-menu .app-menu-left a[href^="{p}"]' for p in bloqueados
@@ -259,7 +259,7 @@ def _evitar_html_antigo_em_cache(response):
             )
             permitido = ["/", "/dashboard", "/estoque", "/produtos", "/filiais", "/relatorios", "/historico"]
             if session.get("role") == "admin":
-                permitido.append("/gestao-dados")
+                permitido.extend(["/gestao-dados", "/usuarios"])
             guard_js = f"""<script id="cd-menu-guard-js">
 (function(){{
   const allowed=new Set({json.dumps(permitido, ensure_ascii=False)});
@@ -272,7 +272,7 @@ def _evitar_html_antigo_em_cache(response):
     const brand=menu.querySelector('.brand-copy');
     if(brand){{
       const desc=brand.querySelector('span'); if(desc) desc.textContent='Operação e controle do estoque dos Centros de Distribuição.';
-      const versao=brand.querySelector('small'); if(versao) versao.textContent='Versão · v1.7.4';
+      const versao=brand.querySelector('small'); if(versao) versao.textContent='Versão · v1.7.5';
     }}
   }}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',limparMenuCD);else limparMenuCD();
