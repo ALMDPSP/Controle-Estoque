@@ -79,8 +79,45 @@ def get_conn():
 
 
 def q(sql):
-    """Converte os placeholders '?' (estilo sqlite) para '%s' (estilo postgres)."""
-    return sql.replace("?", "%s") if IS_PG else sql
+    """Converte placeholders ``?`` do SQLite para ``%s`` no PostgreSQL.
+
+    A conversão ignora sinais de interrogação dentro de literais SQL. Isso é
+    importante para expressões regulares do PostgreSQL (por exemplo ``...?``),
+    que não são parâmetros e não podem ser entregues ao psycopg2 como ``%s``.
+    """
+    if not IS_PG:
+        return sql
+
+    partes = []
+    em_aspas_simples = False
+    em_aspas_duplas = False
+    i = 0
+    while i < len(sql):
+        ch = sql[i]
+
+        if ch == "'" and not em_aspas_duplas:
+            partes.append(ch)
+            # SQL escapa aspas simples duplicando-as: ''.
+            if em_aspas_simples and i + 1 < len(sql) and sql[i + 1] == "'":
+                partes.append("'")
+                i += 2
+                continue
+            em_aspas_simples = not em_aspas_simples
+        elif ch == '"' and not em_aspas_simples:
+            partes.append(ch)
+            # O mesmo vale para identificadores entre aspas duplas: "".
+            if em_aspas_duplas and i + 1 < len(sql) and sql[i + 1] == '"':
+                partes.append('"')
+                i += 2
+                continue
+            em_aspas_duplas = not em_aspas_duplas
+        elif ch == "?" and not em_aspas_simples and not em_aspas_duplas:
+            partes.append("%s")
+        else:
+            partes.append(ch)
+        i += 1
+
+    return "".join(partes)
 
 
 def get_cursor(conn):
@@ -1278,7 +1315,7 @@ def obter_dashboard_compacto(limite_movs=20):
     try:
         # O agrupamento acontece no banco para não transferir milhares de linhas.
         if IS_PG:
-            qtd_sql = ("CASE WHEN TRIM(COALESCE(qtde,'')) ~ '^[0-9]+([.][0-9]+)?$' "
+            qtd_sql = ("CASE WHEN TRIM(COALESCE(qtde,'')) ~ '^[0-9]+([.][0-9]+){0,1}$' "
                        "THEN CAST(qtde AS NUMERIC) ELSE 0 END")
         else:
             qtd_sql = "CAST(COALESCE(NULLIF(TRIM(qtde),''),'0') AS NUMERIC)"
