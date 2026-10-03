@@ -69,13 +69,81 @@ import qrcode
 import db
 
 app = Flask(__name__)
-APP_BUILD = "2026-10-01-v1.5.3"
-_DASHBOARD_CACHE = {"expira": 0.0, "dados": None}
-_EXPEDICAO_CACHE = {"expira": 0.0, "dados": None}
+APP_BUILD = "2026-10-02-v1.6.5"
+_DASHBOARD_CACHE = {}
+_EXPEDICAO_CACHE = {}
+
+EXPANSION_ONLY_PREFIXES = (
+    "/expedicao", "/acompanhamento-expansao", "/cockpit-implantacao",
+    "/projecao-lojas", "/equipamentos-parque", "/orcamento", "/loja-virtual",
+    "/api/expedicao", "/api/acompanhamento-expansao", "/api/cockpit-implantacao",
+    "/api/projecao-lojas", "/api/kit-padrao", "/export-acompanhamento-expansao",
+    "/pdf-acompanhamento-expansao", "/export-projecao-lojas", "/export-projecao-lojas-pdf",
+    "/export-equipamentos-parque", "/export-equipamentos-parque-pdf",
+    "/imobilizados", "/historico", "/relatorios", "/agente-ia", "/leitor-codigo",
+    "/acesso-celular", "/gestao-dados", "/central-pendencias", "/expurgo-movimentacoes",
+    "/api/imobilizados", "/api/pendencias",
+)
+
+def _normalizar_ambiente_usuario(usuario):
+    if not usuario:
+        return "expansao"
+    if usuario.get("role") == "admin":
+        area = session.get("site_area")
+        return area if area in db.VALID_SITE_AREAS else "expansao"
+    area = str(usuario.get("ambiente_acesso") or "expansao").strip().lower()
+    return area if area in db.VALID_SITE_AREAS else "expansao"
+
+@app.before_request
+def _aplicar_ambiente_requisicao():
+    role = session.get("role")
+    # O contexto operacional deve vir SEMPRE da escolha feita na tela pós-MFA.
+    # ambiente_acesso define apenas o que o usuário PODE escolher; não deve
+    # substituir o ambiente efetivamente selecionado na sessão.
+    if session.get("user_id") and session.get("ambiente_selecionado"):
+        area = str(session.get("site_area") or "").strip().lower()
+        acesso = str(session.get("ambiente_acesso") or ("ambos" if role == "admin" else "expansao")).strip().lower()
+        permitidos = set(db.VALID_SITE_AREAS) if role == "admin" or acesso == "ambos" else {acesso}
+        if area not in db.VALID_SITE_AREAS or area not in permitidos:
+            session["site_area"] = None
+            session["ambiente_selecionado"] = False
+            db.set_site_area("expansao")
+            return redirect(url_for("selecionar_ambiente", acesso_negado="1"))
+    else:
+        area = "expansao"
+    # Todo usuário, inclusive Expansão/Estoque CD, deve passar pela tela de
+    # seleção de ambiente depois do MFA. Antes da escolha não permitimos que
+    # nenhuma página operacional seja renderizada ou consulte dados de um
+    # ambiente por padrão. Rotas de autenticação/troca de senha continuam
+    # liberadas para concluir o fluxo de entrada.
+    rotas_sem_ambiente = {
+        "login", "logout", "trocar_senha", "mfa_verificar", "mfa_configurar",
+        "mfa_codigos_recuperacao", "mfa_concluir", "selecionar_ambiente",
+    }
+    if (
+        session.get("user_id")
+        and not session.get("precisa_trocar_senha")
+        and not session.get("ambiente_selecionado")
+        and request.endpoint not in rotas_sem_ambiente
+    ):
+        db.set_site_area("expansao")
+        return redirect(url_for("selecionar_ambiente"))
+
+    # Enquanto o ambiente não foi escolhido, o contexto de banco é apenas um
+    # valor temporário para a própria tela de seleção; nenhum dado operacional
+    # deve ser apresentado nesse estágio.
+    if session.get("user_id") and not session.get("ambiente_selecionado"):
+        db.set_site_area("expansao")
+    else:
+        db.set_site_area(area)
+    if session.get("user_id") and area == "estoque_cd":
+        if any(request.path == p or request.path.startswith(p + "/") for p in EXPANSION_ONLY_PREFIXES):
+            if request.path.startswith("/api/"):
+                return jsonify({"erro": "Este módulo pertence ao ambiente Expansão. Troque o ambiente para continuar."}), 403
+            return redirect(url_for("dashboard", acesso_ambiente="1"))
 
 def _invalidar_cache_expedicao():
-    _EXPEDICAO_CACHE["expira"] = 0.0
-    _EXPEDICAO_CACHE["dados"] = None
+    _EXPEDICAO_CACHE.clear()
 app.secret_key = os.environ.get("SECRET_KEY", "troque-esta-chave-em-producao")
 _RUNNING_HTTPS_HOSTED = bool(
     os.environ.get("KOYEB_PUBLIC_DOMAIN")
@@ -142,7 +210,7 @@ def _csrf_ok():
 
 @app.context_processor
 def _inject_security_helpers():
-    return {"csrf_token": _csrf_token()}
+    return {"csrf_token": _csrf_token(), "site_area": db.get_site_area(), "ambiente_acesso": session.get("ambiente_acesso") or "expansao"}
 
 
 # ---------------------------------------------------------------------
@@ -317,6 +385,13 @@ def _finalize_login(usuario=None):
     session["user_id"] = usuario["id"]
     session["username"] = usuario["username"]
     session["role"] = usuario["role"]
+    session["ambiente_acesso"] = usuario.get("ambiente_acesso") or ("ambos" if usuario.get("role") == "admin" else "expansao")
+    # Todos os perfis, inclusive usuários vinculados a um único ambiente,
+    # precisam passar pela tela pós-MFA. Para usuários não administradores,
+    # o ambiente continua sendo definido pelo cadastro e será validado no
+    # POST de /ambiente; não concedemos o ambiente automaticamente aqui.
+    session["site_area"] = None
+    session["ambiente_selecionado"] = False
     session["precisa_trocar_senha"] = precisa_trocar
     db.registrar_evento_login(usuario["username"], _client_ip(), "sucesso", "login concluído com MFA" if usuario.get("mfa_enabled") == "1" else "login realizado")
     if precisa_trocar:
@@ -404,6 +479,19 @@ def page_role_required(*roles):
     return decorator
 
 
+def site_required(*areas):
+    permitidos = set(areas)
+    def decorator(view):
+        @wraps(view)
+        def wrapped(*args, **kwargs):
+            if db.get_site_area() not in permitidos:
+                if request.path.startswith("/api/"):
+                    return jsonify({"erro": "Este módulo não está disponível no ambiente atual."}), 403
+                return redirect(url_for("dashboard", acesso_ambiente="1"))
+            return view(*args, **kwargs)
+        return wrapped
+    return decorator
+
 def edit_required(view):
     return role_required("admin", "gestor", "operador")(view)
 
@@ -483,14 +571,14 @@ def mfa_verificar():
     if request.method == "POST":
         if not _csrf_ok():
             erro = "A sessão de segurança expirou. Atualize a página e tente novamente."
-            return render_template("mfa_verificar.html", username=usuario["username"], erro=erro), 400
+            return render_template("mfa_verificar.html", username=usuario["username"], erro=erro, ambiente_nome=("Acesso aos dois ambientes" if usuario.get("role")=="admin" else ("Estoque CD" if usuario.get("ambiente_acesso")=="estoque_cd" else "Expansão"))), 400
 
         espera = _mfa_wait_seconds(usuario["username"])
         if espera > 0:
             minutos = max(1, (espera + 59) // 60)
             db.registrar_evento_login(usuario["username"], _client_ip(), "mfa_bloqueado", "limite de tentativas MFA excedido")
             erro = f"Muitas tentativas de MFA. Aguarde aproximadamente {minutos} minuto(s)."
-            return render_template("mfa_verificar.html", username=usuario["username"], erro=erro), 429
+            return render_template("mfa_verificar.html", username=usuario["username"], erro=erro, ambiente_nome=("Acesso aos dois ambientes" if usuario.get("role")=="admin" else ("Estoque CD" if usuario.get("ambiente_acesso")=="estoque_cd" else "Expansão"))), 429
 
         codigo = (request.form.get("codigo") or "").strip()
         secret = _unprotect_mfa_secret(usuario.get("mfa_secret"))
@@ -503,13 +591,13 @@ def mfa_verificar():
             _mfa_register_failure(usuario["username"])
             db.registrar_evento_login(usuario["username"], _client_ip(), "mfa_falha", "código MFA inválido")
             erro = "Código inválido. Informe o código de 6 dígitos do Authenticator ou um código de recuperação."
-            return render_template("mfa_verificar.html", username=usuario["username"], erro=erro), 401
+            return render_template("mfa_verificar.html", username=usuario["username"], erro=erro, ambiente_nome=("Acesso aos dois ambientes" if usuario.get("role")=="admin" else ("Estoque CD" if usuario.get("ambiente_acesso")=="estoque_cd" else "Expansão"))), 401
 
         _mfa_clear_failures(usuario["username"])
         db.registrar_evento_login(usuario["username"], _client_ip(), "mfa_validado", "código de recuperação utilizado" if recovery_ok else "código TOTP validado")
         return _finalize_login(usuario)
 
-    return render_template("mfa_verificar.html", username=usuario["username"], erro=erro)
+    return render_template("mfa_verificar.html", username=usuario["username"], erro=erro, ambiente_nome=("Acesso aos dois ambientes" if usuario.get("role")=="admin" else ("Estoque CD" if usuario.get("ambiente_acesso")=="estoque_cd" else "Expansão")))
 
 
 @app.route("/mfa/configurar", methods=["GET", "POST"])
@@ -540,12 +628,12 @@ def mfa_configurar():
     if request.method == "POST":
         if not _csrf_ok():
             erro = "A sessão de segurança expirou. Atualize a página e tente novamente."
-            return render_template("mfa_configurar.html", username=usuario["username"], secret=secret, qr_data=qr_data, erro=erro, obrigatorio=obrigatorio), 400
+            return render_template("mfa_configurar.html", username=usuario["username"], secret=secret, qr_data=qr_data, erro=erro, obrigatorio=obrigatorio, ambiente_nome=("Acesso aos dois ambientes" if usuario.get("role")=="admin" else ("Estoque CD" if usuario.get("ambiente_acesso")=="estoque_cd" else "Expansão"))), 400
         codigo = request.form.get("codigo", "")
         if not _verify_totp(secret, codigo):
             db.registrar_evento_login(usuario["username"], _client_ip(), "mfa_config_falha", "código de confirmação inválido")
             erro = "O código não confere. Aguarde um novo código no Authenticator e tente novamente."
-            return render_template("mfa_configurar.html", username=usuario["username"], secret=secret, qr_data=qr_data, erro=erro, obrigatorio=obrigatorio), 400
+            return render_template("mfa_configurar.html", username=usuario["username"], secret=secret, qr_data=qr_data, erro=erro, obrigatorio=obrigatorio, ambiente_nome=("Acesso aos dois ambientes" if usuario.get("role")=="admin" else ("Estoque CD" if usuario.get("ambiente_acesso")=="estoque_cd" else "Expansão"))), 400
 
         codigos = _gerar_codigos_recuperacao()
         hashes = [_hash_recovery_code(c) for c in codigos]
@@ -557,7 +645,7 @@ def mfa_configurar():
         db.registrar_evento_login(usuario["username"], _client_ip(), "mfa_ativado", "MFA TOTP ativado")
         return redirect(url_for("mfa_codigos_recuperacao"))
 
-    return render_template("mfa_configurar.html", username=usuario["username"], secret=secret, qr_data=qr_data, erro=erro, obrigatorio=obrigatorio)
+    return render_template("mfa_configurar.html", username=usuario["username"], secret=secret, qr_data=qr_data, erro=erro, obrigatorio=obrigatorio, ambiente_nome=("Acesso aos dois ambientes" if usuario.get("role")=="admin" else ("Estoque CD" if usuario.get("ambiente_acesso")=="estoque_cd" else "Expansão")))
 
 
 @app.route("/mfa/codigos-recuperacao")
@@ -730,6 +818,7 @@ def dashboard():
         username=session.get("username"),
         role=session.get("role") or "user",
         is_admin=session.get("role") == "admin",
+        site_area=db.get_site_area(),
     )
 
 
@@ -1517,6 +1606,50 @@ def exportar_relatorio_executivo_estoque_kit_pdf():
     buf.seek(0)
     return send_file(buf,as_attachment=True,download_name=f"relatorio_executivo_capacidade_lojas_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",mimetype="application/pdf")
 
+@app.route("/ambiente", methods=["GET", "POST"])
+@login_required
+def selecionar_ambiente():
+    usuario = db.buscar_usuario_por_id(session.get("user_id"))
+    if not usuario:
+        session.clear()
+        return redirect(url_for("login"))
+
+    if request.method == "GET":
+        acesso = usuario.get("ambiente_acesso") or ("ambos" if usuario.get("role") == "admin" else "expansao")
+        return render_template(
+            "selecionar_ambiente.html",
+            username=session.get("username"),
+            ambiente_acesso=acesso,
+            csrf_token=_csrf_token(),
+        )
+
+    # POST: seleção feita na tela obrigatória pós-MFA. Administradores podem
+    # escolher os dois ambientes; os demais somente o ambiente cadastrado.
+    if not _csrf_ok():
+        return jsonify({"erro": "Token de segurança inválido."}), 400
+    dados = request.get_json(silent=True) or {}
+    area = str(dados.get("site_area") or "").strip().lower()
+    if area not in db.VALID_SITE_AREAS:
+        return jsonify({"erro": "Ambiente inválido."}), 400
+
+    acesso = usuario.get("ambiente_acesso") or ("ambos" if usuario.get("role") == "admin" else "expansao")
+    permitidos = set(db.VALID_SITE_AREAS) if usuario.get("role") == "admin" or acesso == "ambos" else {str(acesso).strip().lower()}
+    if area not in permitidos:
+        nome = "Estoque CD" if area == "estoque_cd" else "Expansão"
+        return jsonify({
+            "ok": False,
+            "erro": f"Acesso bloqueado: seu usuário não possui permissão para o ambiente {nome}. Selecione o ambiente liberado para o seu cadastro."
+        }), 403
+
+    session["site_area"] = area
+    session["ambiente_selecionado"] = True
+    db.set_site_area(area)
+    # Nunca reutilizar dados calculados em outro contexto ao trocar/selecionar ambiente.
+    _DASHBOARD_CACHE.clear()
+    _invalidar_cache_expedicao()
+    proximo = session.pop("pending_next", None) or url_for("dashboard")
+    return jsonify({"ok": True, "site_area": area, "nome": "Estoque CD" if area == "estoque_cd" else "Expansão", "redirect": proximo})
+
 @app.route("/usuarios")
 @admin_required
 def pagina_usuarios():
@@ -2284,8 +2417,10 @@ def api_visao_executiva():
 def api_dashboard_resumo():
     """Carga compacta do Dashboard em uma única chamada HTTP."""
     agora_mono = time.monotonic()
-    if request.args.get("refresh") != "1" and _DASHBOARD_CACHE["dados"] is not None and agora_mono < _DASHBOARD_CACHE["expira"]:
-        resposta = jsonify(_DASHBOARD_CACHE["dados"])
+    cache_key = db.get_site_area()
+    cache = _DASHBOARD_CACHE.get(cache_key)
+    if request.args.get("refresh") != "1" and cache and cache.get("dados") is not None and agora_mono < cache.get("expira", 0):
+        resposta = jsonify(cache["dados"])
         resposta.headers["Cache-Control"] = "private, max-age=10"
         resposta.headers["X-Dashboard-Cache"] = "HIT"
         return resposta
@@ -2316,9 +2451,9 @@ def api_dashboard_resumo():
         "movimentacoes":base.get("movimentacoes") or [],
         "status":status,
         "visao":visao,
+        "site_area":db.get_site_area(),
     }
-    _DASHBOARD_CACHE["dados"] = dados
-    _DASHBOARD_CACHE["expira"] = time.monotonic() + 15
+    _DASHBOARD_CACHE[cache_key] = {"dados": dados, "expira": time.monotonic() + 15}
     resposta=jsonify(dados)
     resposta.headers["Cache-Control"]="private, max-age=10"
     resposta.headers["X-Dashboard-Cache"]="MISS"
@@ -8236,13 +8371,14 @@ def api_expedicao_restaurar_kit_filial(codigo_filial):
 def api_expedicao_resumo():
     agora = time.monotonic()
     force = request.args.get("force") == "1"
-    if not force and _EXPEDICAO_CACHE["dados"] is not None and agora < _EXPEDICAO_CACHE["expira"]:
-        resposta = jsonify(_EXPEDICAO_CACHE["dados"])
+    cache_key = db.get_site_area()
+    cache = _EXPEDICAO_CACHE.get(cache_key)
+    if not force and cache and cache.get("dados") is not None and agora < cache.get("expira", 0):
+        resposta = jsonify(cache["dados"])
         resposta.headers["X-Expedicao-Cache"] = "HIT"
         return resposta
     dados = _resumo_central_expedicao()
-    _EXPEDICAO_CACHE["dados"] = dados
-    _EXPEDICAO_CACHE["expira"] = agora + 30
+    _EXPEDICAO_CACHE[cache_key] = {"dados": dados, "expira": agora + 30}
     resposta = jsonify(dados)
     resposta.headers["X-Expedicao-Cache"] = "MISS"
     return resposta
@@ -9119,6 +9255,11 @@ def api_criar_usuario():
     role = dados.get("role") if dados.get("role") in ("admin", "gestor", "operador", "consulta", "user") else "operador"
     email = (dados.get("email") or "").strip()
     whatsapp = (dados.get("whatsapp") or "").strip()
+    ambiente_acesso = (dados.get("ambiente_acesso") or "expansao").strip().lower()
+    if role == "admin":
+        ambiente_acesso = "ambos"
+    elif ambiente_acesso not in ("expansao", "estoque_cd"):
+        ambiente_acesso = "expansao"
 
     if not username or not password:
         return jsonify({"erro": "Usuário e senha são obrigatórios."}), 400
@@ -9129,7 +9270,7 @@ def api_criar_usuario():
     if db.buscar_usuario_por_username(username):
         return jsonify({"erro": "Já existe um usuário com esse nome."}), 400
 
-    db.criar_usuario(username, password, role, email=email, whatsapp=whatsapp)
+    db.criar_usuario(username, password, role, email=email, whatsapp=whatsapp, ambiente_acesso=ambiente_acesso)
     # A senha temporária é devolvida somente nesta resposta ao Administrador.
     # No banco permanece apenas o hash; não há recuperação posterior em texto aberto.
     return jsonify({"ok": True, "username": username, "senha_temporaria": password}), 201
