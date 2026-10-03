@@ -3507,12 +3507,29 @@ def receber_itens_cd(dados, usuario):
     data_entrada = str(dados.get("data_entrada") or datetime.now().strftime("%Y-%m-%d")).strip()
     codigo_barras = str(dados.get("codigo_barras") or "").strip()
     lote = str(dados.get("lote_recebimento") or datetime.now().strftime("REC-%Y%m%d%H%M%S")).strip()
+
+    # Quantidade precisa ser inteira e positiva. A implementação anterior
+    # transformava 0 em 1 e truncava decimais, o que podia criar saldo indevido.
+    bruto_quantidade = dados.get("quantidade") if dados.get("quantidade") is not None else dados.get("qtde")
     try:
-        quantidade = max(1, int(float(dados.get("quantidade") or dados.get("qtde") or 1)))
+        numero_quantidade = float(str(bruto_quantidade or "").strip().replace(",", "."))
     except (TypeError, ValueError):
-        raise ValueError("Quantidade inválida para o recebimento.")
-    if not codigo or not local or not uf:
-        raise ValueError("Código, Centro de Distribuição e UF são obrigatórios.")
+        raise ValueError("Informe uma quantidade inteira maior que zero.")
+    if numero_quantidade <= 0 or not numero_quantidade.is_integer():
+        raise ValueError("Informe uma quantidade inteira maior que zero.")
+    quantidade = int(numero_quantidade)
+
+    if not codigo or not descricao or not local or not uf:
+        raise ValueError("Código, descrição, Centro de Distribuição e UF são obrigatórios.")
+    if not responsavel:
+        raise ValueError("Informe o responsável pelo recebimento.")
+
+    try:
+        data_recebimento = datetime.strptime(data_entrada, "%Y-%m-%d").date()
+    except (TypeError, ValueError):
+        raise ValueError("Informe uma data de entrada válida.")
+    if data_recebimento > datetime.now().date():
+        raise ValueError("A data de entrada não pode ser futura.")
 
     campos = [
         "codigo", "descricao", "qtde", "localizacao", "nf_entrada", "data_entrada",
@@ -3561,7 +3578,17 @@ def receber_itens_cd(dados, usuario):
                 ids.append(cur.lastrowid)
 
         agora = datetime.now().strftime("%Y-%m-%d %H:%M")
-        obs = f"Recebimento no {local}" + (f" · NF {nf}" if nf else "") + (f" · fornecedor {fornecedor}" if fornecedor else "")
+        endereco = " / ".join(
+            str(base.get(c) or "").strip()
+            for c in ("endereco_rua", "endereco_corredor", "endereco_prateleira", "endereco_posicao")
+            if str(base.get(c) or "").strip()
+        )
+        obs = (
+            f"Recebimento no {local} · lote {lote}"
+            + (f" · NF/documento {nf}" if nf else " · sem NF/documento")
+            + (f" · fornecedor {fornecedor}" if fornecedor else "")
+            + (f" · endereço {endereco}" if endereco else "")
+        )
         movs = [
             (item_id, "recebimento", "1", usuario, agora, obs, "itens", get_site_area(),
              None, local, nf, fornecedor, responsavel, lote)
@@ -3954,6 +3981,7 @@ def resumo_operacional_cd(local=None, dias_parado=90):
             "descricao": ref.get("descricao") or "", "local": m.get("local_destino") or ref.get("local") or "",
             "nf": m.get("nf_documento") or ref.get("nf_entrada") or "",
             "fornecedor": m.get("fornecedor") or ref.get("fornecedor") or "",
+            "lote": m.get("referencia") or ref.get("lote_recebimento") or "",
             "responsavel": m.get("responsavel") or m.get("usuario") or "",
         })
         if len(recebimentos) >= 12:

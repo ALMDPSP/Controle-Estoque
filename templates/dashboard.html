@@ -20,7 +20,7 @@
 <main class="page-dashboard">
 <section class="dash-hero">
   <div class="hero-card">
-    <div class="hero-eyebrow">Centro de comando · v1.8.0</div>
+    <div class="hero-eyebrow">Centro de comando · v1.8.1</div>
     <h2 class="hero-title">{{ "Operação de CD e armazenamento." if site_area == "estoque_cd" else "Dashboard executivo orientado à operação." }}</h2>
     <p class="hero-sub">{{ "Acompanhe saldos, catálogo de produtos, movimentações e disponibilidade operacional dos Centros de Distribuição." if site_area == "estoque_cd" else "Visão executiva do pipeline de inauguração, riscos operacionais, capacidade de estoque e acessos rápidos para as principais ações do sistema." }}</p>
     <div class="hero-strip">
@@ -263,7 +263,7 @@ async function init(){
      alertas.innerHTML=(x.alertas||[]).map(a=>`<div class="alert ${a.tipo==='danger'?'danger':a.tipo==='ok'?'ok':''}"><strong>${esc(a.titulo||'Alerta')}</strong><span>${esc(a.detalhe||'')}</span></div>`).join('')||'<div class="alert ok"><strong>Sem alertas</strong><span>Nenhum ponto de atenção identificado.</span></div>';
 
      const recebimentos=document.getElementById('cd-recebimentos');
-     recebimentos.innerHTML=(x.ultimos_recebimentos||[]).map(a=>`<div class="mov"><div class="mov-top"><b>${esc(a.codigo||'Item')} · ${esc(a.descricao||'')}</b><code>${esc(a.local||'CD')}</code></div><div class="cd-meta-line"><span><b>NF:</b> ${esc(a.nf||'não informada')}</span><span><b>Fornecedor:</b> ${esc(a.fornecedor||'-')}</span></div><small>${esc(a.data_hora||'')} · ${esc(a.responsavel||'-')}</small></div>`).join('')||'<div class="cd-empty">Nenhum recebimento encontrado para o escopo selecionado.</div>';
+     recebimentos.innerHTML=(x.ultimos_recebimentos||[]).map(a=>`<div class="mov"><div class="mov-top"><b>${esc(a.codigo||'Item')} · ${esc(a.descricao||'')}</b><code>${esc(a.local||'CD')}</code></div><div class="cd-meta-line"><span><b>NF:</b> ${esc(a.nf||'não informada')}</span><span><b>Lote:</b> ${esc(a.lote||'-')}</span><span><b>Fornecedor:</b> ${esc(a.fornecedor||'-')}</span></div><small>${esc(a.data_hora||'')} · ${esc(a.responsavel||'-')}</small></div>`).join('')||'<div class="cd-empty">Nenhum recebimento encontrado para o escopo selecionado.</div>';
 
      const inventarios=document.getElementById('cd-inventarios');
      inventarios.innerHTML=(x.inventarios_recentes||[]).map(a=>`<div class="mov"><div class="mov-top"><b>Inventário #${esc(a.id||'')}</b><code>${esc(a.local||'CD')}</code></div><div class="cd-meta-line"><span class="${Number(a.divergencias||0)>0?'cd-inv-warn':'cd-inv-ok'}"><b>${Number(a.divergencias||0)}</b> divergência(s)</span><span>Ajustado: ${String(a.ajustado)==='1'?'Sim':'Não'}</span></div><small>${esc(a.concluido_em||a.iniciado_em||'')} · ${esc(a.concluido_por||a.iniciado_por||'-')}</small></div>`).join('')||'<div class="cd-empty">Nenhum inventário concluído para o escopo selecionado.</div>';

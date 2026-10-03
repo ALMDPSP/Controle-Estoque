@@ -69,7 +69,7 @@ import qrcode
 import db
 
 app = Flask(__name__)
-APP_BUILD = "2026-10-03-v1.8.0"
+APP_BUILD = "2026-10-03-v1.8.1"
 _DASHBOARD_CACHE = {}
 _EXPEDICAO_CACHE = {}
 
@@ -272,7 +272,7 @@ def _evitar_html_antigo_em_cache(response):
     const brand=menu.querySelector('.brand-copy');
     if(brand){{
       const desc=brand.querySelector('span'); if(desc) desc.textContent='Operação e controle do estoque dos Centros de Distribuição.';
-      const versao=brand.querySelector('small'); if(versao) versao.textContent='Versão · v1.8.0';
+      const versao=brand.querySelector('small'); if(versao) versao.textContent='Versão · v1.8.1';
     }}
   }}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',limparMenuCD);else limparMenuCD();
@@ -8958,7 +8958,7 @@ def api_baixa_rapida_confirmar():
 
 
 # ---------------------------------------------------------------------
-# Estoque CD — operação de recebimento, transferência e inventário (v1.8.0)
+# Estoque CD — operação de recebimento, transferência e inventário (v1.8.1)
 # ---------------------------------------------------------------------
 
 def _cd_local_valido(local):
@@ -9012,17 +9012,33 @@ def api_cd_estoque_agrupado():
 @site_required("estoque_cd")
 def api_cd_recebimento():
     dados = request.get_json(silent=True) or {}
+    codigo = str(dados.get("codigo") or "").strip()
     local = str(dados.get("local") or "").strip()
+
+    if not codigo:
+        return jsonify({"erro": "Selecione um produto cadastrado para registrar o recebimento."}), 400
     if not _cd_local_valido(local):
         return jsonify({"erro": "Selecione um Centro de Distribuição válido."}), 400
+
+    # O produto é sempre validado no servidor para impedir recebimentos com
+    # código/descrição adulterados fora do Cadastro de Produtos do Estoque CD.
+    produto = db.buscar_produto_por_codigo(codigo)
+    if not produto:
+        return jsonify({"erro": "Produto não encontrado no Cadastro de Produtos do Estoque CD."}), 400
+
+    dados["codigo"] = codigo
+    dados["descricao"] = str(produto.get("descricao") or "").strip()
     dados["localizacao"] = CDS_DPSP_UF[local]
-    dados["descricao"] = str(dados.get("descricao") or "").strip()
-    if not dados["descricao"]:
-        produto = db.buscar_produto_por_codigo(str(dados.get("codigo") or "").strip())
-        if produto:
-            dados["descricao"] = produto.get("descricao") or ""
-            if not dados.get("codigo_barras"):
-                dados["codigo_barras"] = produto.get("codigo_barras") or ""
+    dados["local"] = local
+    if not str(dados.get("codigo_barras") or "").strip():
+        dados["codigo_barras"] = str(produto.get("codigo_barras") or "").strip()
+
+    # Mantém a auditoria consistente mesmo se o campo visual for limpo.
+    dados["responsavel"] = str(dados.get("responsavel") or session.get("username") or "").strip()
+    dados["nf_entrada"] = str(dados.get("nf_entrada") or "").strip()
+    dados["fornecedor"] = str(dados.get("fornecedor") or "").strip()
+    dados["lote_recebimento"] = str(dados.get("lote_recebimento") or "").strip()
+
     try:
         resultado = db.receber_itens_cd(dados, session.get("username"))
     except ValueError as exc:
@@ -9030,8 +9046,12 @@ def api_cd_recebimento():
     except Exception:
         app.logger.exception("Falha ao registrar recebimento do Estoque CD")
         return jsonify({"erro": "Não foi possível registrar o recebimento. Nenhum item foi gravado."}), 500
+
     _DASHBOARD_CACHE.pop("estoque_cd", None)
-    return jsonify({"ok": True, **resultado}), 201
+    resposta = {"ok": True, **resultado}
+    if not dados["nf_entrada"]:
+        resposta["aviso"] = "Recebimento registrado sem NF/documento; a pendência ficará sinalizada na operação do CD."
+    return jsonify(resposta), 201
 
 
 @app.route("/api/cd/movimentacao", methods=["POST"])
