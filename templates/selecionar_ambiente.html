@@ -5,61 +5,100 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Selecionar ambiente · Controle de Estoque</title>
 <style>
-:root{--bg:#060b12;--panel:rgba(13,21,32,.92);--line:rgba(120,178,230,.18);--text:#f1f7fd;--muted:#91a6ba;--blue:#3ea6ff;--blue2:#79c5ff;--cyan:#5ef2d6;--disabled:#5e6c7b}
-*{box-sizing:border-box}html,body{margin:0;min-height:100%;width:100%}
-body{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:28px;background:radial-gradient(circle at 12% 12%,rgba(62,166,255,.13),transparent 34%),radial-gradient(circle at 88% 84%,rgba(94,242,214,.08),transparent 32%),linear-gradient(145deg,#050a10,#0a1420 55%,#07101a);color:var(--text);font-family:"Segoe UI",Inter,system-ui,sans-serif;overflow:auto}
-.aurora{position:fixed;inset:0;pointer-events:none;overflow:hidden}.aurora:before,.aurora:after{content:"";position:absolute;border-radius:50%;filter:blur(90px);opacity:.16}.aurora:before{width:440px;height:440px;left:-180px;top:-190px;background:#168cff}.aurora:after{width:360px;height:360px;right:-150px;bottom:-140px;background:#26d9c0}
-.wrapper{position:relative;width:min(980px,100%);z-index:2}.brand{text-align:center;margin-bottom:28px}.brand-mark{display:inline-flex;align-items:center;justify-content:center;height:42px;padding:0 17px;border:1px solid rgba(62,166,255,.35);border-radius:13px;background:rgba(62,166,255,.08);color:#dff2ff;font-weight:800;letter-spacing:.16em;font-size:14px;box-shadow:0 10px 30px rgba(0,0,0,.2)}h1{margin:18px 0 7px;font-size:clamp(25px,4vw,38px);letter-spacing:-.03em} .success{display:inline-flex;align-items:center;gap:8px;color:var(--cyan);font-weight:700;font-size:14px}.success i{width:8px;height:8px;border-radius:50%;background:var(--cyan);box-shadow:0 0 14px var(--cyan)}.subtitle{margin:0;color:var(--muted);font-size:15px}
-.panel{padding:28px;border:1px solid var(--line);border-radius:24px;background:linear-gradient(180deg,rgba(15,27,41,.94),rgba(8,16,25,.94));box-shadow:0 28px 80px rgba(0,0,0,.34),inset 0 1px rgba(255,255,255,.035)}.panel-title{text-align:center;margin:0 0 22px;font-size:16px;color:#c9d9e8;font-weight:700}.cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}.card{position:relative;min-height:285px;padding:28px 27px 25px;border:1px solid rgba(121,197,255,.19);border-radius:19px;background:linear-gradient(145deg,rgba(23,40,59,.72),rgba(10,19,30,.9));display:flex;flex-direction:column;transition:border-color .2s,box-shadow .2s,transform .2s}.card.enabled:hover{border-color:rgba(62,166,255,.58);box-shadow:0 18px 40px rgba(0,0,0,.24),0 0 0 1px rgba(62,166,255,.08);transform:translateY(-2px)}.card.disabled{opacity:.48;filter:saturate(.45)}.icon{width:48px;height:48px;border-radius:14px;display:flex;align-items:center;justify-content:center;border:1px solid rgba(62,166,255,.3);background:rgba(62,166,255,.09);color:var(--blue2);font-size:23px;margin-bottom:21px}.card h2{margin:0 0 9px;font-size:23px;letter-spacing:-.02em}.card p{margin:0;color:var(--muted);line-height:1.55;font-size:14px;max-width:330px}.badge{margin-top:15px;align-self:flex-start;padding:5px 9px;border-radius:999px;border:1px solid rgba(94,242,214,.2);background:rgba(94,242,214,.06);color:#a5eee0;font-size:11px;font-weight:700}.card.disabled .badge{border-color:rgba(255,255,255,.12);background:rgba(255,255,255,.03);color:#9aa7b3}.access{margin-top:auto;padding-top:24px}.access button{width:100%;height:46px;border:1px solid rgba(62,166,255,.38);border-radius:12px;background:linear-gradient(180deg,#167dcc,#0d5e9f);color:#fff;font-weight:800;font-size:13px;letter-spacing:.01em;cursor:pointer;box-shadow:0 10px 25px rgba(9,108,190,.2)}.access button:hover{filter:brightness(1.08)}.card.disabled .access button{cursor:not-allowed;background:rgba(255,255,255,.045);border-color:rgba(255,255,255,.1);color:#9aa7b3;box-shadow:none}.access button.access-locked{cursor:not-allowed;background:rgba(255,255,255,.045);border-color:rgba(255,107,107,.18);color:#ffb5b5;box-shadow:none}.access button.access-locked:hover{filter:none}.footer{text-align:center;margin-top:18px;color:#71869a;font-size:11px}.error{display:none;margin:0 0 18px;padding:11px 13px;border-radius:11px;border:1px solid rgba(255,107,107,.25);background:rgba(255,107,107,.06);color:#ffb5b5;font-size:13px;text-align:center}.error.show{display:block}
-@media(max-width:720px){body{padding:18px}.panel{padding:18px}.cards{grid-template-columns:1fr}.card{min-height:250px}.brand{margin-bottom:20px}}
+:root{
+  --bg:#06090e;--panel:#0d131c;--panel2:#101823;--line:rgba(255,255,255,.09);
+  --text:#eef4fb;--muted:#7f8da1;--blue:#3ea6ff;--cyan:#5ef2d6;--purple:#8c6cff;
+  --red:#ff6b6b;--mono:"SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace;
+}
+*{box-sizing:border-box}html,body{width:100%;min-height:100%}
+body{
+  margin:0;min-height:100vh;padding:24px;display:flex;align-items:center;justify-content:center;
+  background:radial-gradient(circle at 15% 20%,rgba(62,166,255,.08),transparent 30%),radial-gradient(circle at 85% 80%,rgba(94,242,214,.06),transparent 30%),var(--bg);
+  color:var(--text);font-family:"Segoe UI",Inter,system-ui,-apple-system,sans-serif;overflow:auto;
+}
+.aurora{position:fixed;inset:0;overflow:hidden;pointer-events:none;z-index:0}.aurora span{position:absolute;border-radius:50%;filter:blur(100px);opacity:.18;animation:auroraMove 18s ease-in-out infinite}.aurora span:nth-child(1){width:520px;height:520px;left:-220px;top:-220px;background:#168cff}.aurora span:nth-child(2){width:450px;height:450px;right:-180px;bottom:-200px;background:#26d9c0;animation-delay:-7s}.aurora span:nth-child(3){width:320px;height:320px;left:48%;top:45%;background:#7054ff;opacity:.08;animation-delay:-12s}@keyframes auroraMove{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(30px,-35px) scale(1.08)}}
+.grid{position:fixed;inset:0;pointer-events:none;z-index:0;background-image:linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px);background-size:46px 46px;mask-image:radial-gradient(ellipse 75% 70% at center,black 20%,transparent 90%)}
+.wrapper{position:relative;z-index:2;width:min(1080px,100%);animation:cardIn .55s ease-out both}@keyframes cardIn{from{opacity:0;transform:translateY(14px) scale(.99)}to{opacity:1;transform:none}}
+.shell{display:grid;grid-template-columns:minmax(0,.94fr) minmax(420px,1.06fr);min-height:620px;overflow:hidden;border-radius:22px;background:linear-gradient(135deg,rgba(18,25,35,.98),rgba(9,13,19,.99));border:1px solid rgba(255,255,255,.09);box-shadow:0 35px 90px rgba(0,0,0,.62),0 0 0 1px rgba(255,255,255,.015) inset}
+.visual{position:relative;min-height:620px;overflow:hidden;background:#07121d}.visual img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center}.visual:after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(3,9,15,.08),rgba(3,9,15,.28) 70%,rgba(3,9,15,.76)),linear-gradient(90deg,rgba(3,9,15,.02),rgba(3,9,15,.18))}.visual-head{position:absolute;z-index:2;left:24px;right:24px;top:22px;display:flex;align-items:center;justify-content:space-between;gap:12px;color:#b7d9f5;font:700 9px var(--mono);letter-spacing:.12em;text-transform:uppercase}.visual-head .online{color:#7bf3dc}.visual-status{position:absolute;z-index:2;left:28px;right:28px;bottom:28px;padding:18px;border:1px solid rgba(94,242,214,.22);border-radius:16px;background:rgba(5,16,25,.70);backdrop-filter:blur(12px)}.visual-status strong{display:flex;align-items:center;gap:10px;font-size:16px}.visual-status strong:before{content:"✓";width:28px;height:28px;border-radius:50%;display:grid;place-items:center;color:#06251e;background:var(--cyan);font-weight:900}.visual-status span{display:block;margin-top:8px;color:#9db1c5;font-size:12px;line-height:1.55}
+.content{padding:42px 42px 34px;display:flex;flex-direction:column;min-width:0}.brand{display:flex;align-items:center;gap:12px;margin-bottom:30px}.logo{width:44px;height:44px;border-radius:13px;display:grid;place-items:center;border:1px solid rgba(62,166,255,.32);background:rgba(62,166,255,.08);color:#dff2ff;font:900 12px var(--mono);letter-spacing:.08em}.brand-copy strong{display:block;font-size:14px}.brand-copy span{display:block;margin-top:3px;color:var(--muted);font-size:10px;letter-spacing:.08em;text-transform:uppercase}
+.kicker{display:inline-flex;align-items:center;gap:8px;color:var(--cyan);font:700 9px var(--mono);letter-spacing:.12em;text-transform:uppercase}.kicker i{width:7px;height:7px;border-radius:50%;background:var(--cyan);box-shadow:0 0 12px rgba(94,242,214,.8)}h1{margin:12px 0 8px;font-size:clamp(28px,4vw,38px);line-height:1.05;letter-spacing:-.035em}.subtitle{margin:0 0 24px;color:var(--muted);font-size:14px;line-height:1.6}.error{display:none;margin:0 0 16px;padding:11px 13px;border-radius:11px;border:1px solid rgba(255,107,107,.25);background:rgba(255,107,107,.06);color:#ffb5b5;font-size:12px}.error.show{display:block}
+.environments{display:grid;gap:12px}.env{display:grid;grid-template-columns:auto 1fr auto;gap:14px;align-items:center;padding:16px;border:1px solid rgba(255,255,255,.08);border-radius:15px;background:rgba(255,255,255,.025)}.env.available{border-color:rgba(62,166,255,.22);background:linear-gradient(135deg,rgba(62,166,255,.055),rgba(94,242,214,.025))}.env.locked{opacity:.58}.env-icon{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;border:1px solid rgba(62,166,255,.24);background:rgba(62,166,255,.07);color:#78c8ff;font-size:18px}.env.locked .env-icon{color:#7b8793;border-color:rgba(255,255,255,.10);background:rgba(255,255,255,.03)}.env-main{min-width:0}.env-title{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.env-title strong{font-size:15px}.badge{padding:4px 7px;border-radius:999px;font:700 7.5px var(--mono);letter-spacing:.06em;text-transform:uppercase;border:1px solid rgba(94,242,214,.20);background:rgba(94,242,214,.06);color:#9ef0df}.locked .badge{border-color:rgba(255,107,107,.18);background:rgba(255,107,107,.05);color:#ffb5b5}.env p{margin:5px 0 0;color:#8fa2b5;font-size:11px;line-height:1.45}.env button{min-width:112px;height:40px;padding:0 14px;border-radius:11px;border:1px solid rgba(62,166,255,.35);background:linear-gradient(180deg,#167dcc,#0d5e9f);color:#fff;font-weight:800;font-size:11px;cursor:pointer}.env button:hover{filter:brightness(1.05)}.env.locked button{background:rgba(255,255,255,.035);border-color:rgba(255,107,107,.16);color:#ffb5b5;box-shadow:none}.env.locked button:hover{filter:none}.env button[disabled]{opacity:.68;cursor:wait}
+.note{display:flex;align-items:flex-start;gap:10px;margin-top:20px;padding:12px 13px;border-radius:12px;border:1px solid rgba(255,255,255,.06);background:rgba(255,255,255,.02);color:#71869a;font-size:10.5px;line-height:1.5}.note b{color:#a9bed1}.footer{margin-top:auto;padding-top:24px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;color:#607286;font-size:9px;font-family:var(--mono)}
+@media(max-width:860px){body{padding:14px}.shell{grid-template-columns:1fr;min-height:0}.visual{display:none}.content{padding:30px 24px}.footer{margin-top:22px}}
+@media(max-width:560px){.env{grid-template-columns:auto 1fr}.env button{grid-column:1/-1;width:100%}.content{padding:24px 18px}.brand{margin-bottom:24px}h1{font-size:29px}}
 </style>
+{% include '_mobile_head.html' %}
 </head>
 <body>
-<div class="aurora"></div>
+<div class="aurora"><span></span><span></span><span></span></div>
+<div class="grid"></div>
 <main class="wrapper">
-  <header class="brand">
-    <div class="brand-mark">DPSP</div>
-    <div class="success"><i></i>Acesso autenticado com sucesso</div>
-    <h1>CONTROLE DE ESTOQUE</h1>
-    <p class="subtitle">Selecione o ambiente de trabalho</p>
-  </header>
-  <section class="panel">
-    <p class="panel-title">Escolha onde deseja iniciar sua operação</p>
-    <div id="error" class="error"></div>
-    <div class="cards">
-      <article class="card {{ 'enabled' if ambiente_acesso in ['ambos','expansao'] else 'disabled' }}">
-        <div class="icon">◉</div>
-        <h2>EXPANSÃO</h2>
-        <p>Operação de expansão e lojas, acompanhamento de implantação, expedição e gestão operacional.</p>
-        <span class="badge">{{ 'ACESSO DISPONÍVEL' if ambiente_acesso in ['ambos','expansao'] else 'SEM ACESSO' }}</span>
-        <div class="access"><button type="button" data-area="expansao" class="{{ 'access-locked' if ambiente_acesso not in ['ambos','expansao'] else '' }}">{{ 'ACESSO BLOQUEADO' if ambiente_acesso not in ['ambos','expansao'] else 'ACESSAR →' }}</button></div>
-      </article>
-      <article class="card {{ 'enabled' if ambiente_acesso in ['ambos','estoque_cd'] else 'disabled' }}">
-        <div class="icon">▣</div>
-        <h2>ESTOQUE CD</h2>
-        <p>Gestão do estoque do Centro de Distribuição, cadastro de produtos, ativos e movimentações do CD.</p>
-        <span class="badge">{{ 'ACESSO DISPONÍVEL' if ambiente_acesso in ['ambos','estoque_cd'] else 'SEM ACESSO' }}</span>
-        <div class="access"><button type="button" data-area="estoque_cd" class="{{ 'access-locked' if ambiente_acesso not in ['ambos','estoque_cd'] else '' }}">{{ 'ACESSO BLOQUEADO' if ambiente_acesso not in ['ambos','estoque_cd'] else 'ACESSAR →' }}</button></div>
-      </article>
-    </div>
-  </section>
-  <div class="footer">Usuário: {{ username }} · O ambiente escolhido define os dados e módulos exibidos nesta sessão.</div>
+  <div class="shell">
+    <section class="visual" aria-hidden="true">
+      <img src="{{ url_for('static', filename='auth-approved-exact-v60.webp') }}" alt="">
+      <div class="visual-head"><span>Controle de Ativos · Operação centralizada</span><span class="online">● Online</span></div>
+      <div class="visual-status"><strong>Acesso validado com sucesso</strong><span>Autenticação concluída. Agora selecione o ambiente autorizado para iniciar a operação.</span></div>
+    </section>
+
+    <section class="content">
+      <div class="brand"><div class="logo">DPSP</div><div class="brand-copy"><strong>Controle de Estoque</strong><span>Sistema interno</span></div></div>
+      <div class="kicker"><i></i>Autenticação concluída</div>
+      <h1>Selecione o ambiente</h1>
+      <p class="subtitle">Seu acesso foi validado pelo MFA. Escolha o ambiente de trabalho liberado para o seu usuário.</p>
+
+      <div id="error" class="error"></div>
+      <div class="environments">
+        {% set acesso = (ambiente_acesso or 'expansao')|lower %}
+        {% set pode_expansao = acesso in ['ambos','expansao'] %}
+        {% set pode_cd = acesso in ['ambos','estoque_cd'] %}
+
+        <article class="env {{ 'available' if pode_expansao else 'locked' }}">
+          <div class="env-icon">◉</div>
+          <div class="env-main">
+            <div class="env-title"><strong>EXPANSÃO</strong><span class="badge">{{ 'Acesso disponível' if pode_expansao else 'Sem acesso' }}</span></div>
+            <p>Operação de expansão, implantação, lojas, expedição e acompanhamento operacional.</p>
+          </div>
+          <button type="button" data-area="expansao" data-allowed="{{ '1' if pode_expansao else '0' }}">{{ 'ACESSAR →' if pode_expansao else 'BLOQUEADO' }}</button>
+        </article>
+
+        <article class="env {{ 'available' if pode_cd else 'locked' }}">
+          <div class="env-icon">▣</div>
+          <div class="env-main">
+            <div class="env-title"><strong>ESTOQUE CD</strong><span class="badge">{{ 'Acesso disponível' if pode_cd else 'Sem acesso' }}</span></div>
+            <p>Gestão de estoque dos Centros de Distribuição, produtos, filiais, relatórios e histórico.</p>
+          </div>
+          <button type="button" data-area="estoque_cd" data-allowed="{{ '1' if pode_cd else '0' }}">{{ 'ACESSAR →' if pode_cd else 'BLOQUEADO' }}</button>
+        </article>
+      </div>
+
+      <div class="note"><span>◈</span><span><b>Segurança por ambiente:</b> tentar acessar um ambiente não liberado para o seu cadastro será bloqueado pelo servidor, mesmo por acesso direto à URL.</span></div>
+      <div class="footer"><span>Usuário: {{ username }}</span><span>SESSÃO AUTENTICADA · MFA OK</span></div>
+    </section>
+  </div>
 </main>
 <script>
 const csrf={{ csrf_token|tojson }};
 const errorBox=document.getElementById('error');
+function showError(msg){errorBox.textContent=msg;errorBox.classList.add('show');errorBox.scrollIntoView({block:'nearest',behavior:'smooth'});}
 document.querySelectorAll('[data-area]').forEach(btn=>btn.addEventListener('click',async()=>{
-  document.querySelectorAll('[data-area]').forEach(x=>x.disabled=true);
   errorBox.classList.remove('show');
+  if(btn.dataset.allowed!=='1'){
+    const nome=btn.dataset.area==='estoque_cd'?'Estoque CD':'Expansão';
+    showError(`Acesso bloqueado: seu usuário não possui permissão para o ambiente ${nome}.`);
+    return;
+  }
+  const botoes=[...document.querySelectorAll('[data-area]')];
+  botoes.forEach(x=>x.disabled=true);
+  const original=btn.textContent;btn.textContent='VALIDANDO...';
   try{
     const r=await fetch('/ambiente',{method:'POST',headers:{'Content-Type':'application/json','X-CSRF-Token':csrf},body:JSON.stringify({site_area:btn.dataset.area})});
     const data=await r.json();
     if(!r.ok) throw new Error(data.erro||'Não foi possível selecionar o ambiente.');
-    window.location.href=data.redirect||'/dashboard';
+    window.location.replace(data.redirect||'/dashboard');
   }catch(e){
-    errorBox.textContent=e.message||'Não foi possível selecionar o ambiente.';
-    errorBox.classList.add('show');
-    document.querySelectorAll('[data-area]').forEach(x=>x.disabled=false);
+    showError(e.message||'Não foi possível selecionar o ambiente.');
+    botoes.forEach(x=>x.disabled=false);btn.textContent=original;
   }
 }));
 </script>

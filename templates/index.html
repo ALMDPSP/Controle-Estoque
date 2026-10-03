@@ -664,11 +664,15 @@
       <div class="field">
         <label for="armazenagem">Armazenamento *</label>
         <select id="armazenagem" name="armazenagem" required>
+          {% if site_area == 'estoque_cd' %}
+          <option value="CD" selected>CD</option>
+          {% else %}
           <option value=""></option>
           <option value="Container">Container</option>
           <option value="Gaiola">Gaiola</option>
           <option value="CD">CD</option>
           <option value="Caixa">Caixa</option>
+          {% endif %}
         </select>
       </div>
       <div class="field">
@@ -1072,11 +1076,15 @@
       <div class="field">
         <label for="fe-armazenagem">Armazenamento</label>
         <select id="fe-armazenagem">
+          {% if site_area == 'estoque_cd' %}
+          <option value="CD">CD</option>
+          {% else %}
           <option value=""></option>
           <option value="Container">Container</option>
           <option value="Gaiola">Gaiola</option>
           <option value="CD">CD</option>
           <option value="Caixa">Caixa</option>
+          {% endif %}
         </select>
       </div>
       <div class="field">
@@ -1211,7 +1219,7 @@
       </div>
       <div class="field">
         <label><input type="checkbox" class="bulk-enable" data-field="armazenagem" data-target="bulk-armazenagem"> Alterar armazenamento</label>
-        <select id="bulk-armazenagem" disabled><option value=""></option><option value="Container">Container</option><option value="Gaiola">Gaiola</option><option value="CD">CD</option><option value="Caixa">Caixa</option></select>
+        <select id="bulk-armazenagem" disabled>{% if site_area == 'estoque_cd' %}<option value="CD">CD</option>{% else %}<option value=""></option><option value="Container">Container</option><option value="Gaiola">Gaiola</option><option value="CD">CD</option><option value="Caixa">Caixa</option>{% endif %}</select>
       </div>
       <div class="field">
         <label><input type="checkbox" class="bulk-enable" data-field="status" data-target="bulk-status"> Alterar status</label>
@@ -3352,7 +3360,7 @@ function abrirEdicaoCompleta(id){
   document.getElementById('fe-qtde').value = it.qtde || '';
   document.getElementById('fe-localizacao').value = it.localizacao || '';
   document.getElementById('fe-local').value = it.local || '';
-  document.getElementById('fe-armazenagem').value = it.armazenagem || '';
+  document.getElementById('fe-armazenagem').value = IS_CD ? 'CD' : (it.armazenagem || '');
   document.getElementById('fe-status').value = it.status || '';
   document.getElementById('fe-tipo_estoque').value = it.tipo_estoque || '';
   document.getElementById('fe-nf_entrada').value = it.nf_entrada || '';

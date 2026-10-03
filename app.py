@@ -69,7 +69,7 @@ import qrcode
 import db
 
 app = Flask(__name__)
-APP_BUILD = "2026-10-02-v1.6.8"
+APP_BUILD = "2026-10-02-v1.6.9"
 _DASHBOARD_CACHE = {}
 _EXPEDICAO_CACHE = {}
 
@@ -80,7 +80,7 @@ EXPANSION_ONLY_PREFIXES = (
     "/api/projecao-lojas", "/api/kit-padrao", "/export-acompanhamento-expansao",
     "/pdf-acompanhamento-expansao", "/export-projecao-lojas", "/export-projecao-lojas-pdf",
     "/export-equipamentos-parque", "/export-equipamentos-parque-pdf",
-    "/imobilizados", "/agente-ia", "/leitor-codigo", "/acesso-celular",
+    "/imobilizados", "/agente-ia", "/leitor-codigo", "/acesso-celular", "/seguranca",
     "/central-pendencias", "/api/imobilizados", "/api/pendencias",
     "/usuarios", "/api/usuarios", "/api/visao-executiva",
     "/api/configuracao-expansao", "/api/agente-ia", "/api/orcamento",
@@ -177,6 +177,16 @@ app.config.update(
         "SESSION_COOKIE_SECURE", "1" if _RUNNING_HTTPS_HOSTED else "0"
     ) == "1",
 )
+
+@app.after_request
+def _evitar_html_antigo_em_cache(response):
+    """Evita que telas autenticadas reapareçam com menu/layout de versão anterior."""
+    content_type = str(response.headers.get("Content-Type") or "").lower()
+    if "text/html" in content_type or request.path == "/service-worker.js":
+        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+    return response
 
 # Proteções leves de autenticação. O limite é mantido em memória do processo
 # para não exigir serviços externos e não altera nenhuma API já existente.
@@ -7355,9 +7365,11 @@ def _aplicar_regras_estoque_cd(dados):
     if dados is None:
         return None
 
-    # O tipo deixa de ser um campo operacional no CD, mas mantemos um valor
-    # interno para compatibilidade com relatórios/estrutura de banco existentes.
+    # O tipo e o armazenamento deixam de ser escolhas operacionais no CD.
+    # Mantemos valores internos padronizados para compatibilidade com a estrutura
+    # existente e para impedir gravações divergentes via API/importação.
     dados["tipo_estoque"] = "Estoque CD"
+    dados["armazenagem"] = "CD"
 
     local = str(dados.get("local") or "").strip()
     if local:
