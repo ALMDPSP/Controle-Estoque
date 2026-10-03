@@ -69,7 +69,7 @@ import qrcode
 import db
 
 app = Flask(__name__)
-APP_BUILD = "2026-10-03-v1.8.1"
+APP_BUILD = "2026-10-03-v1.8.2"
 _DASHBOARD_CACHE = {}
 _EXPEDICAO_CACHE = {}
 
@@ -272,7 +272,7 @@ def _evitar_html_antigo_em_cache(response):
     const brand=menu.querySelector('.brand-copy');
     if(brand){{
       const desc=brand.querySelector('span'); if(desc) desc.textContent='Operação e controle do estoque dos Centros de Distribuição.';
-      const versao=brand.querySelector('small'); if(versao) versao.textContent='Versão · v1.8.1';
+      const versao=brand.querySelector('small'); if(versao) versao.textContent='Versão · v1.8.2';
     }}
   }}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',limparMenuCD);else limparMenuCD();
@@ -932,11 +932,18 @@ def pagina_inicial():
 @app.route("/estoque")
 @login_required
 def index():
+    # Passe explicitamente o contexto operacional do ambiente para a tela de
+    # estoque. Isso evita depender apenas do context_processor durante o
+    # carregamento do Estoque CD e mantém a renderização determinística.
     return render_template(
         "index.html",
         username=session.get("username"),
         role=session.get("role") or "user",
         is_admin=session.get("role") == "admin",
+        site_area=db.get_site_area(),
+        ambiente_acesso=session.get("ambiente_acesso") or "expansao",
+        cds_dpsp=CDS_DPSP,
+        cds_dpsp_uf=CDS_DPSP_UF,
     )
 
 
@@ -8958,7 +8965,7 @@ def api_baixa_rapida_confirmar():
 
 
 # ---------------------------------------------------------------------
-# Estoque CD — operação de recebimento, transferência e inventário (v1.8.1)
+# Estoque CD — operação de recebimento, transferência e inventário (v1.8.2)
 # ---------------------------------------------------------------------
 
 def _cd_local_valido(local):

@@ -592,7 +592,61 @@
     </div>
   </section>
 
-  {% if site_area == 'estoque_cd' %}{% include '_cd_operacao_panel.html' %}{% endif %}
+  {% if site_area == 'estoque_cd' %}
+<style>
+.cd-ops{margin:0 0 22px;border:1px solid rgba(62,166,255,.24);border-radius:16px;background:linear-gradient(145deg,rgba(62,166,255,.07),rgba(255,255,255,.015));padding:16px}.cd-ops-head{display:flex;justify-content:space-between;gap:14px;align-items:flex-start;flex-wrap:wrap}.cd-ops-head h2{margin:0 0 5px;font-size:16px}.cd-ops-head p{margin:0;color:var(--muted);font-size:12px;line-height:1.5}.cd-ops-actions{display:flex;gap:8px;flex-wrap:wrap}.cd-ops-actions button{min-height:38px}.cd-ops-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;margin-top:14px}.cd-ops-mini{border:1px solid var(--line);border-radius:11px;background:var(--panel-2);padding:10px 11px}.cd-ops-mini span{display:block;color:var(--muted);font-size:9px;text-transform:uppercase;letter-spacing:.06em}.cd-ops-mini strong{display:block;margin-top:6px;font:700 17px var(--mono);color:var(--accent)}.cd-dialog{width:min(850px,95vw)}.cd-dialog .cd-form-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.cd-dialog .cd-form-grid .wide{grid-column:span 2}.cd-dialog .cd-form-grid .full{grid-column:1/-1}.cd-address-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}.cd-inventory-wrap{max-height:430px;overflow:auto;border:1px solid var(--line);border-radius:10px}.cd-inventory-wrap table{width:100%;border-collapse:collapse}.cd-inventory-wrap th,.cd-inventory-wrap td{padding:8px;border-bottom:1px solid var(--line);font-size:11px;text-align:left}.cd-inventory-wrap th{position:sticky;top:0;background:var(--panel-2);z-index:1}.cd-inventory-count{width:92px}.cd-scan-preview{width:100%;max-height:360px;border-radius:12px;background:#05080c;object-fit:cover;display:none}.cd-scan-status{font-size:12px;color:var(--muted);line-height:1.5}.cd-op-note{margin-top:10px;padding:9px 11px;border:1px solid rgba(62,166,255,.18);border-radius:9px;color:var(--muted);font-size:11px;line-height:1.45}.cd-op-note strong{color:var(--text)}.cd-inline-action{display:flex;gap:8px;align-items:center}.cd-inline-action input{flex:1;min-width:0}.cd-mini-action{white-space:nowrap;min-height:36px}.cd-form-message{display:none;margin:10px 0 0;padding:10px 12px;border-radius:10px;font-size:11px;line-height:1.45;border:1px solid var(--line);background:var(--panel-2)}.cd-form-message.show{display:block}.cd-form-message.ok{border-color:rgba(52,211,153,.38);background:rgba(52,211,153,.08)}.cd-form-message.warn{border-color:rgba(245,158,11,.42);background:rgba(245,158,11,.08)}.cd-form-message.error{border-color:rgba(239,68,68,.42);background:rgba(239,68,68,.08)}.cd-rec-summary{margin-top:12px;padding:10px 12px;border:1px dashed rgba(62,166,255,.28);border-radius:10px;background:rgba(62,166,255,.04);font-size:11px;color:var(--muted);line-height:1.5}.cd-rec-summary strong{color:var(--text)}@media(max-width:900px){.cd-ops-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.cd-dialog .cd-form-grid{grid-template-columns:1fr 1fr}.cd-address-grid{grid-template-columns:1fr 1fr}}@media(max-width:600px){.cd-ops-grid,.cd-dialog .cd-form-grid,.cd-address-grid{grid-template-columns:1fr}.cd-dialog .cd-form-grid .wide,.cd-dialog .cd-form-grid .full{grid-column:auto}}
+</style>
+<section class="cd-ops" id="cd-ops-panel">
+  <div class="cd-ops-head">
+    <div><h2>Operação do Centro de Distribuição</h2><p>Recebimento, transferência, inventário físico e rastreabilidade em uma única área operacional.</p></div>
+    <div class="cd-ops-actions">
+      <button class="ui-btn ui-btn-primary" type="button" id="cd-open-receber">Receber material</button>
+      <button class="ui-btn ui-btn-secondary" type="button" id="cd-open-movimentar">Movimentar estoque</button>
+      <button class="ui-btn ui-btn-secondary" type="button" id="cd-open-inventario">Inventário</button>
+      <button class="ui-btn ui-btn-link" type="button" id="cd-open-scanner">Ler código</button>
+    </div>
+  </div>
+  <div class="cd-ops-grid">
+    <div class="cd-ops-mini"><span>CD em foco</span><strong id="cd-op-filtro">Todos</strong></div>
+    <div class="cd-ops-mini"><span>Saldo em foco</span><strong id="cd-op-saldo">0</strong></div>
+    <div class="cd-ops-mini"><span>Entradas hoje</span><strong id="cd-op-entradas">0</strong></div>
+    <div class="cd-ops-mini"><span>Saídas hoje</span><strong id="cd-op-saidas">0</strong></div>
+  </div>
+  <div class="cd-op-note"><strong>Endereçamento:</strong> use Rua, Corredor, Prateleira e Posição para localizar fisicamente os equipamentos dentro do CD.</div>
+</section>
+
+<dialog id="cd-receber-dialog" class="cd-dialog"><div class="dlg-body"><h3>Recebimento de material</h3><p class="cd-scan-status">Registre a entrada física no CD. Cada unidade é criada individualmente no estoque, com rastreabilidade por documento, fornecedor, responsável, endereço e lote.</p><div class="cd-form-grid">
+  <div class="field"><label>Código *</label><select id="cd-rec-codigo" required><option value="">Selecione...</option></select></div>
+  <div class="field wide"><label>Descrição</label><input id="cd-rec-descricao" readonly placeholder="Preenchida pelo Cadastro de Produtos"></div>
+  <div class="field"><label>Quantidade *</label><input id="cd-rec-qtd" type="number" min="1" step="1" value="1" inputmode="numeric"></div>
+  <div class="field"><label>Centro de Distribuição *</label><select id="cd-rec-local" required><option value="">Selecione...</option>{% for cd, uf in cds_dpsp %}<option value="{{ cd }}">{{ cd }} · {{ uf }}</option>{% endfor %}</select></div>
+  <div class="field"><label>Armazenamento</label><input value="CD" readonly aria-label="Armazenamento fixo CD"></div>
+  <div class="field"><label>NF / Documento de entrada</label><input id="cd-rec-nf" placeholder="Recomendado para rastreabilidade"></div>
+  <div class="field"><label>Data de entrada *</label><input id="cd-rec-data" type="date" required></div>
+  <div class="field"><label>Fornecedor</label><input id="cd-rec-fornecedor" placeholder="Opcional"></div>
+  <div class="field"><label>Responsável pelo recebimento *</label><input id="cd-rec-responsavel" value="{{ username }}" required></div>
+  <div class="field"><label>Lote de recebimento</label><input id="cd-rec-lote" placeholder="Gerado automaticamente se vazio"></div>
+  <div class="field wide"><label>Código de barras / QR</label><div class="cd-inline-action"><input id="cd-rec-barcode" placeholder="Leia ou digite"><button class="ui-btn ui-btn-link cd-mini-action" type="button" id="cd-rec-scan">Ler câmera</button></div></div>
+  <div class="field full"><label>Endereço físico</label><div class="cd-address-grid"><input id="cd-rec-rua" placeholder="Rua"><input id="cd-rec-corredor" placeholder="Corredor"><input id="cd-rec-prateleira" placeholder="Prateleira"><input id="cd-rec-posicao" placeholder="Posição"></div><small>Opcional, mas recomendado para facilitar a localização física no CD.</small></div>
+</div><div class="cd-rec-summary" id="cd-rec-summary">Selecione o produto, a quantidade e o Centro de Distribuição para revisar o recebimento antes de confirmar.</div><div class="cd-form-message" id="cd-rec-feedback" role="status" aria-live="polite"></div><div class="dlg-actions"><button type="button" class="btn-ghost" data-close-dialog="cd-receber-dialog">Cancelar</button><button type="button" class="btn-primary" id="cd-rec-confirmar">Confirmar recebimento</button></div></div></dialog>
+
+<dialog id="cd-mov-dialog" class="cd-dialog"><div class="dlg-body"><h3>Movimentar estoque</h3><p class="cd-scan-status">Transfira unidades entre CDs ou faça atendimento de uma filial sem excluir e recadastrar equipamentos.</p><div class="cd-form-grid">
+  <div class="field"><label>CD de origem *</label><select id="cd-mov-origem"><option value="">Selecione...</option>{% for cd, uf in cds_dpsp %}<option value="{{ cd }}">{{ cd }} · {{ uf }}</option>{% endfor %}</select></div>
+  <div class="field"><label>Código *</label><select id="cd-mov-codigo"><option value="">Selecione...</option></select></div>
+  <div class="field"><label>Quantidade *</label><input id="cd-mov-qtd" type="number" min="1" value="1"></div>
+  <div class="field"><label>Destino *</label><select id="cd-mov-tipo"><option value="cd">Outro CD</option><option value="filial">Filial</option></select></div>
+  <div class="field wide" id="cd-mov-destino-wrap"><label>CD de destino *</label><select id="cd-mov-destino-cd"><option value="">Selecione...</option>{% for cd, uf in cds_dpsp %}<option value="{{ cd }}">{{ cd }} · {{ uf }}</option>{% endfor %}</select><select id="cd-mov-destino-filial" style="display:none"><option value="">Selecione a filial...</option></select></div>
+  <div class="field"><label>NF / Documento</label><input id="cd-mov-nf"></div>
+  <div class="field"><label>Data</label><input id="cd-mov-data" type="date"></div>
+  <div class="field"><label>Responsável</label><input id="cd-mov-responsavel" value="{{ username }}"></div>
+  <div class="field full"><label>Referência / observação</label><input id="cd-mov-ref" placeholder="Ex.: transferência, chamado, solicitação"></div>
+  <div class="field full" id="cd-mov-endereco-wrap"><label>Novo endereço no CD de destino</label><div class="cd-address-grid"><input id="cd-mov-rua" placeholder="Rua"><input id="cd-mov-corredor" placeholder="Corredor"><input id="cd-mov-prateleira" placeholder="Prateleira"><input id="cd-mov-posicao" placeholder="Posição"></div></div>
+</div><div class="dlg-actions"><button type="button" class="btn-ghost" data-close-dialog="cd-mov-dialog">Cancelar</button><button type="button" class="btn-primary" id="cd-mov-confirmar">Confirmar movimentação</button></div></div></dialog>
+
+<dialog id="cd-inv-dialog" class="cd-dialog"><div class="dlg-body"><h3>Inventário físico do CD</h3><div class="cd-form-grid"><div class="field"><label>Centro de Distribuição *</label><select id="cd-inv-local"><option value="">Selecione...</option>{% for cd, uf in cds_dpsp %}<option value="{{ cd }}">{{ cd }} · {{ uf }}</option>{% endfor %}</select></div><div class="field wide"><label>Observação</label><input id="cd-inv-obs" placeholder="Ex.: inventário mensal"></div></div><div class="cd-inventory-wrap" style="margin-top:12px"><table><thead><tr><th>Código</th><th>Descrição</th><th>Esperado</th><th>Contagem física</th><th>Diferença</th></tr></thead><tbody id="cd-inv-tbody"><tr><td colspan="5">Selecione um CD para carregar o saldo esperado.</td></tr></tbody></table></div><label style="display:flex;gap:8px;align-items:center;margin-top:12px;font-size:12px"><input type="checkbox" id="cd-inv-ajustar"> Ajustar automaticamente o saldo após concluir o inventário <small style="color:var(--muted)">(Administrador/Gestor)</small></label><div class="dlg-actions"><button type="button" class="btn-ghost" data-close-dialog="cd-inv-dialog">Cancelar</button><button type="button" class="btn-primary" id="cd-inv-confirmar">Concluir inventário</button></div></div></dialog>
+
+<dialog id="cd-scan-dialog" class="cd-dialog"><div class="dlg-body"><h3>Leitor de código de barras / QR</h3><video id="cd-scan-video" class="cd-scan-preview" playsinline muted></video><p class="cd-scan-status" id="cd-scan-status">Ao iniciar, a câmera será usada somente para identificar o código. O valor lido será aplicado ao campo operacional aberto.</p><div class="field"><label>Código identificado</label><input id="cd-scan-result" placeholder="Você também pode digitar manualmente"></div><div class="dlg-actions"><button type="button" class="btn-ghost" id="cd-scan-fechar">Fechar</button><button type="button" class="btn-primary" id="cd-scan-iniciar">Iniciar câmera</button><button type="button" class="btn-primary" id="cd-scan-usar">Usar código</button></div></div></dialog>
+{% endif %}
 
   <section class="panel">
     <h2>Registrar novo item (entrada)</h2>
@@ -3603,7 +3657,118 @@ if(IS_CD){
   });
 }
 </script>
-{% if site_area == 'estoque_cd' %}{% include '_cd_operacao_script.html' %}{% endif %}
+{% if site_area == 'estoque_cd' %}
+<script>
+(function(){
+  const qs=id=>document.getElementById(id);
+  const pad=n=>String(n).padStart(2,'0');
+  const today=()=>{const d=new Date();return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`};
+  let invRows=[];
+  let scanStream=null,scanTimer=null,scanTarget='main';
+  const csrf={{ csrf_token|tojson }};
+  const responsavelPadrao=(qs('cd-rec-responsavel')?.value||'').trim();
+
+  function cdAtual(){return (window.getCdFiltro?.()||localStorage.getItem('controle-estoque-cd-filtro')||'').trim()}
+  function produtoPorCodigo(c){return (produtosCache||[]).find(p=>String(p.codigo||'')===String(c||''))}
+  async function lerJson(res){const txt=await res.text();try{return txt?JSON.parse(txt):{}}catch(_){return {erro:txt||`Erro HTTP ${res.status}`}}}
+  function feedbackRecebimento(msg,tipo=''){
+    const el=qs('cd-rec-feedback'); if(!el)return;
+    el.className='cd-form-message'+(msg?' show':'')+(tipo?' '+tipo:'');
+    el.textContent=msg||'';
+  }
+  function preencherProdutos(){
+    ['cd-rec-codigo','cd-mov-codigo'].forEach(id=>{const el=qs(id);if(!el)return;const atual=el.value;el.innerHTML='<option value="">Selecione...</option>'+[...(produtosCache||[])].sort((a,b)=>String(a.codigo||'').localeCompare(String(b.codigo||''),'pt-BR',{numeric:true})).map(p=>`<option value="${escapeHtml(p.codigo)}">${escapeHtml(p.codigo)} — ${escapeHtml(p.descricao||'')}</option>`).join('');el.value=atual});
+  }
+  async function assegurarProdutos(){
+    if((produtosCache||[]).length===0 && typeof carregarProdutos==='function') await carregarProdutos();
+    preencherProdutos();
+    return (produtosCache||[]).length;
+  }
+  function preencherFiliaisCd(){const el=qs('cd-mov-destino-filial');if(!el)return;const atual=el.value;el.innerHTML='<option value="">Selecione a filial...</option>'+[...(filiaisCache||[])].map(f=>{const c=f.codigo||f.filial||f.id||'',d=f.descricao||f.nome||f.descricao_filial||'';return `<option value="${escapeHtml(c)}">${escapeHtml(c)} — ${escapeHtml(d)}</option>`}).join('');el.value=atual}
+  async function resumoMini(){try{const cd=cdAtual(),r=await fetch('/api/cd/resumo?cd='+encodeURIComponent(cd)),x=await lerJson(r);if(!r.ok)throw new Error(x.erro||'Falha ao atualizar o resumo do CD.');qs('cd-op-filtro').textContent=cd||'Todos';qs('cd-op-saldo').textContent=x.estoque_total||0;qs('cd-op-entradas').textContent=x.entradas_hoje||0;qs('cd-op-saidas').textContent=x.saidas_hoje||0}catch(e){console.warn(e)}}
+  function aplicarFiltroGlobal(cd){if(typeof filtroLocal!=='undefined'&&filtroLocal){filtroLocal.value=cd||'';itensExibidos=PAGINA_TAMANHO;renderizar()}if(qs('cd-rec-local'))qs('cd-rec-local').value=cd||qs('cd-rec-local').value;if(qs('cd-mov-origem'))qs('cd-mov-origem').value=cd||qs('cd-mov-origem').value;if(qs('cd-inv-local'))qs('cd-inv-local').value=cd||qs('cd-inv-local').value;resumoMini()}
+
+  function atualizarResumoRecebimento(){
+    const codigo=qs('cd-rec-codigo')?.value||'', p=produtoPorCodigo(codigo), qtd=Number(qs('cd-rec-qtd')?.value||0), local=qs('cd-rec-local')?.value||'', nf=(qs('cd-rec-nf')?.value||'').trim(), data=qs('cd-rec-data')?.value||'', lote=(qs('cd-rec-lote')?.value||'').trim();
+    const el=qs('cd-rec-summary'); if(!el)return;
+    if(!codigo&&!local){el.textContent='Selecione o produto, a quantidade e o Centro de Distribuição para revisar o recebimento antes de confirmar.';return}
+    el.innerHTML=`<strong>Resumo:</strong> ${qtd>0?qtd:0} unidade(s) de <strong>${escapeHtml(codigo||'—')}</strong>${p?.descricao?` — ${escapeHtml(p.descricao)}`:''} · <strong>${escapeHtml(local||'CD não selecionado')}</strong> · data ${escapeHtml(data||'não informada')} · ${nf?`documento ${escapeHtml(nf)}`:'sem NF/documento'} · lote ${escapeHtml(lote||'automático')}.`;
+  }
+  function limparRecebimento(){
+    const valores={
+      'cd-rec-codigo':'','cd-rec-descricao':'','cd-rec-qtd':'1','cd-rec-local':cdAtual(),'cd-rec-nf':'','cd-rec-data':today(),'cd-rec-fornecedor':'','cd-rec-responsavel':responsavelPadrao,'cd-rec-lote':'','cd-rec-barcode':'','cd-rec-rua':'','cd-rec-corredor':'','cd-rec-prateleira':'','cd-rec-posicao':''
+    };
+    Object.entries(valores).forEach(([id,v])=>{const el=qs(id);if(el)el.value=v});
+    if(qs('cd-rec-data'))qs('cd-rec-data').max=today();
+    feedbackRecebimento('');
+    atualizarResumoRecebimento();
+  }
+  async function abrirRecebimento(){
+    limparRecebimento();
+    const total=await assegurarProdutos();
+    if(!total)feedbackRecebimento('Nenhum produto está cadastrado no Estoque CD. Cadastre o produto antes de registrar o recebimento.','warn');
+    qs('cd-receber-dialog')?.showModal();
+  }
+
+  qs('cd-open-receber')?.addEventListener('click',abrirRecebimento);
+  qs('cd-open-movimentar')?.addEventListener('click',async()=>{await assegurarProdutos();preencherFiliaisCd();qs('cd-mov-data').value=today();const cd=cdAtual();if(cd)qs('cd-mov-origem').value=cd;qs('cd-mov-dialog').showModal()});
+  qs('cd-open-inventario')?.addEventListener('click',()=>{const cd=cdAtual();if(cd){qs('cd-inv-local').value=cd;carregarInventario(cd)}qs('cd-inv-dialog').showModal()});
+  document.querySelectorAll('[data-close-dialog]').forEach(b=>b.addEventListener('click',()=>qs(b.dataset.closeDialog)?.close()));
+
+  ['cd-rec-qtd','cd-rec-local','cd-rec-nf','cd-rec-data','cd-rec-lote'].forEach(id=>qs(id)?.addEventListener('input',atualizarResumoRecebimento));
+  qs('cd-rec-codigo')?.addEventListener('change',()=>{const p=produtoPorCodigo(qs('cd-rec-codigo').value);qs('cd-rec-descricao').value=p?.descricao||'';qs('cd-rec-barcode').value=p?.codigo_barras||'';feedbackRecebimento('');atualizarResumoRecebimento()});
+  qs('cd-rec-confirmar')?.addEventListener('click',async()=>{
+    const qtd=Number(qs('cd-rec-qtd').value||0);
+    const payload={codigo:qs('cd-rec-codigo').value,descricao:qs('cd-rec-descricao').value,quantidade:qtd,local:qs('cd-rec-local').value,nf_entrada:qs('cd-rec-nf').value.trim(),data_entrada:qs('cd-rec-data').value,fornecedor:qs('cd-rec-fornecedor').value.trim(),responsavel:qs('cd-rec-responsavel').value.trim(),lote_recebimento:qs('cd-rec-lote').value.trim(),codigo_barras:qs('cd-rec-barcode').value.trim(),endereco_rua:qs('cd-rec-rua').value.trim(),endereco_corredor:qs('cd-rec-corredor').value.trim(),endereco_prateleira:qs('cd-rec-prateleira').value.trim(),endereco_posicao:qs('cd-rec-posicao').value.trim()};
+    if(!payload.codigo){feedbackRecebimento('Selecione um produto cadastrado.','error');qs('cd-rec-codigo').focus();return}
+    if(!Number.isInteger(qtd)||qtd<=0){feedbackRecebimento('Informe uma quantidade inteira maior que zero.','error');qs('cd-rec-qtd').focus();return}
+    if(!payload.local){feedbackRecebimento('Selecione o Centro de Distribuição que recebeu o material.','error');qs('cd-rec-local').focus();return}
+    if(!payload.data_entrada){feedbackRecebimento('Informe a data de entrada do material.','error');qs('cd-rec-data').focus();return}
+    if(payload.data_entrada>today()){feedbackRecebimento('A data de entrada não pode ser futura.','error');qs('cd-rec-data').focus();return}
+    if(!payload.responsavel){feedbackRecebimento('Informe o responsável pelo recebimento.','error');qs('cd-rec-responsavel').focus();return}
+    if(!payload.nf_entrada && !window.confirm('NF/documento não informado. O recebimento ficará sinalizado como pendência de rastreabilidade. Deseja continuar?'))return;
+    const b=qs('cd-rec-confirmar');b.disabled=true;b.textContent='Registrando...';feedbackRecebimento('Validando e registrando o recebimento...');
+    try{
+      const r=await fetch('/api/cd/recebimento',{method:'POST',headers:{'Content-Type':'application/json','X-CSRF-Token':csrf},body:JSON.stringify(payload)}),x=await lerJson(r);
+      if(!r.ok)throw new Error(x.erro||'Falha no recebimento.');
+      const aviso=x.aviso?` ${x.aviso}`:'';
+      qs('cd-receber-dialog').close();
+      const msg=`${x.criados} unidade(s) recebida(s) no ${x.local}. Lote ${x.lote}.${aviso}`;
+      if(window.appToast)window.appToast(msg,x.aviso?'aviso':'ok');else alert(msg);
+      limparRecebimento();
+      if(typeof carregarItens==='function')await carregarItens();
+      await resumoMini();
+    }catch(e){feedbackRecebimento(e.message||'Não foi possível registrar o recebimento.','error');if(window.appToast)window.appToast(e.message||'Falha no recebimento.','erro')}
+    finally{b.disabled=false;b.textContent='Confirmar recebimento'}
+  });
+
+  function movDestino(){const tipo=qs('cd-mov-tipo').value,ehCd=tipo==='cd';qs('cd-mov-destino-cd').style.display=ehCd?'block':'none';qs('cd-mov-destino-filial').style.display=ehCd?'none':'block';qs('cd-mov-endereco-wrap').style.display=ehCd?'block':'none';qs('cd-mov-destino-wrap').querySelector('label').textContent=ehCd?'CD de destino *':'Filial de destino *'}
+  qs('cd-mov-tipo')?.addEventListener('change',movDestino);movDestino();
+  qs('cd-mov-confirmar')?.addEventListener('click',async()=>{const tipo=qs('cd-mov-tipo').value,destino=tipo==='cd'?qs('cd-mov-destino-cd').value:qs('cd-mov-destino-filial').value;const payload={local_origem:qs('cd-mov-origem').value,codigo:qs('cd-mov-codigo').value,quantidade:Number(qs('cd-mov-qtd').value||0),destino_tipo:tipo,destino,nf_documento:qs('cd-mov-nf').value,data_movimento:qs('cd-mov-data').value,responsavel:qs('cd-mov-responsavel').value,referencia:qs('cd-mov-ref').value,endereco_rua:qs('cd-mov-rua').value,endereco_corredor:qs('cd-mov-corredor').value,endereco_prateleira:qs('cd-mov-prateleira').value,endereco_posicao:qs('cd-mov-posicao').value};if(!payload.local_origem||!payload.codigo||!payload.destino||payload.quantidade<=0){alert('Preencha CD de origem, Código, Quantidade e Destino.');return}const b=qs('cd-mov-confirmar');b.disabled=true;b.textContent='Movimentando...';try{const r=await fetch('/api/cd/movimentacao',{method:'POST',headers:{'Content-Type':'application/json','X-CSRF-Token':csrf},body:JSON.stringify(payload)}),x=await lerJson(r);if(!r.ok)throw new Error(x.erro||'Falha na movimentação');qs('cd-mov-dialog').close();window.appToast?.(`${x.movimentados} unidade(s) movimentada(s) com sucesso.`,'ok');await carregarItens();await resumoMini()}catch(e){alert(e.message)}finally{b.disabled=false;b.textContent='Confirmar movimentação'}});
+
+  async function carregarInventario(cd){const tb=qs('cd-inv-tbody');tb.innerHTML='<tr><td colspan="5">Carregando saldo...</td></tr>';try{const r=await fetch('/api/cd/inventario/preparar?cd='+encodeURIComponent(cd)),x=await lerJson(r);if(!r.ok)throw new Error(x.erro||'Falha');invRows=x;tb.innerHTML=x.length?x.map((it,i)=>`<tr><td>${escapeHtml(it.codigo)}</td><td>${escapeHtml(it.descricao||'')}</td><td>${Number(it.qtde)||0}</td><td><input class="cd-inventory-count" type="number" min="0" value="${Number(it.qtde)||0}" data-i="${i}"></td><td class="cd-inv-diff" data-i="${i}">0</td></tr>`).join(''):'<tr><td colspan="5">Nenhum saldo disponível neste CD.</td></tr>';tb.querySelectorAll('.cd-inventory-count').forEach(inp=>inp.addEventListener('input',()=>{const i=Number(inp.dataset.i),d=(Number(inp.value)||0)-(Number(invRows[i]?.qtde)||0);tb.querySelector(`.cd-inv-diff[data-i="${i}"]`).textContent=(d>0?'+':'')+d}))}catch(e){tb.innerHTML=`<tr><td colspan="5">${escapeHtml(e.message)}</td></tr>`}}
+  qs('cd-inv-local')?.addEventListener('change',e=>{if(e.target.value)carregarInventario(e.target.value)});
+  qs('cd-inv-confirmar')?.addEventListener('click',async()=>{const cd=qs('cd-inv-local').value;if(!cd||!invRows.length){alert('Selecione um CD com saldo para inventariar.');return}const inputs=[...qs('cd-inv-tbody').querySelectorAll('.cd-inventory-count')];const itens=inputs.map(inp=>{const i=Number(inp.dataset.i),r=invRows[i];return {codigo:r.codigo,descricao:r.descricao,contado:Number(inp.value)||0}});const payload={local:cd,observacao:qs('cd-inv-obs').value,ajustar:qs('cd-inv-ajustar').checked,itens};const b=qs('cd-inv-confirmar');b.disabled=true;b.textContent='Concluindo...';try{const r=await fetch('/api/cd/inventario',{method:'POST',headers:{'Content-Type':'application/json','X-CSRF-Token':csrf},body:JSON.stringify(payload)}),x=await lerJson(r);if(!r.ok)throw new Error(x.erro||'Falha no inventário');qs('cd-inv-dialog').close();window.appToast?.(`Inventário #${x.id} concluído · ${x.divergencias} divergência(s).`,'ok');await carregarItens();await resumoMini()}catch(e){alert(e.message)}finally{b.disabled=false;b.textContent='Concluir inventário'}});
+
+  async function pararScanner(){if(scanTimer){clearTimeout(scanTimer);scanTimer=null}if(scanStream){scanStream.getTracks().forEach(t=>t.stop());scanStream=null}const v=qs('cd-scan-video');if(v){v.srcObject=null;v.style.display='none'}}
+  function abrirScanner(alvo='main'){scanTarget=alvo;qs('cd-scan-result').value='';qs('cd-scan-status').textContent='Ao iniciar, a câmera será usada somente para identificar o código. O valor lido será aplicado ao campo operacional aberto.';qs('cd-scan-dialog').showModal()}
+  qs('cd-open-scanner')?.addEventListener('click',()=>abrirScanner('main'));
+  qs('cd-rec-scan')?.addEventListener('click',()=>abrirScanner('recebimento'));
+  qs('cd-rec-barcode')?.addEventListener('focus',()=>scanTarget='recebimento');
+  qs('cd-mov-codigo')?.addEventListener('focus',()=>scanTarget='movimentacao');
+  qs('cd-scan-iniciar')?.addEventListener('click',async()=>{const status=qs('cd-scan-status'),video=qs('cd-scan-video');try{if(!('BarcodeDetector' in window)){status.textContent='Este navegador não oferece leitura automática pela câmera. Digite ou use um leitor USB/Bluetooth no campo abaixo.';return}const formats=await BarcodeDetector.getSupportedFormats();const detector=new BarcodeDetector({formats:formats.filter(x=>['code_128','code_39','ean_13','ean_8','qr_code','upc_a','upc_e'].includes(x))});scanStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});video.srcObject=scanStream;video.style.display='block';await video.play();status.textContent='Aponte a câmera para o código.';const loop=async()=>{if(!scanStream)return;try{const codes=await detector.detect(video);if(codes.length){qs('cd-scan-result').value=codes[0].rawValue||'';status.textContent='Código identificado. Clique em “Usar código”.';await pararScanner();return}}catch(_){}scanTimer=setTimeout(loop,280)};loop()}catch(e){status.textContent='Não foi possível abrir a câmera. Verifique a permissão do navegador ou digite o código manualmente.'}});
+  qs('cd-scan-usar')?.addEventListener('click',()=>{const val=qs('cd-scan-result').value.trim();if(!val){alert('Nenhum código informado.');return}const p=(produtosCache||[]).find(x=>String(x.codigo_barras||'')===val||String(x.codigo||'')===val);if(scanTarget==='recebimento'){qs('cd-rec-barcode').value=val;if(p){qs('cd-rec-codigo').value=p.codigo;qs('cd-rec-descricao').value=p.descricao||'';feedbackRecebimento('Produto identificado pelo código lido.','ok')}else{feedbackRecebimento('Código lido, mas não vinculado a um produto do Cadastro de Produtos. Selecione o produto antes de confirmar.','warn')}atualizarResumoRecebimento()}else if(scanTarget==='movimentacao'){if(p)qs('cd-mov-codigo').value=p.codigo}else{if(p&&qs('codigo')){qs('codigo').value=p.codigo;sincronizarDescricaoProduto('')}else if(qs('busca'))qs('busca').value=val}qs('cd-scan-dialog').close();pararScanner();window.appToast?.(p?'Código aplicado.':'Código lido; produto não localizado no cadastro.',p?'ok':'aviso')});
+  qs('cd-scan-fechar')?.addEventListener('click',()=>{pararScanner();qs('cd-scan-dialog').close()});qs('cd-scan-dialog')?.addEventListener('close',pararScanner);
+
+  if(typeof PODE_EDITAR!=='undefined'&&!PODE_EDITAR){
+    ['cd-open-receber','cd-open-movimentar','cd-open-inventario'].forEach(id=>qs(id)?.remove());
+    const note=qs('cd-ops-panel')?.querySelector('.cd-op-note');if(note)note.innerHTML='<strong>Modo consulta:</strong> recebimentos, movimentações e ajustes de inventário estão bloqueados para este perfil.';
+  }
+  window.addEventListener('cd-filtro-change',e=>aplicarFiltroGlobal(e.detail?.cd||''));
+  setTimeout(()=>{preencherProdutos();preencherFiliaisCd();aplicarFiltroGlobal(cdAtual());if(qs('cd-rec-data')){qs('cd-rec-data').value=today();qs('cd-rec-data').max=today()}if(qs('cd-mov-data'))qs('cd-mov-data').value=today()},0);
+})();
+</script>
+{% endif %}
 
 </body>
 </html>
