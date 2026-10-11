@@ -69,8 +69,8 @@ import qrcode
 import db
 
 app = Flask(__name__)
-APP_VERSION = "v1.9.3"
-APP_BUILD = "2026-10-11-v1.9.3"
+APP_VERSION = "v1.9.4"
+APP_BUILD = "2026-10-11-v1.9.4"
 _DASHBOARD_CACHE = {}
 _EXPEDICAO_CACHE = {}
 
@@ -273,7 +273,7 @@ def _evitar_html_antigo_em_cache(response):
     const brand=menu.querySelector('.brand-copy');
     if(brand){{
       const desc=brand.querySelector('span'); if(desc) desc.textContent='Operação e controle do estoque dos Centros de Distribuição.';
-      const versao=brand.querySelector('small'); if(versao){{versao.textContent='Versão · {APP_VERSION}';}}
+      const versao=brand.querySelector('small'); if(versao){{versao.textContent='{APP_VERSION}';}}
     }}
   }}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',limparMenuCD);else limparMenuCD();
