@@ -69,7 +69,7 @@ import qrcode
 import db
 
 app = Flask(__name__)
-APP_BUILD = "2026-10-03-v1.8.3"
+APP_BUILD = "2026-10-11-v1.9.0"
 _DASHBOARD_CACHE = {}
 _EXPEDICAO_CACHE = {}
 
@@ -272,7 +272,7 @@ def _evitar_html_antigo_em_cache(response):
     const brand=menu.querySelector('.brand-copy');
     if(brand){{
       const desc=brand.querySelector('span'); if(desc) desc.textContent='Operação e controle do estoque dos Centros de Distribuição.';
-      const versao=brand.querySelector('small'); if(versao){{versao.textContent='Versão · v1.8.3';versao.style.setProperty('font-size','5px','important');versao.style.setProperty('line-height','1','important');versao.style.setProperty('padding','2px 4px','important');versao.style.setProperty('min-height','0','important');}}
+      const versao=brand.querySelector('small'); if(versao){{versao.textContent='Versão · v1.9.0';versao.style.setProperty('font-size','5px','important');versao.style.setProperty('line-height','1','important');versao.style.setProperty('padding','2px 4px','important');versao.style.setProperty('min-height','0','important');}}
     }}
   }}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',limparMenuCD);else limparMenuCD();
@@ -5337,6 +5337,10 @@ def api_criar_produto():
         estoque_minimo = max(0, int(float(dados.get("estoque_minimo") or 0)))
     except (TypeError, ValueError):
         return jsonify({"erro": "Informe um estoque mínimo válido."}), 400
+    try:
+        estoque_ideal = max(0, int(float(dados.get("estoque_ideal") or 0)))
+    except (TypeError, ValueError):
+        return jsonify({"erro": "Informe um estoque ideal válido."}), 400
     codigo_barras = str(dados.get("codigo_barras") or "").strip()
     if not codigo or not descricao:
         return jsonify({"erro": "Código de cadastro e descrição são obrigatórios."}), 400
@@ -5347,7 +5351,8 @@ def api_criar_produto():
     try:
         novo_id = db.criar_produto(
             codigo, descricao, qtde_por_loja, custo, session.get("username"),
-            estoque_minimo=estoque_minimo if db.get_site_area() == "estoque_cd" else 0,
+            estoque_minimo=estoque_minimo,
+            estoque_ideal=max(estoque_ideal, estoque_minimo),
             codigo_barras=codigo_barras if db.get_site_area() == "estoque_cd" else "",
         )
     except Exception:
@@ -5373,6 +5378,10 @@ def api_atualizar_produto(produto_id):
         estoque_minimo = max(0, int(float(dados.get("estoque_minimo") or 0)))
     except (TypeError, ValueError):
         return jsonify({"erro": "Informe um estoque mínimo válido."}), 400
+    try:
+        estoque_ideal = max(0, int(float(dados.get("estoque_ideal") or 0)))
+    except (TypeError, ValueError):
+        return jsonify({"erro": "Informe um estoque ideal válido."}), 400
     codigo_barras = str(dados.get("codigo_barras") or "").strip()
     if not codigo or not descricao:
         return jsonify({"erro": "Código de cadastro e descrição são obrigatórios."}), 400
@@ -5383,7 +5392,8 @@ def api_atualizar_produto(produto_id):
     try:
         ok = db.atualizar_produto(
             produto_id, codigo, descricao, qtde_por_loja, custo,
-            estoque_minimo=estoque_minimo if db.get_site_area() == "estoque_cd" else None,
+            estoque_minimo=estoque_minimo,
+            estoque_ideal=max(estoque_ideal, estoque_minimo),
             codigo_barras=codigo_barras if db.get_site_area() == "estoque_cd" else None,
         )
     except Exception:

@@ -521,6 +521,21 @@
   .br-alert.ok{background:rgba(76,215,146,.08);border-color:rgba(76,215,146,.22);color:var(--ok);}
   .br-empty{padding:18px;text-align:center;color:var(--muted);font-size:12px;}
   @media(max-width:760px){.br-grid{grid-template-columns:repeat(2,minmax(0,1fr));}.br-actions{display:grid!important;grid-template-columns:1fr!important}.br-actions>*{width:100%;justify-content:center}.br-dialog-grid{grid-template-columns:1fr!important}.br-dialog-grid .wide{grid-column:1!important}}
+
+
+  /* Inteligência operacional do Estoque · v1.9 */
+  .op-alert-strip{display:none;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:0 0 14px;padding:11px 14px;border:1px solid rgba(255,182,72,.3);border-radius:11px;background:rgba(255,182,72,.07);font-size:12px}.op-alert-strip.show{display:flex}.op-alert-strip strong{color:var(--accent-2)}.op-alert-strip button{padding:6px 10px}
+  .op-panel{margin:0 0 22px;border:1px solid var(--line);border-radius:15px;background:var(--panel);padding:17px}.op-panel-head{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap;margin-bottom:13px}.op-panel-head h2{margin:0 0 5px;font-size:16px}.op-panel-head p{margin:0;color:var(--muted);font-size:12px}.op-controls{display:flex;gap:8px;flex-wrap:wrap}.op-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:9px}.op-card{border:1px solid var(--line);border-radius:11px;background:var(--panel-2);padding:12px;text-align:left;cursor:pointer;transition:.15s}.op-card:hover{border-color:var(--accent);transform:translateY(-1px)}.op-card span{display:block;color:var(--muted);font-size:9px;text-transform:uppercase;letter-spacing:.06em}.op-card strong{display:block;margin:6px 0 2px;font:700 20px var(--mono)}.op-card small{color:var(--muted);font-size:10px}.op-card.danger strong{color:var(--danger)}.op-card.warn strong{color:var(--accent-2)}.op-card.info strong{color:var(--accent)}.op-card.ok strong{color:var(--ok)}
+  .op-detail-grid{display:grid;grid-template-columns:1.2fr .8fr;gap:12px;margin-top:12px}.op-detail{border:1px solid var(--line);border-radius:11px;background:rgba(255,255,255,.015);padding:12px}.op-detail h3{margin:0 0 9px;font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}.critical-row{display:grid;grid-template-columns:1fr auto auto;gap:10px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.055);font-size:11px}.critical-row:last-child{border-bottom:0}.critical-row b{color:var(--text)}.critical-row .faltando{color:var(--danger);font-weight:700}.op-empty{color:var(--muted);font-size:11px;padding:8px 0}.movement-bars{display:flex;align-items:flex-end;gap:4px;height:105px;padding-top:10px}.movement-day{flex:1;min-width:4px;display:flex;flex-direction:column;justify-content:flex-end;gap:2px;height:100%}.movement-day i{display:block;border-radius:3px 3px 0 0;min-height:1px}.movement-day i.in{background:var(--ok)}.movement-day i.out{background:var(--danger)}.movement-legend{display:flex;gap:14px;margin-top:8px;font-size:10px;color:var(--muted)}.movement-legend b{color:var(--text)}
+  .status-pill.disponível,.status-pill.disponivel{background:rgba(76,215,146,.14);color:var(--ok);border:1px solid rgba(76,215,146,.35)}
+  .status-pill.reservado-antigo{box-shadow:0 0 0 1px var(--danger) inset}
+  .table-tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.columns-menu{position:relative}.columns-popover{display:none;position:absolute;right:0;top:calc(100% + 6px);z-index:30;width:260px;max-height:360px;overflow:auto;padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--panel);box-shadow:0 18px 45px rgba(0,0,0,.4)}.columns-menu.open .columns-popover{display:block}.columns-popover label{display:flex;align-items:center;gap:8px;padding:6px 4px;font-size:11px;color:var(--text)}.saved-filter-wrap{display:flex;gap:6px;align-items:center}.saved-filter-wrap select{max-width:190px}
+  #tabela-itens th.sortable{cursor:pointer;user-select:none}#tabela-itens th.sortable:hover{color:var(--text)}#tabela-itens th.sortable::after{content:' ↕';opacity:.35}#tabela-itens th.sortable.sort-asc::after{content:' ↑';opacity:1;color:var(--accent)}#tabela-itens th.sortable.sort-desc::after{content:' ↓';opacity:1;color:var(--accent)}
+  @media(min-width:761px){ #tabela-itens th:nth-child(1),#tabela-itens td:nth-child(1){position:sticky;left:0;z-index:4;background:var(--panel)}#tabela-itens th:nth-child(2),#tabela-itens td:nth-child(2){position:sticky;left:43px;z-index:4;background:var(--panel)}#tabela-itens tbody tr:hover td:nth-child(1),#tabela-itens tbody tr:hover td:nth-child(2){background:var(--panel-2)}}
+  #historico-dialog{margin:0 0 0 auto;height:100vh;max-height:100vh;border-radius:14px 0 0 14px;width:min(540px,94vw)!important}#historico-dialog .dlg-body{height:100%;display:flex;flex-direction:column}#historico-lista{flex:1}.mov-item{position:relative;margin-left:12px}.mov-item::before{content:'';position:absolute;left:-13px;top:14px;width:7px;height:7px;border-radius:50%;background:var(--accent)}
+  .inv-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}.inv-summary div{padding:9px;border:1px solid var(--line);border-radius:8px;background:var(--panel-2)}.inv-summary span{display:block;color:var(--muted);font-size:9px;text-transform:uppercase}.inv-summary strong{display:block;margin-top:4px;font:700 16px var(--mono)}
+  @media(max-width:980px){.op-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.op-detail-grid{grid-template-columns:1fr}}@media(max-width:600px){.op-grid{grid-template-columns:1fr}.saved-filter-wrap{width:100%}.saved-filter-wrap select{flex:1;max-width:none}}
+
 </style>
 {% include '_mobile_head.html' %}
 </head>
@@ -643,10 +658,30 @@
   <div class="field full" id="cd-mov-endereco-wrap"><label>Novo endereço no CD de destino</label><div class="cd-address-grid"><input id="cd-mov-rua" placeholder="Rua"><input id="cd-mov-corredor" placeholder="Corredor"><input id="cd-mov-prateleira" placeholder="Prateleira"><input id="cd-mov-posicao" placeholder="Posição"></div></div>
 </div><div class="dlg-actions"><button type="button" class="btn-ghost" data-close-dialog="cd-mov-dialog">Cancelar</button><button type="button" class="btn-primary" id="cd-mov-confirmar">Confirmar movimentação</button></div></div></dialog>
 
-<dialog id="cd-inv-dialog" class="cd-dialog"><div class="dlg-body"><h3>Inventário físico do CD</h3><div class="cd-form-grid"><div class="field"><label>Centro de Distribuição *</label><select id="cd-inv-local"><option value="">Selecione...</option>{% for cd, uf in cds_dpsp %}<option value="{{ cd }}">{{ cd }} · {{ uf }}</option>{% endfor %}</select></div><div class="field wide"><label>Observação</label><input id="cd-inv-obs" placeholder="Ex.: inventário mensal"></div></div><div class="cd-inventory-wrap" style="margin-top:12px"><table><thead><tr><th>Código</th><th>Descrição</th><th>Esperado</th><th>Contagem física</th><th>Diferença</th></tr></thead><tbody id="cd-inv-tbody"><tr><td colspan="5">Selecione um CD para carregar o saldo esperado.</td></tr></tbody></table></div><label style="display:flex;gap:8px;align-items:center;margin-top:12px;font-size:12px"><input type="checkbox" id="cd-inv-ajustar"> Ajustar automaticamente o saldo após concluir o inventário <small style="color:var(--muted)">(Administrador/Gestor)</small></label><div class="dlg-actions"><button type="button" class="btn-ghost" data-close-dialog="cd-inv-dialog">Cancelar</button><button type="button" class="btn-primary" id="cd-inv-confirmar">Concluir inventário</button></div></div></dialog>
+<dialog id="cd-inv-dialog" class="cd-dialog"><div class="dlg-body"><h3>Inventário físico do CD</h3><div class="cd-form-grid"><div class="field"><label>Centro de Distribuição *</label><select id="cd-inv-local"><option value="">Selecione...</option>{% for cd, uf in cds_dpsp %}<option value="{{ cd }}">{{ cd }} · {{ uf }}</option>{% endfor %}</select></div><div class="field wide"><label>Observação</label><input id="cd-inv-obs" placeholder="Ex.: inventário mensal"></div></div><div class="inv-summary"><div><span>Esperado</span><strong id="cd-inv-total-esperado">0</strong></div><div><span>Contado</span><strong id="cd-inv-total-contado">0</strong></div><div><span>Divergência</span><strong id="cd-inv-total-diff">0</strong></div></div><div class="cd-inventory-wrap" style="margin-top:12px"><table><thead><tr><th>Código</th><th>Descrição</th><th>Esperado</th><th>Contagem física</th><th>Diferença</th></tr></thead><tbody id="cd-inv-tbody"><tr><td colspan="5">Selecione um CD para carregar o saldo esperado.</td></tr></tbody></table></div><label style="display:flex;gap:8px;align-items:center;margin-top:12px;font-size:12px"><input type="checkbox" id="cd-inv-ajustar"> Ajustar automaticamente o saldo após concluir o inventário <small style="color:var(--muted)">(Administrador/Gestor)</small></label><div class="dlg-actions"><button type="button" class="btn-ghost" data-close-dialog="cd-inv-dialog">Cancelar</button><button type="button" class="btn-primary" id="cd-inv-confirmar">Concluir inventário</button></div></div></dialog>
 
 <dialog id="cd-scan-dialog" class="cd-dialog"><div class="dlg-body"><h3>Leitor de código de barras / QR</h3><video id="cd-scan-video" class="cd-scan-preview" playsinline muted></video><p class="cd-scan-status" id="cd-scan-status">Ao iniciar, a câmera será usada somente para identificar o código. O valor lido será aplicado ao campo operacional aberto.</p><div class="field"><label>Código identificado</label><input id="cd-scan-result" placeholder="Você também pode digitar manualmente"></div><div class="dlg-actions"><button type="button" class="btn-ghost" id="cd-scan-fechar">Fechar</button><button type="button" class="btn-primary" id="cd-scan-iniciar">Iniciar câmera</button><button type="button" class="btn-primary" id="cd-scan-usar">Usar código</button></div></div></dialog>
 {% endif %}
+
+
+  <div class="op-alert-strip" id="op-alert-strip"><span id="op-alert-text"></span><button class="btn-ghost" type="button" id="op-alert-open">Ver pendências</button></div>
+  <section class="op-panel" id="controle-operacional">
+    <div class="op-panel-head">
+      <div><h2>Controle Operacional</h2><p>Prioridades automáticas do estoque, cobertura, valor e movimentação recente.</p></div>
+      <div class="op-controls"><a class="btn-ghost" href="{{ url_for('pagina_produtos') }}">Configurar mínimo / ideal</a><button class="btn-ghost" type="button" id="op-limpar-filtro">Limpar filtro rápido</button></div>
+    </div>
+    <div class="op-grid">
+      <button class="op-card danger" type="button" data-opfilter="critico"><span>Estoque crítico</span><strong id="op-criticos">0</strong><small>códigos abaixo do mínimo</small></button>
+      <button class="op-card warn" type="button" data-opfilter="pendencias"><span>Pendências cadastrais</span><strong id="op-pendencias">0</strong><small>registros incompletos</small></button>
+      <button class="op-card info" type="button" data-opfilter="reservados"><span>Reservados</span><strong id="op-reservados">0</strong><small id="op-reservados-sub">itens reservados</small></button>
+      <button class="op-card warn" type="button" data-opfilter="separados"><span>Aguardando envio</span><strong id="op-separados">0</strong><small>itens separados</small></button>
+      <button class="op-card ok" type="button" data-opfilter=""><span>Valor em estoque</span><strong id="op-valor">R$ 0</strong><small id="op-valor-sub">saldo disponível</small></button>
+    </div>
+    <div class="op-detail-grid">
+      <div class="op-detail"><h3>Produtos críticos / abaixo do ideal</h3><div id="op-critical-list" class="op-empty">Carregando...</div></div>
+      <div class="op-detail"><h3>Movimentação · últimos 30 dias</h3><div class="movement-bars" id="op-movement-bars"></div><div class="movement-legend"><span>Entradas <b id="op-entradas30">0</b></span><span>Saídas <b id="op-saidas30">0</b></span><span>Saldo <b id="op-saldo30">0</b></span></div></div>
+    </div>
+  </section>
 
   <section class="panel">
     <h2>Registrar novo item (entrada)</h2>
@@ -976,6 +1011,8 @@
           {% endif %}
         </select>
         <select id="filtro-filial" class="filtro-select"><option value="">Todas as filiais</option></select>
+        <div class="saved-filter-wrap"><select id="filtros-salvos" class="filtro-select"><option value="">Filtros salvos</option></select><button class="btn-ghost" type="button" id="salvar-filtro">Salvar</button><button class="btn-ghost" type="button" id="excluir-filtro" title="Excluir filtro salvo">×</button></div>
+        <div class="columns-menu" id="columns-menu"><button class="btn-ghost" type="button" id="columns-toggle">Colunas</button><div class="columns-popover" id="columns-popover"></div></div>
         <input type="search" id="busca" placeholder="Buscar por código, descrição, filial, serial...">
       </div>
     </div>
@@ -1446,6 +1483,10 @@ let itensExibidos = 50; // paginação: quantos itens mostrar por vez
 const PAGINA_TAMANHO = 50;
 const idsSelecionados = new Set(); // seleção da tabela, sobrevive às atualizações automáticas
 let selecaoTodosParaExclusao = false; // o checkbox do cabeçalho é exclusivo da ação Excluir
+let filtroOperacional='';
+let sortState={key:'id',dir:'desc'};
+const FILTERS_KEY='controle-estoque-filtros-'+(IS_CD?'cd':'expansao');
+const COLS_KEY='controle-estoque-colunas-'+(IS_CD?'cd':'expansao');
 
 const syncStatus = document.getElementById('sync-status');
 
@@ -1482,13 +1523,14 @@ function renderizar(){
     if(statusSel && (it.status || '') !== statusSel) return false;
     if(localSel && (it.local || '') !== localSel) return false;
     if(filialSel && String(it.filial_destino || '') !== String(filialSel)) return false;
+    if(filtroOperacional && !itemPassaFiltroOperacional(it, filtroOperacional)) return false;
     return true;
   });
 
   tbody.innerHTML = '';
   emptyMsg.style.display = filtrados.length ? 'none' : 'block';
 
-  const ordenados = filtrados.slice().reverse();
+  const ordenados = ordenarItens(filtrados.slice());
   const visiveis = ordenados.slice(0, itensExibidos);
 
   visiveis.forEach(it => {
@@ -1557,7 +1599,10 @@ function renderizar(){
     else atualizarGraficoCodigoItem();
   }
   atualizarSelecionados();
+  atualizarOperacional();
+  aplicarColunasVisiveis();
 }
+
 
 document.getElementById('btn-carregar-mais').addEventListener('click', () => {
   itensExibidos += PAGINA_TAMANHO;
@@ -1567,6 +1612,87 @@ filtroTipo.addEventListener('change', () => { itensExibidos = PAGINA_TAMANHO; re
 filtroStatus.addEventListener('change', () => { itensExibidos = PAGINA_TAMANHO; renderizar(); });
 filtroLocal.addEventListener('change', () => { itensExibidos = PAGINA_TAMANHO; renderizar(); });
 filtroFilial.addEventListener('change', () => { itensExibidos = PAGINA_TAMANHO; renderizar(); });
+
+
+function parseNumero(v){
+  const s=String(v??'').trim(); if(!s)return 0;
+  if(s.includes(',')) return Number(s.replace(/\./g,'').replace(',','.'))||0;
+  return Number(s)||0;
+}
+function dataSegura(v){if(!v)return null;const m=String(v).match(/(\d{4})-(\d{2})-(\d{2})/);if(!m)return null;return new Date(Number(m[1]),Number(m[2])-1,Number(m[3]));}
+function idadeDias(it){const d=dataSegura(it.atualizado_em)||dataSegura(it.data_entrada);if(!d)return 0;return Math.floor((new Date()-d)/86400000);}
+function produtoDoItem(it){return (produtosCache||[]).find(p=>String(p.codigo||'').trim()===String(it.codigo||'').trim())||null;}
+function saldoPorCodigo(){
+  const mapa=new Map(); const local=filtroLocal?.value||'';
+  itensCache.forEach(it=>{if(local && String(it.local||'')!==String(local))return;const c=String(it.codigo||'').trim();if(!c)return;mapa.set(c,(mapa.get(c)||0)+Math.max(0,Number(it.qtde)||0));});
+  return mapa;
+}
+function codigosCriticos(){
+  const saldo=saldoPorCodigo(), out=new Set();
+  (produtosCache||[]).forEach(p=>{const min=Math.max(0,Number(p.estoque_minimo)||0);if(min>0 && (saldo.get(String(p.codigo||'').trim())||0)<min)out.add(String(p.codigo||'').trim());});return out;
+}
+function itemPendente(it){
+  if((Number(it.qtde)||0)<=0)return false;
+  const semEntrada=!String(it.nf_entrada||'').trim();
+  const status=normalizarTexto(it.status);
+  const semDestino=['reservado','separado','enviado'].includes(status) && !String(it.filial_destino||it.vd_loja||'').trim();
+  const semIdentificacao=['reservado','separado','enviado'].includes(status) && !String(it.nro_serie||'').trim() && !String(it.nro_patrimonio||'').trim();
+  return semEntrada||semDestino||semIdentificacao;
+}
+function itemPassaFiltroOperacional(it,tipo){
+  if(tipo==='critico')return codigosCriticos().has(String(it.codigo||'').trim());
+  if(tipo==='pendencias')return itemPendente(it);
+  if(tipo==='reservados')return normalizarTexto(it.status)==='reservado' && (Number(it.qtde)||0)>0;
+  if(tipo==='separados')return normalizarTexto(it.status)==='separado' && (Number(it.qtde)||0)>0;
+  return true;
+}
+function valorItem(it){const p=produtoDoItem(it);return parseNumero(it.val_aquis)||parseNumero(p?.custo)||0;}
+function atualizarOperacional(){
+  if(!document.getElementById('controle-operacional'))return;
+  const ativos=itensCache.filter(it=>(Number(it.qtde)||0)>0);
+  const crit=codigosCriticos();
+  const pend=ativos.filter(itemPendente);
+  const reservados=ativos.filter(it=>normalizarTexto(it.status)==='reservado');
+  const reservadosAntigos=reservados.filter(it=>idadeDias(it)>=7);
+  const separados=ativos.filter(it=>normalizarTexto(it.status)==='separado');
+  const valor=ativos.reduce((s,it)=>s+(Number(it.qtde)||0)*valorItem(it),0);
+  document.getElementById('op-criticos').textContent=crit.size;
+  document.getElementById('op-pendencias').textContent=pend.length;
+  document.getElementById('op-reservados').textContent=reservados.length;
+  document.getElementById('op-reservados-sub').textContent=reservadosAntigos.length?`${reservadosAntigos.length} há 7+ dias`:'itens reservados';
+  document.getElementById('op-separados').textContent=separados.length;
+  document.getElementById('op-valor').textContent=valor.toLocaleString('pt-BR',{style:'currency',currency:'BRL',maximumFractionDigits:0});
+  document.getElementById('op-valor-sub').textContent=`${ativos.length} registro(s) com saldo`;
+  const alert=document.getElementById('op-alert-strip'), txt=document.getElementById('op-alert-text');
+  const partes=[];if(crit.size)partes.push(`<strong>${crit.size}</strong> produto(s) em estoque crítico`);if(pend.length)partes.push(`<strong>${pend.length}</strong> pendência(s) cadastral(is)`);if(reservadosAntigos.length)partes.push(`<strong>${reservadosAntigos.length}</strong> reservado(s) há 7+ dias`);if(separados.length)partes.push(`<strong>${separados.length}</strong> aguardando envio`);
+  alert.classList.toggle('show',partes.length>0);txt.innerHTML=partes.join(' · ');
+  const saldo=saldoPorCodigo();
+  const critList=(produtosCache||[]).map(p=>{const atual=saldo.get(String(p.codigo||'').trim())||0,min=Number(p.estoque_minimo)||0,ideal=Math.max(min,Number(p.estoque_ideal)||0);return {p,atual,min,ideal,faltaMin:Math.max(0,min-atual),faltaIdeal:Math.max(0,ideal-atual)}}).filter(x=>x.min>0&&x.atual<x.ideal).sort((a,b)=>(b.faltaMin-a.faltaMin)||(b.faltaIdeal-a.faltaIdeal)).slice(0,8);
+  const el=document.getElementById('op-critical-list');el.className='';el.innerHTML=critList.length?critList.map(x=>`<div class="critical-row"><span><b>${escapeHtml(x.p.codigo||'')}</b> · ${escapeHtml(x.p.descricao||'')}</span><span>${x.atual}/${x.min}/${x.ideal}</span><span class="faltando">${x.faltaMin?`mín. -${x.faltaMin}`:`ideal -${x.faltaIdeal}`}</span></div>`).join(''):'<div class="op-empty">Nenhum produto abaixo do mínimo/ideal configurado.</div>';
+  renderMovimentacao30();
+}
+function renderMovimentacao30(){
+  const dias=[];const hoje=new Date();hoje.setHours(0,0,0,0);for(let i=29;i>=0;i--){const d=new Date(hoje);d.setDate(d.getDate()-i);dias.push({d,in:0,out:0});}
+  const key=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;const mapa=new Map(dias.map(x=>[key(x.d),x]));
+  itensCache.forEach(it=>{const en=dataSegura(it.data_entrada),sa=dataSegura(it.data_saida),q=Math.max(1,Number(it.qtde)||1);if(en&&mapa.has(key(en)))mapa.get(key(en)).in+=q;if(sa&&mapa.has(key(sa)))mapa.get(key(sa)).out+=q;});
+  const max=Math.max(1,...dias.flatMap(x=>[x.in,x.out]));document.getElementById('op-movement-bars').innerHTML=dias.map(x=>`<div class="movement-day" title="${key(x.d)} · Entradas ${x.in} · Saídas ${x.out}"><i class="in" style="height:${Math.max(x.in?3:0,(x.in/max)*100)}%"></i><i class="out" style="height:${Math.max(x.out?3:0,(x.out/max)*100)}%"></i></div>`).join('');const ti=dias.reduce((s,x)=>s+x.in,0),to=dias.reduce((s,x)=>s+x.out,0);document.getElementById('op-entradas30').textContent=ti;document.getElementById('op-saidas30').textContent=to;document.getElementById('op-saldo30').textContent=(ti-to>0?'+':'')+(ti-to);
+}
+function ordenarItens(lista){
+  const dir=sortState.dir==='asc'?1:-1,key=sortState.key;return lista.sort((a,b)=>{let av=a[key],bv=b[key];if(['id','qtde','val_aquis'].includes(key)){av=parseNumero(av);bv=parseNumero(bv);}else{av=normalizarTexto(av);bv=normalizarTexto(bv);}if(av<bv)return -1*dir;if(av>bv)return 1*dir;return 0;});
+}
+function configurarOrdenacao(){
+ const map={'Código':'codigo','Descrição':'descricao','Qtde':'qtde','UF':'localizacao','NF entrada':'nf_entrada','Data entrada':'data_entrada','NF saída':'nf_saida','Data saída':'data_saida','VD / referência':'vd_loja','Filial / destino':'filial_destino','Local':'local','Armazenamento':'armazenagem','Status':'status','Tipo de estoque':'tipo_estoque','Nº imob.':'nro_imobilizado','Nº série':'nro_serie','Nº patrim.':'nro_patrimonio','Pedido':'pedido','ValAquis.':'val_aquis','Chamado':'chamado','Criado por':'criado_por','Últ. alteração':'atualizado_em','Situação':'qtde'};
+ document.querySelectorAll('#tabela-itens thead th').forEach(th=>{const k=map[th.textContent.trim()];if(!k)return;th.classList.add('sortable');th.addEventListener('click',()=>{if(sortState.key===k)sortState.dir=sortState.dir==='asc'?'desc':'asc';else sortState={key:k,dir:'asc'};document.querySelectorAll('#tabela-itens th').forEach(x=>x.classList.remove('sort-asc','sort-desc'));th.classList.add(sortState.dir==='asc'?'sort-asc':'sort-desc');renderizar();});});
+}
+function colunasOcultas(){try{return new Set(JSON.parse(localStorage.getItem(COLS_KEY)||'[]'))}catch(_){return new Set()}}
+function aplicarColunasVisiveis(){const hidden=colunasOcultas();document.querySelectorAll('#tabela-itens tr').forEach(row=>[...row.children].forEach((cell,i)=>{cell.style.display=hidden.has(i)?'none':''}));}
+function configurarColunas(){const pop=document.getElementById('columns-popover');if(!pop)return;const ths=[...document.querySelectorAll('#tabela-itens thead th')],hidden=colunasOcultas();pop.innerHTML=ths.map((th,i)=>{const label=th.textContent.trim()|| (i===0?'Seleção':'Ações');if(i===0||i===1||i===2||i===ths.length-1)return '';return `<label><input type="checkbox" data-col="${i}" ${hidden.has(i)?'':'checked'}> ${escapeHtml(label)}</label>`}).join('');pop.querySelectorAll('input').forEach(cb=>cb.addEventListener('change',()=>{const h=colunasOcultas(),i=Number(cb.dataset.col);cb.checked?h.delete(i):h.add(i);localStorage.setItem(COLS_KEY,JSON.stringify([...h]));aplicarColunasVisiveis()}));document.getElementById('columns-toggle')?.addEventListener('click',e=>{e.stopPropagation();document.getElementById('columns-menu').classList.toggle('open')});document.addEventListener('click',e=>{if(!e.target.closest('#columns-menu'))document.getElementById('columns-menu')?.classList.remove('open')});}
+function carregarFiltrosSalvos(){const sel=document.getElementById('filtros-salvos');if(!sel)return;let fs={};try{fs=JSON.parse(localStorage.getItem(FILTERS_KEY)||'{}')}catch(_){}const atual=sel.value;sel.innerHTML='<option value="">Filtros salvos</option>'+Object.keys(fs).sort().map(n=>`<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join('');sel.value=atual;return fs;}
+function configurarFiltrosSalvos(){carregarFiltrosSalvos();document.getElementById('salvar-filtro')?.addEventListener('click',()=>{const nome=prompt('Nome para esta visão de filtros:');if(!nome?.trim())return;const fs=carregarFiltrosSalvos()||{};fs[nome.trim()]={tipo:filtroTipo.value,status:filtroStatus.value,local:filtroLocal.value,filial:filtroFilial.value,busca:buscaInput.value,op:filtroOperacional};localStorage.setItem(FILTERS_KEY,JSON.stringify(fs));carregarFiltrosSalvos();document.getElementById('filtros-salvos').value=nome.trim();mostrarToast('Filtro salvo.')});document.getElementById('filtros-salvos')?.addEventListener('change',e=>{if(!e.target.value)return;const fs=carregarFiltrosSalvos()||{},f=fs[e.target.value];if(!f)return;filtroTipo.value=f.tipo||'';filtroStatus.value=f.status||'';filtroLocal.value=f.local||'';filtroFilial.value=f.filial||'';buscaInput.value=f.busca||'';filtroOperacional=f.op||'';renderizar()});document.getElementById('excluir-filtro')?.addEventListener('click',()=>{const sel=document.getElementById('filtros-salvos'),nome=sel.value;if(!nome)return;const fs=carregarFiltrosSalvos()||{};delete fs[nome];localStorage.setItem(FILTERS_KEY,JSON.stringify(fs));carregarFiltrosSalvos()});}
+document.querySelectorAll('[data-opfilter]').forEach(b=>b.addEventListener('click',()=>{filtroOperacional=b.dataset.opfilter||'';itensExibidos=PAGINA_TAMANHO;renderizar();document.getElementById('tabela-itens')?.scrollIntoView({behavior:'smooth',block:'start'})}));
+document.getElementById('op-limpar-filtro')?.addEventListener('click',()=>{filtroOperacional='';filtroStatus.value='';buscaInput.value='';renderizar()});
+document.getElementById('op-alert-open')?.addEventListener('click',()=>{filtroOperacional='pendencias';renderizar();document.getElementById('tabela-itens')?.scrollIntoView({behavior:'smooth',block:'start'})});
+configurarOrdenacao();configurarColunas();configurarFiltrosSalvos();
 
 function atualizarStats(){
   const total = itensCache.length;
@@ -2743,6 +2869,7 @@ async function carregarProdutos(){
     if(!res.ok) throw new Error('Falha ao carregar produtos');
     produtosCache = (await res.json()).sort((a,b)=>compararCodigosNaturais(a.codigo,b.codigo));
     preencherSelectProdutos();
+    atualizarOperacional();
     if(!modoSimuladorLojas && !modoKitPadrao && !modoLojaVirtual) atualizarGraficoCodigoItem();
     if(modoSimuladorLojas) renderizarSimuladorLojas();
     if(modoKitPadrao) renderizarKitPadrao();
@@ -3746,7 +3873,8 @@ if(IS_CD){
   qs('cd-mov-tipo')?.addEventListener('change',movDestino);movDestino();
   qs('cd-mov-confirmar')?.addEventListener('click',async()=>{const tipo=qs('cd-mov-tipo').value,destino=tipo==='cd'?qs('cd-mov-destino-cd').value:qs('cd-mov-destino-filial').value;const payload={local_origem:qs('cd-mov-origem').value,codigo:qs('cd-mov-codigo').value,quantidade:Number(qs('cd-mov-qtd').value||0),destino_tipo:tipo,destino,nf_documento:qs('cd-mov-nf').value,data_movimento:qs('cd-mov-data').value,responsavel:qs('cd-mov-responsavel').value,referencia:qs('cd-mov-ref').value,endereco_rua:qs('cd-mov-rua').value,endereco_corredor:qs('cd-mov-corredor').value,endereco_prateleira:qs('cd-mov-prateleira').value,endereco_posicao:qs('cd-mov-posicao').value};if(!payload.local_origem||!payload.codigo||!payload.destino||payload.quantidade<=0){alert('Preencha CD de origem, Código, Quantidade e Destino.');return}const b=qs('cd-mov-confirmar');b.disabled=true;b.textContent='Movimentando...';try{const r=await fetch('/api/cd/movimentacao',{method:'POST',headers:{'Content-Type':'application/json','X-CSRF-Token':csrf},body:JSON.stringify(payload)}),x=await lerJson(r);if(!r.ok)throw new Error(x.erro||'Falha na movimentação');qs('cd-mov-dialog').close();window.appToast?.(`${x.movimentados} unidade(s) movimentada(s) com sucesso.`,'ok');await carregarItens();await resumoMini()}catch(e){alert(e.message)}finally{b.disabled=false;b.textContent='Confirmar movimentação'}});
 
-  async function carregarInventario(cd){const tb=qs('cd-inv-tbody');tb.innerHTML='<tr><td colspan="5">Carregando saldo...</td></tr>';try{const r=await fetch('/api/cd/inventario/preparar?cd='+encodeURIComponent(cd)),x=await lerJson(r);if(!r.ok)throw new Error(x.erro||'Falha');invRows=x;tb.innerHTML=x.length?x.map((it,i)=>`<tr><td>${escapeHtml(it.codigo)}</td><td>${escapeHtml(it.descricao||'')}</td><td>${Number(it.qtde)||0}</td><td><input class="cd-inventory-count" type="number" min="0" value="${Number(it.qtde)||0}" data-i="${i}"></td><td class="cd-inv-diff" data-i="${i}">0</td></tr>`).join(''):'<tr><td colspan="5">Nenhum saldo disponível neste CD.</td></tr>';tb.querySelectorAll('.cd-inventory-count').forEach(inp=>inp.addEventListener('input',()=>{const i=Number(inp.dataset.i),d=(Number(inp.value)||0)-(Number(invRows[i]?.qtde)||0);tb.querySelector(`.cd-inv-diff[data-i="${i}"]`).textContent=(d>0?'+':'')+d}))}catch(e){tb.innerHTML=`<tr><td colspan="5">${escapeHtml(e.message)}</td></tr>`}}
+  function atualizarResumoInventario(){const inputs=[...qs('cd-inv-tbody').querySelectorAll('.cd-inventory-count')],esperado=invRows.reduce((s,r)=>s+(Number(r.qtde)||0),0),contado=inputs.reduce((s,inp)=>s+(Number(inp.value)||0),0),diff=contado-esperado;qs('cd-inv-total-esperado').textContent=esperado;qs('cd-inv-total-contado').textContent=contado;qs('cd-inv-total-diff').textContent=(diff>0?'+':'')+diff;qs('cd-inv-total-diff').style.color=diff===0?'var(--ok)':'var(--danger)'}
+  async function carregarInventario(cd){const tb=qs('cd-inv-tbody');tb.innerHTML='<tr><td colspan="5">Carregando saldo...</td></tr>';try{const r=await fetch('/api/cd/inventario/preparar?cd='+encodeURIComponent(cd)),x=await lerJson(r);if(!r.ok)throw new Error(x.erro||'Falha');invRows=x;tb.innerHTML=x.length?x.map((it,i)=>`<tr><td>${escapeHtml(it.codigo)}</td><td>${escapeHtml(it.descricao||'')}</td><td>${Number(it.qtde)||0}</td><td><input class="cd-inventory-count" type="number" min="0" value="${Number(it.qtde)||0}" data-i="${i}"></td><td class="cd-inv-diff" data-i="${i}">0</td></tr>`).join(''):'<tr><td colspan="5">Nenhum saldo disponível neste CD.</td></tr>';tb.querySelectorAll('.cd-inventory-count').forEach(inp=>inp.addEventListener('input',()=>{const i=Number(inp.dataset.i),d=(Number(inp.value)||0)-(Number(invRows[i]?.qtde)||0);const cell=tb.querySelector(`.cd-inv-diff[data-i="${i}"]`);cell.textContent=(d>0?'+':'')+d;cell.style.color=d===0?'var(--muted)':'var(--danger)';atualizarResumoInventario()}));atualizarResumoInventario()}catch(e){tb.innerHTML=`<tr><td colspan="5">${escapeHtml(e.message)}</td></tr>`}}
   qs('cd-inv-local')?.addEventListener('change',e=>{if(e.target.value)carregarInventario(e.target.value)});
   qs('cd-inv-confirmar')?.addEventListener('click',async()=>{const cd=qs('cd-inv-local').value;if(!cd||!invRows.length){alert('Selecione um CD com saldo para inventariar.');return}const inputs=[...qs('cd-inv-tbody').querySelectorAll('.cd-inventory-count')];const itens=inputs.map(inp=>{const i=Number(inp.dataset.i),r=invRows[i];return {codigo:r.codigo,descricao:r.descricao,contado:Number(inp.value)||0}});const payload={local:cd,observacao:qs('cd-inv-obs').value,ajustar:qs('cd-inv-ajustar').checked,itens};const b=qs('cd-inv-confirmar');b.disabled=true;b.textContent='Concluindo...';try{const r=await fetch('/api/cd/inventario',{method:'POST',headers:{'Content-Type':'application/json','X-CSRF-Token':csrf},body:JSON.stringify(payload)}),x=await lerJson(r);if(!r.ok)throw new Error(x.erro||'Falha no inventário');qs('cd-inv-dialog').close();window.appToast?.(`Inventário #${x.id} concluído · ${x.divergencias} divergência(s).`,'ok');await carregarItens();await resumoMini()}catch(e){alert(e.message)}finally{b.disabled=false;b.textContent='Concluir inventário'}});
 

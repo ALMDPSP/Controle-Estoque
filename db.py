@@ -1025,6 +1025,7 @@ def init_db():
     # inventário e relatórios sem depender de texto livre.
     for coluna, tipo in (
         ("estoque_minimo", "INTEGER NOT NULL DEFAULT 0"),
+        ("estoque_ideal", "INTEGER NOT NULL DEFAULT 0"),
         ("codigo_barras", "TEXT"),
     ):
         try:
@@ -1236,17 +1237,17 @@ def buscar_produto_por_codigo(codigo):
     row = cur.fetchone(); result = dict(row) if row else None
     cur.close(); conn.close(); return result
 
-def criar_produto(codigo, descricao, qtde_por_loja, custo, usuario, estoque_minimo=0, codigo_barras=""):
+def criar_produto(codigo, descricao, qtde_por_loja, custo, usuario, estoque_minimo=0, estoque_ideal=0, codigo_barras=""):
     conn = get_conn(); cur = get_cursor(conn)
     agora = datetime.now().strftime("%Y-%m-%d %H:%M")
     try:
-        campos="codigo, descricao, qtde_por_loja, custo, criado_por, criado_em, estoque_minimo, codigo_barras, site_area"
-        vals=(codigo, descricao, qtde_por_loja, custo, usuario, agora, int(estoque_minimo or 0), str(codigo_barras or "").strip(), get_site_area())
+        campos="codigo, descricao, qtde_por_loja, custo, criado_por, criado_em, estoque_minimo, estoque_ideal, codigo_barras, site_area"
+        vals=(codigo, descricao, qtde_por_loja, custo, usuario, agora, int(estoque_minimo or 0), int(estoque_ideal or 0), str(codigo_barras or "").strip(), get_site_area())
         if IS_PG:
-            cur.execute(q(f"INSERT INTO produtos ({campos}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id"), vals)
+            cur.execute(q(f"INSERT INTO produtos ({campos}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id"), vals)
             new_id = cur.fetchone()["id"]
         else:
-            cur.execute(q(f"INSERT INTO produtos ({campos}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"), vals)
+            cur.execute(q(f"INSERT INTO produtos ({campos}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"), vals)
             new_id = cur.lastrowid
         conn.commit(); return new_id
     except Exception:
@@ -1254,14 +1255,14 @@ def criar_produto(codigo, descricao, qtde_por_loja, custo, usuario, estoque_mini
     finally:
         cur.close(); conn.close()
 
-def atualizar_produto(produto_id, codigo, descricao, qtde_por_loja, custo, estoque_minimo=None, codigo_barras=None):
+def atualizar_produto(produto_id, codigo, descricao, qtde_por_loja, custo, estoque_minimo=None, estoque_ideal=None, codigo_barras=None):
     conn = get_conn(); cur = get_cursor(conn)
-    if estoque_minimo is None and codigo_barras is None:
+    if estoque_minimo is None and estoque_ideal is None and codigo_barras is None:
         cur.execute(q("UPDATE produtos SET codigo = ?, descricao = ?, qtde_por_loja = ?, custo = ? WHERE id = ? AND site_area = ?"),
                     (codigo, descricao, qtde_por_loja, custo, produto_id, get_site_area()))
     else:
-        cur.execute(q("UPDATE produtos SET codigo = ?, descricao = ?, qtde_por_loja = ?, custo = ?, estoque_minimo = ?, codigo_barras = ? WHERE id = ? AND site_area = ?"),
-                    (codigo, descricao, qtde_por_loja, custo, int(estoque_minimo or 0), str(codigo_barras or "").strip(), produto_id, get_site_area()))
+        cur.execute(q("UPDATE produtos SET codigo = ?, descricao = ?, qtde_por_loja = ?, custo = ?, estoque_minimo = ?, estoque_ideal = ?, codigo_barras = ? WHERE id = ? AND site_area = ?"),
+                    (codigo, descricao, qtde_por_loja, custo, int(estoque_minimo or 0), int(estoque_ideal or 0), str(codigo_barras or "").strip(), produto_id, get_site_area()))
     ok = cur.rowcount > 0; conn.commit(); cur.close(); conn.close(); return ok
 
 def excluir_produto(produto_id):

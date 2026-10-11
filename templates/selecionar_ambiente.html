@@ -1983,7 +1983,16 @@ input:focus-visible{
   }
 }
 
+@media(prefers-reduced-motion:reduce){
 
+  *,
+  *::before,
+  *::after{
+    animation-duration:.001ms !important;
+    animation-iteration-count:1 !important;
+    transition-duration:.001ms !important;
+  }
+}
 
 
 
@@ -2113,7 +2122,10 @@ button[disabled]{cursor:wait;opacity:.72;transform:none!important;box-shadow:non
 .submit-spinner{display:none;width:14px;height:14px;margin-right:7px;border:2px solid rgba(6,19,29,.28);border-top-color:#06131d;border-radius:50%;vertical-align:-2px;animation:loginSpin .7s linear infinite;}
 button.loading .submit-spinner{display:inline-block;}
 @keyframes loginSpin{to{transform:rotate(360deg)}}
-
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important;}
+  #particles{display:none!important;}
+}
 
 
 @media(max-height:720px) and (min-width:761px){
@@ -2492,7 +2504,8 @@ document.querySelectorAll('[data-area]').forEach(btn=>btn.addEventListener('clic
 }));
 
 const particleContainer=document.getElementById('particles');
-const particleCount=window.innerWidth<700?7:18;
+const reduzirMovimento=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const particleCount=reduzirMovimento?0:(window.innerWidth<700?7:18);
 for(let i=0;i<particleCount;i++){
   const particle=document.createElement('span');particle.className='particle';
   particle.style.left=Math.random()*100+'%';particle.style.top=(80+Math.random()*30)+'%';
