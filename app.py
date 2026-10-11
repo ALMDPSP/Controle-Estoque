@@ -69,7 +69,8 @@ import qrcode
 import db
 
 app = Flask(__name__)
-APP_BUILD = "2026-10-11-v1.9.2"
+APP_VERSION = "v1.9.3"
+APP_BUILD = "2026-10-11-v1.9.3"
 _DASHBOARD_CACHE = {}
 _EXPEDICAO_CACHE = {}
 
@@ -272,7 +273,7 @@ def _evitar_html_antigo_em_cache(response):
     const brand=menu.querySelector('.brand-copy');
     if(brand){{
       const desc=brand.querySelector('span'); if(desc) desc.textContent='Operação e controle do estoque dos Centros de Distribuição.';
-      const versao=brand.querySelector('small'); if(versao){{versao.textContent='Versão · v1.9.2';}}
+      const versao=brand.querySelector('small'); if(versao){{versao.textContent='Versão · {APP_VERSION}';}}
     }}
   }}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',limparMenuCD);else limparMenuCD();
@@ -345,6 +346,8 @@ def _csrf_ok():
 def _inject_security_helpers():
     return {
         "csrf_token": _csrf_token(),
+        "app_version": APP_VERSION,
+        "app_build": APP_BUILD,
         "site_area": db.get_site_area(),
         "ambiente_acesso": session.get("ambiente_acesso") or "expansao",
         "cds_dpsp": CDS_DPSP,
