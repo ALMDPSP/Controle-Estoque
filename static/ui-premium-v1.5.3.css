@@ -2060,3 +2060,155 @@ body.app-standard main .ui-btn::after{display:none!important}
 body.app-standard .app-menu a{transition:transform .16s ease,background .16s ease,border-color .16s ease,box-shadow .16s ease!important}
 body.app-standard .app-menu a:hover{transform:translateX(2px)!important}
 body.app-standard .app-menu a:hover .nav-ico{transform:translateY(-1px)!important}
+
+
+/* v1.9.2 · tema claro premium + versão discreta e padronizada */
+.app-sidebar-brand .brand-copy small{
+  font-size:6.5px!important;
+  line-height:1!important;
+  padding:3px 6px!important;
+  min-height:0!important;
+  letter-spacing:.055em!important;
+  opacity:.78;
+}
+html[data-theme="light"] body.app-standard{
+  --bg:#eef3f7!important;
+  --panel:#ffffff!important;
+  --panel2:#f7f9fb!important;
+  --panel-2:#f7f9fb!important;
+  --line:#c9d5df!important;
+  --text:#183247!important;
+  --muted:#587187!important;
+  background:
+    radial-gradient(circle at 7% 0%,rgba(76,154,207,.09),transparent 28rem),
+    radial-gradient(circle at 94% 5%,rgba(54,158,143,.055),transparent 24rem),
+    linear-gradient(180deg,#f3f7fa 0%,#edf3f7 58%,#e9f0f5 100%)!important;
+}
+html[data-theme="light"] body.app-standard>header{
+  background:rgba(255,255,255,.96)!important;
+  border-bottom:1px solid #c7d5e0!important;
+  box-shadow:0 8px 24px rgba(25,57,82,.08)!important;
+}
+html[data-theme="light"] body.app-standard .app-menu{
+  background:linear-gradient(180deg,#ffffff 0%,#f6f9fb 100%)!important;
+  border-right-color:#c4d2dd!important;
+  box-shadow:12px 0 32px rgba(28,61,86,.09)!important;
+}
+html[data-theme="light"] body.app-standard .app-sidebar-brand{
+  background:#ffffff!important;
+  border-color:#cbd8e2!important;
+  box-shadow:0 8px 20px rgba(32,66,91,.07)!important;
+}
+html[data-theme="light"] body.app-standard .app-menu a{
+  background:#fbfdff!important;
+  color:#294c66!important;
+  border-color:#cedbe5!important;
+  box-shadow:0 1px 0 rgba(255,255,255,.9) inset!important;
+}
+html[data-theme="light"] body.app-standard .app-menu a:hover{
+  background:#edf6fc!important;
+  color:#123f60!important;
+  border-color:#8dbfdf!important;
+  box-shadow:0 6px 16px rgba(40,101,143,.08)!important;
+}
+html[data-theme="light"] body.app-standard .app-menu a.ativo{
+  background:linear-gradient(135deg,#277fae,#3d94c5)!important;
+  color:#ffffff!important;
+  border-color:#4c99c4!important;
+  box-shadow:0 8px 18px rgba(37,117,164,.22)!important;
+}
+html[data-theme="light"] body.app-standard .nav-ico{
+  background:#e6f1f8!important;
+  color:#255b7c!important;
+  border:1px solid #c8dce9!important;
+}
+html[data-theme="light"] body.app-standard .global-search,
+html[data-theme="light"] body.app-standard .theme-select{
+  background:#ffffff!important;
+  border-color:#c6d5e0!important;
+  color:#23445d!important;
+  box-shadow:0 2px 8px rgba(30,63,88,.04)!important;
+}
+html[data-theme="light"] body.app-standard main .panel,
+html[data-theme="light"] body.app-standard main .card,
+html[data-theme="light"] body.app-standard main .box,
+html[data-theme="light"] body.app-standard main .summary-card,
+html[data-theme="light"] body.app-standard main .stat-box,
+html[data-theme="light"] body.app-standard main .shortcut-card,
+html[data-theme="light"] body.app-standard main .kpi,
+html[data-theme="light"] body.app-standard main .ctx,
+html[data-theme="light"] body.app-standard main .side-card,
+html[data-theme="light"] body.app-standard main .assist-card,
+html[data-theme="light"] body.app-standard main .checklist-card,
+html[data-theme="light"] body.app-standard main .cd-dashboard-panel{
+  background:#ffffff!important;
+  border-color:#cbd8e2!important;
+  box-shadow:0 8px 22px rgba(28,61,86,.07)!important;
+  color:#183247!important;
+}
+html[data-theme="light"] body.app-standard main .shortcut-card:hover,
+html[data-theme="light"] body.app-standard main .kpi:hover,
+html[data-theme="light"] body.app-standard main .panel:hover{
+  border-color:#90bdd9!important;
+  box-shadow:0 12px 28px rgba(37,91,127,.11)!important;
+}
+html[data-theme="light"] body.app-standard main .shortcut-card h3,
+html[data-theme="light"] body.app-standard main .kpi strong,
+html[data-theme="light"] body.app-standard main .panel h2,
+html[data-theme="light"] body.app-standard main .panel h3{color:#17344b!important}
+html[data-theme="light"] body.app-standard main .shortcut-card p,
+html[data-theme="light"] body.app-standard main .kpi-meta,
+html[data-theme="light"] body.app-standard main .panel-sub{color:#587187!important}
+html[data-theme="light"] body.app-standard main .shortcut-link,
+html[data-theme="light"] body.app-standard main .section-accent,
+html[data-theme="light"] body.app-standard main .hero-eyebrow{color:#2875a2!important}
+html[data-theme="light"] body.app-standard main .shortcut-icon,
+html[data-theme="light"] body.app-standard main .kpi-icon{
+  background:#eaf4fa!important;
+  color:#2d739b!important;
+  border-color:#d3e5f0!important;
+}
+/* O bloco executivo continua escuro para criar contraste e hierarquia no tema claro. */
+html[data-theme="light"] body.app-standard .page-dashboard .dash-hero .hero-card{
+  background:linear-gradient(135deg,#17324a 0%,#203d57 55%,#284b67 100%)!important;
+  border-color:#355b78!important;
+  box-shadow:0 14px 30px rgba(20,49,72,.18)!important;
+}
+html[data-theme="light"] body.app-standard .page-dashboard .hero-card .hero-title{color:#ffffff!important}
+html[data-theme="light"] body.app-standard .page-dashboard .hero-card .hero-sub{color:#c8d9e6!important}
+html[data-theme="light"] body.app-standard .page-dashboard .hero-card .hero-eyebrow{color:#9ed2f3!important}
+html[data-theme="light"] body.app-standard .page-dashboard .hero-metric{
+  background:rgba(8,27,43,.56)!important;
+  border:1px solid rgba(163,205,233,.18)!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.035)!important;
+}
+html[data-theme="light"] body.app-standard .page-dashboard .hero-metric span{color:#a9bfd0!important}
+html[data-theme="light"] body.app-standard .page-dashboard .hero-metric strong{color:#ffffff!important}
+html[data-theme="light"] body.app-standard .page-dashboard .hero-metric small{color:#b9cbd9!important}
+html[data-theme="light"] body.app-standard .page-dashboard .hero-badge{
+  background:rgba(255,255,255,.08)!important;
+  color:#d7e6f1!important;
+  border-color:rgba(192,221,239,.18)!important;
+}
+html[data-theme="light"] body.app-standard .page-dashboard .hero-badge strong{color:#ffffff!important}
+html[data-theme="light"] body.app-standard main thead,
+html[data-theme="light"] body.app-standard main thead th{
+  background:#e8f0f6!important;
+  color:#294d67!important;
+  border-bottom-color:#c5d5e0!important;
+}
+html[data-theme="light"] body.app-standard main tbody tr:nth-child(even){background:#f7fafc!important}
+html[data-theme="light"] body.app-standard main tbody tr:hover{background:#eaf4fa!important}
+html[data-theme="light"] body.app-standard .ui-btn-secondary,
+html[data-theme="light"] body.app-standard .ui-btn-link{
+  background:#ffffff!important;
+  color:#2a506b!important;
+  border-color:#c4d4df!important;
+  box-shadow:0 3px 10px rgba(34,70,96,.05)!important;
+}
+html[data-theme="light"] body.app-standard .ui-btn-primary{
+  background:linear-gradient(135deg,#2381b6,#42a0d2)!important;
+  color:#ffffff!important;
+  border-color:#3792c2!important;
+  box-shadow:0 7px 18px rgba(32,126,178,.18)!important;
+}
