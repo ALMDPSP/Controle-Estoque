@@ -69,8 +69,8 @@ import qrcode
 import db
 
 app = Flask(__name__)
-APP_VERSION = "v1.9.4"
-APP_BUILD = "2026-10-11-v1.9.4"
+APP_VERSION = "v1.9.5"
+APP_BUILD = "2026-10-15-v1.9.5"
 _DASHBOARD_CACHE = {}
 _EXPEDICAO_CACHE = {}
 
@@ -744,6 +744,13 @@ def mfa_verificar():
     return render_template("mfa_verificar.html", username=usuario["username"], erro=erro, ambiente_nome=("Acesso aos dois ambientes" if usuario.get("role")=="admin" else ("Estoque CD" if usuario.get("ambiente_acesso")=="estoque_cd" else "Expansão")))
 
 
+@app.after_request
+def _mfa_no_cache(response):
+    if request.path.startswith("/mfa/"):
+        response.headers["Cache-Control"] = "no-store"
+    return response
+
+
 @app.route("/mfa/configurar", methods=["GET", "POST"])
 def mfa_configurar():
     pending = bool(session.get("pending_user_id"))
@@ -765,6 +772,7 @@ def mfa_configurar():
     if not secret:
         secret = _base32_secret()
         session[setup_key] = secret
+    setup_id = hashlib.sha256(secret.encode("ascii")).hexdigest()
     qr_uri = _mfa_uri(usuario["username"], secret)
     qr_data = _qr_data_uri(qr_uri)
     erro = None
@@ -772,13 +780,25 @@ def mfa_configurar():
     if request.method == "POST":
         if not _csrf_ok():
             erro = "A sessão de segurança expirou. Atualize a página e tente novamente."
-            return render_template("mfa_configurar.html", username=usuario["username"], secret=secret, qr_data=qr_data, erro=erro, obrigatorio=obrigatorio, ambiente_nome=("Acesso aos dois ambientes" if usuario.get("role")=="admin" else ("Estoque CD" if usuario.get("ambiente_acesso")=="estoque_cd" else "Expansão"))), 400
+            return render_template("mfa_configurar.html", username=usuario["username"], secret=secret, qr_data=qr_data, setup_id=setup_id, erro=erro, obrigatorio=obrigatorio, ambiente_nome=("Acesso aos dois ambientes" if usuario.get("role")=="admin" else ("Estoque CD" if usuario.get("ambiente_acesso")=="estoque_cd" else "Expansão"))), 400
+        if request.form.get("acao") == "reiniciar":
+            session[setup_key] = _base32_secret()
+            return redirect(url_for("mfa_configurar"))
+        if not hmac.compare_digest(request.form.get("setup_id", ""), setup_id):
+            erro = "O QR Code desta tela foi substituído ou a sessão mudou. Cadastre o QR Code exibido abaixo no Authenticator e informe um novo código."
+            return render_template("mfa_configurar.html", username=usuario["username"], secret=secret, qr_data=qr_data, setup_id=setup_id, erro=erro, obrigatorio=obrigatorio), 409
+        espera = _mfa_wait_seconds(usuario["username"])
+        if espera > 0:
+            erro = f"Muitas tentativas. Aguarde aproximadamente {max(1, (espera + 59) // 60)} minuto(s) antes de tentar novamente."
+            return render_template("mfa_configurar.html", username=usuario["username"], secret=secret, qr_data=qr_data, setup_id=setup_id, erro=erro, obrigatorio=obrigatorio), 429
         codigo = request.form.get("codigo", "")
         if not _verify_totp(secret, codigo):
+            _mfa_register_failure(usuario["username"])
             db.registrar_evento_login(usuario["username"], _client_ip(), "mfa_config_falha", "código de confirmação inválido")
-            erro = "O código não confere. Aguarde um novo código no Authenticator e tente novamente."
-            return render_template("mfa_configurar.html", username=usuario["username"], secret=secret, qr_data=qr_data, erro=erro, obrigatorio=obrigatorio, ambiente_nome=("Acesso aos dois ambientes" if usuario.get("role")=="admin" else ("Estoque CD" if usuario.get("ambiente_acesso")=="estoque_cd" else "Expansão"))), 400
+            erro = "O código não confere. Confira a data e hora automáticas do celular e use a conta vinculada ao QR Code desta tela. Se necessário, clique em Gerar novo QR Code e cadastre novamente no Authenticator."
+            return render_template("mfa_configurar.html", username=usuario["username"], secret=secret, qr_data=qr_data, setup_id=setup_id, erro=erro, obrigatorio=obrigatorio, ambiente_nome=("Acesso aos dois ambientes" if usuario.get("role")=="admin" else ("Estoque CD" if usuario.get("ambiente_acesso")=="estoque_cd" else "Expansão"))), 400
 
+        _mfa_clear_failures(usuario["username"])
         codigos = _gerar_codigos_recuperacao()
         hashes = [_hash_recovery_code(c) for c in codigos]
         db.salvar_mfa_usuario(user_id, _protect_mfa_secret(secret), json.dumps(hashes))
@@ -789,7 +809,7 @@ def mfa_configurar():
         db.registrar_evento_login(usuario["username"], _client_ip(), "mfa_ativado", "MFA TOTP ativado")
         return redirect(url_for("mfa_codigos_recuperacao"))
 
-    return render_template("mfa_configurar.html", username=usuario["username"], secret=secret, qr_data=qr_data, erro=erro, obrigatorio=obrigatorio, ambiente_nome=("Acesso aos dois ambientes" if usuario.get("role")=="admin" else ("Estoque CD" if usuario.get("ambiente_acesso")=="estoque_cd" else "Expansão")))
+    return render_template("mfa_configurar.html", username=usuario["username"], secret=secret, qr_data=qr_data, setup_id=setup_id, erro=erro, obrigatorio=obrigatorio, ambiente_nome=("Acesso aos dois ambientes" if usuario.get("role")=="admin" else ("Estoque CD" if usuario.get("ambiente_acesso")=="estoque_cd" else "Expansão")))
 
 
 @app.route("/mfa/codigos-recuperacao")

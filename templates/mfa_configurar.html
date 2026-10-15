@@ -2482,16 +2482,24 @@ button.loading .submit-spinner{display:inline-block;}
 
       <form method="POST" id="mfa-form" autocomplete="off">
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="setup_id" value="{{ setup_id }}">
         <div class="field">
           <label for="codigo">Código de 6 dígitos</label>
           <div class="input-wrap">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4.5" y="4.5" width="15" height="15" rx="3"/><path d="M8 12h8"/></svg>
-            <input id="codigo" name="codigo" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" required autofocus placeholder="000000">
+            <input id="codigo" name="codigo" inputmode="numeric" autocomplete="one-time-code" maxlength="12" pattern="[0-9]{6}" required autofocus placeholder="000000">
           </div>
-          <div class="mfa-help">Escaneie o QR Code no aplicativo e digite abaixo o código exibido.</div>
+          <div class="mfa-help">Ative data e hora automáticas no celular. Cadastre este QR Code e informe o novo código de 6 dígitos. No Microsoft Authenticator, use “Outra conta”.</div>
         </div>
         <button type="submit" id="mfa-submit"><span class="submit-spinner" aria-hidden="true"></span><span class="submit-label">Ativar dupla autenticação</span></button>
         <div class="mfa-status" id="mfa-status" role="status" aria-live="polite"></div>
+      </form>
+
+      <form method="POST" autocomplete="off" style="margin-top:12px">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="acao" value="reiniciar">
+        <button type="submit">Gerar novo QR Code</button>
+        <p class="mfa-help">Use se o vínculo não funcionar. Depois, remova somente o cadastro anterior deste sistema no Authenticator e escaneie o novo QR Code.</p>
       </form>
 
       <div class="mfa-note"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3 19 6v5c0 4.7-2.8 8.1-7 10-4.2-1.9-7-5.3-7-10V6l7-3Z"/><path d="m9 12 2 2 4-4"/></svg><span>Após ativar o MFA, guarde os códigos de recuperação em local seguro.</span></div>
