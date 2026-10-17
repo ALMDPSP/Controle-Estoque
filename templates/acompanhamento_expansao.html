@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
 <title>Acompanhamento de Expansão · Controle de Estoque</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script src="{{ url_for('static', filename='vendor/chart.umd-4.4.0.js') }}"></script>
 {% include '_mobile_head.html' %}
 <style>
 :root{--bg:#12181f;--panel:#1a2029;--panel2:#212934;--panel-2:#212934;--line:#2b3444;--text:#e7ebf1;--muted:#8b96a8;--accent:#3ea6ff;--accent2:#ffb648;--accent-2:#ffb648;--green:#4cd792;--ok:#4cd792;--red:#ff6b6b;--danger:#ff6b6b;--purple:#a78bfa;--cyan:#56cfe1;--mono:"SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace}
@@ -29,6 +29,7 @@ main{padding:26px 32px 60px;max-width:1500px;margin:0 auto}.kpis{display:grid;gr
 .manual-card{margin-top:12px;border:1px solid rgba(62,166,255,.24);background:rgba(62,166,255,.035);border-radius:11px;overflow:hidden}.manual-card summary{cursor:pointer;list-style:none;padding:11px 13px;color:#a8d8ff;font:700 10px var(--mono);letter-spacing:.03em;display:flex;align-items:center;justify-content:space-between}.manual-card summary::-webkit-details-marker{display:none}.manual-card summary::after{content:"＋";font-size:16px;color:var(--accent)}.manual-card[open] summary::after{content:"−"}.manual-body{padding:0 13px 13px}.manual-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:12px}.manual-actions button{border:1px solid var(--line);background:var(--panel2);color:var(--text);padding:9px 13px;border-radius:8px;font-size:10px;cursor:pointer}.manual-actions .primary{background:var(--accent);border-color:var(--accent);color:#08131f;font-weight:800}.yn{font-weight:800}.yn.yes{color:#79e2b1}.yn.no{color:#9aa9b8}
 @media(max-width:650px){.edit-grid{grid-template-columns:1fr}.edit-grid .full{grid-column:auto}}
 </style>
+<link rel="stylesheet" href="{{ url_for('static', filename='expansao-gestao.css') }}">
 </head>
 <body class="app-standard">
 <header>
@@ -44,6 +45,14 @@ main{padding:26px 32px 60px;max-width:1500px;margin:0 auto}.kpis{display:grid;gr
   <a class="ui-btn ui-btn-secondary" href="{{ url_for('pagina_projecao_lojas') }}">Projeção de abertura</a>
 </div>
 <main class="page-acompanhamento">
+<section class="filters exp-filtros"><div class="filters-head"><div><h2>Período e filtros da Expansão</h2><p>Filtros aplicados aos indicadores, cronograma, lojas e relatórios. A previsão de estoque respeita a fila global.</p></div><button class="ui-btn ui-btn-secondary" id="exp-limpar">Limpar filtros</button></div>    <div class="filter-grid">
+      <input id="f-busca" placeholder="Pesquisar filial, descrição ou observação...">
+      <select id="f-status"><option value="">Todos os status</option></select>
+      <select id="f-projeto"><option value="">Todos os projetos</option></select>
+      <select id="f-bandeira"><option value="">Todas as bandeiras</option></select>
+      <select id="f-uf"><option value="">Todas as UFs</option></select>
+      <select id="f-mes-inauguracao" aria-label="Mês de inauguração" title="Mês de inauguração"><option value="">Todos os meses de inauguração</option></select>
+    </div><p class="panel-sub" id="exp-escopo" aria-live="polite"></p></section>
   <section class="kpis">
     <div class="kpi total"><span>Total acompanhado</span><strong id="k-total">0</strong><small>Filiais/projetos na base</small></div>
     <div class="kpi green"><span>Inauguradas</span><strong id="k-inaug">0</strong><small id="k-inaug-sub">0% concluído</small></div>
@@ -83,16 +92,11 @@ main{padding:26px 32px 60px;max-width:1500px;margin:0 auto}.kpis{display:grid;gr
     <div class="chart-card"><h3>Distribuição por UF</h3><p>Estados/localidades com maior volume.</p><div class="chart-wrap"><canvas id="chart-uf"></canvas></div></div>
   </section>
 
+  <section class="panel exp-painel"><div class="filters-head"><div><h2>Lojas que precisam de atenção</h2><p class="panel-sub">Ordenadas pela Entrada de TI. Abra a gestão da filial para definir responsáveis, prazos e reservas.</p></div><a class="ui-btn ui-btn-pdf" id="exp-pdf" href="/api/acompanhamento-expansao/resumo-executivo.pdf">Resumo executivo PDF</a></div><div class="exp-metricas" id="exp-metricas"></div><div id="exp-alertas" class="exp-lista"></div></section>
+  <section class="panel exp-painel"><h2>Cronograma por filial</h2><p class="panel-sub">Marcos planejados: mobiliário, término de obra, entrada de TI e inauguração. Datas não indicam conclusão.</p><div id="exp-cronograma"></div></section>
   <section class="filters">
     <div class="filters-head"><div><h2>Detalhamento da planilha</h2><p>Filtre os registros por status, projeto, bandeira, UF e mês de inauguração.</p></div><div class="filters-toolbar"><div class="table-count" id="table-count">0 registro(s)</div>{% if role != 'consulta' %}<div class="selection-count" id="selection-count"></div><button type="button" class="ui-btn ui-btn-danger table-danger" id="btn-delete-selected">Excluir selecionados</button>{% endif %}</div></div>
-    <div class="filter-grid">
-      <input id="f-busca" placeholder="Pesquisar filial, descrição ou observação...">
-      <select id="f-status"><option value="">Todos os status</option></select>
-      <select id="f-projeto"><option value="">Todos os projetos</option></select>
-      <select id="f-bandeira"><option value="">Todas as bandeiras</option></select>
-      <select id="f-uf"><option value="">Todas as UFs</option></select>
-      <select id="f-mes-inauguracao" aria-label="Mês de inauguração" title="Mês de inauguração"><option value="">Todos os meses de inauguração</option></select>
-    </div>
+
     {% if role != 'consulta' %}
     <details class="manual-card" id="manual-card">
       <summary>Cadastrar loja manualmente</summary>
@@ -215,6 +219,7 @@ const EDIT_CSRF = '{{ csrf_token }}';
 const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 const norm = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
 let dados = [];
+let gestao = {};
 let charts = [];
 const selecionadas = new Set();
 
@@ -248,7 +253,7 @@ function dataLegivel(v){
   return m?`${m[3]}/${m[2]}/${m[1]}`:(raw||'-');
 }
 function renderMacroLista(campo){
-  const rows=dados.filter(x=>statusEmAcompanhamento(x.status_filial)).sort((a,b)=>{
+  const rows=obterFiltrados().filter(x=>statusEmAcompanhamento(x.status_filial)).sort((a,b)=>{
     const da=parseDataBR(a[campo]), db=parseDataBR(b[campo]);
     if(da!==null && db!==null && da!==db) return da-db;
     if(da!==null) return -1;
@@ -264,7 +269,7 @@ function renderMacroLista(campo){
   }).join('');
 }
 function atualizarMacroCronograma(){
-  const base=dados.filter(x=>statusEmAcompanhamento(x.status_filial));
+  const base=obterFiltrados().filter(x=>statusEmAcompanhamento(x.status_filial));
   const tiDef=base.filter(x=>dataDefinida(x.entrada_ti)).length;
   const inDef=base.filter(x=>dataDefinida(x.inauguracao)).length;
   const total=base.length;
@@ -281,7 +286,7 @@ function abrirMacroCronograma(){ atualizarMacroCronograma(); const m=document.ge
 function fecharMacroCronograma(){ const m=document.getElementById('macro-modal'); m.classList.remove('open'); m.setAttribute('aria-hidden','true'); }
 function destroyCharts(){ charts.forEach(c => { try{ c.destroy(); }catch(_e){} }); charts = []; }
 function makeChart(id,type,labels,values,opts={}){
-  const el = document.getElementById(id); if(!el) return;
+  const el = document.getElementById(id); if(!el || typeof Chart==='undefined') return;
   const colors=['#3ea6ff','#4cd792','#ffb648','#a78bfa','#ff6b6b','#56cfe1','#82aaff','#c3e88d','#f07178','#89ddff'];
   const c = new Chart(el, {type, data:{labels, datasets:[{data:values, backgroundColor:colors.slice(0,values.length), borderWidth:0, borderRadius:type==='bar'?6:0}]}, options:{responsive:true, maintainAspectRatio:false, indexAxis:opts.horizontal?'y':'x', plugins:{legend:{display:type!=='bar', position:'bottom', labels:{color:'#9fb0c1', boxWidth:10, font:{size:9}}}, tooltip:{callbacks:{label:ctx=>`${ctx.label}: ${ctx.raw}`}}}, scales:type==='bar'?{x:{beginAtZero:true, ticks:{precision:0, color:'#8b96a8'}, grid:{color:'rgba(139,150,168,.08)'}}, y:{ticks:{color:'#b3c0cd', font:{size:9}}, grid:{display:false}}}:undefined}});
   charts.push(c);
@@ -332,6 +337,7 @@ function atualizarSelecaoUI(filtrados){
 }
 function renderTable(){
   const filtrados = obterFiltrados();
+  atualizarPainelExpansao(filtrados);
   document.getElementById('table-count').textContent = `${filtrados.length} registro(s)`;
   const colspan = PODE_EDITAR ? 16 : 14;
   const tb = document.getElementById('tb');
@@ -340,7 +346,7 @@ function renderTable(){
   } else {
     tb.innerHTML = filtrados.map(x=>{
       const sel = selecionadas.has(Number(x.id));
-      return `<tr class="${sel?'selected':''}" data-id="${x.id}">${PODE_EDITAR?`<td class="center check-col"><input type="checkbox" class="row-check" value="${x.id}" data-id="${x.id}" ${sel?'checked':''}></td>`:''}<td class="mono"><strong>${esc(x.filial)}</strong></td><td class="center"><span class="badge blue">${esc(x.bandeira||'-')}</span></td><td>${esc(x.descricao_filial||'-')}</td><td class="center mono">${esc(x.uf||'-')}</td><td><span class="badge muted">${esc(x.projeto||'-')}</span></td><td><span class="badge ${badgeStatus(x.status_filial)}">${esc(x.status_filial||'-')}</span></td><td class="center"><span class="yn ${norm(x.enviada)==='sim'?'yes':'no'}">${norm(x.enviada)==='sim'?'SIM':'NÃO'}</span></td><td class="center"><span class="yn ${norm(x.em_separacao)==='sim'?'yes':'no'}">${norm(x.em_separacao)==='sim'?'SIM':'NÃO'}</span></td><td class="center"><span class="yn ${norm(x.equip_separado)==='sim'?'yes':'no'}">${norm(x.equip_separado)==='sim'?'SIM':'NÃO'}</span></td><td class="center mono">${esc(dataLegivel(x.term_obra))}</td><td class="center mono">${esc(dataLegivel(x.entrada_ti))}</td><td class="center mono">${esc(dataLegivel(x.inauguracao))}</td><td><span class="badge ${badgeCrono(x.situacao_cronograma)}">${esc(x.situacao_cronograma||'-')}</span></td><td class="obs">${esc(x.observacao_ti||'-')}</td>${PODE_EDITAR?`<td class="center"><div class="row-actions"><button type="button" class="edit-btn" data-edit-id="${x.id}">Editar</button><button type="button" class="delete-btn" data-delete-id="${x.id}">Excluir</button></div></td>`:''}</tr>`;
+      return `<tr class="${sel?'selected':''}" data-id="${x.id}">${PODE_EDITAR?`<td class="center check-col"><input type="checkbox" class="row-check" value="${x.id}" data-id="${x.id}" ${sel?'checked':''}></td>`:''}<td class="mono"><button type="button" class="edit-btn" data-gestao-id="${x.id}" title="Abrir gestão da filial">${esc(x.filial)}</button></td><td class="center"><span class="badge blue">${esc(x.bandeira||'-')}</span></td><td>${esc(x.descricao_filial||'-')}</td><td class="center mono">${esc(x.uf||'-')}</td><td><span class="badge muted">${esc(x.projeto||'-')}</span></td><td><span class="badge ${badgeStatus(x.status_filial)}">${esc(x.status_filial||'-')}</span></td><td class="center"><span class="yn ${norm(x.enviada)==='sim'?'yes':'no'}">${norm(x.enviada)==='sim'?'SIM':'NÃO'}</span></td><td class="center"><span class="yn ${norm(x.em_separacao)==='sim'?'yes':'no'}">${norm(x.em_separacao)==='sim'?'SIM':'NÃO'}</span></td><td class="center"><span class="yn ${norm(x.equip_separado)==='sim'?'yes':'no'}">${norm(x.equip_separado)==='sim'?'SIM':'NÃO'}</span></td><td class="center mono">${esc(dataLegivel(x.term_obra))}</td><td class="center mono">${esc(dataLegivel(x.entrada_ti))}</td><td class="center mono">${esc(dataLegivel(x.inauguracao))}</td><td><span class="badge ${badgeCrono(x.situacao_cronograma)}">${esc(x.situacao_cronograma||'-')}</span></td><td class="obs">${esc(x.observacao_ti||'-')}</td>${PODE_EDITAR?`<td class="center"><div class="row-actions"><button type="button" class="edit-btn" data-edit-id="${x.id}">Editar</button><button type="button" class="delete-btn" data-delete-id="${x.id}">Excluir</button></div></td>`:''}</tr>`;
     }).join('');
   }
   if(PODE_EDITAR){
@@ -357,19 +363,14 @@ async function respostaJsonSegura(r){
   if(!r.ok) throw new Error(`Erro do servidor (${r.status}). A operação não foi concluída.`);
   try{ return texto?JSON.parse(texto):{}; }catch(_e){ return {}; }
 }
-async function init(){
-  try{
-    const r=await fetch('/api/acompanhamento-expansao');
-    if(!r.ok) throw new Error('Falha ao carregar');
-    const d=await r.json(), s=d.resumo||{};
-    dados = d.linhas || [];
-    [...selecionadas].forEach(id=>{ if(!dados.some(r=>Number(r.id)===Number(id))) selecionadas.delete(id); });
+function pintarResumo(d,linhas){
+const s=d.resumo;
     document.getElementById('k-total').textContent=s.total||0;
     document.getElementById('k-inaug').textContent=s.inauguradas||0;
     document.getElementById('k-inaug-sub').textContent=`${(s.entrega_realizada_pct||0).toFixed(1)}% concluído`;
     document.getElementById('k-pend').textContent=s.pendentes||0;
     const pendProjeto={expansao:0,ampliacao:0,realocacao:0};
-    dados.forEach(x=>{
+    linhas.forEach(x=>{
       if(!statusEmAcompanhamento(x.status_filial)) return;
       const p=norm(x.projeto);
       if(p==='expansao') pendProjeto.expansao++;
@@ -386,6 +387,21 @@ async function init(){
     document.getElementById('done-pct').textContent=`${(s.entrega_realizada_pct||0).toFixed(1)}%`;
     document.getElementById('last-update').textContent=s.ultima_atualizacao||'-';
     [['obra','st-obra'],['ti','st-ti'],['inauguracao','st-inaug']].forEach(([k,id])=>{ const e=s.etapas?.[k]||{}; document.getElementById(id).style.width=Math.min(100,e.pct||0)+'%'; document.getElementById(id+'-txt').textContent=`${(e.pct||0).toFixed(1)}% · ${e.qtd||0}/${s.total||0}`; });
+    destroyCharts();
+    const toPairs=o=>Object.entries(o||{});
+    let p=toPairs(d.status); makeChart('chart-status','doughnut',p.map(x=>x[0]),p.map(x=>x[1]));
+    p=toPairs(d.projetos); makeChart('chart-projeto','bar',p.map(x=>x[0]),p.map(x=>x[1]),{horizontal:true});
+    p=toPairs(d.bandeiras); makeChart('chart-bandeira','doughnut',p.map(x=>x[0]),p.map(x=>x[1]));
+    p=toPairs(d.ufs).slice(0,10); makeChart('chart-uf','bar',p.map(x=>x[0]),p.map(x=>x[1]),{horizontal:true});
+}
+async function init(){
+  try{
+    const r=await fetch('/api/acompanhamento-expansao/gestao');
+    if(!r.ok) throw new Error('Falha ao carregar');
+    const d=await r.json(), s=d.resumo||{};
+    dados = d.linhas || [];
+    gestao = d.gestao || {};
+    [...selecionadas].forEach(id=>{ if(!dados.some(r=>Number(r.id)===Number(id))) selecionadas.delete(id); });
     setSelect('f-status',new Set(dados.map(x=>x.status_filial)));
     setSelect('f-projeto',new Set(dados.map(x=>x.projeto)));
     setSelect('f-bandeira',new Set(dados.map(x=>x.bandeira)));
@@ -393,12 +409,7 @@ async function init(){
     atualizarFiltroMesInauguracao();
     try{ const filialInicial=new URLSearchParams(window.location.search).get('filial'); if(filialInicial) document.getElementById('f-busca').value=filialInicial; }catch(_e){}
     renderTable();
-    destroyCharts();
-    const toPairs=o=>Object.entries(o||{});
-    let p=toPairs(d.status); makeChart('chart-status','doughnut',p.map(x=>x[0]),p.map(x=>x[1]));
-    p=toPairs(d.projetos); makeChart('chart-projeto','bar',p.map(x=>x[0]),p.map(x=>x[1]),{horizontal:true});
-    p=toPairs(d.bandeiras); makeChart('chart-bandeira','doughnut',p.map(x=>x[0]),p.map(x=>x[1]));
-    p=toPairs(d.ufs).slice(0,10); makeChart('chart-uf','bar',p.map(x=>x[0]),p.map(x=>x[1]),{horizontal:true});
+
   }catch(e){
     console.error(e);
     document.getElementById('tb').innerHTML = `<tr><td colspan="${PODE_EDITAR?16:14}" class="empty">Não foi possível carregar o acompanhamento.</td></tr>`;
@@ -562,7 +573,9 @@ document.getElementById('upload-form').addEventListener('submit', async e=>{
   finally{ btn.disabled=false; }
 });
 {% endif %}
-init();
 </script>
+{% include "_expansao_gestao.html" %}
+<script src="{{ url_for('static', filename='expansao-gestao.js') }}"></script>
+<script>init();</script>
 </body>
 </html>

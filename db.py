@@ -66,15 +66,24 @@ def _site_filter(prefix=""):
     return f"{prefix}site_area = ?"
 
 
+def _audit_actor():
+    from flask import has_request_context, session
+    return str(session.get("username") or "sistema") if has_request_context() else "sistema"
+
+
 def get_conn():
     if IS_PG:
-        return psycopg2.connect(
+        conn = psycopg2.connect(
             DATABASE_URL,
             connect_timeout=12,
             application_name="controle_ativos",
         )
+        with conn.cursor() as audit_cur:
+            audit_cur.execute("SELECT set_config('app.audit_actor', %s, false)", (_audit_actor(),))
+        return conn
     conn = sqlite3.connect(SQLITE_PATH)
     conn.row_factory = sqlite3.Row
+    conn.create_function("expansao_actor", 0, _audit_actor)
     return conn
 
 
@@ -1771,14 +1780,19 @@ def atualizar_item(item_id, novos_dados):
 
     conn = get_conn()
     cur = get_cursor(conn)
-    set_clause = ", ".join(f"{c} = ?" for c in sets)
-    valores = [novos_dados[c] for c in sets] + [item_id]
-    cur.execute(q(f"UPDATE itens SET {set_clause} WHERE id = ? AND site_area = ?"), valores + [get_site_area()])
-    afetadas = cur.rowcount
-    conn.commit()
-    cur.close()
-    conn.close()
-    return afetadas > 0
+    try:
+        set_clause = ", ".join(f"{c} = ?" for c in sets)
+        valores = [novos_dados[c] for c in sets] + [item_id]
+        cur.execute(q(f"UPDATE itens SET {set_clause} WHERE id = ? AND site_area = ?"), valores + [get_site_area()])
+        afetadas = cur.rowcount
+        conn.commit()
+        return afetadas > 0
+
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        cur.close(); conn.close()
 
 
 def baixar_itens_para_filial_em_lote(lista_itens, filial_destino, nf_saida, data_saida, vd_loja, usuario):
@@ -1878,12 +1892,17 @@ def baixar_itens_para_filial_em_lote(lista_itens, filial_destino, nf_saida, data
 def excluir_item(item_id):
     conn = get_conn()
     cur = get_cursor(conn)
-    cur.execute(q("DELETE FROM itens WHERE id = ? AND site_area = ?"), (item_id, get_site_area()))
-    afetadas = cur.rowcount
-    conn.commit()
-    cur.close()
-    conn.close()
-    return afetadas > 0
+    try:
+        cur.execute(q("DELETE FROM itens WHERE id = ? AND site_area = ?"), (item_id, get_site_area()))
+        afetadas = cur.rowcount
+        conn.commit()
+        return afetadas > 0
+
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        cur.close(); conn.close()
 
 
 def buscar_item_por_id(item_id):
@@ -2084,13 +2103,18 @@ def excluir_itens_em_lote(ids):
         return 0
     conn = get_conn()
     cur = get_cursor(conn)
-    placeholders = ", ".join(["?"] * len(ids))
-    cur.execute(q(f"DELETE FROM itens WHERE id IN ({placeholders}) AND site_area = ?"), tuple(ids) + (get_site_area(),))
-    afetadas = cur.rowcount
-    conn.commit()
-    cur.close()
-    conn.close()
-    return afetadas
+    try:
+        placeholders = ", ".join(["?"] * len(ids))
+        cur.execute(q(f"DELETE FROM itens WHERE id IN ({placeholders}) AND site_area = ?"), tuple(ids) + (get_site_area(),))
+        afetadas = cur.rowcount
+        conn.commit()
+        return afetadas
+
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        cur.close(); conn.close()
 
 
 def excluir_itens_em_lote_auditado(ids, usuario):

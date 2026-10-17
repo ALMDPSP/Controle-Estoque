@@ -69,8 +69,8 @@ import qrcode
 import db
 
 app = Flask(__name__)
-APP_VERSION = "v1.9.6"
-APP_BUILD = "2026-10-16-v1.9.6"
+APP_VERSION = "v2.0.0"
+APP_BUILD = "2026-10-17-v2.0.0"
 _DASHBOARD_CACHE = {}
 _EXPEDICAO_CACHE = {}
 
@@ -3549,12 +3549,14 @@ def gerar_backup():
         wb = _workbook_consolidado_cd() if em_cd else _workbook_consolidado()
         x=io.BytesIO(); wb.save(x); x.seek(0)
         z.writestr("estoque_cd_backup.xlsx" if em_cd else "estoque_backup.xlsx",x.read())
+        if not em_cd:
+            z.writestr("gestao_expansao.json", json.dumps(expansao_gestao.backup_dados(db), ensure_ascii=False, indent=2, default=str))
         if not db.IS_PG and os.path.exists(db.SQLITE_PATH):
             z.write(db.SQLITE_PATH,arcname="estoque.db")
         conteudo = (
             "Contém Estoque CD, Produtos, Filiais e Histórico de movimentações do ambiente Estoque CD."
             if em_cd else
-            "Contém Estoque, Imobilizados, Produtos, Filiais, Projeção por UF, Kit padrão e Histórico de movimentações."
+            "Contém Estoque, Imobilizados, Produtos, Filiais, Projeção por UF, Kit padrão, Histórico de movimentações e gestao_expansao.json com acompanhamento, checklist, reservas e histórico por filial."
         )
         z.writestr("LEIA-ME.txt",f"Backup gerado em {data_hora} por {usuario}.\n{conteudo}\n")
 
@@ -3746,8 +3748,15 @@ def _status_acompanhamento_aberto(valor):
     return _normalizar_exec(valor) in {"pendente", "em andamento", "obra nao iniciada"}
 
 
-def _dados_acompanhamento_expansao():
-    linhas = db.listar_acompanhamento_expansao()
+def _dados_acompanhamento_expansao(linhas=None):
+    if linhas is None:
+        linhas = db.listar_acompanhamento_expansao()
+    linhas = [dict(r) for r in linhas]
+    for linha in linhas:
+        for campo in ("mobiliario", "term_obra", "entrada_ti", "inauguracao"):
+            valor = expansao_gestao.data(linha.get(campo))
+            if valor:
+                linha[campo] = valor.isoformat()
     total = len(linhas)
     status = {}
     projetos = {}
@@ -3776,22 +3785,22 @@ def _dados_acompanhamento_expansao():
         if _status_acompanhamento_aberto(st):
             pendentes += 1
 
-        obra_ok = concluida or _acomp_valor_definido(item.get("term_obra"))
-        ti_ok = concluida or _acomp_valor_definido(item.get("entrada_ti"))
-        inaug_ok = concluida or _acomp_valor_definido(item.get("inauguracao"))
+        obra_ok = concluida or expansao_gestao.data(item.get("term_obra"))
+        ti_ok = concluida or expansao_gestao.data(item.get("entrada_ti"))
+        inaug_ok = concluida or expansao_gestao.data(item.get("inauguracao"))
         obra_alcance += 1 if obra_ok else 0
         ti_alcance += 1 if ti_ok else 0
         inaug_alcance += 1 if inaug_ok else 0
-        if _status_acompanhamento_aberto(st) and _acomp_valor_definido(item.get("inauguracao")):
+        if _status_acompanhamento_aberto(st) and expansao_gestao.data(item.get("inauguracao")):
             pendentes_com_data += 1
 
         if concluida:
             item["situacao_cronograma"] = "Entregue"
-        elif _acomp_valor_definido(item.get("inauguracao")):
+        elif expansao_gestao.data(item.get("inauguracao")):
             item["situacao_cronograma"] = "Inauguração definida"
-        elif _acomp_valor_definido(item.get("entrada_ti")):
+        elif expansao_gestao.data(item.get("entrada_ti")):
             item["situacao_cronograma"] = "Entrada TI definida"
-        elif _acomp_valor_definido(item.get("term_obra")):
+        elif expansao_gestao.data(item.get("term_obra")):
             item["situacao_cronograma"] = "Término de obra definido"
         else:
             item["situacao_cronograma"] = "A definir"
@@ -4554,7 +4563,7 @@ def api_excluir_acompanhamento_expansao_em_lote():
 @app.route("/export-acompanhamento-expansao")
 @role_required("admin", "gestor", "operador")
 def exportar_acompanhamento_expansao():
-    dados = _dados_acompanhamento_expansao()
+    dados = _dados_acompanhamento_expansao(expansao_gestao.filtrar(db.listar_acompanhamento_expansao(), request.args))
     wb = Workbook()
     ws = wb.active
     ws.title = "Acompanhamento"
@@ -4619,7 +4628,7 @@ def exportar_acompanhamento_expansao():
 @app.route("/pdf-acompanhamento-expansao")
 @role_required("admin", "gestor", "operador")
 def relatorio_pdf_acompanhamento_expansao():
-    dados = _dados_acompanhamento_expansao()
+    dados = _dados_acompanhamento_expansao(expansao_gestao.filtrar(db.listar_acompanhamento_expansao(), request.args))
     buf = _gerar_pdf_acompanhamento_expansao(dados)
     return send_file(
         buf,
@@ -8310,6 +8319,9 @@ def _dados_baixa_rapida_filial(codigo_filial, filial_cache=None, itens_cache=Non
         and _normalizar_exec(x.get("tipo_estoque")) == "expansao"
     ]
 
+    _, reservas = expansao_gestao.planos_reservas(db)
+    donos = {int(r['item_id']): str(r['filial']) for r in reservas}
+    disponiveis = [x for x in disponiveis if int(x['id']) not in donos or donos[int(x['id'])] == codigo_filial]
     usados_enviados = set()
     linhas = []
     total_kit = total_enviado = total_falta = 0
@@ -9926,9 +9938,9 @@ def api_excluir(item_id):
     item = db.buscar_item_por_id(item_id)
     if not item:
         return jsonify({"erro": "Item não encontrado."}), 404
+    db.excluir_item(item_id)
     db.registrar_movimentacao(item_id, "exclusao", item.get("qtde"), session.get("username"),
                                f"Item {item.get('codigo')} excluído")
-    db.excluir_item(item_id)
     return jsonify({"ok": True, "item": item})
 
 
@@ -11187,6 +11199,9 @@ def health_check():
 # ---------------------------------------------------------------------
 
 db.init_db()
+import expansao_gestao
+expansao_gestao.migrar(db)
+_expansao_estado = expansao_gestao.registrar(app, db, login_required, edit_required, site_required, _csrf_ok, _kit_efetivo_filial, _equipamento_combina_kit, _dados_acompanhamento_expansao)
 
 
 def descobrir_ip_local():

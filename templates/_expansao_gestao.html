@@ -1,0 +1,12 @@
+<dialog id="exp-dialog" aria-labelledby="exp-dialog-titulo">
+  <div class="exp-dialog-head"><div><span class="tag">GESTÃO DA FILIAL</span><h2 id="exp-dialog-titulo">Carregando...</h2></div><button type="button" class="ui-btn ui-btn-secondary" id="exp-fechar">Fechar</button></div>
+  <div id="exp-dialog-status" role="status" aria-live="polite"></div>
+  <form id="exp-plano-form">
+    <div class="exp-form-top"><label>Responsável pela filial<input id="exp-responsavel" maxlength="120"></label><label>Prazo de envio dos equipamentos<input id="exp-prazo" type="date"></label></div>
+    <h3>Checklist de implantação</h3><div id="exp-tarefas"></div>
+    {% if role != 'consulta' %}<button type="submit" class="ui-btn ui-btn-primary" id="exp-salvar">Salvar checklist e responsáveis</button>{% endif %}
+  </form>
+  <section class="exp-dialog-section"><h3>Estoque previsto e reservas</h3><p>Previsto é uma simulação pela ordem de Entrada de TI. Ao confirmar, os registros ficam exclusivos desta filial. Cada registro de estoque é reservado por inteiro, incluindo eventuais quantidades excedentes ao kit.</p><div id="exp-estoque"></div><div id="exp-reservas-info"></div>
+  {% if role != 'consulta' %}<div class="exp-actions"><button type="button" class="ui-btn ui-btn-primary" id="exp-reservar">Reservar equipamentos previstos</button><button type="button" class="ui-btn ui-btn-secondary" id="exp-liberar">Liberar reservas desta filial</button><a class="ui-btn ui-btn-secondary" href="/expedicao">Abrir Expedição</a></div>{% endif %}</section>
+  <section class="exp-dialog-section"><h3>Histórico de alterações</h3><p>Até 200 eventos recentes, registrados a partir desta atualização.</p><div id="exp-historico"></div></section>
+</dialog>
