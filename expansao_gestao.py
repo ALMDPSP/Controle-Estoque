@@ -360,6 +360,8 @@ def registrar(app,db,login_required,edit_required,site_required,csrf_ok,kit_efet
     @site_required('expansao')
     def expansao_gestao_estado():
         linhas,gestao=estado();saida=resumir(filtrar(linhas,request.args));saida['gestao']=gestao
+        from expansao_operacao import painel
+        saida.update(painel(db,linhas,gestao))
         return jsonify(saida)
     @app.route('/api/acompanhamento-expansao/<int:registro_id>/gestao',methods=['GET','PUT'])
     @login_required

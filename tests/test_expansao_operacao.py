@@ -16,6 +16,24 @@ class OperacaoTest(unittest.TestCase):
     def aprovar(self,status='Aprovada',**extra):
         d=self.client.get(self.url()).json
         return self.client.post(self.url(suffix='aprovacao'),json={'status':status,'motivo':'Revisado por TI','versao':d['versao'],'revisao':d['revisao'],**extra},headers=self.headers)
+    def test_panel_bulk_queries_and_combined_response(self):
+        from unittest.mock import patch
+        original=db.get_cursor
+        calls=[]
+        class CountCursor:
+            def __init__(self,c):self.cursor=c
+            def execute(self,sql,*args):calls.append(sql);return self.cursor.execute(sql,*args)
+            def __getattr__(self,name):return getattr(self.cursor,name)
+        linhas,gestao=sistema._expansao_estado()
+        with patch.object(db,'get_cursor',side_effect=lambda conn:CountCursor(original(conn))):
+            result=op.painel(db,linhas,gestao)
+        self.assertEqual(len(calls),2)
+        self.assertEqual(set(result['operacoes']),{'001','002'})
+        response=self.client.get('/api/acompanhamento-expansao/gestao')
+        self.assertIn('operacoes',response.json)
+        self.assertIn('hoje',response.json)
+        self.assertNotIn('exp-cronograma',self.client.get('/acompanhamento-expansao').text)
+
     def test_version_and_real_dates(self):
         d=self.client.get(self.url()).json
         d['realizado']={'mobiliario':'2026-01-01'}

@@ -43,6 +43,25 @@ def carregar(db, filial, cur=None):
     d['evidencias']=[dict(x) for x in cur.fetchall()]
     return d
 
+def painel(db, linhas, gestao):
+    """Carrega a operação de todas as filiais em duas consultas, sem anexos binários."""
+    with g.transacao(db) as (_, c):
+        c.execute('SELECT filial,dados,versao FROM expansao_operacao')
+        registros={str(r['filial']):dict(r) for r in c.fetchall()}
+        c.execute('SELECT id,filial,etapa,titulo,nome,usuario,criado_em FROM expansao_evidencias ORDER BY criado_em,id')
+        evidencias={}
+        for ev in c.fetchall():
+            ev=dict(ev);filial=str(ev.pop('filial'));evidencias.setdefault(filial,[]).append(ev)
+    ops={}
+    for r in linhas:
+        f=str(r['filial']);registro=registros.get(f);d=vazio()
+        if registro:d.update(json.loads(registro['dados']));d['versao']=registro['versao']
+        d['evidencias']=evidencias.get(f,[])
+        d['situacao_aprovacao']=situacao_aprovacao(r,gestao[f]['plano'],d)
+        # Listagens precisam apenas de marcos, remessas e situação. Detalhes no modal.
+        ops[f]={k:d[k] for k in ('realizado','remessas','situacao_aprovacao')}
+    return dict(operacoes=ops,hoje=g.hoje().isoformat())
+
 def bloqueios(plano, evidencias):
     result=[]
     for t in plano.get('tarefas') or g.plano_vazio('')['tarefas']:
@@ -122,11 +141,10 @@ def registrar(app,db,login_required,site_required,csrf_ok,estado):
     @login_required
     @site_required('expansao')
     def expansao_operacao_painel():
-        linhas,gestao=estado();ops={}
-        with g.transacao(db) as (_,c):
-            for r in linhas:
-                f=str(r['filial']);d=carregar(db,f,c);d['situacao_aprovacao']=situacao_aprovacao(r,gestao[f]['plano'],d);ops[f]=d
-        return jsonify(operacoes=ops,hoje=g.hoje().isoformat(),usuario=session.get('username'),compras=compras(g.filtrar(linhas,request.args),gestao))
+        linhas,gestao=estado()
+        saida=painel(db,linhas,gestao)
+        saida.update(usuario=session.get('username'),compras=compras(g.filtrar(linhas,request.args),gestao))
+        return jsonify(saida)
 
     @app.route(prefix+'/<int:registro_id>/operacao',methods=['GET','PUT'])
     @login_required

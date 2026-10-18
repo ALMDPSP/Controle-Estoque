@@ -1,0 +1,7 @@
+CONTROLE DE ESTOQUE / EXPANSÃO — v2.1.1 — 18/10/2026
+
+Cronograma por filial: exibe somente lojas com status Pendente, Em andamento ou Obra não iniciada. Lojas inauguradas e demais status fora do acompanhamento não aparecem neste cronograma.
+Mantém os filtros selecionados e a ordenação atual. Lojas com data vencida mas ainda pendentes permanecem visíveis.
+As demais seções continuam com suas regras atuais.
+
+Atualize os arquivos no repositório e faça o deploy no Render. Nenhuma migração adicional de banco é necessária. Esta entrega não foi publicada no Render.
