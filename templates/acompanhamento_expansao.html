@@ -94,7 +94,7 @@ main{padding:26px 32px 60px;max-width:1500px;margin:0 auto}.kpis{display:grid;gr
 
   {% include "_expansao_operacao.html" %}
   <section class="panel exp-painel"><div class="filters-head"><div><h2>Lojas que precisam de atenção</h2><p class="panel-sub">Ordenadas pela Entrada de TI. Abra a gestão da filial para definir responsáveis, prazos e reservas.</p></div><a class="ui-btn ui-btn-pdf" id="exp-pdf" href="/api/acompanhamento-expansao/resumo-executivo.pdf">Resumo executivo PDF</a></div><div class="exp-metricas" id="exp-metricas"></div><div id="exp-alertas" class="exp-lista"></div></section>
-  <section class="panel exp-painel"><h2>Cronograma por filial</h2><p class="panel-sub">Marcos planejados: mobiliário, término de obra, entrada de TI e inauguração. Datas não indicam conclusão.</p><div id="exp-cronograma"></div></section>
+  <section class="panel exp-painel"><h2>Cronograma por filial</h2><p class="panel-sub">Somente lojas a inaugurar: pendentes, em andamento ou com obra não iniciada. Marcos planejados de mobiliário, término de obra, entrada de TI e inauguração.</p><div id="exp-cronograma"></div></section>
   <section class="filters">
     <div class="filters-head"><div><h2>Detalhamento da planilha</h2><p>Filtre os registros por status, projeto, bandeira, UF e mês de inauguração.</p></div><div class="filters-toolbar"><div class="table-count" id="table-count">0 registro(s)</div>{% if role != 'consulta' %}<div class="selection-count" id="selection-count"></div><button type="button" class="ui-btn ui-btn-danger table-danger" id="btn-delete-selected">Excluir selecionados</button>{% endif %}</div></div>
 

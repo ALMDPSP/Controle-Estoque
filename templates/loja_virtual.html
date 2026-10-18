@@ -108,7 +108,7 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:0 0 12px}foot
           </div>
 
           <div class="stage" id="stage" data-view="entrada">
-            <img src="{{ url_for('static', filename='loja_3d.png') }}" alt="Loja virtual 3D vista pela entrada">
+            <img src="{{ url_for('static', filename='loja_3d.png', v=app_build) }}" alt="Loja virtual 3D vista pela entrada">
             <div class="stage-badge">
               <strong id="stage-title">Entrada da loja</strong>
               <small id="stage-desc">Veja a loja como se estivesse entrando. Use os focos para destacar a área de PDV, o balcão e as demais áreas.</small>
