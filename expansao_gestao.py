@@ -166,7 +166,7 @@ def migrar(db):
 def backup_dados(db):
     saida = {"versao": 1, "gerado_em": agora()}
     with transacao(db) as (_, cur):
-        for tabela in ("acompanhamento_expansao", "expansao_planos", "expansao_reservas", "expansao_eventos"):
+        for tabela in ("acompanhamento_expansao", "expansao_planos", "expansao_reservas", "expansao_eventos", "expansao_operacao", "expansao_evidencias"):
             cur.execute("SELECT * FROM " + tabela)
             saida[tabela] = [dict(r) for r in cur.fetchall()]
     return saida

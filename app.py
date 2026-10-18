@@ -69,8 +69,8 @@ import qrcode
 import db
 
 app = Flask(__name__)
-APP_VERSION = "v2.0.0"
-APP_BUILD = "2026-10-17-v2.0.0"
+APP_VERSION = "v2.1.0"
+APP_BUILD = "2026-10-17-v2.1.0"
 _DASHBOARD_CACHE = {}
 _EXPEDICAO_CACHE = {}
 
@@ -11202,6 +11202,10 @@ db.init_db()
 import expansao_gestao
 expansao_gestao.migrar(db)
 _expansao_estado = expansao_gestao.registrar(app, db, login_required, edit_required, site_required, _csrf_ok, _kit_efetivo_filial, _equipamento_combina_kit, _dados_acompanhamento_expansao)
+import expansao_operacao
+expansao_operacao.migrar(db)
+expansao_operacao.registrar(app, db, login_required, site_required, _csrf_ok, _expansao_estado)
+
 
 
 def descobrir_ip_local():

@@ -11,3 +11,11 @@ html[data-theme="light"] body.app-standard #exp-dialog .exp-tarefa{background:#f
 html[data-theme="light"] body.app-standard #exp-dialog td,
 html[data-theme="light"] body.app-standard #exp-dialog th{color:#17324a!important;background:#f3f7fa!important}
 html[data-theme="dark"] body.app-standard #exp-dialog{--panel:#101d2b;--panel2:#0d1825;--text:#e9f2fa;--muted:#a5b6c8;--line:#32455b}
+/* Operação v2.1 */
+.op-tabs{margin:18px 0}.op-tabs [aria-pressed=true]{outline:2px solid #1484a4;outline-offset:2px}
+#exp-central label,#op-dialog-section label{display:flex;flex-direction:column;gap:6px;font-size:13px;font-weight:600}
+#exp-central select,#exp-central input{max-width:280px;padding:9px;border-radius:7px;border:1px solid #a8b6c5}
+.op-table{width:100%;border-collapse:collapse;margin:14px 0}.op-table th,.op-table td{text-align:left;padding:12px;border-bottom:1px solid #a8b6c544;vertical-align:top}.op-table td{white-space:normal;overflow-wrap:anywhere}.op-table input{min-width:130px}
+#op-calendar-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px;margin:16px 0}.op-week{font-size:12px;text-align:center}.op-day{border:1px solid #a8b6c566;border-radius:8px;min-height:105px;padding:8px}.op-day.empty{border:0}.op-day.today{border:2px solid #1484a4}.op-day button{display:block;width:100%;margin-top:6px;padding:5px;text-align:left;border:0;border-radius:4px;background:#157e9b18;color:inherit;overflow-wrap:anywhere;font-size:12px;cursor:pointer}
+.op-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.op-remessa{border:1px solid #a8b6c577;border-radius:8px;margin:12px 0;padding:16px}.op-remessa button,.op-remessa a{margin-top:12px}#op-upload,#op-aprovar{display:grid;gap:12px;margin:16px 0}#op-dialog-section h3{margin-top:28px}#op-status{font-size:13px}#op-dialog-section .ui-btn{width:fit-content;max-width:100%}
+@media(max-width:650px){.op-fields{grid-template-columns:1fr}#op-calendar-grid{display:flex;flex-direction:column}.op-week,.op-day.empty{display:none}.op-day{min-height:50px}.op-table{min-width:540px}.op-tabs .ui-btn{flex:1 1 45%}}

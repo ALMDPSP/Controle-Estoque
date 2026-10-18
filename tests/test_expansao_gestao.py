@@ -21,7 +21,7 @@ class GestaoTest(unittest.TestCase):
     def setUp(self):
         db.set_site_area('expansao')
         with exp.transacao(db,True) as (_,c):
-            for t in ('expansao_reservas','expansao_planos','acompanhamento_expansao','expansao_eventos','itens','kit_padrao_loja','kit_filial_personalizado'):
+            for t in ('expansao_evidencias','expansao_operacao','expansao_reservas','expansao_planos','acompanhamento_expansao','expansao_eventos','itens','kit_padrao_loja','kit_filial_personalizado'):
                 c.execute('DELETE FROM '+t)
             for filial,ti,inaug in [('001','2026-10-20','2026-10-25'),('002','2026-11-01','2026-11-10')]:
                 c.execute(db.q('INSERT INTO acompanhamento_expansao(filial,descricao_filial,status_filial,uf,projeto,entrada_ti,inauguracao,atualizado_por) VALUES(?,?,?,?,?,?,?,?)'),(filial,'Loja de teste '+filial,'PENDENTE','SP','EXPANSÃO',ti,inaug,'teste'))

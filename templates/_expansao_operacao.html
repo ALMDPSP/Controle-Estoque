@@ -1,0 +1,14 @@
+<section class="panel exp-painel" id="exp-central" data-usuario="{{ username }}" data-role="{{ role }}">
+  <div class="filters-head"><div><h2>Central de execução</h2><p class="panel-sub">Pendências do checklist, prazos e compras das filiais filtradas. Atualize para consultar mudanças de outras pessoas.</p></div><button type="button" class="ui-btn ui-btn-secondary" id="op-atualizar">Atualizar operação</button></div>
+  <p id="op-status" role="status" aria-live="polite"></p>
+  <div class="exp-actions op-tabs" role="group" aria-label="Visões da operação">
+    <button type="button" class="ui-btn ui-btn-secondary" data-op-tab="pendencias" aria-pressed="true">Minhas pendências</button>
+    <button type="button" class="ui-btn ui-btn-secondary" data-op-tab="avisos" aria-pressed="false">Avisos de prazo</button>
+    <button type="button" class="ui-btn ui-btn-secondary" data-op-tab="calendario" aria-pressed="false">Calendário</button>
+    <button type="button" class="ui-btn ui-btn-secondary" data-op-tab="compras" aria-pressed="false">Necessidade de compra</button>
+  </div>
+  <div id="op-pendencias"><label>Exibir <select id="op-dono"><option value="minhas">Minhas pendências</option><option value="todas">Todas as pendências</option><option value="sem">Sem responsável</option></select></label><p class="panel-sub">O responsável deve corresponder ao nome de usuário do sistema. Etapas sem responsável usam o responsável da filial.</p><div id="op-pendencias-lista"></div></div>
+  <div id="op-avisos" hidden><p class="panel-sub">Avisos no sistema: vencidos, vencem hoje ou nos próximos 7 dias. Não envia mensagens externas.</p><div id="op-avisos-lista"></div></div>
+  <div id="op-calendario" hidden><label>Mês do calendário <input type="month" id="op-mes"></label><p class="panel-sub">Marcos planejados, prazos do checklist e previsões de entrega. Respeita os filtros de filiais acima.</p><div id="op-calendar-grid"></div><div id="op-sem-data"></div></div>
+  <div id="op-compras" hidden><p class="panel-sub">Saldo faltante após reservas e alocação global por Entrada de TI. Esta lista apoia a cotação; não cria pedidos nem altera o estoque.</p><a class="ui-btn ui-btn-secondary" id="op-compras-excel" href="/api/acompanhamento-expansao/compras.xlsx">Exportar necessidade em Excel</a><div id="op-compras-lista"></div></div>
+</section>
