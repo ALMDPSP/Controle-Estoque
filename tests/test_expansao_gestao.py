@@ -134,7 +134,7 @@ class GestaoTest(unittest.TestCase):
 
     def test_html_and_export_filters(self):
         html=self.client.get('/acompanhamento-expansao');self.assertEqual(html.status_code,200)
-        self.assertIn(b'exp-dialog',html.data)
+        self.assertNotIn(b'exp-dialog',html.data)
         excel=self.client.get('/export-acompanhamento-expansao?mes=2026-11')
         self.assertEqual(excel.status_code,200)
         import io

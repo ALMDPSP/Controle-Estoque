@@ -1,0 +1,9 @@
+CONTROLE DE ESTOQUE / EXPANSÃO — v2.1.4 — 19/10/2026
+
+Removidos do Acompanhamento de Expansão os blocos indicados nos prints: quatro gráficos (Status, Projetos, Bandeiras, UF), Central de execução e Lojas que precisam de atenção.
+A página passa a usar a API simples de acompanhamento, sem calcular previsão de estoque, consultar kits, reservas, evidências ou operações na abertura. Removidos os scripts de gráficos e de gestão/operação desta página.
+Mantidos indicadores, filtros (inclusive mês de inauguração), tabela, cadastro/edição/exclusão, importação e exportações originais. O modal adicional de gestão não é mais aberto pelo código da filial; a edição do cadastro continua no botão Editar.
+Dados de gestão previamente salvos permanecem no banco e no backup. Nenhum dado foi apagado.
+Preservada a correção da imagem da Loja Virtual 3D.
+
+Atualize o projeto completo no repositório e publique no Render. Não há migração nova. Esta entrega não foi publicada no servidor. O tempo de produção depende também do servidor e do banco; não foi medido no Render.
