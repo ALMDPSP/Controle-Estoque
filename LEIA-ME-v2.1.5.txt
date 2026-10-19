@@ -1,0 +1,5 @@
+CONTROLE DE ESTOQUE / EXPANSÃO — v2.1.5 — 19/10/2026
+
+Restaurado o grid de pesquisa junto ao detalhamento da planilha, imediatamente acima da tabela de lojas, com busca por filial/descrição/observação e filtros de status, projeto, bandeira, UF e mês de inauguração. Botão Limpar filtros e contagem mantidos.
+Mantida a API simples e o carregamento leve da v2.1.4, sem gráficos, Central de execução ou alertas de gestão.
+Publique o projeto atualizado no Render. Esta entrega não foi aplicada no servidor. Nenhuma migração nova é necessária.

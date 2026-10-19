@@ -43,14 +43,7 @@ main{padding:26px 32px 60px;max-width:1500px;margin:0 auto}.kpis{display:grid;gr
   <a class="ui-btn ui-btn-secondary" href="{{ url_for('pagina_projecao_lojas') }}">Projeção de abertura</a>
 </div>
 <main class="page-acompanhamento">
-<section class="filters exp-filtros"><div class="filters-head"><div><h2>Período e filtros da Expansão</h2><p>Filtros aplicados aos indicadores, lojas e relatórios.</p></div><button class="ui-btn ui-btn-secondary" id="exp-limpar">Limpar filtros</button></div>    <div class="filter-grid">
-      <input id="f-busca" placeholder="Pesquisar filial, descrição ou observação...">
-      <select id="f-status"><option value="">Todos os status</option></select>
-      <select id="f-projeto"><option value="">Todos os projetos</option></select>
-      <select id="f-bandeira"><option value="">Todas as bandeiras</option></select>
-      <select id="f-uf"><option value="">Todas as UFs</option></select>
-      <select id="f-mes-inauguracao" aria-label="Mês de inauguração" title="Mês de inauguração"><option value="">Todos os meses de inauguração</option></select>
-    </div><p class="panel-sub" id="exp-escopo" aria-live="polite"></p></section>
+
   <section class="kpis">
     <div class="kpi total"><span>Total acompanhado</span><strong id="k-total">0</strong><small>Filiais/projetos na base</small></div>
     <div class="kpi green"><span>Inauguradas</span><strong id="k-inaug">0</strong><small id="k-inaug-sub">0% concluído</small></div>
@@ -83,6 +76,14 @@ main{padding:26px 32px 60px;max-width:1500px;margin:0 auto}.kpis{display:grid;gr
     </div>
   </section>
 
+<section class="filters exp-filtros"><div class="filters-head"><div><h2>Pesquisa de lojas</h2><p>Filtros aplicados aos indicadores, lojas e relatórios.</p></div><button class="ui-btn ui-btn-secondary" id="exp-limpar">Limpar filtros</button></div>    <div class="filter-grid">
+      <input type="search" aria-label="Pesquisar filial, descrição ou observação" id="f-busca" placeholder="Pesquisar filial, descrição ou observação...">
+      <select aria-label="Status" id="f-status"><option value="">Todos os status</option></select>
+      <select aria-label="Projeto" id="f-projeto"><option value="">Todos os projetos</option></select>
+      <select aria-label="Bandeira" id="f-bandeira"><option value="">Todas as bandeiras</option></select>
+      <select aria-label="UF" id="f-uf"><option value="">Todas as UFs</option></select>
+      <select id="f-mes-inauguracao" aria-label="Mês de inauguração" title="Mês de inauguração"><option value="">Todos os meses de inauguração</option></select>
+    </div><p class="panel-sub" id="exp-escopo" aria-live="polite"></p></section>
   <section class="filters">
     <div class="filters-head"><div><h2>Detalhamento da planilha</h2><p>Filtre os registros por status, projeto, bandeira, UF e mês de inauguração.</p></div><div class="filters-toolbar"><div class="table-count" id="table-count">0 registro(s)</div>{% if role != 'consulta' %}<div class="selection-count" id="selection-count"></div><button type="button" class="ui-btn ui-btn-danger table-danger" id="btn-delete-selected">Excluir selecionados</button>{% endif %}</div></div>
 
