@@ -45,6 +45,14 @@ class ManuaisTest(unittest.TestCase):
         with base.exp.transacao(base.db) as (_,c):
             for i in range(21):c.execute(base.db.q('INSERT INTO manuais_documentos(id,titulo,categoria,versao,nome,caminho,tamanho,criado_por,criado_em) VALUES(?,?,?,?,?,?,?,?,?)'),(str(i),'Manual','TI','1','a.pdf','a',10,'teste','2026-10-21T00:00:00Z'))
         self.assertEqual(len(self.client.get('/api/manuais').json['itens']),20);self.assertEqual(len(self.client.get('/api/manuais?pagina=2').json['itens']),1);store.assert_not_called()
+    def test_page_and_stylesheet(self):
+        for role in ('admin','gestor','operador','consulta'):
+            with self.client.session_transaction() as sess: sess['role']=role
+            response=self.client.get('/manuais-procedimentos')
+            self.assertEqual(response.status_code,200)
+            self.assertIn(b'manuais.css', response.data)
+        self.assertEqual(self.client.get('/static/manuais.css').status_code,200)
+
     def test_anonymous(self):
         with self.client.session_transaction() as s:s.clear()
         self.assertEqual(self.client.get('/api/manuais').status_code,302)
