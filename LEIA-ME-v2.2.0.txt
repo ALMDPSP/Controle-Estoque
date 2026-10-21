@@ -1,0 +1,32 @@
+CONTROLE DE ESTOQUE / EXPANSÃO — v2.2.0 — 21/10/2026
+
+Nova aba: Manuais e Procedimentos, exclusiva do ambiente Expansão.
+- PDFs de até 50 MB, título, categoria, versão, autor e data de cadastro.
+- Pesquisa por título/nome, filtro por categoria e paginação de 20 registros.
+- Abrir e baixar por links privados com validade de 5 minutos.
+- Administrador, Gestor e Operador podem enviar/excluir; Consulta pode ler.
+- Exclusão exige confirmação. Para publicar nova versão, envie outro documento.
+- Arquivos ficam no Supabase; somente metadados ficam no banco atual (Neon).
+- A listagem não baixa PDFs nem consulta o Storage. PDFs são abertos sob demanda.
+- O upload passa pelo servidor com arquivo temporário e transmissão em blocos,
+  sem carregar o PDF inteiro na memória. Arquivos grandes dependem da conexão.
+
+PUBLICAÇÃO
+1. Atualize o código do repositório do serviço Render com o conteúdo desta pasta.
+2. Mantenha DATABASE_URL e SECRET_KEY existentes.
+3. Configure no Render:
+   SUPABASE_URL = URL HTTPS do projeto terminada em .supabase.co
+   SUPABASE_SECRET_KEY = chave secreta iniciada em sb_secret_
+   SUPABASE_BUCKET = manuais-procedimentos
+4. Mantenha o bucket privado, com limite de 50 MB e MIME application/pdf.
+5. Faça o deploy. A tabela manuais_documentos é criada automaticamente.
+6. Entre no ambiente Expansão, abra Manuais e Procedimentos, envie um PDF
+   pequeno e valide Abrir e Baixar. Depois valide um PDF próximo de 50 MB.
+
+As chaves nunca devem ser incluídas no GitHub ou neste ZIP.
+Nenhum deploy ou acesso ao Neon/Supabase real foi realizado nesta entrega.
+Validação local: 35 testes automatizados, incluindo permissões, CSRF,
+limite de tamanho, conteúdo PDF, paginação, falhas e ciclo upload/links/exclusão
+com Storage simulado. Layout desktop/mobile e pesquisa verificados no navegador.
+O teste real da chave, do bucket e da transferência depende do deploy no Render.
+Guarde uma cópia original dos PDFs: este pacote de código não é backup do Storage.
