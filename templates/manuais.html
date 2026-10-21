@@ -11,4 +11,5 @@
 {% endif %}
 <section class="doc-panel"><h2>Pesquisar documentos</h2><form id="doc-search" class="doc-toolbar"><input id="doc-query" aria-label="Pesquisar por título ou arquivo" placeholder="Pesquisar por título ou nome do arquivo" style="flex:2;min-width:180px"><select id="doc-category" aria-label="Filtrar categoria" style="flex:1;min-width:160px"><option value="">Todas as categorias</option></select><button type="submit">Pesquisar</button><button type="button" id="doc-clear">Limpar</button></form>
 <p id="doc-status" role="status" aria-live="polite"></p><div class="doc-table"><table><thead><tr><th>Documento</th><th>Categoria</th><th>Versão</th><th>Tamanho</th><th>Publicado</th><th>Ações</th></tr></thead><tbody id="doc-rows"></tbody></table></div><div class="doc-toolbar doc-footer"><span id="doc-count" class="doc-count"></span><div><button id="doc-prev" type="button">Anterior</button> <button id="doc-next" type="button">Próxima</button></div></div></section></main>
+{% include '_footer.html' %}
 <script src="{{ url_for('static',filename='manuais.js',v=app_build) }}"></script></body></html>
