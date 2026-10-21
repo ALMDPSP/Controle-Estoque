@@ -1,8 +1,0 @@
-CONTROLE DE ESTOQUE / EXPANSÃO — v2.1.2 — 18/10/2026
-
-Corrigida a imagem incompleta da Loja Virtual 3D: o PNG truncado foi substituído pela imagem original íntegra do projeto enviado.
-O endereço da imagem inclui a versão do aplicativo para evitar cache de uma cópia antiga.
-Preservada a melhoria da v2.1.1: Cronograma por filial somente com lojas a inaugurar.
-
-Atualize o projeto no repositório usado pelo Render, incluindo static/loja_3d.png, templates/loja_virtual.html e app.py, e execute o deploy. Nenhuma migração adicional é necessária.
-Esta entrega não foi publicada no Render.
