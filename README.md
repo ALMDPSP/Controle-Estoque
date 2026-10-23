@@ -1,3 +1,26 @@
+# Controle de Estoque — v2.3.0
+
+## Manuais e Procedimentos
+
+- Edição de título, categoria, versão, descrição e status, sem reenviar o PDF.
+- Nova versão mantém os PDFs anteriores no histórico paginado e destaca o arquivo atual.
+- Categorias padronizadas; categorias já existentes continuam disponíveis.
+- Filtros por título/arquivo/descrição, categoria, status, período de publicação e favoritos. Ordenação por publicação, título ou atualização.
+- Favoritos individuais para todos os perfis com acesso à Expansão.
+- Vigentes aparecem por padrão; arquivar mantém o documento disponível no filtro de arquivados.
+- Administrador, Gestor e Operador podem cadastrar, editar, publicar versões e excluir. Consulta pode consultar e favoritar.
+- PDFs permanecem limitados a 50 MB por arquivo e só são acessados ao abrir ou baixar. A lista não consulta o armazenamento de PDFs.
+- Excluir remove o documento e todos os PDFs do histórico. Arquivar preserva todos os arquivos.
+- Proteção contra edição simultânea: se outra pessoa alterar o documento, atualize a lista antes de repetir a operação.
+
+### Atualização no Render
+
+Substitua os arquivos do projeto e faça novo deploy. As novas tabelas e colunas são criadas automaticamente na inicialização; os cadastros anteriores são preservados e passam a integrar o histórico. As variáveis existentes do Neon e do Supabase continuam sendo utilizadas. Não é necessário executar SQL manualmente.
+
+O histórico conserva cada PDF publicado e utiliza espaço adicional no armazenamento conforme novas versões são enviadas. O período de publicação usa o horário de São Paulo e considera a publicação da versão atual; alterações de título ou descrição não alteram a data de publicação.
+
+Verificação: testes locais de migração, permissões, filtros, favoritos, versões, conflitos e exclusão; fluxo de navegador em desktop e celular. As chamadas ao armazenamento foram simuladas nos testes, sem acesso ao banco ou aos documentos de produção.
+
 # Controle de Estoque — v120
 
 ## Relatório Executivo · Estoque de Expansão x Kit Padrão
