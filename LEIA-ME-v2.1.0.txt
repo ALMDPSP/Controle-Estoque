@@ -1,0 +1,41 @@
+CONTROLE DE ESTOQUE / EXPANSÃO — v2.1.0 — 17/10/2026
+
+Esta versão continua a v2.0.0 e preserva MFA, filtros, checklist e reservas.
+
+ONDE USAR
+Expansão > Acompanhamento de Expansão > Central de execução.
+Para dados de uma loja, clique na filial ou em Gerenciar; role até Planejado × realizado.
+
+O QUE FOI INCLUÍDO
+1. Minhas pendências: etapas abertas do checklist, com seleção Minhas/Todas/Sem responsável. O nome do responsável é comparado ao usuário conectado, sem distinguir maiúsculas. Se a etapa não tiver responsável, usa o da filial. As ações da página Pendências preexistente continuam naquela página.
+2. Avisos de prazo: checklist, envio, marcos ainda não realizados e remessas não entregues, com vencidos, hoje e próximos 7 dias. Calculados na abertura ou atualização da tela, no horário de Brasília. Avisos dentro do sistema; não envia e-mail, WhatsApp ou notificações push.
+3. Evidências por etapa: anexar, baixar e excluir arquivos de até 5 MB com título, etapa, autor e data. Conteúdo guardado no banco, inclusive no backup de Expansão, sem depender do disco temporário do Render. Downloads exigem acesso à Expansão e são oferecidos como anexos.
+4. Aprovação de TI: gestor/admin registra parecer Aprovada, Reprovada ou Pendente. Aprovação exige cada etapa concluída com evidência ou Não se aplica com justificativa. Mudanças no checklist, evidências, remessas ou marcos desde a aprovação exibem Revisão necessária. Operadores não aprovam. O parecer é um controle operacional: não bloqueia nem muda o status cadastral Inaugurada, nem substitui a aprovação organizacional externa.
+5. Remessas: múltiplas remessas por filial, transportadora, código/link de rastreio, saída, previsão, entrega, recebedor e observação. Registro manual; o link abre o site da transportadora, sem consulta automática. Não executa baixas no estoque; use Expedição para isso.
+6. Planejado × realizado: datas efetivas para mobiliário, término de obra, entrada de TI e inauguração, com desvio em dias. As datas planejadas continuam no cadastro original da filial. Não aceita datas realizadas futuras.
+7. Necessidade de compra: consolidação das unidades faltantes por equipamento e filiais, prioridade por Entrada de TI, com exportação Excel. Mantém a alocação global antes do filtro. É uma estimativa para cotação; não gera pedidos de compra nem movimenta estoque.
+8. Calendário mensal: marcos planejados, prazos de etapas e previsões de entrega, com abertura da gestão ao clicar. O mês do calendário é independente do filtro de mês de inauguração; ambos respeitam as filiais filtradas. No celular, os dias aparecem em lista.
+
+PERMISSÕES E CONSISTÊNCIA
+Consulta: visualiza e baixa arquivos. Operador: altera operação, remessas e evidências. Gestor/admin: também registra parecer de TI.
+Atualizações usam CSRF e versão para evitar sobrescrever a edição de outra pessoa. Reabra a filial quando houver conflito.
+Checklist, datas/remessas e parecer possuem botões de salvamento próprios. Salve alterações antes de anexar ou registrar parecer: cada ação recarrega os dados salvos.
+Histórico registra as alterações sem duplicar o conteúdo binário dos anexos.
+Mudança do código da filial transfere operação/evidências para o novo código.
+Exclusão/importação mantém planos, operação e evidências pelo código da filial, para não perder o histórico. Reutilizar o mesmo código recupera esses dados: revise antes de cadastrar uma loja diferente.
+A evidência e seu conteúdo são removidos ao usar Excluir; o evento de exclusão permanece no histórico.
+
+ATUALIZAÇÃO
+1. Faça backup do banco atual.
+2. Atualize o projeto completo do ZIP no repositório usado pelo Render, incluindo expansao_operacao.py, expansao_gestao.py, app.py, static e templates.
+3. Execute o deploy pelo processo habitual. Não é necessário configurar serviços externos novos.
+4. Na inicialização, a aplicação cria automaticamente expansao_operacao e expansao_evidencias e a regra de transferência por código de filial. Migração compatível com SQLite/PostgreSQL e repetível.
+5. Confirme v2.1.0 no menu e abra Acompanhamento de Expansão.
+O backup gestao_expansao.json inclui as novas tabelas e o conteúdo dos anexos em base64. Esse arquivo é de exportação; esta entrega não adiciona restauração automática.
+Nenhuma alteração foi aplicada ao Render ou Neon nesta entrega.
+
+VALIDAÇÃO
+27 testes automatizados com SQLite temporário: MFA, reservas, filtros, permissões, anexos, backup, concorrência por versão, aprovação/revisão e datas/remessas.
+Migração e regras SQL verificadas em PostgreSQL local via PGlite.
+Navegador: salvar checklist, reservar/liberar, datas, remessa, upload, filtros, calendário, lista de compras, temas claro/escuro e largura móvel.
+Comando: python -m unittest discover -s tests -v

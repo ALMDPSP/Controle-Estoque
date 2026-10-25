@@ -1,0 +1,21 @@
+VERSÃO v1.9.5 — 15/10/2026
+Base: Controle-Estoque-main(8).zip (v1.9.4).
+
+Alterações:
+- Campo de ativação aceita colagem de código com espaço sem cortar o sexto dígito.
+- Formulário identifica QR Code substituído ou sessão alterada.
+- Botão Gerar novo QR Code permite reiniciar o vínculo antes da ativação.
+- Orientações para relógio automático e cadastro no Authenticator.
+- Limite de tentativas também na ativação; páginas MFA sem cache.
+- Algoritmo TOTP e tolerância de tempo mantidos.
+
+Aplicação:
+1. Atualizar os arquivos do projeto no repositório usado pelo Render e concluir o deploy.
+2. No novo colaborador, entrar novamente e clicar em Gerar novo QR Code.
+3. Remover somente a entrada anterior deste sistema no Authenticator, cadastrar o novo QR e informar um código novo.
+4. Guardar os códigos de recuperação e concluir o acesso.
+Usuários com MFA já ativo não precisam refazer o cadastro.
+
+Validação: sete testes isolados do código real, sem conexão ao Neon.
+A causa exata do incidente em produção não foi confirmada. Se persistir, verificar sincronização do celular/servidor e logs sem expor chaves ou códigos.
+Executar testes: python -m unittest discover -s tests -v

@@ -1,0 +1,23 @@
+MFA / Dupla autenticação — versão v30
+
+Compatibilidade:
+- Microsoft Authenticator
+- Google Authenticator
+- Outros aplicativos compatíveis com TOTP (RFC 6238)
+
+Comportamento:
+- Administradores: MFA obrigatório. Se ainda não estiver configurado, após validar usuário e senha o sistema exige a leitura do QR Code antes de liberar o acesso.
+- Gestor / Operador / Consulta: MFA opcional, ativável em Segurança.
+- Códigos TOTP: 6 dígitos, renovados a cada 30 segundos.
+- São gerados 8 códigos de recuperação de uso único na ativação.
+- Administradores podem resetar o MFA de usuários pela Gestão de Usuários.
+- Eventos de ativação, validação, falha, bloqueio, reset e desativação são registrados na auditoria de login.
+
+Proteção do segredo MFA:
+- O segredo TOTP é criptografado antes de ser salvo no banco.
+- Em produção, mantenha SECRET_KEY estável e forte no Render.
+- Opcionalmente, configure MFA_ENCRYPTION_KEY com um valor secreto e estável separado da SECRET_KEY.
+
+Dependências adicionadas ao requirements.txt:
+- qrcode[pil]
+- cryptography

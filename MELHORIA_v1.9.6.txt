@@ -1,0 +1,4 @@
+v1.9.6 — Filtro por mês de inauguração no detalhamento de Acompanhamento de Expansão.
+Opções por mês/ano presentes nos registros e Sem data definida. Combinável com busca, status, projeto, bandeira e UF.
+Segue o comportamento dos filtros existentes: filtra a tabela; indicadores gerais e relatórios continuam consolidados.
+Mantidas correções MFA da v1.9.5.

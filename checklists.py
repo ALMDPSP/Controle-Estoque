@@ -103,14 +103,17 @@ def gerar_pdf(data,loja,username,ident=None):
                 pdfmetrics.registerFont(TTFont(name,str(Path(__file__).parent/'static'/'fonts'/filename)))
     from reportlab.lib import colors
     from reportlab.lib.enums import TA_LEFT
-    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.pagesizes import A4, landscape
     from reportlab.lib.styles import ParagraphStyle
-    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak, Flowable
     ident=ident or uuid.uuid4().hex[:12]
     emitted=datetime.now(ZoneInfo('America/Sao_Paulo'))
-    blue=colors.HexColor('#173c61');muted=colors.HexColor('#5c6e80');line=colors.HexColor('#d7e2ed')
+    blue=colors.HexColor('#FFFFFF');muted=colors.HexColor('#9DB3C8');line=colors.HexColor('#2A3645')
+    bg=colors.HexColor('#0F1620');panel=colors.HexColor('#151D27');panel2=colors.HexColor('#182230')
+    accent=colors.HexColor('#5AB4FF')
+    page_width,page_height=landscape(A4)
     styles={
-        'title':ParagraphStyle('title',fontName='ALMSans-Bold',fontSize=22,leading=27,textColor=blue,spaceAfter=9),
+        'title':ParagraphStyle('title',fontName='ALMSans-Bold',fontSize=20,leading=25,textColor=blue,spaceAfter=9),
         'heading':ParagraphStyle('heading',fontName='ALMSans-Bold',fontSize=12,leading=17,textColor=blue,spaceBefore=15,spaceAfter=8,keepWithNext=True),
         'body':ParagraphStyle('body',fontName='ALMSans',fontSize=9,leading=13,textColor=blue,spaceAfter=5,wordWrap='LTR'),
         'cell':ParagraphStyle('cell',fontName='ALMSans',fontSize=8.5,leading=12,textColor=blue),
@@ -119,31 +122,49 @@ def gerar_pdf(data,loja,username,ident=None):
     def p(value,style='body'):
         value=str(value or '').replace('\u2011','-').replace('\u2013','-').replace('\u2014','-').encode('cp1252','replace').decode('cp1252')
         return Paragraph(escape(value).replace('\n','<br/>'),styles[style])
-    out=io.BytesIO();width=A4[0]-84
-    doc=SimpleDocTemplate(out,pagesize=A4,leftMargin=42,rightMargin=42,topMargin=50,bottomMargin=52,title='Checklist de inauguração - '+data['filial'],author=username)
+    out=io.BytesIO();width=page_width-84
+    doc=SimpleDocTemplate(out,pagesize=landscape(A4),leftMargin=42,rightMargin=42,topMargin=62,bottomMargin=52,title='Checklist de inauguração - '+data['filial'],author=username)
     final=data['modo']=='final';summary=data['resumo'];total=sum(summary.values());checked=summary['conforme']+summary['na']
     story=[p('CHECKLIST DE INAUGURAÇÃO','title'),p(('RELATÓRIO FINAL' if final else 'RELATÓRIO PARCIAL - NÃO CONCLUÍDO')+' | '+emitted.strftime('%d/%m/%Y %H:%M')+' (Brasília)'),Spacer(1,8)]
     info=[['Filial',data['filial']+' - '+str(loja.get('descricao_filial') or '')],['Bandeira / UF',str(loja.get('bandeira') or '-')+' / '+str(loja.get('uf') or '-')],['Inauguração prevista',loja.get('inauguracao') or 'Não informada'],['Responsável pela execução',data['responsavel']],['Usuário emissor',username],['PDVs avaliados',', '.join(data['pdvs'])],['Identificação do relatório',ident]]
     table=Table([[p(k),p(v)] for k,v in info],colWidths=[145,width-145],hAlign=TA_LEFT)
-    table.setStyle(TableStyle([('BACKGROUND',(0,0),(-1,-1),colors.HexColor('#f2f6fa')),('VALIGN',(0,0),(-1,-1),'TOP'),('LEFTPADDING',(0,0),(-1,-1),10),('TOPPADDING',(0,0),(-1,-1),5),('BOTTOMPADDING',(0,0),(-1,-1),5)]));story+=[table,Spacer(1,12)]
-    story.append(p(f'Resultado: {checked} de {total} itens validados ({round(100*checked/total)}%). Conformes: {summary["conforme"]} | Não conformes: {summary["falha"]} | Pendentes: {summary["pendente"]} | Não aplicáveis: {summary["na"]}.'))
+    table.setStyle(TableStyle([('BACKGROUND',(0,0),(-1,-1),panel),('VALIGN',(0,0),(-1,-1),'TOP'),('LEFTPADDING',(0,0),(-1,-1),10),('TOPPADDING',(0,0),(-1,-1),5),('BOTTOMPADDING',(0,0),(-1,-1),5)]));story+=[table,Spacer(1,12)]
+    class Indicadores(Flowable):
+        def __init__(self):
+            Flowable.__init__(self);self.width=width;self.height=73
+        def draw(self):
+            gap=8;w=(width-3*gap)/4
+            for index,(key,label,hexcolor) in enumerate([('conforme','CONFORMES','#52D69A'),('falha','NÃO CONFORMES','#FF7E88'),('pendente','PENDENTES','#FFBE55'),('na','NÃO APLICÁVEIS','#A78BFA')]):
+                x=index*(w+gap);c=self.canv;c.setFillColor(panel2);c.setStrokeColor(colors.HexColor('#314255'));c.roundRect(x,8,w,57,9,stroke=1,fill=1)
+                c.setFillColor(muted);c.setFont('ALMSans-Bold',7);c.drawString(x+11,49,label)
+                c.setFillColor(colors.HexColor(hexcolor));c.setFont('ALMSans-Bold',18);c.drawString(x+11,23,str(summary[key]))
+    story.append(Indicadores())
+    story.append(p(f'Progresso da validação: {checked} de {total} itens ({round(100*checked/total)}%).'))
     if not final:story.append(p('Este relatório registra o andamento da validação e não representa a conclusão do checklist.'))
     if data['observacao']:story += [p('Observações gerais','heading'),p(data['observacao'])]
+    story.append(PageBreak())
     for group in data['grupos']:
         story.append(p(group['titulo'],'heading'))
         rows=[[p('VALIDAÇÃO','head'),p('RESULTADO','head'),p('OBSERVAÇÃO / JUSTIFICATIVA','head')]]
         for item in group['itens']:rows.append([p(item['titulo'],'cell'),p(RESULTADOS[item['resultado']],'cell'),p(item['observacao'] or '-','cell')])
         table=Table(rows,colWidths=[width*.40,width*.19,width*.41],repeatRows=1,hAlign=TA_LEFT,splitInRow=1)
-        commands=[('BACKGROUND',(0,0),(-1,0),blue),('VALIGN',(0,0),(-1,-1),'TOP'),('LEFTPADDING',(0,0),(-1,-1),8),('RIGHTPADDING',(0,0),(-1,-1),8),('TOPPADDING',(0,0),(-1,-1),8),('BOTTOMPADDING',(0,0),(-1,-1),8),('LINEBELOW',(0,0),(-1,-1),.5,line)]
+        commands=[('BACKGROUND',(0,0),(-1,0),colors.HexColor('#212D3C')),('VALIGN',(0,0),(-1,-1),'TOP'),('LEFTPADDING',(0,0),(-1,-1),8),('RIGHTPADDING',(0,0),(-1,-1),8),('TOPPADDING',(0,0),(-1,-1),8),('BOTTOMPADDING',(0,0),(-1,-1),8),('LINEBELOW',(0,0),(-1,-1),.5,line)]
         for i,item in enumerate(group['itens'],1):
-            bg='#fff0ed' if item['resultado']=='falha' else '#fff8e8' if item['resultado']=='pendente' else '#f1f7f6' if i%2 else '#ffffff'
-            commands.append(('BACKGROUND',(0,i),(-1,i),colors.HexColor(bg)))
+            row_bg='#33232D' if item['resultado']=='falha' else '#302B22' if item['resultado']=='pendente' else '#151D27' if i%2 else '#182230'
+            commands.append(('BACKGROUND',(0,i),(-1,i),colors.HexColor(row_bg)))
         table.setStyle(TableStyle(commands));story.append(table)
     story += [Spacer(1,16),p('Responsável pela execução: '+data['responsavel']),p('Emitido pelo usuário autenticado: '+username),p('As informações representam os resultados declarados pelo responsável na emissão deste relatório.')]
     def footer(canvas,document):
-        canvas.saveState();canvas.setStrokeColor(line);canvas.line(42,36,A4[0]-42,36);canvas.setFillColor(muted);canvas.setFont('ALMSans',7)
-        canvas.drawString(42,24,'ALM - Expansão de TI | Checklist de inauguração | '+ident)
-        canvas.drawRightString(A4[0]-42,24,'Página '+str(document.page));canvas.restoreState()
+        canvas.saveState();canvas.setFillColor(bg);canvas.rect(0,0,page_width,page_height,stroke=0,fill=1)
+        if document.page>1:
+            canvas.setFillColor(colors.white);canvas.setFont('ALMSans-Bold',14)
+            canvas.drawString(42,page_height-29,'Checklist de Inauguração - '+data['filial'][:36])
+            canvas.setFillColor(muted);canvas.setFont('ALMSans',7.5)
+            canvas.drawString(42,page_height-44,'Resultados por área e PDV | '+('Relatório final' if final else 'Relatório parcial'))
+            canvas.drawRightString(page_width-42,page_height-29,emitted.strftime('Gerado em %d/%m/%Y às %H:%M (Brasília)'))
+        canvas.setStrokeColor(line);canvas.line(42,34,page_width-42,34);canvas.setFillColor(colors.HexColor('#8398AD'));canvas.setFont('ALMSans',7)
+        canvas.drawString(42,21,'© 2026 · Developed by ALM - Expansão de TI · Checklist de Inauguração')
+        canvas.drawRightString(page_width-42,21,'Página '+str(document.page)+' | '+ident);canvas.restoreState()
     doc.build(story,onFirstPage=footer,onLaterPages=footer)
     out.seek(0);return out
 
@@ -198,10 +219,19 @@ def registrar(app,db,login_required,site_required,csrf_ok):
         response.headers['X-Checklist-Report']=filename
         return response
 
-    @app.route('/api/checklists/relatorios')
+    @app.route('/api/checklists/relatorios',methods=['GET','DELETE'])
     @login_required
     @site_required('expansao')
     def api_checklist_relatorios():
+        if request.method=='DELETE':
+            err=autorizado()
+            if err:return err
+            try:filial=filial_param()
+            except ValueError as exc:return jsonify(erro=str(exc)),400
+            filename=request.args.get('arquivo','')
+            if not ARQUIVO.fullmatch(filename):return jsonify(erro='Relatório inválido.'),400
+            manuais.storage('DELETE','/object/'+quote(manuais.config()[2],safe=''),{'prefixes':[pasta(filial)+'/'+filename]})
+            return jsonify(ok=True)
         try:
             filial=filial_param();page=max(1,min(10000,int(request.args.get('pagina',1))))
         except ValueError as exc:return jsonify(erro=str(exc) or 'Página inválida.'),400

@@ -1,3 +1,11 @@
+# Controle de Estoque — v2.4.1
+
+- Relatórios salvos do checklist agora oferecem Abrir, Baixar e Excluir para os perfis que podem editar. Consulta mantém acesso de leitura.
+- Exclusão com confirmação e proteção de sessão/CSRF, restrita ao arquivo escolhido na pasta de relatórios da filial. O rascunho no navegador é preservado.
+- Novos PDFs seguem o padrão executivo da Expansão: A4 paisagem, fundo escuro, painéis/indicadores coloridos, resumo inicial, detalhamento por área/PDV e cabeçalho/rodapé com paginação e créditos.
+- A padronização se aplica aos PDFs gerados após o deploy. Relatórios já salvos podem ser baixados ou excluídos; para obter um novo PDF no padrão atualizado, gere-o novamente a partir do rascunho.
+- Continua sem persistir o preenchimento em tabelas do Neon; apenas os relatórios PDF vão para o Storage.
+
 # Controle de Estoque — v2.4.0
 
 ## Checklist de Inauguração
@@ -20,7 +28,7 @@ O preenchimento NÃO cria tabelas, linhas ou histórico de checklist no Neon. O 
 
 Ao gerar o PDF, o aplicativo disponibiliza o download e salva uma cópia no Supabase Storage, em `checklists/<filial-identificador>/`, dentro do mesmo bucket privado configurado para os manuais. Não é necessário criar outro banco, bucket, tabela ou variável de ambiente. As cópias anteriores ficam disponíveis na própria aba e não aparecem na listagem de Manuais e Procedimentos. Os links para abrir/baixar são temporários, emitidos após login.
 
-Se o armazenamento falhar, o download do PDF continua disponível e a tela avisa que a cópia não foi salva. O rascunho permanece no navegador para uma nova tentativa. Limpar o rascunho não exclui os PDFs salvos. O módulo não oferece exclusão dos relatórios anteriores.
+Se o armazenamento falhar, o download do PDF continua disponível e a tela avisa que a cópia não foi salva. O rascunho permanece no navegador para uma nova tentativa. Limpar o rascunho não exclui os PDFs salvos. Os perfis Administrador, Gestor e Operador podem excluir um relatório do Supabase após confirmação. A exclusão é restrita ao PDF selecionado na pasta da filial e preserva o rascunho.
 
 Admin, Gestor e Operador podem preencher e gerar relatórios. Consulta pode consultar e baixar PDFs salvos. A lista de relatórios é paginada e só acessa o Storage quando solicitada; a seleção de lojas usa apenas a consulta leve ao Acompanhamento.
 
