@@ -1,3 +1,35 @@
+# Controle de Estoque — v2.4.0
+
+## Checklist de Inauguração
+
+Nova aba exclusiva da Expansão, vinculada às filiais do Acompanhamento de Expansão. Por padrão, mostra lojas com status Pendente, Em andamento, Obra não iniciada ou A inaugurar/Inaugurar. As demais lojas podem ser exibidas para consultar relatórios anteriores.
+
+### Preenchimento e relatório
+
+- Os testes solicitados estão distribuídos entre PDV, Balcão e Servidor: 19 itens no modelo com um PDV.
+- Informe os números de 1 a 30 PDVs distintos (cada identificação entre 1 e 99). Os testes de PDV são independentes para cada equipamento.
+- Testes complementares opcionais: venda básica, TEF/pinpad, DDG, PBM, convênio e delivery para cada PDV; rede/internet e data/hora na área complementar.
+- Informe o responsável pela execução. O usuário autenticado é incluído automaticamente no relatório.
+- Resultados: Pendente, Conforme, Não conforme e Não se aplica. Resultados não conformes e não aplicáveis exigem justificativa.
+- O relatório parcial permite registrar o andamento. O final exige todos os itens conformes ou não aplicáveis com justificativa.
+- PDF com identificação da loja, previsão de inauguração, PDVs, responsável, usuário emissor, data/hora de Brasília, totais e resultados/observações por área. Fontes incorporadas para leitura consistente.
+
+### Onde os dados ficam
+
+O preenchimento NÃO cria tabelas, linhas ou histórico de checklist no Neon. O rascunho fica em localStorage, por usuário e filial, no navegador utilizado. Ele não sincroniza com outros dispositivos e será perdido se os dados do navegador forem apagados. O relatório é um registro dos resultados declarados pelo responsável, emitido pelo usuário autenticado; não constitui assinatura digital ou trilha imutável de cada alteração do rascunho.
+
+Ao gerar o PDF, o aplicativo disponibiliza o download e salva uma cópia no Supabase Storage, em `checklists/<filial-identificador>/`, dentro do mesmo bucket privado configurado para os manuais. Não é necessário criar outro banco, bucket, tabela ou variável de ambiente. As cópias anteriores ficam disponíveis na própria aba e não aparecem na listagem de Manuais e Procedimentos. Os links para abrir/baixar são temporários, emitidos após login.
+
+Se o armazenamento falhar, o download do PDF continua disponível e a tela avisa que a cópia não foi salva. O rascunho permanece no navegador para uma nova tentativa. Limpar o rascunho não exclui os PDFs salvos. O módulo não oferece exclusão dos relatórios anteriores.
+
+Admin, Gestor e Operador podem preencher e gerar relatórios. Consulta pode consultar e baixar PDFs salvos. A lista de relatórios é paginada e só acessa o Storage quando solicitada; a seleção de lojas usa apenas a consulta leve ao Acompanhamento.
+
+### Aplicação
+
+Atualize os arquivos do repositório e faça novo deploy no Render. A configuração atual do Supabase continua sendo utilizada. As fontes e sua licença estão em `static/fonts/` e devem acompanhar o deploy. Não há migração de banco para esta aba.
+
+Validação local: testes de modelo, permissões, finalização/justificativas, isolamento dos caminhos, paginação, PDF e falha no Storage; fluxo completo no navegador em computador/celular, recuperação de rascunho por loja e revisão visual dos PDFs. O armazenamento foi simulado, sem acesso aos dados ou às chaves de produção.
+
 # Controle de Estoque — v2.3.0
 
 ## Manuais e Procedimentos

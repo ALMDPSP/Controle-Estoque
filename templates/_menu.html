@@ -44,6 +44,7 @@ body{overflow-x:hidden}header{padding-left:16px!important;padding-right:16px!imp
     <a href="{{ url_for('pagina_projecao_lojas') }}" class="{{ 'ativo' if request.endpoint == 'pagina_projecao_lojas' else '' }}"><span class="nav-ico">◍</span>Projeção de abertura e lojas</a>
     {% if site_area == 'expansao' %}<a href="{{ url_for('pagina_manuais') }}" class="{{ 'ativo' if request.endpoint == 'pagina_manuais' else '' }}"><span class="nav-ico">▤</span>Manuais e Procedimentos</a>{% endif %}
     <a href="{{ url_for('pagina_acompanhamento_expansao') }}" class="{{ 'ativo' if request.endpoint == 'pagina_acompanhamento_expansao' else '' }}"><span class="nav-ico">◔</span>Acompanhamento de Expansão</a>
+    {% if site_area == 'expansao' %}<a href="{{ url_for('pagina_checklist') }}" class="{{ 'ativo' if request.endpoint == 'pagina_checklist' else '' }}"><span class="nav-ico">✓</span>Checklist de Inauguração</a>{% endif %}
     <a href="{{ url_for('pagina_cockpit_implantacao') }}" class="{{ 'ativo' if request.endpoint == 'pagina_cockpit_implantacao' else '' }}"><span class="nav-ico">▦</span>Cockpit de Implantação</a>
     <a href="{{ url_for('pagina_leitor_codigo') }}" class="{{ 'ativo' if request.endpoint == 'pagina_leitor_codigo' else '' }}"><span class="nav-ico">⌁</span>Leitor</a>
     <a href="{{ url_for('pagina_loja_virtual') }}" class="{{ 'ativo' if request.endpoint == 'pagina_loja_virtual' else '' }}"><span class="nav-ico">◨</span>Loja Virtual 3D</a>

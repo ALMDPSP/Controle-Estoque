@@ -69,13 +69,13 @@ import qrcode
 import db
 
 app = Flask(__name__)
-APP_VERSION = "v2.3.0"
-APP_BUILD = "2026-10-22-v2.3.0"
+APP_VERSION = "v2.4.0"
+APP_BUILD = "2026-10-24-v2.4.0"
 _DASHBOARD_CACHE = {}
 _EXPEDICAO_CACHE = {}
 
 EXPANSION_ONLY_PREFIXES = (
-    "/manuais-procedimentos", "/api/manuais",
+    "/manuais-procedimentos", "/api/manuais", "/checklist-inauguracao", "/api/checklists",
     "/expedicao", "/acompanhamento-expansao", "/cockpit-implantacao",
     "/projecao-lojas", "/equipamentos-parque", "/orcamento", "/loja-virtual",
     "/api/expedicao", "/api/acompanhamento-expansao", "/api/cockpit-implantacao",
@@ -11211,6 +11211,9 @@ expansao_operacao.registrar(app, db, login_required, site_required, _csrf_ok, _e
 import manuais
 manuais.migrar(db)
 manuais.registrar(app, db, login_required, site_required, _csrf_ok)
+
+import checklists
+checklists.registrar(app, db, login_required, site_required, _csrf_ok)
 
 
 def descobrir_ip_local():
