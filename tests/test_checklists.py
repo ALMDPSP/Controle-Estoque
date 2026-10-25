@@ -120,3 +120,26 @@ class ChecklistTest(unittest.TestCase):
         self.assertEqual(sum(len(g['itens']) for g in default),19)
         self.assertEqual(sum(len(g['itens']) for g in extended),27)
         self.assertEqual(len(checklists.grupos(['01','02'],False)[1]['itens']),4)
+
+    @patch('manuais.storage')
+    def test_delete_report_requires_role_csrf_and_scoped_filename(self,store):
+        filename='20261024-120000-final-123456abcdef.pdf'
+        path='/api/checklists/relatorios?filial=CK001&arquivo='+filename
+        self.assertEqual(self.client.delete(path).status_code,400)
+        for role in ('consulta',):
+            with self.client.session_transaction() as s:s['role']=role
+            self.assertEqual(self.client.delete(path,headers=self.headers).status_code,403)
+        with self.client.session_transaction() as s:s['role']='admin'
+        self.assertEqual(self.client.delete('/api/checklists/relatorios?filial=CK001&arquivo=../../manual.pdf',headers=self.headers).status_code,400)
+        store.assert_not_called()
+        for role in ('admin','gestor','operador'):
+            with self.client.session_transaction() as s:s['role']=role
+            self.assertEqual(self.client.delete(path,headers=self.headers).status_code,200)
+            self.assertEqual(store.call_args.args,('DELETE','/object/manuais-procedimentos',{'prefixes':[checklists.pasta('CK001')+'/'+filename]}))
+        with self.client.session_transaction() as s:s['site_area']='estoque_cd'
+        store.reset_mock();self.assertEqual(self.client.delete(path,headers=self.headers).status_code,403);store.assert_not_called()
+
+    @patch('manuais.storage',side_effect=manuais.StorageError('Falha simulada'))
+    def test_delete_failure_is_not_reported_as_success(self,store):
+        r=self.client.delete('/api/checklists/relatorios?filial=CK001&arquivo=20261024-120000-final-123456abcdef.pdf',headers=self.headers)
+        self.assertEqual(r.status_code,502);self.assertIn('erro',r.json)
