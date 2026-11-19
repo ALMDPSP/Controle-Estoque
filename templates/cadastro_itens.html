@@ -15,6 +15,9 @@ table{width:100%;border-collapse:collapse;font-size:13px}th{text-align:left;colo
 @media(max-width:800px){form{grid-template-columns:1fr 1fr}.field:nth-child(2){grid-column:span 2}.primary{grid-column:span 2}}@media(max-width:560px){header,nav,main{padding-left:16px;padding-right:16px}form{grid-template-columns:1fr}.field:nth-child(2),.primary{grid-column:auto}.actions{justify-content:flex-start}table{display:block;overflow-x:auto;white-space:nowrap}}
 </style>
 {% include '_mobile_head.html' %}
+
+<!-- Identidade visual DPSP / Cutover Online -->
+<link rel="stylesheet" href="{{ url_for('static', filename='tema-dpsp-cutover.css', v='2.0.0') }}">
 </head>
 <body class="app-standard">
 <header><div class="brand"><span class="tag">Cadastro</span><strong>Controle de Ativos</strong></div><h1>Cadastro de itens</h1><p class="subtitle">Cadastre aqui os itens que poderão ser utilizados no Estoque e nos Imobilizados.</p></header>
