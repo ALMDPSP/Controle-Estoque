@@ -1,41 +1,111 @@
-/* DPSP CUTOVER VISUAL v2.0 — última camada, sem alterar lógica */
-:root,html[data-theme="dark"],html[data-theme="dark"] body.app-standard,body.app-standard {
- --bg:#08101d!important;--panel:#111e30!important;--panel2:#16263b!important;--panel-2:#16263b!important;
- --line:#33445b!important;--text:#f8fafc!important;--muted:#abbcd0!important;
- --accent:#e33545!important;--accent2:#ffc4c9!important;--accent-2:#ffc4c9!important;
- --blue:#e33545!important;--cyan:#f6a1aa!important;--purple:#dca7bb!important;
- --danger:#f2757c!important;--red:#f2757c!important;--ok:#41c69c!important;
- --green:#41c69c!important;--warn:#f7bb58!important;--amber:#f7bb58!important;
+/* CONTROLE DE ESTOQUE | DPSP LIGHT 3.1 — menu ativo azul */
+:root,html,html[data-theme="dark"],html[data-theme="light"],body,body.app-standard,html[data-theme="dark"] body.app-standard,html[data-theme="light"] body.app-standard{
+ color-scheme:light!important;
+ --bg:#f5f7fa!important;--panel:#ffffff!important;--panel2:#f8fafc!important;--panel-2:#f8fafc!important;
+ --line:#e2e7ee!important;--text:#202b3b!important;--muted:#657386!important;
+ --accent:#d52b40!important;--accent2:#b91f35!important;--accent-2:#b91f35!important;
+ --blue:#d52b40!important;--cyan:#d52b40!important;--purple:#8e5c83!important;
+ --danger:#d83950!important;--red:#d83950!important;--ok:#16845e!important;--green:#16845e!important;
+ --warn:#b16e13!important;--amber:#b16e13!important;
 }
-html[data-theme="light"],html[data-theme="light"] body.app-standard {
- --bg:#f4f6f9!important;--panel:#fff!important;--panel2:#f9fafc!important;--panel-2:#f9fafc!important;
- --line:#d9e0ea!important;--text:#19283c!important;--muted:#57677a!important;
- --accent:#c6283c!important;--accent2:#a92134!important;--accent-2:#a92134!important;--blue:#c6283c!important;
+html,body,body.app-standard,html[data-theme] body.app-standard{
+ background:#f5f7fa!important;color:#202b3b!important;
 }
-body.app-standard{background:linear-gradient(160deg,#0d1829 0%,#08101d 54%,#101c2b 100%)!important}
-html[data-theme="light"] body.app-standard{background:#f4f6f9!important}
-body.app-standard>header{background:linear-gradient(110deg,#17263d,#101a2c 68%,#321722)!important;border-bottom:2px solid #d92f3e!important}
-body.app-standard>header::before{background:linear-gradient(90deg,#d92f3e,#f46f79)!important}
-body.app-standard>header .tag{border-color:#e44754!important;color:#ffccd0!important;background:rgba(218,47,62,.11)!important}
-body.app-standard .head-actions a.primary,body.app-standard .head-actions .primary,
-body.app-standard .ui-btn-primary,body.app-standard .btn-primary,
-body.app-standard button.primary,body.app-standard button[type=submit]:not(.danger):not(.secondary),
-body.app-standard a.btn-primary{background:linear-gradient(135deg,#e13c4b,#c82236)!important;color:#fff!important;border:1px solid #e65c68!important;box-shadow:0 6px 17px rgba(202,40,59,.15)!important}
-.app-sidebar-brand .brand-mark{background:linear-gradient(135deg,#ee4c5c,#bc2439)!important;color:white!important}
-.app-sidebar-brand,.app-menu{border-color:rgba(234,80,96,.20)!important}
-.app-menu a.ativo,.app-menu a.active,.app-menu a[aria-current=page]{background:linear-gradient(110deg,#d92f3e,#ae2338)!important;border-color:#f16c78!important;color:white!important;box-shadow:inset 3px 0 #ffb8c0,0 5px 18px rgba(210,34,57,.19)!important}
-.app-menu a:hover,.app-menu a:focus-visible{border-color:#e96876!important;background:rgba(219,47,64,.11)!important;color:#fff!important}
-.app-menu .nav-ico,.app-menu a .nav-ico{color:#f5a7b0!important;background:rgba(214,47,65,.13)!important}
-.app-menu a.ativo .nav-ico{color:#fff!important;background:rgba(255,255,255,.18)!important}
-body.app-standard .kpi.accent strong,body.app-standard .expansao-chip strong,
-body.app-standard .tag,body.app-standard a:not(.app-menu a):hover{color:var(--accent)!important}
-body.app-standard :is(input,select,textarea):focus{border-color:#df3b4c!important;box-shadow:0 0 0 3px rgba(223,59,76,.16)!important}
-body.app-standard :is(.panel,.card,.kpi,.cd-exec-card,.hero-mini,.summary-card){border-color:var(--line)!important}
-body.app-standard :is(.panel,.card,.kpi,.cd-exec-card,.hero-mini,.summary-card):hover{border-color:rgba(236,108,120,.5)!important}
-body.app-standard .cd-exec-grid,body.app-standard .dashboard-top-grid{--accent:#e33545!important}
-body:not(.app-standard){--blue:#e33545!important;--accent:#e33545!important;--cyan:#ff9ca5!important}
-body:not(.app-standard) :is(input,select,textarea):focus{border-color:#df3b4c!important;box-shadow:0 0 0 3px rgba(223,59,76,.16)!important}
-body:not(.app-standard) :is(button[type=submit],.btn-primary){background:linear-gradient(135deg,#e13c4b,#bc2136)!important;color:#fff!important;border-color:#e65c68!important}
-/* Indicador discreto da versão: útil para identificar deploy/cache corretamente */
-body.app-standard>header::after{content:"DPSP • VISUAL 2.0"!important;position:absolute!important;right:10px!important;top:3px!important;width:auto!important;height:auto!important;background:none!important;border:0!important;border-radius:0!important;color:#f4a0a9!important;font:700 9px/1.5 system-ui,sans-serif!important;letter-spacing:.12em!important;opacity:.85!important;pointer-events:none!important}
-@media(max-width:768px){body.app-standard>header::after{display:none!important}}
+body.app-standard{background-image:none!important}
+/* Navegação e cabeçalho: superfícies brancas, sem gradientes escuros */
+body.app-standard>header,body.app-standard header:not(.app-sidebar-brand),
+body.app-standard .app-sidebar,body.app-standard .app-menu-left,body.app-standard .app-sidebar-brand,
+body.app-standard .app-nav,body.app-standard .sidebar,body.app-standard aside,
+body.app-standard .app-menu,body.app-standard .app-shell{
+ background-color:#fff!important;background-image:none!important;color:#202b3b!important;
+ border-color:#e2e7ee!important;
+}
+body.app-standard>header{border-bottom:1px solid #e2e7ee!important;box-shadow:0 2px 12px rgba(25,40,58,.035)!important}
+body.app-standard>header::before,body.app-standard>header::after{content:none!important;display:none!important}
+body.app-standard header p,body.app-standard .brand-copy span,body.app-standard .brand-copy small{color:#637286!important}
+body.app-standard .app-sidebar-brand .brand-mark{background:#d52b40!important;background-image:none!important;color:#fff!important}
+body.app-standard .app-menu a,body.app-standard .app-menu-left a,
+body.app-standard .app-menu a:not(.active):not(.ativo){background:#fff!important;background-image:none!important;color:#344256!important;border:1px solid #e7ebf1!important;box-shadow:none!important}
+body.app-standard .app-menu a:hover,body.app-standard .app-menu-left a:hover{background:#fff2f4!important;color:#bc2137!important;border-color:#f2bcc5!important}
+body.app-standard .app-menu a.ativo,body.app-standard .app-menu a.active,
+body.app-standard .app-menu a[aria-current="page"],body.app-standard .app-menu-left a.ativo,
+body.app-standard .app-menu-left a.active{background:#2563a6!important;background-image:none!important;color:#fff!important;border-color:#2563a6!important;box-shadow:0 3px 9px rgba(37,99,166,.16)!important}
+body.app-standard .app-menu a .nav-ico,body.app-standard .app-menu-left a .nav-ico{
+ background:#eef2f6!important;color:#536275!important;border-color:#e2e7ee!important}
+body.app-standard .app-menu a.ativo .nav-ico,body.app-standard .app-menu a.active .nav-ico,
+body.app-standard .app-menu-left a.ativo .nav-ico{background:rgba(255,255,255,.18)!important;color:#fff!important;border-color:transparent!important}
+/* Componentes */
+body.app-standard :is(.panel,.card,.kpi,.exec-card,.hero-card,.hero-mini,.hero-metric,.hero-side,.hero-strip,
+.summary-card,.cd-exec-card,.horizon,.health-item,.fluxo-col,.alert,.mov,.tipo,.exp-item,.expansao-chip,
+.cd-dashboard-panel,.flow-card,.module-card,.quick-card,.stat-card,.widget,.section-card,.tile){
+ background:#fff!important;background-image:none!important;color:#202b3b!important;
+ border-color:#e2e7ee!important;box-shadow:0 3px 12px rgba(23,39,59,.035)!important;
+}
+body.app-standard :is(.hero-card,.hero-side,.hero-mini,.hero-strip,.hero-metric,.exec-card,.kpi,.panel,.cd-exec-card) :is(h1,h2,h3,h4,strong,b){color:#202b3b!important}
+body.app-standard :is(.hero-card,.hero-side,.hero-mini,.hero-strip,.hero-metric,.exec-card,.kpi,.panel,.cd-exec-card) :is(p,small,span){color:inherit}
+body.app-standard :is(.panel,.card,.kpi,.exec-card,.hero-card,.hero-mini,.summary-card):hover{border-color:#d6dfe9!important}
+body.app-standard :is(.hero-sub,.panel-sub,.kpi-meta,.exec-card small,.hero-metric small,.hero-chip,.horizon small,.health-item small){color:#64748b!important}
+body.app-standard :is(.kpi.accent strong,.exec-card.accent strong,.hero-metric.accent strong){color:#d52b40!important}
+body.app-standard :is(.kpi.ok strong,.exec-card.ok strong){color:#16845e!important}
+body.app-standard :is(.kpi.warn strong,.exec-card.warn strong){color:#b16e13!important}
+body.app-standard :is(.kpi.danger strong,.exec-card.danger strong){color:#d83950!important}
+body.app-standard .section-accent .dot{background:#d52b40!important}
+body.app-standard :is(.tag,.hero-badge,.hero-status,.cd-scope-badge){background:#fff1f3!important;color:#b91f35!important;border-color:#f1c4cb!important}
+body.app-standard :is(.chart-exp-wrap,.chart-wrap,.alerts,.movs,.fluxo-list){background-color:transparent!important;background-image:none!important;color:#202b3b!important}
+body.app-standard .exec-progress{background:#e9edf2!important}
+body.app-standard .exec-progress b{background:#d52b40!important}
+body.app-standard :is(.head-actions a,.ui-btn,.btn,button,a.button){border-color:#dce3eb!important}
+body.app-standard :is(.head-actions a.primary,.ui-btn-primary,.btn-primary,button.primary,button[type="submit"]:not(.danger):not(.secondary),a.btn-primary){
+ background:#d52b40!important;background-image:none!important;border-color:#d52b40!important;color:#fff!important;box-shadow:none!important;
+}
+body.app-standard :is(.head-actions a.primary,.ui-btn-primary,.btn-primary,button.primary,button[type="submit"]:not(.danger):not(.secondary),a.btn-primary):hover{
+ background:#b92237!important;border-color:#b92237!important;color:#fff!important;
+}
+body.app-standard :is(input,select,textarea){background:#fff!important;color:#243246!important;border-color:#d9e1e9!important}
+body.app-standard :is(input,select,textarea):focus{border-color:#d52b40!important;box-shadow:0 0 0 3px rgba(213,43,64,.12)!important}
+body.app-standard table,body.app-standard :is(th,td){background-color:#fff;color:#253346;border-color:#e8edf2}
+body.app-standard th{background-color:#f4f6f9!important;color:#46566c!important}
+body.app-standard a:not(.app-menu a):not(.app-menu-left a){color:#b92237}
+body.app-standard .head-actions a:not(.primary){color:#344256!important;background:#fff!important}
+/* Login e MFA — página de autenticação não utiliza app-standard */
+body:not(.app-standard){background:#f5f7fa!important;background-image:none!important;color:#202b3b!important}
+body:not(.app-standard) .aurora{display:none!important}
+body:not(.app-standard) :is(.wrapper,.card,.form-card,.login-card,.auth-card,.visual,.login-panel,.mfa-card){
+ background-color:#fff!important;background-image:none!important;color:#202b3b!important;border-color:#e2e7ee!important;
+}
+body:not(.app-standard) :is(.card,.form-card,.login-card,.auth-card,.mfa-card){box-shadow:0 10px 35px rgba(31,46,64,.09)!important}
+body:not(.app-standard) :is(h1,h2,h3,label,strong){color:#202b3b!important}
+body:not(.app-standard) :is(input,select,textarea){background:#fff!important;color:#202b3b!important;border-color:#d8e0e9!important}
+body:not(.app-standard) :is(button[type="submit"],.btn-primary){background:#d52b40!important;background-image:none!important;border-color:#d52b40!important;color:#fff!important}
+body:not(.app-standard) :is(input,select,textarea):focus{border-color:#d52b40!important;box-shadow:0 0 0 3px rgba(213,43,64,.12)!important}
+@media(max-width:768px){body.app-standard>header{background:#fff!important}body.app-standard .app-menu-left{background:#fff!important}}
+
+/* === V4.0 WHITE FIRST. MUST COME LAST === */
+html,html[data-theme],html[data-theme="dark"],body,body.app-standard,body.app-standard.site-expansao,body.app-standard.site-estoque_cd {color-scheme:light!important;background:#f6f8fb!important;color:#1e293b!important;--bg:#f6f8fb!important;--panel:#ffffff!important;--panel2:#f8fafc!important;--panel-2:#f8fafc!important;--text:#1e293b!important;--muted:#64748b!important;--line:#e2e8f0!important;--accent:#2563a6!important;--blue:#2563a6!important;--cyan:#2563a6!important}
+body.app-standard .app-menu,body.app-standard .app-sidebar-brand,body.app-standard .app-menu-left,body.app-standard>header,body.app-standard main,body.app-standard .dash-hero {background-color:#fff!important;background-image:none!important;color:#1e293b!important;border-color:#e2e8f0!important}
+body.app-standard main,body.app-standard .dash-hero {background-color:#f6f8fb!important}
+body.app-standard .app-menu {box-shadow:3px 0 18px rgba(20,42,65,.06)!important}
+body.app-standard .app-sidebar-brand .brand-copy strong,body.app-standard .app-sidebar-brand strong,body.app-standard header h1,body.app-standard header h2 {color:#1e293b!important}
+body.app-standard .app-menu a:not(.ativo):not(.active):not([aria-current="page"]),body.app-standard .app-menu a.app-ai-link:not(.ativo) {background:#fff!important;background-image:none!important;color:#334155!important;border-color:#e2e8f0!important;box-shadow:none!important}
+body.app-standard .app-menu a.ativo,body.app-standard .app-menu a.active,body.app-standard .app-menu a[aria-current="page"],body.app-standard .app-menu a.app-ai-link.ativo {background:#2563a6!important;background-image:none!important;border-color:#2563a6!important;color:#fff!important;box-shadow:0 2px 8px rgba(37,99,166,.12)!important}
+body.app-standard .app-menu a.ativo *,body.app-standard .app-menu a.active *,body.app-standard .app-menu a[aria-current="page"] *{color:#fff!important}
+body.app-standard .app-sidebar-brand .brand-copy span,body.app-standard .app-sidebar-brand .brand-copy small,body.app-standard .app-user,body.app-standard header p {color:#64748b!important}
+body.app-standard :is(.shortcut-card,.shortcut-grid>a,.dash-hero .hero-card,.dash-hero .hero-side,.hero-card,.hero-strip,.hero-metric,.hero-mini,.hero-status,.kpi,.exec-card,.cd-exec-card,.panel,.card,.section-card,.stat-card,.module-card,.quick-card,.horizon,.health-item,.alert,.mov,.fluxo-col,.summary-card,.cd-dashboard-panel,.flow-card,.widget,.tile) {background:#fff!important;background-image:none!important;color:#1e293b!important;border-color:#e2e8f0!important;box-shadow:0 2px 8px rgba(20,42,65,.035)!important}
+body.app-standard :is(.shortcut-card,.hero-card,.hero-metric,.kpi,.exec-card,.panel,.card,.cd-dashboard-panel,.horizon,.health-item,.summary-card) :is(h1,h2,h3,h4,h5,b,strong) {color:#1e293b!important}
+body.app-standard :is(.shortcut-card,.hero-card,.hero-metric,.kpi,.exec-card,.panel,.card,.cd-dashboard-panel,.horizon,.health-item,.summary-card) :is(p,small,.muted) {color:#64748b!important}
+body.app-standard :is(.hero-card,.hero-strip,.hero-metric,.shortcut-card,.kpi,.exec-card,.panel,.card,.cd-dashboard-panel) * {text-shadow:none!important}
+body.app-standard .hero-eyebrow {background:#eff6ff!important;color:#2563a6!important;border-color:#bfdbfe!important}
+body.app-standard .head-actions .ui-btn-primary,body.app-standard button.primary,body.app-standard .btn-primary,body.app-standard button[type="submit"] {background:#d52b40!important;color:#fff!important;border-color:#d52b40!important;background-image:none!important}
+body.app-standard .head-actions .ui-btn-link {background:#fff!important;color:#2563a6!important;border-color:#dbe3ec!important}
+body.app-standard .tag {background:#eff6ff!important;color:#2563a6!important;border-color:#bfdbfe!important}
+body.app-standard .app-menu .nav-ico {background:#edf2f7!important;color:#64748b!important;border-color:#e2e8f0!important}
+body.app-standard .app-menu a.ativo .nav-ico,body.app-standard .app-menu a.active .nav-ico {background:rgba(255,255,255,.2)!important;color:#fff!important;border-color:transparent!important}
+body.app-standard .shortcut-link {color:#2563a6!important}
+body.app-standard .hero-metric strong,body.app-standard .kpi strong {color:#1e293b!important}
+body.app-standard .hero-status .hero-badge {background:#f1f5f9!important;color:#334155!important;border-color:#dbe3ec!important}
+body.app-standard :is(input,select,textarea) {background:#fff!important;color:#1e293b!important;border-color:#dbe3ec!important}
+body.app-standard :is(th,td),body.app-standard table {background:#fff!important;color:#1e293b!important;border-color:#e2e8f0!important}
+body.app-standard th {background:#f1f5f9!important}
+/* Visible version marker */
+.dpsp-light-v4-marker {display:inline-flex;align-items:center;font-size:10px;font-weight:800;letter-spacing:.07em;color:#2563a6!important;background:#eff6ff!important;border:1px solid #bfdbfe!important;padding:6px 9px;border-radius:8px;white-space:nowrap}
+@media(max-width:1179px){body.app-standard .app-menu,body.app-standard .app-menu-left{background:#fff!important}}

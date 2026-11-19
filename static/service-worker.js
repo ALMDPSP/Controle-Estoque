@@ -1,4 +1,4 @@
-const CACHE = 'controle-estoque-mobile-dpsp-v2.0';
+const CACHE = 'controle-estoque-mobile-dpsp-light-v4.0';
 const STATIC = [
   '/static/favicon.ico?v=7',
   '/static/favicon-32.png?v=7',
@@ -8,7 +8,7 @@ const STATIC = [
   '/static/mobile-icon-512.png?v=7',
   '/static/manifest.webmanifest?v=7',
   '/static/ui-premium-v1.9.4.css?v=1.9.4',
-  '/static/tema-dpsp-cutover.css?v=2.0.0'
+  '/static/tema-dpsp-cutover.css?v=4.0.0'
 ];
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(STATIC)).catch(() => {}));

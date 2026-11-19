@@ -15,10 +15,10 @@
 {% include '_mobile_head.html' %}
 
 <!-- Identidade visual DPSP / Cutover Online -->
-<link rel="stylesheet" href="{{ url_for('static', filename='tema-dpsp-cutover.css', v='3.1.0') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='tema-dpsp-cutover.css', v='4.0.0') }}">
 </head>
 <body class="app-standard site-{{ site_area }}">
-<header><div><span class="tag">Dashboard</span><h1>{{ "Visão geral do Estoque CD" if site_area == "estoque_cd" else "Visão geral do estoque" }}</h1><p>{{ "Operação, armazenamento, saldos e movimentações dos Centros de Distribuição do Grupo DPSP." if site_area == "estoque_cd" else "Resumo executivo, alertas de expansão, meta de inauguração salva na simulação e movimentações recentes." }}</p></div><div class="head-actions">{% if role != 'consulta' %}<a class="ui-btn ui-btn-primary" href="{{ url_for('gerar_backup') }}" id="btn-backup-dashboard">Gerar backup agora</a><a class="ui-btn ui-btn-link" href="{{ url_for('pagina_relatorios') }}">Central de relatórios</a>{% endif %}<a class="ui-btn ui-btn-link" href="{{ url_for('index') }}">Abrir Estoque</a><div class="backup-status" id="backup-status"></div></div></header>
+<header><div><span class="tag">Dashboard</span><h1>{{ "Visão geral do Estoque CD" if site_area == "estoque_cd" else "Visão geral do estoque" }}</h1><p>{{ "Operação, armazenamento, saldos e movimentações dos Centros de Distribuição do Grupo DPSP." if site_area == "estoque_cd" else "Resumo executivo, alertas de expansão, meta de inauguração salva na simulação e movimentações recentes." }}</p></div><div class="head-actions"><span class="dpsp-light-v4-marker">LIGHT 4.0 • MENU AZUL</span>{% if role != 'consulta' %}<a class="ui-btn ui-btn-primary" href="{{ url_for('gerar_backup') }}" id="btn-backup-dashboard">Gerar backup agora</a><a class="ui-btn ui-btn-link" href="{{ url_for('pagina_relatorios') }}">Central de relatórios</a>{% endif %}<a class="ui-btn ui-btn-link" href="{{ url_for('index') }}">Abrir Estoque</a><div class="backup-status" id="backup-status"></div></div></header>
 {% include '_menu.html' %}
 <main class="page-dashboard">
 <section class="dash-hero">
